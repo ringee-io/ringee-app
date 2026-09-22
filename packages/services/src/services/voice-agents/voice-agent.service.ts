@@ -41,6 +41,7 @@ import { calculateVoiceClonePrice } from "./voice-clone-pricing";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
+import { buildReceptionistTools, RECEPTIONIST_INSTRUCTIONS } from "./blueprints/receptionist.tools";
 import { CompanyProfileService } from "./company-profile.service";
 import {
   composeVoiceAgentInstructions,
@@ -1131,6 +1132,21 @@ export class VoiceAgentService {
       }
     }
     return ids;
+  }
+
+  async inboundConfig(ctx: OwnershipContext, agentId: string): Promise<VoiceAgentConfig> {
+    const agent = await this.require(ctx, agentId);
+    this.assertReadyForCalls(agent);
+    if (agent.status !== AiVoiceAgentStatus.active || !agent.toolSecretHash)
+      throw new BadRequestException("Activate this voice agent before assigning inbound calls.");
+    await this.ensureInsightGroup(agent);
+    const config = await this.composeConfig(ctx, agent, agent.providerInsightGroupId!);
+    return {
+      ...config,
+      instructions: `${config.instructions}\n\n${RECEPTIONIST_INSTRUCTIONS}`,
+      dynamicVariables: { ...config.dynamicVariables, ...voiceAgentRuntimeVariables(agent.timezone) },
+      tools: [...config.tools, ...buildReceptionistTools({ agentId: agent.id, toolBaseUrl: this.toolBaseUrl(), toolSecretRef: this.toolSecretIdentifier(agent.id), knowledgeBucketIds: [] })],
+    };
   }
 
   private async composeConfig(

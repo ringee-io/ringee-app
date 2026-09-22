@@ -23,6 +23,14 @@ export type InboundNumberRef = {
   id: string;
 };
 
+/** Logical directory entry. Never include provider addresses or credentials. */
+export interface InboundDirectoryEntry {
+  destinationType: "user" | "ring_group" | "desk_phone" | "extension";
+  destinationId: string;
+  label: string;
+  extension?: string;
+}
+
 /**
  * What the carrier layer established before routing begins: which number was
  * called, who called, and how this leg can be connected onward. Nothing here
@@ -52,6 +60,8 @@ export interface InboundCallOrigin {
 /** A destination, resolved down to what ringing it actually needs. */
 export type InboundDestination =
   | { type: "user"; userId: string }
+  | { type: "extension"; membershipId: string; userId: string; extension: string }
+  | { type: "ai_receptionist"; agentId: string; ownerUserId: string }
   | {
       type: "ring_group";
       ringGroupId: string;

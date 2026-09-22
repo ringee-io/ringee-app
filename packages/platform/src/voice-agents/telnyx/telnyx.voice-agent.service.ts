@@ -8,6 +8,7 @@ import type {
   VoiceAgentCallHandle,
   VoiceAgentCallingAppSettings,
   VoiceAgentCallRequest,
+  VoiceAgentInboundRequest,
   VoiceAgentConfig,
   VoiceAgentConversation,
   VoiceAgentEmbeddingStatus,
@@ -108,6 +109,32 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     private readonly telnyxClient: TelnyxClient,
     private readonly knowledgeStore: TelnyxKnowledgeStore,
   ) {}
+
+  async startInboundCall(request: VoiceAgentInboundRequest) {
+    const path = `/calls/${encodeURIComponent(request.callControlId)}/actions`;
+    const config = toAssistantPayload(request.config, { unauthenticatedWebCalls: false });
+    await this.telnyxClient.post(`${path}/answer`, {
+      command_id: `${request.commandId}-answer`,
+      ...(request.config.recordCalls ? { record: "record-from-answer", record_channels: "dual", record_format: "mp3" } : {}),
+    });
+    const response = await this.telnyxClient.post<{ data?: { conversation_id?: string } }>(`${path}/ai_assistant_start`, {
+      command_id: request.commandId,
+      assistant: {
+        id: request.assistantId,
+        instructions: config.instructions,
+        tools: config.tools,
+        dynamic_variables: config.dynamic_variables,
+      },
+      greeting: config.greeting,
+      ...(request.config.voiceId ? { voice: request.config.voiceId } : {}),
+      transcription: config.transcription,
+    });
+    return { conversationId: response.data?.conversation_id ?? null };
+  }
+
+  async stopInboundAssistant(callControlId: string, commandId: string) {
+    await this.telnyxClient.post(`/calls/${encodeURIComponent(callControlId)}/actions/ai_assistant_stop`, { command_id: commandId });
+  }
 
   // ── Assistants ───────────────────────────────────────────────
 

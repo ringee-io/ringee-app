@@ -41,6 +41,12 @@ export class AiVoiceAgentCallRepository {
     return this.prisma.aiVoiceAgentCall.findUnique({ where: { callId } });
   }
 
+  createInboundOnce(data: Prisma.AiVoiceAgentCallUncheckedCreateInput & { callId: string }) {
+    return this.prisma.aiVoiceAgentCall.upsert({
+      where: { callId: data.callId }, create: data, update: {},
+    });
+  }
+
   findByConversationId(
     providerConversationId: string,
   ): Promise<AiVoiceAgentCall | null> {

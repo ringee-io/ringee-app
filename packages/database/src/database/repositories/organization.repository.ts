@@ -106,6 +106,18 @@ export class OrganizationRepository {
     return count > 0;
   }
 
+  findExtension(organizationId: string, membershipId: string) {
+    return this.prisma.organizationMembership.findFirst({
+      where: { id: membershipId, organizationId, userId: { not: null }, extension: { not: null } },
+    });
+  }
+
+  async setExtension(organizationId: string, userId: string, extension: string | null) {
+    return this.prisma.organizationMembership.updateMany({
+      where: { organizationId, userId }, data: { extension },
+    });
+  }
+
   private mapClerkToPrisma(
     clerkOrg: ClerkOrganization,
   ): Prisma.OrganizationCreateInput {

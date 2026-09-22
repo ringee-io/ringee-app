@@ -40,9 +40,3 @@ export class IvrDestinationHandler extends UnsupportedDestinationHandler {
   readonly label = "IVR";
 }
 
-/** Reserved for the AI receptionist. See docs/engineering/TELEPHONY.md. */
-@Injectable()
-export class AiReceptionistDestinationHandler extends UnsupportedDestinationHandler {
-  readonly type = InboundDestinationType.ai_receptionist;
-  readonly label = "AI receptionist";
-}

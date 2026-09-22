@@ -569,6 +569,8 @@ model OrganizationMembership {
   userId         String?  @db.Uuid
   clerkUserId    String? // Clerk user ID for pending invitations
   role           String
+  /// Optional internal dialing extension, unique inside this organization.
+  extension      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -577,6 +579,7 @@ model OrganizationMembership {
 
   @@unique([organizationId, userId])
   @@unique([organizationId, clerkUserId])
+  @@unique([organizationId, extension])
   @@index([organizationId])
   @@index([userId])
   @@index([clerkUserId])
@@ -714,6 +717,13 @@ model Call {
   ringGroupId            String?                 @db.Uuid
   /// Which member won it. Claimed atomically, so exactly one destination can.
   answeredByUserId       String?                 @db.Uuid
+  /// The endpoint that won a server-controlled transfer (browser or handset).
+  answeredByRingAttemptId String?                @db.Uuid
+  /// Original inbound destination remains the AI; these snapshot its handoff.
+  inboundTransferDestinationType InboundDestinationType?
+  inboundTransferDestinationId   String?         @db.Uuid
+  inboundTransferState           String?
+  inboundTransferRequestedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4517,6 +4527,7 @@ enum InboundDestinationType {
   desk_phone
   ivr
   ai_receptionist
+  extension
 }
 
 /// How a ring group offers a call to its members. Simultaneous is the only
@@ -4622,6 +4633,11 @@ model InboundRingAttempt {
   userId      String? @db.Uuid
   /// Set when the endpoint was a desk phone.
   sipDeviceId String? @db.Uuid
+  /// Stable per-call target key, including the individual browser/desk phone.
+  endpointKey String
+  providerCallControlId String? @unique
+  providerCallLegId String?
+  chargedCredits Float?
 
   status        InboundRingAttemptStatus @default(ringing)
   failureReason String?
@@ -4633,7 +4649,7 @@ model InboundRingAttempt {
   sipDevice SipDevice? @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
 
   /// A redelivered webhook must not ring the same member twice.
-  @@unique([callId, userId])
+  @@unique([callId, endpointKey])
   @@index([callId])
   @@index([userId])
 }

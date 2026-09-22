@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Prisma, Call, CallStatus, CallOutcome } from "@prisma/client";
+import { Prisma, Call, CallStatus, CallOutcome, InboundDestinationType } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
@@ -226,13 +226,45 @@ export class CallRepository {
       where: {
         callControlId,
         answeredByUserId: null,
-        answeredAt: null,
+        OR: [
+          { answeredAt: null },
+          { inboundTransferState: "ringing" },
+        ],
         endedAt: null,
       },
       data: { answeredByUserId: userId },
     });
     const call = await this.findByControlId(callControlId);
     return { won: count === 1 || call?.answeredByUserId === userId, call };
+  }
+
+  async beginInboundTransfer(
+    ctx: OwnershipContext,
+    id: string,
+    destination: { type: InboundDestinationType; id: string },
+  ) {
+    await this.prisma.call.updateMany({
+      where: { id, ...buildOwnershipFilter(ctx), direction: "inbound", endedAt: null, inboundTransferState: null },
+      data: {
+        inboundTransferDestinationType: destination.type,
+        inboundTransferDestinationId: destination.id,
+        inboundTransferState: "preparing",
+        inboundTransferRequestedAt: new Date(),
+      },
+    });
+    return this.prisma.call.findFirst({ where: { id, ...buildOwnershipFilter(ctx) } });
+  }
+
+  async claimInboundEndpoint(callId: string, attemptId: string, userId: string) {
+    await this.prisma.call.updateMany({
+      where: {
+        id: callId, endedAt: null, answeredByRingAttemptId: null,
+        OR: [{ answeredByUserId: null }, { answeredByUserId: userId }],
+      },
+      data: { answeredByRingAttemptId: attemptId, answeredByUserId: userId },
+    });
+    const call = await this.findById(callId);
+    return { won: call?.answeredByRingAttemptId === attemptId, call };
   }
 
   /** Closes the caller's own external carrier pre-dial that never got a leg. */

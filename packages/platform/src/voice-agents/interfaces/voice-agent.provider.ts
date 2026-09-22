@@ -143,6 +143,14 @@ export interface VoiceAgentCallRequest {
   record?: boolean;
 }
 
+/** Attach the existing assistant to the caller's live inbound leg. */
+export interface VoiceAgentInboundRequest {
+  callControlId: string;
+  assistantId: string;
+  commandId: string;
+  config: VoiceAgentConfig;
+}
+
 /**
  * What Ringee requires of the calling application an agent's calls go out
  * through. The provider provisions one per assistant with its own defaults;
@@ -413,6 +421,8 @@ export interface VoiceAgentProvider {
   ): Promise<void>;
 
   startCall(request: VoiceAgentCallRequest): Promise<VoiceAgentCallHandle>;
+  startInboundCall(request: VoiceAgentInboundRequest): Promise<{ conversationId: string | null }>;
+  stopInboundAssistant(callControlId: string, commandId: string): Promise<void>;
 
   /**
    * Applies Ringee's own requirements to the calling application the provider

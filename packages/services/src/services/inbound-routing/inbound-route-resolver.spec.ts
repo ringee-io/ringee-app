@@ -7,6 +7,7 @@ import type {
   InboundCallOrigin,
   InboundRouteResolution,
 } from "./inbound-routing.types";
+import type { OwnershipContext } from "@ringee/platform";
 
 const config = apiConfiguration as unknown as Record<string, unknown>;
 
@@ -32,6 +33,7 @@ function setup() {
     device: {
       id: "device-1",
       publicRef: "dev_1",
+      label: "Sales desk",
       userId: "user-a",
       organizationId: "org-1",
       sipUsername: "rgdesk201",
@@ -60,6 +62,12 @@ function setup() {
       ["user-z", { id: "user-z", firstName: "Outsider" }],
     ]),
   };
+  const owned = (ctx: OwnershipContext, row: Row | null) =>
+    row &&
+    !row.deletedAt &&
+    (ctx.organizationId
+      ? row.organizationId === ctx.organizationId
+      : row.userId === ctx.userId && !row.organizationId);
   const service = new InboundRouteResolverService(
     {
       findOneByNumber: async (phone: string) =>
@@ -73,10 +81,14 @@ function setup() {
     {
       findByIdWithMembers: async (id: string) =>
         state.ringGroup?.id === id ? state.ringGroup : null,
+      listByOwner: async (ctx: OwnershipContext) =>
+        owned(ctx, state.ringGroup) ? [state.ringGroup] : [],
     } as never,
     {
       findActiveById: async (id: string) =>
         state.device?.id === id ? state.device : null,
+      listByOwner: async (ctx: OwnershipContext) =>
+        owned(ctx, state.device) ? [state.device] : [],
     } as never,
     {
       getCachedUserById: async (id: string) => state.users.get(id) ?? null,
@@ -84,6 +96,12 @@ function setup() {
     {
       isMember: async (userId: string, orgId: string) =>
         orgId === "org-1" && state.members.has(userId),
+      listMembersWithUsers: async (orgId: string) =>
+        orgId === "org-1"
+          ? [...state.members].map((id) => ({
+              user: state.users.get(id) ?? null,
+            }))
+          : [],
     } as never,
   );
   const ringee = (): InboundCallOrigin => ({
@@ -136,6 +154,123 @@ function unroutable(resolution: InboundRouteResolution) {
   );
   return resolution as Extract<InboundRouteResolution, { kind: "unroutable" }>;
 }
+
+describe("InboundRouteResolverService — dynamic directory", () => {
+  const ctx = { userId: "user-a", organizationId: "org-1" };
+
+  it("returns only logical destination identifiers and labels", () =>
+    withDeskPhones(async () => {
+      const s = setup();
+      const result = await s.service.searchDirectory(ctx, " SALES ");
+      assert.deepEqual(result, {
+        destinations: [
+          {
+            destinationType: "ring_group",
+            destinationId: "group-1",
+            label: "Sales",
+          },
+          {
+            destinationType: "desk_phone",
+            destinationId: "device-1",
+            label: "Sales desk",
+          },
+        ],
+        hasMore: false,
+      });
+      assert.equal(JSON.stringify(result).includes("rgdesk201"), false);
+      assert.deepEqual(
+        await s.service.searchDirectory(ctx, "missing department"),
+        {
+          destinations: [],
+          hasMore: false,
+        },
+      );
+    }));
+
+  it("reads current membership on every lookup and revalidates a selection", async () => {
+    const s = setup();
+    assert.equal(
+      (await s.service.searchDirectory(ctx, "Pedro")).destinations.length,
+      1,
+    );
+    s.state.members.delete("user-b");
+    assert.deepEqual(
+      (await s.service.searchDirectory(ctx, "Pedro")).destinations,
+      [],
+    );
+    const resolution = await s.service.resolveDestination(ctx, {
+      destinationType: InboundDestinationType.user,
+      destinationId: "user-b",
+    });
+    assert.equal(
+      "reason" in resolution && resolution.reason,
+      "destination_foreign_workspace",
+    );
+  });
+
+  it("keeps personal and organization directories separate", () =>
+    withDeskPhones(async () => {
+      const s = setup();
+      assert.deepEqual(
+        await s.service.searchDirectory({ ...ctx, organizationId: "org-2" }),
+        {
+          destinations: [],
+          hasMore: false,
+        },
+      );
+      assert.deepEqual(
+        await s.service.searchDirectory({
+          userId: "user-a",
+          organizationId: null,
+        }),
+        {
+          destinations: [
+            {
+              destinationType: "user",
+              destinationId: "user-a",
+              label: "Edison",
+            },
+          ],
+          hasMore: false,
+        },
+      );
+    }));
+
+  it("excludes empty groups, unavailable phones and departed phone owners", () =>
+    withDeskPhones(async () => {
+      const s = setup();
+      s.state.ringGroup!.members = [{ userId: "user-z" }];
+      s.state.device!.allowInbound = false;
+      assert.deepEqual(
+        (await s.service.searchDirectory(ctx, "Sales")).destinations,
+        [],
+      );
+      s.state.device!.allowInbound = true;
+      s.state.members.delete("user-a");
+      assert.deepEqual(
+        (await s.service.searchDirectory(ctx, "Sales")).destinations,
+        [],
+      );
+    }));
+
+  it("preserves ambiguous names and bounds the response without inventing matches", async () => {
+    const s = setup();
+    s.state.users.set("user-b", { id: "user-b", firstName: "Edison" });
+    assert.equal(
+      (await s.service.searchDirectory(ctx, "Edison")).destinations.length,
+      2,
+    );
+    for (let i = 0; i < 60; i++) {
+      const id = `member-${i}`;
+      s.state.members.add(id);
+      s.state.users.set(id, { id, firstName: "Member" });
+    }
+    const result = await s.service.searchDirectory(ctx, "Member");
+    assert.equal(result.destinations.length, 50);
+    assert.equal(result.hasMore, true);
+    await assert.rejects(() => s.service.searchDirectory(ctx, "x".repeat(201)));
+  });
+});
 
 describe("InboundRouteResolverService — explicit routes", () => {
   it("routes a phone number to a user", async () => {

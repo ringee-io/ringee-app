@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { InboundRingAttempt, InboundRingAttemptStatus } from "@prisma/client";
+import { InboundRingAttempt, InboundRingAttemptStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 /** One endpoint a call was offered to. */
 export type RingAttemptTarget = {
   userId?: string | null;
   sipDeviceId?: string | null;
+  endpointKey?: string;
 };
 
 /**
@@ -16,6 +17,18 @@ export type RingAttemptTarget = {
 @Injectable()
 export class InboundRingAttemptRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  findById(id: string) {
+    return this.prisma.inboundRingAttempt.findUnique({ where: { id }, include: { call: true } });
+  }
+
+  findByControlId(providerCallControlId: string) {
+    return this.prisma.inboundRingAttempt.findUnique({ where: { providerCallControlId }, include: { call: true } });
+  }
+
+  update(id: string, data: Prisma.InboundRingAttemptUncheckedUpdateInput) {
+    return this.prisma.inboundRingAttempt.update({ where: { id }, data });
+  }
 
   listByCall(callId: string): Promise<InboundRingAttempt[]> {
     return this.prisma.inboundRingAttempt.findMany({
@@ -42,6 +55,7 @@ export class InboundRingAttemptRepository {
         callId,
         userId: target.userId ?? null,
         sipDeviceId: target.sipDeviceId ?? null,
+        endpointKey: target.endpointKey ?? (target.sipDeviceId ? `desk:${target.sipDeviceId}` : `user:${target.userId}`),
       })),
       skipDuplicates: true,
     });

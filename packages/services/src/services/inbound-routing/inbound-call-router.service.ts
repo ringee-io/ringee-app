@@ -3,10 +3,8 @@ import { InboundDestinationType } from "@ringee/database";
 import { UserDestinationHandler } from "./destinations/user.destination";
 import { RingGroupDestinationHandler } from "./destinations/ring-group.destination";
 import { DeskPhoneDestinationHandler } from "./destinations/desk-phone.destination";
-import {
-  AiReceptionistDestinationHandler,
-  IvrDestinationHandler,
-} from "./destinations/unsupported.destination";
+import { IvrDestinationHandler } from "./destinations/unsupported.destination";
+import { AiReceptionistDestinationHandler } from "./destinations/ai-receptionist.destination";
 import type {
   InboundDestination,
   InboundDestinationHandler,
@@ -22,6 +20,10 @@ export function destinationTypeOf(
   switch (destination.type) {
     case "user":
       return InboundDestinationType.user;
+    case "extension":
+      return InboundDestinationType.extension;
+    case "ai_receptionist":
+      return InboundDestinationType.ai_receptionist;
     case "ring_group":
       return InboundDestinationType.ring_group;
     case "desk_phone":
@@ -34,6 +36,10 @@ export function destinationIdOf(destination: InboundDestination): string {
   switch (destination.type) {
     case "user":
       return destination.userId;
+    case "extension":
+      return destination.membershipId;
+    case "ai_receptionist":
+      return destination.agentId;
     case "ring_group":
       return destination.ringGroupId;
     case "desk_phone":
@@ -78,7 +84,7 @@ export class InboundCallRouterService {
 
   /** Which transports can reach a destination type at all. */
   transportsFor(type: InboundDestinationType): readonly InboundTransport[] {
-    return this.handlers.get(type)?.transports ?? [];
+    return this.handlers.get(type === InboundDestinationType.extension ? InboundDestinationType.user : type)?.transports ?? [];
   }
 
   /**
@@ -93,7 +99,7 @@ export class InboundCallRouterService {
     request: RouteExecutionRequest,
   ): Promise<RouteExecutionResult> {
     const type = destinationTypeOf(request.destination);
-    const handler = this.handlers.get(type);
+    const handler = this.handlers.get(type === InboundDestinationType.extension ? InboundDestinationType.user : type);
     if (!handler)
       return {
         status: "failed",

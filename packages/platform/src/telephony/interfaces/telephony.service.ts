@@ -35,6 +35,11 @@ export type TelephonyService = {
     },
   ): Promise<{ sipUsername: string; sipPassword: string }>;
   hangupCall(callControlId: string, commandId?: string): Promise<void>;
+  bridgeCalls(callControlId: string, otherCallControlId: string, commandId: string): Promise<void>;
+  dialInboundEndpoint(params: {
+    sipUsername: string; from: string; correlation: string; commandId: string;
+    timeoutSecs: number;
+  }): Promise<{ callControlId: string; callLegId: string | null }>;
   /**
    * Ask the provider whether a leg is still up. `null` means "could not tell"
    * (provider unreachable / unexpected response) and must NOT be read as "the

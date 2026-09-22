@@ -6,6 +6,7 @@ import type {
   VoiceAgentCallHandle,
   VoiceAgentCallingAppSettings,
   VoiceAgentCallRequest,
+  VoiceAgentInboundRequest,
   VoiceAgentConfig,
   VoiceAgentConversation,
   VoiceAgentEmbeddingStatus,
@@ -69,6 +70,14 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
 
   startCall(request: VoiceAgentCallRequest): Promise<VoiceAgentCallHandle> {
     return this.getServiceProvider().startCall(request);
+  }
+
+  startInboundCall(request: VoiceAgentInboundRequest) {
+    return this.getServiceProvider().startInboundCall(request);
+  }
+
+  stopInboundAssistant(callControlId: string, commandId: string) {
+    return this.getServiceProvider().stopInboundAssistant(callControlId, commandId);
   }
 
   configureCallingApp(

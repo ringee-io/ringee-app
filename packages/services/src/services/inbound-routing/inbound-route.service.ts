@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  BadRequestException,
   Injectable,
   NotFoundException,
   NotImplementedException,
@@ -7,6 +8,7 @@ import {
 import { apiConfiguration } from "@ringee/configuration";
 import {
   ExternalCarrierRepository,
+  AiVoiceAgentRepository,
   InboundDestinationType,
   InboundRoute,
   InboundRouteRepository,
@@ -16,7 +18,9 @@ import {
   RingGroupRepository,
   SipDeviceRepository,
 } from "@ringee/database";
-import type { OwnershipContext } from "@ringee/platform";
+import { TelephonyService, RedisService, type OwnershipContext } from "@ringee/platform";
+import { randomUUID } from "crypto";
+import { InboundRouteResolverService } from "./inbound-route-resolver.service";
 import { UserService } from "../user.service";
 import { InboundCallRouterService } from "./inbound-call-router.service";
 import { legacyInboundDestination } from "./legacy-inbound-fallback";
@@ -30,6 +34,8 @@ const ROUTABLE: readonly InboundDestinationType[] = [
   InboundDestinationType.user,
   InboundDestinationType.ring_group,
   InboundDestinationType.desk_phone,
+  InboundDestinationType.extension,
+  InboundDestinationType.ai_receptionist,
 ];
 
 /** How calls to a number reach Ringee, which limits what it can route to. */
@@ -82,6 +88,10 @@ export class InboundRouteService {
     private readonly organizations: OrganizationRepository,
     private readonly users: UserService,
     private readonly router: InboundCallRouterService,
+    private readonly resolver: InboundRouteResolverService,
+    private readonly agents: AiVoiceAgentRepository,
+    private readonly telephony: TelephonyService,
+    private readonly redis: RedisService,
   ) {}
 
   /**
@@ -143,7 +153,7 @@ export class InboundRouteService {
     if (
       !this.router
         .transportsFor(input.destinationType)
-        .includes(transportOf(ref))
+        .includes(input.destinationType === InboundDestinationType.ai_receptionist ? "call_control" : transportOf(ref))
     )
       throw new ConflictException(
         ref.kind === "external"
@@ -152,8 +162,23 @@ export class InboundRouteService {
       );
 
     await this.assertDestinationInWorkspace(ctx, input);
-    const route = await this.routes.saveForNumber(ctx, ref, input);
-    return this.view(ctx, ref, number, route);
+    const lock = `inbound-route:${ref.kind}:${ref.id}`;
+    const token = randomUUID();
+    if (!(await this.redis.setIfAbsent(lock, token, 120)))
+      throw new ConflictException("This number's routing is being updated. Try again.");
+    try {
+      if (ref.kind === "ringee" && input.destinationType === InboundDestinationType.ai_receptionist) {
+        const appId = apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
+        if (!appId || appId === apiConfiguration.TELNYX_CONNECTION_ID)
+          throw new ConflictException("Inbound AI calling requires a configured Call Control application.");
+        const assigned = await this.telephony.assignNumberToConnection(number.phoneNumber, appId);
+        await this.numbers.update(ref.id, { providerConnectionId: assigned.connectionId, providerConnectionName: assigned.connectionName });
+      }
+      const route = await this.routes.saveForNumber(ctx, ref, input);
+      return this.view(ctx, ref, number, route);
+    } finally {
+      await this.redis.compareAndSwap(lock, token, null);
+    }
   }
 
   /** Reset a number to its default inbound behavior. */
@@ -164,6 +189,38 @@ export class InboundRouteService {
     const number = await this.requireNumber(ctx, ref);
     await this.routes.deleteForNumber(ctx, ref);
     return this.view(ctx, ref, number, null);
+  }
+
+  async listNumbers(ctx: OwnershipContext): Promise<InboundRouteView[]> {
+    const [numbers, external] = await Promise.all([
+      this.numbers.findByOwner(ctx),
+      ctx.organizationId ? this.externalNumbers.listCallingNumbers({ ...ctx, organizationId: ctx.organizationId }) : Promise.resolve([]),
+    ]);
+    const refs: InboundNumberRef[] = [
+      ...numbers.filter((number) => number.kind === "purchased" && number.active).map((number) => ({ kind: "ringee" as const, id: number.id })),
+      ...external.map((number) => ({ kind: "external" as const, id: number.id })),
+    ];
+    return Promise.all(refs.map((ref) => this.getForNumber(ctx, ref)));
+  }
+
+  directory(ctx: OwnershipContext, query = "") {
+    return this.resolver.searchDirectory(ctx, query);
+  }
+
+  async setExtension(ctx: OwnershipContext, userId: string, extension: string | null) {
+    if (!ctx.organizationId) throw new BadRequestException("Internal extensions require an organization.");
+    if (extension !== null && !/^[0-9]{2,6}$/.test(extension))
+      throw new BadRequestException("An extension must contain 2 to 6 digits.");
+    if (!(await this.organizations.isMember(userId, ctx.organizationId)))
+      throw new NotFoundException("Organization member not found.");
+    try {
+      await this.organizations.setExtension(ctx.organizationId, userId, extension);
+    } catch (error) {
+      if ((error as { code?: string }).code === "P2002")
+        throw new ConflictException("This extension is already assigned.");
+      throw error;
+    }
+    return { userId, extension };
   }
 
   // ── validation ───────────────────────────────────────────────────────────
@@ -182,6 +239,8 @@ export class InboundRouteService {
       if (
         !number ||
         number.deletedAt ||
+        number.kind !== "purchased" ||
+        !number.active ||
         !this.rowInWorkspace(ctx, {
           userId: number.userId ?? "",
           organizationId: number.organizationId,
@@ -218,6 +277,12 @@ export class InboundRouteService {
       new NotFoundException("That routing destination was not found.");
 
     switch (input.destinationType) {
+      case InboundDestinationType.ai_receptionist:
+      case InboundDestinationType.extension: {
+        const destination = await this.resolver.resolveDestination(ctx, input);
+        if ("reason" in destination) throw missing();
+        return;
+      }
       case InboundDestinationType.user: {
         const user = await this.users
           .getCachedUserById(input.destinationId)
@@ -281,7 +346,7 @@ export class InboundRouteService {
   ): Promise<InboundRouteView> {
     const phoneNumber = number.phoneNumber;
     const available = ROUTABLE.filter((type) =>
-      this.router.transportsFor(type).includes(transportOf(ref)),
+      this.router.transportsFor(type).includes(type === InboundDestinationType.ai_receptionist ? "call_control" : transportOf(ref)) && (type !== InboundDestinationType.ai_receptionist || Boolean(ctx.organizationId)),
     );
     if (route)
       return {
@@ -333,6 +398,10 @@ export class InboundRouteService {
     id: string,
   ): Promise<string | null> {
     switch (type) {
+      case InboundDestinationType.ai_receptionist:
+        return (await this.agents.findByIdForOwner(ctx, id))?.name ?? null;
+      case InboundDestinationType.extension:
+        return ctx.organizationId ? (await this.organizations.findExtension(ctx.organizationId, id))?.extension ?? null : null;
       case InboundDestinationType.user: {
         const user = await this.users.getCachedUserById(id).catch(() => null);
         return (
