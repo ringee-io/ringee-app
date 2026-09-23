@@ -384,14 +384,20 @@ save extension ─► ExternalSipEndpoint row (UUID, encrypted SIP password)
     registration check                       → registrationStatus; never fails the save
 ```
 
-| UAC field                                        | Source                                                                                                 |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `connection_name`                                | `ringee-byoc-<endpoint id>`: the recovery key                                                          |
-| `active`, `sip_uri_calling_preference: internal` | fixed                                                                                                  |
-| `user_name`, `password` (Internal UAC)           | derived per connection from `APP_ENCRYPTION_SECRET` (`carrier_uac` key); never stored, never shown     |
-| `internal_uac_settings.destination_uri`          | `<signed route key>@<Call Control app subdomain>.sip.telnyx.com`, from the first save                  |
-| `external_uac_settings.*`                        | the customer's form; an unset auth username, from user or outbound proxy is sent as `null`, never `""` |
+| UAC field                                        | Source                                                                                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connection_name`                                | `ringee-byoc-<endpoint id>`: the recovery key                                                                                                   |
+| `active`, `sip_uri_calling_preference: internal` | fixed                                                                                                                                           |
+| `user_name`, `password` (Internal UAC)           | derived per connection with the `carrier_uac` key, from `SDK_SIGNING_SECRET` or, when unset, `APP_ENCRYPTION_SECRET`; never stored, never shown |
+| `internal_uac_settings.destination_uri`          | `<signed route key>@<Call Control app subdomain>.sip.telnyx.com`, from the first save                                                           |
+| `external_uac_settings.*`                        | the customer's form; an unset auth username, from user or outbound proxy is sent as `null`, never `""`                                          |
 
+- **Rotating the signing secret** (`SDK_SIGNING_SECRET`, or
+  `APP_ENCRYPTION_SECRET` when it is the one in use) changes every
+  connection's internal credentials and every route key, so inbound calls stop
+  verifying until each extension is synchronized again; do that for every
+  extension right after rotating. Call keys only live for a pre-dial's two
+  minutes: a rotation only fails pre-dials in flight.
 - **Telnyx requires the Internal UAC username, password and SIP URI.** A UAC
   created without them is accepted and then rejected by its next update
   (`int_username is required`, `SIP URI is required`). Every connection is
@@ -523,15 +529,16 @@ leg C  Call Control → UAC FQDN ──► customer's PBX ──► their carrie
 caller → carrier → PBX → extension registered by the UAC
   → UAC Internal SIP URI  <signed route key>@<Call Control app subdomain>.sip.telnyx.com
   → Call Control application → call.initiated (inbound)
-      ExternalCarrierService.resolveInbound
+      ExternalCarrierService.identifyInbound        the carrier half, and it stops here
         key verifies → endpoint synced and active → called number:
           the extension's only number, or the one the PBX named in X-Ringee-Called-Number
           then require that number to be active
-        → that number's desk phone: same organization, accepts inbound, owner still a member
-      Call row: inbound · from = caller · to = external number · source = sip_device
-                sipDeviceId · externalCarrierId + externalSipEndpointId
-      transfer → sip:<desk phone SIP username>@sip.telnyx.com
-                 command_id per call · new leg marked with the call's signed id
+        → identified { organization, external number, carrier, endpoint } | refused | none
+      InboundRouteResolverService                   who owns the call (as for any number)
+      InboundCallRouterService → the destination's handler
+        DESK_PHONE (DeskPhoneDestinationHandler):
+          transfer → sip:<desk phone SIP username>@sip.telnyx.com
+          command_id per call · new leg marked with the call's signed id
   desk phone leg:  answered            → the call is answered once, answer automation once
                    hangup, caller up   → the caller's leg ends; the PBX decides what follows
   phone's own connection webhook: the marked leg is not recorded a second time
@@ -561,9 +568,9 @@ caller → carrier → PBX → extension registered by the UAC
   reaches it that way.
 - Ambiguity is refused, never guessed. A refused carrier call is hung up and
   logged, and leaves no history row.
-- Ringee numbers keep their inbound path untouched: `resolveInbound` returns
+- Ringee numbers keep their inbound path untouched: `identifyInbound` returns
   `none` for anything that is not a route-key call on the Call Control
-  application.
+  application, and the number is resolved as it always was.
 - A desk phone rings for up to 120 s, longer than a PBX usually rings an
   extension, so the PBX's own timeout and voicemail still apply.
 

@@ -240,7 +240,7 @@ describe("ExternalCarrierService outbound calling", () => {
     const id = "7c1e2d3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
     const entry = await s.service.outboundEntry(id);
     assert.equal(entry, `sip:${signCarrierCallKey(id)}@ringee.sip.telnyx.com`);
-    assert.doesNotMatch(entry, new RegExp(HOST));
+    assert.ok(!entry.includes(HOST));
     s.state.providerError = new CarrierConnectionError(false);
     await assert.rejects(s.service.outboundEntry(id), BadGatewayException);
   });

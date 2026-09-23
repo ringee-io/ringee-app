@@ -326,7 +326,7 @@ describe("CallService external carrier outbound", () => {
     const row = s.rows.get(verifyCallCorrelation(result.callToken)!)!;
     // The browser is sent to Ringee's application, never to the carrier.
     assert.equal(result.destinationUri, entryFor(row.id));
-    assert.doesNotMatch(result.destinationUri, new RegExp(HOST));
+    assert.ok(!result.destinationUri.includes(HOST));
     assert.doesNotMatch(result.destinationUri, /12125550199/);
     assert.equal(row.status, CallStatus.pending);
     assert.equal(row.direction, "outbound");
@@ -651,15 +651,26 @@ describe("CallService external carrier outbound bridge", () => {
     }
   });
 
-  it("applies the ordinary credit backstop before binding the entry leg", async () => {
+  it("applies the ordinary credit backstop before binding the entry leg, keeping its mark", async () => {
     const s = setup();
     const { callToken } = await predial(s);
     s.state.balance = 0;
     await s.service.handleTelephonyEvent(s.entryLeg(callToken));
     assert.equal(s.claims.length, 0);
     assert.equal(s.transfers.length, 0);
-    assert.deepEqual(s.hangups, ["entry-1"]);
+    // Ended with the entry mark, not a plain hangup that would overwrite it.
+    assert.deepEqual(s.refusals, ["entry-1"]);
+    assert.deepEqual(s.hangups, []);
     assert.deepEqual(s.failed, [verifyCallCorrelation(callToken)]);
+  });
+
+  it("still hangs up a browser leg the gates refuse the ordinary way", async () => {
+    const s = setup();
+    const { callToken } = await predial(s);
+    s.state.balance = 0;
+    await s.service.handleTelephonyEvent(s.withToken(callToken));
+    assert.deepEqual(s.hangups, ["leg-1"]);
+    assert.deepEqual(s.refusals, []);
   });
 
   it("only acts on the application's own legs", async () => {

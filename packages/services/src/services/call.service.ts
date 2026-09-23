@@ -508,9 +508,16 @@ export class CallService implements OnModuleDestroy {
       (!call.callSessionId || call.callSessionId !== event.callSessionId)
     )
       return refuse("its pre-dial is carried by another call");
+    // A leg the gates refuse is ended with its mark, like any refused entry
+    // leg, so its later webhooks — its cost included — are recognized.
     if (
       !call.callControlId &&
-      !(await this.claimExternalOutbound(ctx, call, event, refuse))
+      !(await this.claimExternalOutbound(ctx, call, event, refuse, (leg) =>
+        this.telephonyService.refuseCarrierOutbound(
+          leg,
+          `carrier-outbound-refuse-${leg}`,
+        ),
+      ))
     )
       return;
 
@@ -779,17 +786,19 @@ export class CallService implements OnModuleDestroy {
    * Binds a leg to its pre-dial's row: the same credit and one-call gates, in
    * the same order, as every other browser-placed leg, then an atomic claim,
    * so exactly one leg carries a pre-dial. True when the row is this leg's.
+   * `endLeg` is how a leg the gates refuse ends (hung up by default).
    */
   private async claimExternalOutbound(
     ctx: OwnershipContext,
     call: Call,
     event: TelephonyEvent,
     refuse: (reason: string) => Promise<void>,
+    endLeg?: (callControlId: string) => Promise<void>,
   ): Promise<boolean> {
     const { callControlId } = event;
     if (
-      !(await this.ensureCallAffordable(ctx, callControlId)) ||
-      !(await this.ensureNoConcurrentCall(ctx, callControlId))
+      !(await this.ensureCallAffordable(ctx, callControlId, endLeg)) ||
+      !(await this.ensureNoConcurrentCall(ctx, callControlId, endLeg))
     ) {
       await this.callRepository.failPendingExternalCall(
         ctx,
@@ -1039,11 +1048,14 @@ export class CallService implements OnModuleDestroy {
    * let through without binding the lease, which would otherwise overwrite the
    * reservation of a personal call running at the same time.
    *
-   * Returns false when the event must stop being processed.
+   * Returns false when the event must stop being processed. `endLeg` is how
+   * a refused leg ends; a leg that must keep its own marker supplies it.
    */
   private async ensureNoConcurrentCall(
     ctx: OwnershipContext,
     callControlId: string,
+    endLeg: (callControlId: string) => Promise<void> = (id) =>
+      this.telephonyService.hangupCall(id),
   ): Promise<boolean> {
     if (
       !(await this.concurrentCallGuard.appliesTo(
@@ -1069,14 +1081,12 @@ export class CallService implements OnModuleDestroy {
       `⛔ Hanging up call ${callControlId}: user ${ctx.userId} is already on call ` +
         `${busy.id} (${busy.callControlId}, source=${busy.source ?? "unknown"})`,
     );
-    await this.telephonyService
-      .hangupCall(callControlId)
-      .catch((err) =>
-        this.logger.error(
-          `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
-          err.stack,
-        ),
-      );
+    await endLeg(callControlId).catch((err) =>
+      this.logger.error(
+        `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
+        err.stack,
+      ),
+    );
     return false;
   }
 
@@ -1084,12 +1094,15 @@ export class CallService implements OnModuleDestroy {
    * Decide whether `ctx`'s owner may place/continue a call.
    * Owners flagged with an active free-call trial are always allowed.
    * Otherwise a positive credit balance (user or organization, resolved from
-   * the context) is required. If neither holds, the live call is hung up and
-   * `false` is returned so the caller stops processing the event.
+   * the context) is required. If neither holds, the live call is ended with
+   * `endLeg` (hung up by default) and `false` is returned so the caller stops
+   * processing the event.
    */
   private async ensureCallAffordable(
     ctx: OwnershipContext,
     callControlId: string,
+    endLeg: (callControlId: string) => Promise<void> = (id) =>
+      this.telephonyService.hangupCall(id),
   ): Promise<boolean> {
     const user = await this.userService.getCachedUserById(ctx.userId);
     if (user?.canCall === false) {
@@ -1097,14 +1110,12 @@ export class CallService implements OnModuleDestroy {
         `⛔ Hanging up call ${callControlId}: outbound calling disabled ` +
           `(userId=${ctx.userId})`,
       );
-      await this.telephonyService
-        .hangupCall(callControlId)
-        .catch((err) =>
-          this.logger.error(
-            `Failed to hang up disabled call ${callControlId}: ${err.message}`,
-            err.stack,
-          ),
-        );
+      await endLeg(callControlId).catch((err) =>
+        this.logger.error(
+          `Failed to hang up disabled call ${callControlId}: ${err.message}`,
+          err.stack,
+        ),
+      );
       return false;
     }
     if (user?.freeCallTrial) {
@@ -1120,14 +1131,12 @@ export class CallService implements OnModuleDestroy {
       `⛔ Hanging up call ${callControlId}: no credit ` +
         `(userId=${ctx.userId} orgId=${ctx.organizationId})`,
     );
-    await this.telephonyService
-      .hangupCall(callControlId)
-      .catch((err) =>
-        this.logger.error(
-          `Failed to hang up call ${callControlId}: ${err.message}`,
-          err.stack,
-        ),
-      );
+    await endLeg(callControlId).catch((err) =>
+      this.logger.error(
+        `Failed to hang up call ${callControlId}: ${err.message}`,
+        err.stack,
+      ),
+    );
     return false;
   }
 
