@@ -569,16 +569,23 @@ A group with no member online fails explicitly rather than ringing nobody.
 
 ### NUM-008 — Only Ringee's authorization sends a call through a customer's PBX
 
-Outbound, a leg addressed to a carrier connection's host must present the signed
-pre-dial issued for that exact destination on that exact connection, within two
-minutes, or it is hung up. Inbound, a call is a carrier call only when its
-address carries the signed route key of the endpoint it came through. The
-carrier connection accepts SIP URI calls from this account's connections only
-(`internal`), and a carrier leg never carries Ringee identity headers: the PBX
-presents its own caller ID.
+Outbound, the browser never addresses a carrier. Its leg goes to Ringee's Call
+Control application with the signed call key of its own pre-dial and must carry
+that pre-dial's signed token, within two minutes, or it is hung up. The server
+alone sends the call on to the carrier — once per pre-dial, to that pre-dial's
+number on its own connection's stored host, read from Ringee's records. A leg
+addressed straight to a carrier host is hung up. Inbound, a call is a carrier
+call only when its address carries the signed route key of the endpoint it came
+through. The carrier connection accepts SIP URI calls from this account's
+connections only (`internal`), and a carrier leg never carries Ringee identity
+headers: the PBX presents its own caller ID.
 
+- **Changed 2026-09-23:** the browser used to dial the carrier host itself.
+  Telnyx routes such a WebRTC leg to the PSTN instead of the connection, so the
+  carrier leg is now placed by the server (`TELEPHONY.md`, "Outbound").
 - **Source of truth:** `CallService.prepareExternalOutbound`,
-  `CallService.adoptExternalOutbound`, `carrier-route-key.ts`
+  `CallService.adoptExternalOutbound`, `CallService.bridgeExternalOutbound`,
+  `carrier-route-key.ts`
 
 ---
 

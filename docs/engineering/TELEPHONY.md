@@ -368,7 +368,89 @@ registers _to_ the PBX as that extension. External numbers
 `ExternalCarrierService` owns all of it; provider calls go through
 `TelephonyService`. Rules: `NUM-007`, `NUM-008`.
 
+### Connection lifecycle
+
+The customer enters only their carrier's settings. Everything else on the UAC
+is Ringee's, set by `TelnyxService` (`telnyx.uac.ts`), and nobody configures
+anything in Mission Control.
+
+```
+save extension ─► ExternalSipEndpoint row (UUID, encrypted SIP password)
+  synchronize
+    lookup by reference ringee-byoc-<id>     skipped on the very first save
+    syncStatus = pending                     durable before any POST
+    POST (no ID) | PATCH (ID)                the complete desired state, below
+    GET + compare  (verifyCarrierConnection) → providerFqdn, syncStatus = synced
+    registration check                       → registrationStatus; never fails the save
+```
+
+| UAC field                                        | Source                                                                                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connection_name`                                | `ringee-byoc-<endpoint id>`: the recovery key                                                                                                   |
+| `active`, `sip_uri_calling_preference: internal` | fixed                                                                                                                                           |
+| `user_name`, `password` (Internal UAC)           | derived per connection with the `carrier_uac` key, from `SDK_SIGNING_SECRET` or, when unset, `APP_ENCRYPTION_SECRET`; never stored, never shown |
+| `internal_uac_settings.destination_uri`          | `<signed route key>@<Call Control app subdomain>.sip.telnyx.com`, from the first save                                                           |
+| `external_uac_settings.*`                        | the customer's form; an unset auth username, from user or outbound proxy is sent as `null`, never `""`                                          |
+
+- **Rotating the signing secret** (`SDK_SIGNING_SECRET`, or
+  `APP_ENCRYPTION_SECRET` when it is the one in use) changes every
+  connection's internal credentials and every route key, so inbound calls stop
+  verifying until each extension is synchronized again; do that for every
+  extension right after rotating. Call keys only live for a pre-dial's two
+  minutes: a rotation only fails pre-dials in flight.
+- **Telnyx requires the Internal UAC username, password and SIP URI.** A UAC
+  created without them is accepted and then rejected by its next update
+  (`int_username is required`, `SIP URI is required`). Every connection is
+  therefore created complete, before any number exists — the inbound route
+  does not wait for a desk phone to be chosen.
+- **Every PATCH carries the whole desired state** (PATCH is partial on Telnyx),
+  so an edit to the carrier settings cannot drop the internal routing. The
+  password cannot be read back, so the internal credentials are re-sent only
+  when the connection's `user_name` is not Ringee's — which also repairs a
+  connection created before they were managed. A 409 ("a previous update is
+  still in progress") is retried after 1, 2 and 4 seconds.
+- **`synced` means verified**: the connection read back is active, internal-only,
+  named after the endpoint, holds Ringee's `user_name` and routes to the
+  endpoint's route key. It says nothing about the PBX.
+- **Retry converges.** An endpoint with an ID is PATCHed. One without is looked
+  up by reference before anything is created, so a connection Telnyx kept after
+  an error or a timeout is adopted, not duplicated. A lookup miss creates only
+  when the last create was refused outright (`error`), or when an uncertain one
+  is older than `UNRESOLVED_CREATE_SETTLE_MS` (2 min); before that the retry is
+  refused rather than risk a second UAC. Deleting follows the same rule.
+- **Routing a number to a desk phone** verifies the connection and
+  re-synchronizes it only when it is not complete (one synchronized before
+  inbound was part of every connection, or changed in Mission Control).
+- **Registration is separate from synchronization.** `syncStatus` is Ringee's
+  configuration of the provider; `registrationStatus` is Telnyx's registration
+  with the PBX, which happens on its own time. It is read from
+  `GET /v2/sip_registration_status?credential_type=uac_external_credential&connection_id=<id>`
+  — the source Mission Control shows: `sip_registration_status` (`registered`,
+  `trying`, `failed`, `unregistering`, `connection_disabled`, `unknown`),
+  `registered`, and `last_registration_response`. `registered` is believed only
+  when the status and the flag agree; the PBX's last answer is kept in
+  `providerStatus` (`failed (401 Unauthorized)`). **Do not use** the documented
+  `POST /uac_connections/{id}/actions/check_registration_status` (410 Gone for
+  every connection, even a deleted one) or the connection's own
+  `registration_status` (stays `Not Registered`, `registration_status_updated_at`
+  null, while the connection is registered). Reading either made every dial
+  pre-flight fail — first as "carrier unavailable" (502), then as "not
+  registered" (409).
+- **Diagnostics.** A failed `/uac_connections` request logs method, path,
+  status and each Telnyx error's code, title, detail and `source.pointer`. Every
+  value sent under a password-like key is redacted from that text, and text
+  that still contains a fragment of one is withheld. `ExternalCarrierService`
+  logs which step failed (`create`, `update`, `verification`,
+  `registration check`) with the provider status. A misconfigured Call Control
+  application is logged with the check it failed.
+- The SIP username must match Telnyx's `external_uac_settings.username` format
+  (4–256 letters, digits, `-` or `_`, starting with a letter or digit); it is
+  validated before anything is saved.
+
 ### Outbound: the web dialer through the customer's carrier
+
+The browser never addresses the carrier. It calls Ringee's own Call Control
+application; the server sends that call on to the carrier connection.
 
 ```
 dialer, external number selected
@@ -377,34 +459,69 @@ dialer, external number selected
     CallService.prepareExternalOutbound
       ExternalCarrierService.resolveOutbound        org member · number active · endpoint synced
         ├─ checkCarrierRegistration                 must be `registered`
-        └─ getCarrierDialDestination                `sip:<E.164>@<UAC fqdn>`, read-only
+        └─ getCarrierDialDestination                UAC active + internal, FQDN refreshed
       Call row: pending · outbound · from = external number · to = destination
                 externalCarrierId + externalSipEndpointId
-    ← { destinationUri, callToken }                 no credentials, no PBX identity
+      ExternalCarrierService.outboundEntry          sip:<call key>@<app subdomain>.sip.telnyx.com
+    ← { destinationUri, callToken }                 no carrier, no number, no credentials
 browser: placeCall({ carrierRoute })   same TelnyxRTC client; no caller ID or identity
                                        headers; X-Ringee-Byoc-Call-Id: <signed token>
-        │
-        ▼
-call.initiated ──► adoptExternalOutbound
-                   token → its pending row (≤ 2 min) · `to` must be that row's number on
-                   that endpoint's stored FQDN · credit and one-call backstops · atomic claim
-               ──► everything after is the ordinary lifecycle
+   │
+   ▼  Telnyx reports the browser's call only as leg B, on the Call Control app
+leg B  call.initiated (incoming, to = <call key>@<app subdomain>, token header) ──►
+       bridgeExternalOutbound: key → row · token names the same row · pending, ≤ 2 min ·
+       destination from Ringee's records only: sip:<to>@<providerFqdn> ·
+       credit + one-call backstops · atomic claim: B is the call (ordinary lifecycle,
+       billed once) · one carrier leg per pre-dial (Redis claim) ·
+       transfer B → leg C  (C marked `carrier_outbound_bridge`, early media on)
+leg C  Call Control → UAC FQDN ──► customer's PBX ──► their carrier ──► destination
 ```
 
-- The host is exactly the `fqdn` Telnyx generated for the UAC, stored as
-  `providerFqdn` when the connection is synchronized and refreshed on pre-flight. It is
-  never built client-side, and no Telnyx domain is assumed for it.
-- UACs are created with `sip_uri_calling_preference: internal`, so only
-  connections on Ringee's account can dial the FQDN. A connection saved before
-  outbound calling existed is reported unavailable until its extension is
-  synchronized.
-- An outbound leg addressed to a known carrier host without a valid pre-dial is
-  hung up: that host places calls through a customer's PBX.
+- **Why not dial the UAC from the browser.** Verified on a live call
+  (2026-09-23): Telnyx sends a WebRTC leg addressed `sip:<E.164>@<UAC fqdn>` to
+  the PSTN, not to the connection (`flow_destination: non_telnyx_pstn_number`),
+  and rejects it for its missing caller number (`D35`, SIP 403). Its
+  `call.initiated` reports `to` as the bare number, so the host it was dialed to
+  cannot be checked either. The same address dialed **from Call Control**
+  reaches the PBX: a `POST /calls` to it rang the destination through the
+  customer's carrier, presenting the customer's number.
+- **The call key** (`signCarrierCallKey`) is `rco` + call id + MAC, letters and
+  digits, never a number. It names one pre-dial and nothing about the carrier;
+  it is MAC'd under its own label, so it never passes as an inbound route key.
+- **The server chooses the destination.** Leg C goes to the row's own number on
+  its own endpoint's stored FQDN, re-read from the database at transfer time.
+  One transfer per pre-dial: a second leg dialed with the same key is hung up,
+  and a redelivered webhook changes nothing.
+- **Leg B is the call.** Verified on a live call (2026-09-23): the browser's
+  call to the application's subdomain has no Call Control leg of its own on
+  the WebRTC connection — Telnyx reports it only as the application's incoming
+  leg, which carries the browser's `X-Ringee-Byoc-Call-Id`. So B is bound to
+  the row (`claimExternalOutbound`, the same gates as `adoptExternalOutbound`)
+  and its webhooks run the ordinary lifecycle: answered, hangup, and the one
+  debit (`call-cost:<call id>`; Telnyx prices it as `telnyx_subdomain_cc_app`).
+  Only leg C carries `carrier_outbound_bridge` client state; its webhooks,
+  `call.cost` included, are recognized and never billed or recorded. Should
+  Telnyx ever report the browser's side as a leg of its own and it is bound
+  first, B only relays it — same `call_session_id` required — and is marked
+  too.
+- **Failures.** A carrier leg that ends unanswered (busy, declined,
+  unreachable) leaves B parked on the application: the server hangs it up and
+  stores the cause on the row. After an answer both legs end together. A
+  transfer that cannot start hangs B up with the reason on the row. A refused
+  B is hung up with the `entry` mark, so its later webhooks are recognized.
+  Pre-flight errors reach the user as fixed copy (`use.call.ts`); SIP codes on
+  hangup through `carrierCallFailure` (`@ringee/dialer-core`).
+- UACs keep `sip_uri_calling_preference: internal` and the application keeps
+  `only_my_connections`: only connections on Ringee's account can reach either.
+  A leg dialed straight to a carrier host, or carrying a call key without its
+  token, is hung up.
 - The PBX presents the caller ID configured for the extension; a carrier leg
-  carries no identity headers.
-- Failures reach the user as fixed copy: pre-flight status codes in `use.call.ts`,
-  SIP codes on hangup through `carrierCallFailure` (`@ringee/dialer-core`). The
-  hangup cause is stored on the call as for any other.
+  carries no Ringee identity headers.
+- **Verified on the first live call (2026-09-23):** B reaches the application
+  (`flow_destination: telnyx_subdomain_cc_app`) with the key in `to` and the
+  token header; C reaches the PBX (`non_telnyx_sip_uri`); B and C share one
+  `call_session_id`; audio, ringback and the far end's answer reach the
+  browser.
 
 ### Inbound: the customer's PBX to a desk phone
 
@@ -412,15 +529,16 @@ call.initiated ──► adoptExternalOutbound
 caller → carrier → PBX → extension registered by the UAC
   → UAC Internal SIP URI  <signed route key>@<Call Control app subdomain>.sip.telnyx.com
   → Call Control application → call.initiated (inbound)
-      ExternalCarrierService.resolveInbound
+      ExternalCarrierService.identifyInbound        the carrier half, and it stops here
         key verifies → endpoint synced and active → called number:
           the extension's only number, or the one the PBX named in X-Ringee-Called-Number
           then require that number to be active
-        → that number's desk phone: same organization, accepts inbound, owner still a member
-      Call row: inbound · from = caller · to = external number · source = sip_device
-                sipDeviceId · externalCarrierId + externalSipEndpointId
-      transfer → sip:<desk phone SIP username>@sip.telnyx.com
-                 command_id per call · new leg marked with the call's signed id
+        → identified { organization, external number, carrier, endpoint } | refused | none
+      InboundRouteResolverService                   who owns the call (as for any number)
+      InboundCallRouterService → the destination's handler
+        DESK_PHONE (DeskPhoneDestinationHandler):
+          transfer → sip:<desk phone SIP username>@sip.telnyx.com
+          command_id per call · new leg marked with the call's signed id
   desk phone leg:  answered            → the call is answered once, answer automation once
                    hangup, caller up   → the caller's leg ends; the PBX decides what follows
   phone's own connection webhook: the marked leg is not recorded a second time
@@ -433,9 +551,14 @@ caller → carrier → PBX → extension registered by the UAC
   addressed to one user's browser without first moving Ringee's numbers to the
   Call Control application.
 - The Internal SIP URI uses the SIP subdomain the Call Control application is
-  configured with, read from the API. Configuration fails closed unless that
-  application accepts calls only from this account's connections and delivers
-  its webhooks to `/api/call/webhook` on the configured `BACKEND_URL` origin.
+  configured with, read from the API on every synchronization. Configuration
+  fails closed — no UAC is created or updated — unless that application accepts
+  calls only from this account's connections and delivers its webhooks to
+  `/api/call/webhook` on the configured `BACKEND_URL` origin.
+- `providerFqdn` (`<x>.uac.telnyx.com`) and the Internal SIP URI are different
+  things. The FQDN is how Ringee's legs reach the PBX _through_ the UAC
+  (outbound); the Internal SIP URI is where Telnyx delivers what the PBX sends
+  _to_ the UAC (inbound).
 - The route key is `rcr` + endpoint id + a truncated HMAC — letters and digits,
   which every Telnyx SIP URI field accepts. Every connection on the account can
   call the application's subdomain, so the key, not the address, proves which
@@ -445,9 +568,9 @@ caller → carrier → PBX → extension registered by the UAC
   reaches it that way.
 - Ambiguity is refused, never guessed. A refused carrier call is hung up and
   logged, and leaves no history row.
-- Ringee numbers keep their inbound path untouched: `resolveInbound` returns
+- Ringee numbers keep their inbound path untouched: `identifyInbound` returns
   `none` for anything that is not a route-key call on the Call Control
-  application.
+  application, and the number is resolved as it always was.
 - A desk phone rings for up to 120 s, longer than a PBX usually rings an
   extension, so the PBX's own timeout and voicemail still apply.
 
@@ -456,10 +579,18 @@ registers. When several numbers share an extension, add
 `X-Ringee-Called-Number: <dialed number in E.164>` to the INVITE sent to that
 extension; without it those calls are refused.
 
-**Not yet verified against a live call:** the exact `to` a webhook reports for a
-WebRTC leg dialed to a SIP URI, and whether a PBX's `X-` header survives the UAC
-into `call.initiated.custom_headers`. Both are enforced fail-closed; refusals
-log the routing reason without exposing credentials.
+**UAC SIP subdomain (verified 2026-09-23).** Telnyx documents Telnyx → PBX
+traffic as using the UAC's own `inbound.sip_subdomain`, but that subdomain
+receives calls `from_anyone`, and a PATCH of
+`inbound.sip_subdomain_receive_settings` (or the top-level field) is answered
+200 and ignored. Ringee never dials it; outbound uses the UAC FQDN from Call
+Control (above).
+
+**Not yet verified against a live call:** whether a PBX's `X-` header survives
+the UAC into `call.initiated.custom_headers`. Enforced fail-closed; refusals
+log the routing reason without exposing credentials. The route key proves which
+UAC a call came through, not that the PBX sent it, because the UAC's SIP
+subdomain accepts calls from anyone (above).
 
 ### Deployment checks
 
@@ -479,10 +610,16 @@ log the routing reason without exposing credentials.
    webhook signature verification and the shared signing secret across backend
    replicas. The Call Control application must be active, have a SIP subdomain,
    receive only this account's connections and use this environment's webhook.
-3. Synchronize each existing extension. Synchronization now saves its generated
-   host and restores inbound routing before marking the extension synchronized.
-   Confirm registration and assign the external number to an enabled desk phone
-   whose owner still belongs to the organization.
+   **No extension can be created or synchronized until it does** — every UAC now
+   carries its Internal SIP URI from the first save; the failed check is logged.
+3. Synchronize each existing extension (Edit → Save, or Retry connection). That
+   gives connections created before this lifecycle their Internal UAC
+   credentials and SIP URI, clears optional fields that were sent as `""`, saves
+   the generated host and verifies the result before marking the extension
+   synchronized. Endpoints left in `error` with a provider ID converge the same
+   way; nothing is recreated. Confirm registration and assign the external
+   number to an enabled desk phone whose owner still belongs to the
+   organization.
 4. For multi-number extensions, configure `X-Ringee-Called-Number` even when only
    one assigned number is active. An unidentified call must not be delivered to
    another DID when a number is disabled.

@@ -19,11 +19,13 @@ import {
 import {
   CarrierConnectionConfig,
   CarrierConnectionError,
+  CarrierConnectionIdentity,
   CryptoService,
   OwnershipContext,
   TelephonyService,
   TelephonyEvent,
   isCarrierRouteKey,
+  signCarrierCallKey,
   signCarrierRouteKey,
   verifyCarrierRouteKey,
 } from "@ringee/platform";
@@ -48,6 +50,13 @@ export const CALLED_NUMBER_HEADER = "x-ringee-called-number";
 
 /** A browser must place its authorized carrier leg within two minutes. */
 export const EXTERNAL_PRE_DIAL_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * How long a provider create with an uncertain outcome (timeout, 5xx) may take
+ * to appear when its reference is looked up. Until then a miss proves nothing
+ * and nothing is re-created; after it, a miss means the create never happened.
+ */
+export const UNRESOLVED_CREATE_SETTLE_MS = 2 * 60 * 1000;
 
 /**
  * What the carrier layer can say about an inbound call: whose number was
@@ -329,6 +338,45 @@ export class ExternalCarrierService {
     }
   }
 
+  /**
+   * Where the browser places a pre-dial's leg: Ringee's own Call Control
+   * application, addressed with the call's signed key. The browser never
+   * addresses the carrier — the server sends the call on to it
+   * (`outboundCarrierDestination`) once the leg arrives.
+   */
+  async outboundEntry(callId: string): Promise<string> {
+    try {
+      return await this.telephony.getCarrierOutboundEntry(
+        signCarrierCallKey(callId),
+      );
+    } catch (error) {
+      if (error instanceof CarrierConnectionError)
+        throw new BadGatewayException(
+          "The external carrier is unavailable. Please retry later.",
+        );
+      throw error;
+    }
+  }
+
+  /**
+   * Where the server sends a pre-dial's call, from Ringee's own records only:
+   * its number on its own connection's host. Null when the route no longer
+   * holds.
+   */
+  async outboundCarrierDestination(
+    ctx: OwnershipContext,
+    route: {
+      fromNumber: string;
+      toNumber: string;
+      externalSipEndpointId: string;
+    },
+  ): Promise<string | null> {
+    const host = await this.confirmOutboundRoute(ctx, route);
+    return host && /^\+[1-9]\d{6,14}$/.test(route.toNumber)
+      ? `sip:${route.toNumber}@${host}`
+      : null;
+  }
+
   /** Whether a SIP host is one of the carrier connections Ringee manages. */
   isCarrierHost(host: string) {
     return this.repo.isProviderFqdn(host.toLowerCase());
@@ -492,10 +540,14 @@ export class ExternalCarrierService {
           );
         if (input.inboundSipDeviceId)
           await this.sipDevices.prepareForCarrierInbound(mutation, deviceId);
-        await this.telephony.configureCarrierInbound(
+        // Synchronization gives every connection its inbound routing. One
+        // synchronized before that was so, or changed at the provider since,
+        // is brought back to the saved configuration before it is relied on.
+        const connection = await this.telephony.verifyCarrierConnection(
           endpoint.providerConnectionId,
-          signCarrierRouteKey(endpoint.id),
+          this.identity(endpoint),
         );
+        if (!connection.complete) await this.synchronize(mutation, endpoint);
       }
       await this.repo.saveNumber(
         mutation,
@@ -560,12 +612,20 @@ export class ExternalCarrierService {
     return `ringee-byoc-${endpoint.id}`;
   }
 
+  /** What Ringee manages on the endpoint's connection, whatever the carrier. */
+  private identity(endpoint: ExternalSipEndpoint): CarrierConnectionIdentity {
+    return {
+      reference: this.reference(endpoint),
+      routingKey: signCarrierRouteKey(endpoint.id),
+    };
+  }
+
   private providerConfig(
     endpoint: ExternalSipEndpoint,
   ): CarrierConnectionConfig {
     const { password } = this.crypto.decrypt(endpoint.sipPasswordEncrypted);
     return {
-      reference: this.reference(endpoint),
+      ...this.identity(endpoint),
       proxy: endpoint.proxy,
       username: endpoint.sipUsername,
       password,
@@ -577,41 +637,75 @@ export class ExternalCarrierService {
     };
   }
 
+  /**
+   * The connection an earlier attempt may have left upstream without its ID
+   * here — a create whose answer was lost, or one the provider kept after
+   * reporting a failure — found by its unique reference. `null` when there is
+   * provably none: the last create was refused outright, or enough time has
+   * passed for an uncertain one to be listed.
+   */
   private async recoverId(mutation: CarrierMutation, endpoint: Endpoint) {
     if (endpoint.providerConnectionId) return endpoint.providerConnectionId;
     const found = await this.telephony.findCarrierConnection(
       this.reference(endpoint),
     );
-    if (!found)
-      throw new ConflictException(
-        "The previous connection request is unresolved. Retry synchronization later or contact support with this extension's reference.",
-      );
-    await this.repo.updateEndpoint(mutation, endpoint.id, {
-      providerConnectionId: found.id,
-    });
-    return found.id;
+    if (found) {
+      await this.repo.updateEndpoint(mutation, endpoint.id, {
+        providerConnectionId: found.id,
+      });
+      return found.id;
+    }
+    if (
+      endpoint.syncStatus === "error" ||
+      Date.now() - endpoint.updatedAt.getTime() > UNRESOLVED_CREATE_SETTLE_MS
+    )
+      return null;
+    throw new ConflictException(
+      "The previous connection request is unresolved. Retry in a few minutes.",
+    );
   }
 
+  /** Which synchronization step failed, for operators. Never a secret. */
+  private logSyncFailure(endpoint: Endpoint, step: string, error: unknown) {
+    const cause =
+      error instanceof CarrierConnectionError
+        ? `provider status=${error.status ?? "none"} uncertain=${error.uncertain}`
+        : error instanceof Error
+          ? error.name
+          : "unknown error";
+    this.logger.warn(
+      `External SIP endpoint ${endpoint.id}: ${step} failed (${cause})`,
+    );
+  }
+
+  /**
+   * Converges the provider connection on the saved configuration. The whole
+   * desired state — the customer's carrier settings and everything Ringee
+   * manages, inbound routing included — is applied on every run, so a first
+   * save, an edit and a retry all end in the same complete connection, with
+   * or without numbers. Then it is read back: `synced` means the provider
+   * holds that configuration, not that the PBX has accepted the registration.
+   */
   private async synchronize(
     mutation: CarrierMutation,
     endpoint: Endpoint,
     firstAttempt = false,
   ) {
-    let id = endpoint.providerConnectionId;
-    if (!id && !firstAttempt && endpoint.syncStatus !== "error")
-      id = await this.recoverId(mutation, endpoint);
+    const config = this.providerConfig(endpoint);
+    // A fresh endpoint's reference cannot exist upstream yet.
+    let id = firstAttempt ? null : await this.recoverId(mutation, endpoint);
+    // Written before every create, so a crash/retry looks the reference up
+    // instead of sending a second POST.
+    await this.repo.updateEndpoint(mutation, endpoint.id, {
+      syncStatus: "pending",
+      registrationStatus: "unknown",
+    });
     if (!id) {
-      // Written before every create, so a crash/retry cannot send a second POST.
-      await this.repo.updateEndpoint(mutation, endpoint.id, {
-        syncStatus: "pending",
-        registrationStatus: "unknown",
-      });
       let created;
       try {
-        created = await this.telephony.createCarrierConnection(
-          this.providerConfig(endpoint),
-        );
+        created = await this.telephony.createCarrierConnection(config);
       } catch (error) {
+        this.logSyncFailure(endpoint, "create", error);
         await this.repo.updateEndpoint(mutation, endpoint.id, {
           syncStatus:
             error instanceof CarrierConnectionError && !error.uncertain
@@ -624,20 +718,13 @@ export class ExternalCarrierService {
       // If this write fails, the durable UUID/name recovers the remote resource.
       await this.repo.updateEndpoint(mutation, endpoint.id, {
         providerConnectionId: id,
-        syncStatus: "pending",
         ...(created.fqdn ? { providerFqdn: created.fqdn } : {}),
       });
     } else {
-      await this.repo.updateEndpoint(mutation, endpoint.id, {
-        syncStatus: "pending",
-        registrationStatus: "unknown",
-      });
       try {
-        await this.telephony.updateCarrierConnection(
-          id,
-          this.providerConfig(endpoint),
-        );
+        await this.telephony.updateCarrierConnection(id, config);
       } catch (error) {
+        this.logSyncFailure(endpoint, "update", error);
         await this.repo.updateEndpoint(mutation, endpoint.id, {
           syncStatus: "error",
         });
@@ -645,29 +732,35 @@ export class ExternalCarrierService {
       }
     }
     try {
-      // Also refresh older/recovered connections: their host must be protected
-      // before the first dial, not only after a browser has requested a route.
-      const connection = await this.telephony.getCarrierConnection(id);
-      if (!connection.fqdn) throw new CarrierConnectionError(false);
+      // Also refreshes older/recovered connections: their host must be
+      // protected before the first dial, not only after a browser has
+      // requested a route.
+      const connection = await this.telephony.verifyCarrierConnection(
+        id,
+        config,
+      );
+      if (!connection.fqdn || !connection.complete)
+        throw new CarrierConnectionError(false);
       await this.repo.updateEndpoint(mutation, endpoint.id, {
         providerFqdn: connection.fqdn,
-      });
-      if (endpoint.numbers.some((number) => number.inboundSipDeviceId))
-        await this.telephony.configureCarrierInbound(
-          id,
-          signCarrierRouteKey(endpoint.id),
-        );
-      await this.repo.updateEndpoint(mutation, endpoint.id, {
         syncStatus: "synced",
       });
     } catch (error) {
+      this.logSyncFailure(endpoint, "verification", error);
       await this.repo.updateEndpoint(mutation, endpoint.id, {
         syncStatus: "error",
       });
       throw error;
     }
-    // Registration failure is not configuration failure. Keep the connection.
-    await this.refresh(mutation, { ...endpoint, providerConnectionId: id });
+    // Registration is the provider registering to the PBX, on its own time
+    // after a change. A failed check is not a failed save: the connection is
+    // kept and "Check registration" asks again.
+    await this.refresh(mutation, {
+      ...endpoint,
+      providerConnectionId: id,
+    }).catch((error: unknown) =>
+      this.logSyncFailure(endpoint, "registration check", error),
+    );
   }
 
   private async refresh(mutation: CarrierMutation, endpoint: Endpoint) {
@@ -694,11 +787,7 @@ export class ExternalCarrierService {
   }
 
   private async removeRemote(mutation: CarrierMutation, endpoint: Endpoint) {
-    const id =
-      endpoint.providerConnectionId ??
-      (endpoint.syncStatus === "error"
-        ? null
-        : await this.recoverId(mutation, endpoint));
+    const id = await this.recoverId(mutation, endpoint);
     if (!id) return;
     await this.repo.updateEndpoint(mutation, endpoint.id, {
       syncStatus: "deleting",

@@ -10,6 +10,7 @@ import {
 import type { ExternalCallingRoute } from "@ringee/database";
 import {
   CarrierConnectionError,
+  signCarrierCallKey,
   type CarrierDialDestination,
   type CarrierRegistration,
 } from "@ringee/platform";
@@ -74,6 +75,11 @@ function setup() {
       provider.push(`destination:${id}:${destination}`);
       if (state.providerError) throw state.providerError;
       return state.dial;
+    },
+    getCarrierOutboundEntry: async (key: string) => {
+      provider.push(`entry:${key}`);
+      if (state.providerError) throw state.providerError;
+      return `sip:${key}@ringee.sip.telnyx.com`;
     },
   };
   const service = new ExternalCarrierService(
@@ -226,6 +232,43 @@ describe("ExternalCarrierService outbound calling", () => {
       }),
       null,
     );
+    assert.deepEqual(s.provider, []);
+  });
+
+  it("sends the browser to Ringee's application with the call's own key, never to the carrier", async () => {
+    const s = setup();
+    const id = "7c1e2d3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
+    const entry = await s.service.outboundEntry(id);
+    assert.equal(entry, `sip:${signCarrierCallKey(id)}@ringee.sip.telnyx.com`);
+    assert.ok(!entry.includes(HOST));
+    s.state.providerError = new CarrierConnectionError(false);
+    await assert.rejects(s.service.outboundEntry(id), BadGatewayException);
+  });
+
+  it("builds the carrier leg's destination from Ringee's records only", async () => {
+    const s = setup();
+    s.state.number!.endpoint.providerFqdn = HOST;
+    const route = {
+      fromNumber: "+13055550101",
+      toNumber: "+18299621624",
+      externalSipEndpointId: "endpoint-1",
+    };
+    assert.equal(
+      await s.service.outboundCarrierDestination(ctx, route),
+      `sip:+18299621624@${HOST}`,
+    );
+    assert.equal(
+      await s.service.outboundCarrierDestination(ctx, {
+        ...route,
+        toNumber: "sip:evil@elsewhere.example",
+      }),
+      null,
+    );
+    s.state.number!.endpoint.syncStatus = "error";
+    assert.equal(await s.service.outboundCarrierDestination(ctx, route), null);
+    s.state.number!.endpoint.syncStatus = "synced";
+    s.state.number!.endpoint.providerFqdn = null;
+    assert.equal(await s.service.outboundCarrierDestination(ctx, route), null);
     assert.deepEqual(s.provider, []);
   });
 

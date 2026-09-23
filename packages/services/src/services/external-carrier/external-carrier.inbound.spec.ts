@@ -289,9 +289,13 @@ describe("ExternalCarrierService desk phone assignment", () => {
         ],
       } as never,
       {
-        configureCarrierInbound: async (id: string, key: string) => {
-          events.push(`configure:${id}:${key}`);
+        verifyCarrierConnection: async (
+          id: string,
+          expected: { reference: string; routingKey: string },
+        ) => {
+          events.push(`verify:${id}:${expected.routingKey}`);
           if (faults.provider) throw new CarrierConnectionError(false);
+          return { id, fqdn: "generated.example.net", complete: true };
         },
       } as never,
       {} as never,
@@ -309,7 +313,7 @@ describe("ExternalCarrierService desk phone assignment", () => {
     return { service, events, saved, endpoint, number, faults, admin, carrier };
   }
 
-  it("prepares the desk phone and points the connection at Ringee before saving", async () => {
+  it("prepares the desk phone and confirms the connection delivers to Ringee before saving", async () => {
     const h = carrierSetup();
     await h.service.saveNumber(
       h.admin,
@@ -323,7 +327,7 @@ describe("ExternalCarrierService desk phone assignment", () => {
     );
     assert.deepEqual(h.events, [
       "prepare:org-1:device-1",
-      `configure:uac-1:${signCarrierRouteKey(ENDPOINT)}`,
+      `verify:uac-1:${signCarrierRouteKey(ENDPOINT)}`,
     ]);
     assert.equal(h.saved[0].inboundSipDeviceId, "device-1");
   });
@@ -368,7 +372,7 @@ describe("ExternalCarrierService desk phone assignment", () => {
     assert.equal(h.saved[1].inboundSipDeviceId, undefined);
   });
 
-  it("re-points the new extension's connection when a routed number moves", async () => {
+  it("confirms the new extension's connection when a routed number moves", async () => {
     const h = carrierSetup();
     const other = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
     h.number.inboundSipDeviceId = "device-1";
@@ -389,9 +393,7 @@ describe("ExternalCarrierService desk phone assignment", () => {
       { endpointId: other, phoneNumber: "+13055550101" },
       "number-1",
     );
-    assert.deepEqual(h.events, [
-      `configure:uac-2:${signCarrierRouteKey(other)}`,
-    ]);
+    assert.deepEqual(h.events, [`verify:uac-2:${signCarrierRouteKey(other)}`]);
   });
 
   it("refuses routing on an unsynchronized extension or an unusable phone", async () => {

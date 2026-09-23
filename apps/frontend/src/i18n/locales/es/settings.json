@@ -469,6 +469,7 @@
     "required": "Este campo es obligatorio.",
     "tooLong": "Este valor es demasiado largo.",
     "invalidExtension": "Usa letras, números, +, *, _, - o un punto.",
+    "invalidSipUsername": "Usa al menos 4 letras, números, guiones o guiones bajos, empezando por una letra o un número.",
     "invalidExpiry": "Usa un valor entre 60 y 86400 segundos.",
     "invalidPhone": "Introduce un número internacional que empiece por +.",
     "loadError": "No se pudieron cargar los operadores externos.",

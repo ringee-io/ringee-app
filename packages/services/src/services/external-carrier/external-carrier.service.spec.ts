@@ -11,6 +11,7 @@ import {
   CarrierConnectionError,
   CarrierRegistration,
   CryptoService,
+  signCarrierRouteKey,
 } from "@ringee/platform";
 import { ExternalCarrierService } from "./external-carrier.service";
 import {
@@ -44,7 +45,9 @@ function setup() {
     localDelete: false,
     lock: false,
     found: true,
-    inbound: false,
+    complete: true,
+    /** Verifications that report incomplete before `complete` applies. */
+    incompleteChecks: 0,
     fqdn: "generated.example.net" as string | null,
   };
   let state: CarrierRegistration = {
@@ -192,9 +195,15 @@ function setup() {
     },
   };
   const provider = {
-    getCarrierConnection: async (id: string) => ({ id, fqdn: faults.fqdn }),
-    configureCarrierInbound: async () => {
-      if (faults.inbound) throw new CarrierConnectionError(false);
+    verifyCarrierConnection: async (id: string, expected: unknown) => {
+      calls.push({ method: "verify", id, config: expected });
+      const incomplete = faults.incompleteChecks > 0;
+      if (incomplete) faults.incompleteChecks--;
+      return {
+        id,
+        fqdn: faults.fqdn,
+        complete: faults.complete && !incomplete,
+      };
     },
     createCarrierConnection: async (config: unknown) => {
       calls.push({ method: "create", config });
@@ -230,7 +239,9 @@ function setup() {
     } as never,
     provider as never,
     crypto,
-    {} as never,
+    {
+      prepareForCarrierInbound: async () => {},
+    } as never,
   );
   const create = async () => {
     const created = await service.createCarrier(ctx, "Acme");
@@ -260,7 +271,7 @@ describe("ExternalCarrierService", () => {
     assert.equal(carrier.endpoints[0].syncStatus, "synced");
   });
 
-  it("keeps synchronization failed until the host and inbound destination are restored", async () => {
+  it("keeps synchronization failed until the host and the managed configuration are verified", async () => {
     const s = setup();
     const carrier = await s.create();
     const endpoint = carrier.endpoints[0];
@@ -271,20 +282,219 @@ describe("ExternalCarrierService", () => {
     );
     assert.equal(endpoint.syncStatus, "error");
     s.faults.fqdn = "generated.example.net";
-    await s.service.saveNumber(ctx, carrier.id, {
-      endpointId: endpoint.id,
-      phoneNumber: "+13055550101",
-    });
-    endpoint.numbers[0].inboundSipDeviceId = "device-1";
-    s.faults.inbound = true;
+    s.faults.complete = false;
     await assert.rejects(
       s.service.syncEndpoint(ctx, carrier.id, endpoint.id),
       BadGatewayException,
     );
     assert.equal(endpoint.syncStatus, "error");
-    s.faults.inbound = false;
+    s.faults.complete = true;
     await s.service.syncEndpoint(ctx, carrier.id, endpoint.id);
     assert.equal(endpoint.syncStatus, "synced");
+  });
+
+  it("creates a complete connection with its inbound route before any number exists", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    const endpoint = carrier.endpoints[0];
+    assert.equal(endpoint.numbers.length, 0);
+    const [create] = s.calls.filter((call) => call.method === "create");
+    assert.deepEqual(create.config, {
+      reference: `ringee-byoc-${endpoint.id}`,
+      routingKey: signCarrierRouteKey(endpoint.id),
+      proxy: "sip.example.com:5061",
+      username: "auth201",
+      password: input.password,
+      transport: "TLS",
+      authUsername: null,
+      fromUser: null,
+      outboundProxy: null,
+      expirationSec: 600,
+    });
+    const verify = s.calls.find((call) => call.method === "verify");
+    assert.deepEqual(
+      {
+        reference: (verify?.config as { reference: string }).reference,
+        routingKey: (verify?.config as { routingKey: string }).routingKey,
+      },
+      {
+        reference: `ringee-byoc-${endpoint.id}`,
+        routingKey: signCarrierRouteKey(endpoint.id),
+      },
+    );
+    assert.equal(endpoint.providerConnectionId, "remote-1");
+    assert.equal(endpoint.providerFqdn, "generated.example.net");
+    assert.equal(endpoint.syncStatus, "synced");
+  });
+
+  it("creates the Zadarma regression extension as entered and leaves registration to the PBX", async () => {
+    const s = setup();
+    s.setState({
+      status: "trying",
+      providerStatus: "unregistered",
+      lastRegisteredAt: null,
+      ipAddress: null,
+      port: null,
+      transport: null,
+    });
+    const carrier = await s.service.createCarrier(ctx, "Zadarma");
+    await s.service.createEndpoint(ctx, carrier.id, {
+      extension: "875605",
+      proxy: "sip.zadarma.com",
+      sipUsername: "875605",
+      password: "zadarma-sip-password",
+      transport: "UDP",
+      authUsername: "875605",
+      fromUser: "875605",
+      outboundProxy: "",
+      expirationSec: 120,
+    });
+    const endpoint = s.rows[0].endpoints[0];
+    const [create] = s.calls.filter((call) => call.method === "create");
+    assert.deepEqual(create.config, {
+      reference: `ringee-byoc-${endpoint.id}`,
+      routingKey: signCarrierRouteKey(endpoint.id),
+      proxy: "sip.zadarma.com",
+      username: "875605",
+      password: "zadarma-sip-password",
+      transport: "UDP",
+      authUsername: "875605",
+      fromUser: "875605",
+      outboundProxy: null,
+      expirationSec: 120,
+    });
+    // Configured is not registered: the connection is ready, Telnyx is
+    // registering with the PBX.
+    assert.equal(endpoint.syncStatus, "synced");
+    assert.equal(endpoint.registrationStatus, "trying");
+    assert.equal(endpoint.providerStatus, "unregistered");
+    s.setState({ status: "registered", providerStatus: "registered" });
+    await s.service.refreshRegistration(ctx, carrier.id, endpoint.id);
+    assert.equal(endpoint.registrationStatus, "registered");
+  });
+
+  it("converges a partially configured connection on retry instead of creating another", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    const endpoint = carrier.endpoints[0];
+    // What Telnyx left behind: an ID and a host, but a rejected configuration.
+    endpoint.syncStatus = "error";
+    endpoint.registrationStatus = "unknown";
+    s.calls.length = 0;
+    await s.service.syncEndpoint(ctx, carrier.id, endpoint.id);
+    assert.deepEqual(
+      s.calls.map((call) => call.method),
+      ["update", "verify", "check"],
+    );
+    const [update] = s.calls;
+    assert.equal(update.id, "remote-1");
+    assert.equal(
+      (update.config as { routingKey: string }).routingKey,
+      signCarrierRouteKey(endpoint.id),
+    );
+    assert.equal(endpoint.syncStatus, "synced");
+    assert.equal(endpoint.registrationStatus, "registered");
+  });
+
+  it("adopts a connection the provider kept after reporting a failed create", async () => {
+    const s = setup();
+    s.faults.create = new CarrierConnectionError(false);
+    await assert.rejects(s.create(), BadGatewayException);
+    const endpoint = s.rows[0].endpoints[0];
+    assert.equal(endpoint.syncStatus, "error");
+    s.faults.create = null;
+    s.faults.found = true;
+    await s.service.syncEndpoint(ctx, s.rows[0].id, endpoint.id);
+    assert.equal(s.calls.filter((call) => call.method === "create").length, 1);
+    assert.equal(endpoint.providerConnectionId, "remote-1");
+    assert.equal(endpoint.syncStatus, "synced");
+  });
+
+  it("keeps an edit's internal routing: every update sends the endpoint's route key", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    const endpoint = carrier.endpoints[0];
+    for (const change of [
+      { proxy: "other.example.com" },
+      { sipUsername: "auth999" },
+      { password: "rotated-secret" },
+      { authUsername: "auth-user", fromUser: "from-user" },
+      { transport: "UDP" as const, expirationSec: 120 },
+      { outboundProxy: "outbound.example.com:5061" },
+      { authUsername: null, fromUser: null, outboundProxy: null },
+    ])
+      await s.service.updateEndpoint(ctx, carrier.id, endpoint.id, {
+        ...input,
+        password: undefined,
+        ...change,
+      });
+    const updates = s.calls.filter((call) => call.method === "update");
+    assert.equal(updates.length, 7);
+    for (const update of updates)
+      assert.equal(
+        (update.config as { routingKey: string }).routingKey,
+        signCarrierRouteKey(endpoint.id),
+      );
+    assert.equal(s.calls.filter((call) => call.method === "create").length, 1);
+    assert.equal(endpoint.syncStatus, "synced");
+  });
+
+  it("re-synchronizes a connection that lacks its inbound route before a desk phone relies on it", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    const endpoint = carrier.endpoints[0];
+    s.calls.length = 0;
+    // Synchronized before inbound routing was part of every connection.
+    s.faults.incompleteChecks = 1;
+    await s.service.saveNumber(ctx, carrier.id, {
+      endpointId: endpoint.id,
+      phoneNumber: "+13055550101",
+      inboundSipDeviceId: "device-1",
+    });
+    assert.deepEqual(
+      s.calls.map((call) => call.method),
+      ["verify", "update", "verify", "check"],
+    );
+    assert.equal(endpoint.syncStatus, "synced");
+    assert.equal(endpoint.numbers[0].inboundSipDeviceId, "device-1");
+    // Once complete, routing another number touches nothing upstream.
+    s.calls.length = 0;
+    await s.service.saveNumber(ctx, carrier.id, {
+      endpointId: endpoint.id,
+      phoneNumber: "+13055550102",
+      inboundSipDeviceId: "device-1",
+    });
+    assert.deepEqual(
+      s.calls.map((call) => call.method),
+      ["verify"],
+    );
+  });
+
+  it("routes nothing to a desk phone through a connection that cannot be completed", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    const endpoint = carrier.endpoints[0];
+    s.faults.complete = false;
+    await assert.rejects(
+      s.service.saveNumber(ctx, carrier.id, {
+        endpointId: endpoint.id,
+        phoneNumber: "+13055550101",
+        inboundSipDeviceId: "device-1",
+      }),
+      BadGatewayException,
+    );
+    assert.equal(endpoint.syncStatus, "error");
+    assert.equal(endpoint.numbers.length, 0);
+  });
+
+  it("does not fail a save whose registration check the provider could not answer", async () => {
+    const s = setup();
+    s.faults.registration = true;
+    await s.create();
+    const endpoint = s.rows[0].endpoints[0];
+    assert.equal(endpoint.syncStatus, "synced");
+    assert.equal(endpoint.registrationStatus, "unknown");
+    assert.ok(endpoint.lastCheckedAt);
   });
 
   it("rejects personal workspaces, non-admins and nonmembers before mutations", async () => {
@@ -360,7 +570,7 @@ describe("ExternalCarrierService", () => {
     assert.ok(!row.sipPasswordEncrypted.includes(input.password));
     assert.deepEqual(
       calls.map((call) => call.method),
-      ["create", "check"],
+      ["create", "verify", "check"],
     );
     const json = JSON.stringify(await service.list(ctx));
     for (const secret of [
@@ -394,7 +604,13 @@ describe("ExternalCarrierService", () => {
     assert.equal(endpoint.syncStatus, "error");
     assert.equal(endpoint.providerConnectionId, null);
     h.faults.create = null;
+    h.faults.found = false;
     await h.service.syncEndpoint(ctx, h.rows[0].id, endpoint.id);
+    // Looked up first; nothing upstream, so it is created.
+    assert.deepEqual(
+      h.calls.map((call) => call.method),
+      ["create", "find", "create", "verify", "check"],
+    );
     assert.equal(h.rows[0].endpoints[0].syncStatus, "synced");
   });
 
@@ -423,6 +639,35 @@ describe("ExternalCarrierService", () => {
     );
     assert.equal(h.calls.filter((call) => call.method === "create").length, 1);
     assert.equal(h.rows[0].endpoints.length, 1);
+  });
+
+  it("settles an unresolved create once the provider has had time to list it", async () => {
+    const h = setup();
+    h.faults.create = new CarrierConnectionError(true);
+    await assert.rejects(h.create());
+    const endpoint = h.rows[0].endpoints[0];
+    assert.equal(endpoint.syncStatus, "unknown");
+    h.faults.create = null;
+    h.faults.found = false;
+    endpoint.updatedAt = new Date(Date.now() - 3 * 60_000);
+    await h.service.syncEndpoint(ctx, h.rows[0].id, endpoint.id);
+    assert.equal(h.calls.filter((call) => call.method === "create").length, 2);
+    assert.equal(endpoint.syncStatus, "synced");
+  });
+
+  it("deletes a settled unresolved extension that never reached the provider", async () => {
+    const h = setup();
+    h.faults.create = new CarrierConnectionError(true);
+    await assert.rejects(h.create());
+    h.faults.found = false;
+    h.rows[0].endpoints[0].updatedAt = new Date(Date.now() - 3 * 60_000);
+    await h.service.deleteEndpoint(
+      ctx,
+      h.rows[0].id,
+      h.rows[0].endpoints[0].id,
+    );
+    assert.equal(h.rows[0].endpoints.length, 0);
+    assert.equal(h.calls.filter((call) => call.method === "delete").length, 0);
   });
 
   it("recovers when the remote ID could not be persisted after creation", async () => {
