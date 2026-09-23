@@ -69,9 +69,15 @@ export function normalizeSipInput(input: SipEndpointInput, creating: boolean) {
   const extension = requireText(input.extension, "extension", 64);
   if (!/^[a-zA-Z0-9_.+*-]+$/.test(extension))
     throw new BadRequestException("Invalid extension.");
-  const sipUsername = requireText(input.sipUsername, "SIP username");
-  if (/\s/.test(sipUsername))
-    throw new BadRequestException("Invalid SIP username.");
+  const sipUsername = requireText(input.sipUsername, "SIP username", 256);
+  // The format the carrier connection accepts for the username it registers
+  // with (Telnyx UAC `external_uac_settings.username`). Refused here, the
+  // customer gets a clear answer instead of a saved extension the provider
+  // rejects.
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{3,255}$/.test(sipUsername))
+    throw new BadRequestException(
+      "The SIP username must be 4 to 256 letters, digits, hyphens or underscores, starting with a letter or digit.",
+    );
   if (!["UDP", "TCP", "TLS"].includes(input.transport))
     throw new BadRequestException("Invalid SIP transport.");
   if (creating || input.password !== undefined) {

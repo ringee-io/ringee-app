@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import axios, { AxiosInstance } from "axios";
+import { uacErrorDiagnostics } from "./telnyx.uac";
 
 const TELNYX_ORIGIN = "https://api.telnyx.com";
 const TELNYX_BASE_PATH = "/v2";
@@ -72,21 +73,23 @@ export class TelnyxClient {
    * stored on a row ("The requested resource or URL could not be found.") is
    * unattributable without this line.
    */
-  private handleError(error: any, method: string, path: string): never {
+  private handleError(
+    error: any,
+    method: string,
+    path: string,
+    body?: unknown,
+  ): never {
     // A path `apiUrl` refused never reached Telnyx: keep its 400 as-is.
     if (error instanceof HttpException) throw error;
     const status = error.response?.status;
-    // SIP Attach responses can echo external_uac_settings, including passwords.
-    // Keep only status + numeric provider codes, never a provider body/message.
+    // SIP Attach requests carry SIP passwords and Telnyx echoes rejected
+    // values: log each error's code, title, detail and field pointer with
+    // everything that was sent as a secret redacted — never the raw body.
     if (path.startsWith("/uac_connections")) {
-      const codes = Array.isArray(error.response?.data?.errors)
-        ? error.response.data.errors
-            .map((item: { code?: unknown }) => String(item.code ?? ""))
-            .filter((code: string) => /^\d{1,10}$/.test(code))
-            .join(",")
-        : "";
       this.logger.warn(
-        `${method} /uac_connections failed status=${status ?? "unavailable"} codes=${codes}`,
+        `${method} ${path.split("?", 1)[0]} failed status=${status ?? "unavailable"} errors=${JSON.stringify(
+          uacErrorDiagnostics(error.response?.data, body),
+        )}`,
       );
       throw new HttpException(
         "Carrier provider request failed",
@@ -105,7 +108,8 @@ export class TelnyxClient {
   }
 
   private uacOptions(path: string) {
-    return path.startsWith("/uac_connections")
+    return path.startsWith("/uac_connections") ||
+      path.startsWith("/sip_registration_status")
       ? { timeout: 15_000, maxRedirects: 0 }
       : {};
   }
@@ -119,7 +123,7 @@ export class TelnyxClient {
       );
       return data;
     } catch (error) {
-      this.handleError(error, "POST", path);
+      this.handleError(error, "POST", path, body);
     }
   }
 
@@ -158,7 +162,7 @@ export class TelnyxClient {
       const { data } = await this.client.put<T>(apiUrl(path), body);
       return data;
     } catch (error) {
-      this.handleError(error, "PUT", path);
+      this.handleError(error, "PUT", path, body);
     }
   }
 
@@ -171,7 +175,7 @@ export class TelnyxClient {
       );
       return data;
     } catch (error) {
-      this.handleError(error, "PATCH", path);
+      this.handleError(error, "PATCH", path, body);
     }
   }
 

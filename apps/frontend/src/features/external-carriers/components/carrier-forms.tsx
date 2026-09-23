@@ -101,7 +101,12 @@ export function EndpointForm({
       .max(64, t('tooLong'))
       .regex(/^[a-zA-Z0-9_.+*-]+$/, t('invalidExtension')),
     proxy: z.string().trim().min(1, t('required')).max(260, t('tooLong')),
-    sipUsername: z.string().trim().min(1, t('required')).max(128, t('tooLong')),
+    sipUsername: z
+      .string()
+      .trim()
+      .min(1, t('required'))
+      .max(256, t('tooLong'))
+      .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{3,}$/, t('invalidSipUsername')),
     password: z
       .string()
       .max(256, t('tooLong'))

@@ -25,10 +25,14 @@ import {
   RedisService,
   TelephonyService,
   carrierInboundLegCorrelation,
+  carrierOutboundLeg,
+  isCarrierCallKey,
   signCallCorrelation,
   verifyCallCorrelation,
+  verifyCarrierCallKey,
 } from "@ringee/platform";
 import type {
+  CarrierOutboundLeg,
   TelephonyEvent,
   CallTranscriptionPayload,
   CallRecordingErrorPayload,
@@ -60,7 +64,7 @@ import {
   ExternalCarrierService,
   EXTERNAL_PRE_DIAL_TTL_MS,
 } from "./external-carrier/external-carrier.service";
-import { parseSipTarget } from "./external-carrier/sip-target";
+import { parseSipTarget, sipUser } from "./external-carrier/sip-target";
 import {
   destinationIdOf,
   destinationTypeOf,
@@ -88,6 +92,22 @@ function orphanEventsKey(callControlId: string): string {
 
 /** Signed pre-dial token a browser leg carries to use an external carrier. */
 const EXTERNAL_CALL_HEADER = "X-Ringee-Byoc-Call-Id";
+
+/**
+ * How long a pre-dial's carrier leg rings. A carrier network usually gives up
+ * sooner; this only bounds a leg nobody ends.
+ */
+const EXTERNAL_CARRIER_RING_SECS = 90;
+
+/**
+ * Holds which Call Control leg a pre-dial was sent on through: set once, so a
+ * pre-dial reaches its carrier once, and read if that carrier leg fails before
+ * it is answered. Outlives the pre-dial window and the ring time.
+ */
+const CARRIER_OUTBOUND_BRIDGE_TTL_SECS = 10 * 60;
+function carrierOutboundBridgeKey(callId: string): string {
+  return `ringee:carrier-outbound-bridge:v1:${callId}`;
+}
 
 @Injectable()
 export class CallService implements OnModuleDestroy {
@@ -385,6 +405,208 @@ export class CallService implements OnModuleDestroy {
   }
 
   /**
+   * An outbound call through an external carrier on the Call Control
+   * application: the browser's call arriving there, addressed with its
+   * pre-dial's key, which is sent on to the carrier; and the legs marked as
+   * not the call itself — the carrier leg, and an entry leg that was refused
+   * or only relays. Marked legs are never recorded or billed. Returns true
+   * when the event was handled here.
+   */
+  private async handleCarrierOutboundLeg(
+    event: TelephonyEvent,
+  ): Promise<boolean> {
+    // Only the application's own legs. A browser can put any address or
+    // client state on its own calls; those stay ordinary, billed legs.
+    const appId = apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
+    if (!appId || event.connectionId !== appId) return false;
+    if (
+      event.type === "call.initiated" &&
+      event.direction === "inbound" &&
+      isCarrierCallKey(sipUser(event.to))
+    ) {
+      await this.bridgeExternalOutbound(event);
+      return true;
+    }
+    const leg = carrierOutboundLeg(event.clientState);
+    if (!leg) return false;
+    if (leg.leg === "carrier" && event.type === "call.hangup")
+      await this.endExternalOutbound(leg, event);
+    return true;
+  }
+
+  /**
+   * The browser's pre-dialed call reached the Call Control application. The
+   * key names the row and the browser's token must name the same one;
+   * everything else — that it is still a live pre-dial, and where it goes —
+   * comes from Ringee's own records. It is sent on to its carrier exactly
+   * once: a second call dialed with the same key, or anything that does not
+   * verify, is hung up.
+   *
+   * Telnyx delivers the browser's call to the application as this very leg —
+   * the browser's side has no Call Control leg of its own — so this leg is the
+   * call: it is bound to the row like any browser-placed leg, and its webhooks
+   * run the ordinary lifecycle, billing included.
+   */
+  private async bridgeExternalOutbound(event: TelephonyEvent): Promise<void> {
+    const entry = event.callControlId;
+    const refuse = async (reason: string) => {
+      this.logger.warn(`⛔ Refusing external carrier call ${entry}: ${reason}`);
+      await this.telephonyService
+        .refuseCarrierOutbound(entry, `carrier-outbound-refuse-${entry}`)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to refuse external carrier call ${entry}: ${err.message}`,
+          ),
+        );
+    };
+
+    const id = verifyCarrierCallKey(sipUser(event.to));
+    const call = id ? await this.callRepository.findById(id) : null;
+    if (
+      !call?.userId ||
+      !call.externalSipEndpointId ||
+      call.direction !== "outbound" ||
+      call.endedAt ||
+      (call.status !== CallStatus.pending &&
+        call.status !== CallStatus.ringing) ||
+      Date.now() - call.createdAt.getTime() > EXTERNAL_PRE_DIAL_TTL_MS
+    )
+      return refuse("no usable external carrier pre-dial for this call");
+    const token = this.getCustomHeader(
+      event.customHeaders,
+      EXTERNAL_CALL_HEADER,
+    );
+    if (!token || verifyCallCorrelation(token) !== call.id)
+      return refuse("its pre-dial token is missing or names another call");
+
+    const ctx: OwnershipContext = {
+      userId: call.userId,
+      organizationId: call.organizationId,
+    };
+    const destination = await this.externalCarriers.outboundCarrierDestination(
+      ctx,
+      {
+        fromNumber: call.fromNumber,
+        toNumber: call.toNumber,
+        externalSipEndpointId: call.externalSipEndpointId,
+      },
+    );
+    if (!destination) {
+      await this.callRepository.failPendingExternalCall(
+        ctx,
+        call.id,
+        "The external carrier route is no longer available.",
+      );
+      return refuse("the external carrier route no longer holds");
+    }
+
+    // Were the browser's side reported as a leg of its own and bound first,
+    // this one only relays it, and must belong to the same call session.
+    const relay = !!call.callControlId && call.callControlId !== entry;
+    if (
+      relay &&
+      (!call.callSessionId || call.callSessionId !== event.callSessionId)
+    )
+      return refuse("its pre-dial is carried by another call");
+    if (
+      !call.callControlId &&
+      !(await this.claimExternalOutbound(ctx, call, event, refuse))
+    )
+      return;
+
+    // One carrier leg per pre-dial. A redelivered webhook for the leg already
+    // sent on changes nothing; any other leg with the same key reaches nobody.
+    const claim = carrierOutboundBridgeKey(call.id);
+    let claimed: boolean;
+    try {
+      claimed = await this.redis.setIfAbsent(
+        claim,
+        entry,
+        CARRIER_OUTBOUND_BRIDGE_TTL_SECS,
+      );
+      if (!claimed && (await this.redis.getRaw(claim)) === entry) return;
+    } catch {
+      claimed = false;
+    }
+    if (!claimed) {
+      if (relay) return refuse("this pre-dial is already connected");
+      this.logger.warn(
+        `⛔ External carrier call ${call.id} could not be sent on: its carrier leg is already claimed`,
+      );
+      await this.telephonyService.hangupCall(entry).catch(() => undefined);
+      return;
+    }
+
+    this.logger.log(
+      `🔀 Sending external carrier call ${call.id} on to its carrier (${
+        relay ? `relayed by ${entry}` : `leg ${entry}`
+      })`,
+    );
+    try {
+      await this.telephonyService.connectOutboundToCarrier(entry, {
+        destinationUri: destination,
+        from: call.fromNumber,
+        correlation: signCallCorrelation(call.id),
+        commandId: `carrier-outbound-${call.id}`,
+        timeoutSecs: EXTERNAL_CARRIER_RING_SECS,
+        markEntry: relay,
+      });
+    } catch (error) {
+      const reason = `the carrier leg could not be started (${error instanceof Error ? error.name : "error"})`;
+      if (relay) return refuse(reason);
+      this.logger.warn(`⛔ External carrier call ${call.id}: ${reason}`);
+      await this.callRepository
+        .updateControlState(entry, {
+          errorMessage: "The external carrier could not be reached.",
+        })
+        .catch(() => undefined);
+      // The leg is the call: its own hangup ends the row the ordinary way.
+      await this.telephonyService.hangupCall(entry).catch(() => undefined);
+    }
+  }
+
+  /**
+   * The carrier leg ended: busy, declined, unanswered, unreachable — or the
+   * far end hung up after talking. A transfer that fails leaves the browser's
+   * call parked on the application, so it is ended here, with the cause on
+   * the row.
+   */
+  private async endExternalOutbound(
+    leg: CarrierOutboundLeg,
+    event: TelephonyEvent,
+  ): Promise<void> {
+    const id = leg.call ? verifyCallCorrelation(leg.call) : null;
+    const call = id ? await this.callRepository.findById(id) : null;
+    if (!call?.externalSipEndpointId || call.direction !== "outbound") return;
+    const cause = (event.payload as CallHangupPayload).hangup_cause;
+    if (call.callControlId && !call.answeredAt && cause !== "originator_cancel")
+      await this.callRepository
+        .updateControlState(call.callControlId, {
+          errorMessage: `The external carrier did not connect the call${cause ? ` (${cause})` : ""}.`,
+        })
+        .catch(() => undefined);
+    // After a conversation both sides end together; only an unanswered
+    // attempt leaves the browser's call parked on the application.
+    if (call.answeredAt) return;
+    const ending = `carrier-outbound-end-${call.id}`;
+    const entry = await this.redis
+      .getRaw(carrierOutboundBridgeKey(call.id))
+      .catch(() => null);
+    if (entry && entry !== call.callControlId)
+      await this.telephonyService
+        .refuseCarrierOutbound(entry, ending)
+        .catch(() => undefined);
+    if (call.callControlId)
+      await this.telephonyService
+        .hangupCall(call.callControlId, ending)
+        .catch((err) =>
+          this.logger.debug(
+            `External carrier call ${call.id} was already ending: ${err.message}`,
+          ),
+        );
+  }
+
+  /**
    * The desk phone answered an inbound call. Either leg may report it, so the
    * row turns answered — and answer automation runs — only once. The phone's
    * owner is recorded as the member who took it, the same way a ring group
@@ -409,6 +631,10 @@ export class CallService implements OnModuleDestroy {
    * `Call` row is created here and the browser gets a signed token to place
    * the leg with. `call.initiated` adopts the row, so status, cost, recording,
    * CRM and history all run through the normal lifecycle.
+   *
+   * The browser's leg goes to Ringee's own Call Control application, addressed
+   * with the call's signed key — never to the carrier. When it arrives there,
+   * the server sends it on to the carrier (`bridgeExternalOutbound`).
    */
   async prepareExternalOutbound(
     ctx: OwnershipContext,
@@ -442,12 +668,21 @@ export class CallService implements OnModuleDestroy {
       externalCarrierId: route.externalCarrierId,
       externalSipEndpointId: route.externalSipEndpointId,
     });
+    let destinationUri: string;
+    try {
+      destinationUri = await this.externalCarriers.outboundEntry(call.id);
+    } catch (error) {
+      await this.callRepository
+        .failPendingExternalCall(ctx, call.id, "The call could not be started.")
+        .catch(() => undefined);
+      throw error;
+    }
     return {
       phoneNumber: route.fromNumber,
       numberId: null,
       rotated: false,
       reason: "external_carrier",
-      destinationUri: route.destinationUri,
+      destinationUri,
       callToken: signCallCorrelation(call.id),
     };
   }
@@ -464,11 +699,12 @@ export class CallService implements OnModuleDestroy {
   }
 
   /**
-   * `call.initiated` for a leg addressed to an external carrier. Only a
-   * pre-dial issued by `prepareExternalOutbound` may use a carrier: the token
-   * names the row, and the leg must be addressed to exactly that row's
-   * destination on its own carrier's host, so a token cannot carry another
-   * call and a carrier host cannot be dialed without one.
+   * `call.initiated` for the browser's leg of an external carrier pre-dial.
+   * Only a pre-dial issued by `prepareExternalOutbound` may use a carrier: the
+   * token names the row, and the leg must be addressed with that same row's
+   * call key, so a token cannot carry another call. Where the call then goes
+   * is not the browser's to say: the server sends it on from its own records
+   * (`bridgeExternalOutbound`).
    */
   private async adoptExternalOutbound(
     token: string | null,
@@ -521,13 +757,9 @@ export class CallService implements OnModuleDestroy {
       fromNumber: call.fromNumber,
       externalSipEndpointId: call.externalSipEndpointId,
     });
-    const target = parseSipTarget(event.to);
-    if (
-      !host ||
-      target?.host !== host ||
-      // The number exactly, whether or not the provider echoes its `+`.
-      target.user.replace(/^\+/, "") !== call.toNumber.replace(/^\+/, "")
-    ) {
+    // The provider may report the destination with or without its host; the
+    // key is the proof, and it must be this row's.
+    if (!host || verifyCarrierCallKey(sipUser(event.to)) !== call.id) {
       await this.callRepository.failPendingExternalCall(
         ctx,
         call.id,
@@ -535,12 +767,26 @@ export class CallService implements OnModuleDestroy {
       );
       return refuse(
         host
-          ? `leg is not addressed to its authorized destination (to=${event.to})`
+          ? `leg is not addressed with its own call key (to=${event.to})`
           : "the external carrier route no longer holds",
       );
     }
 
-    // Same gates, in the same order, as every other browser-placed leg.
+    await this.claimExternalOutbound(ctx, call, event, refuse);
+  }
+
+  /**
+   * Binds a leg to its pre-dial's row: the same credit and one-call gates, in
+   * the same order, as every other browser-placed leg, then an atomic claim,
+   * so exactly one leg carries a pre-dial. True when the row is this leg's.
+   */
+  private async claimExternalOutbound(
+    ctx: OwnershipContext,
+    call: Call,
+    event: TelephonyEvent,
+    refuse: (reason: string) => Promise<void>,
+  ): Promise<boolean> {
+    const { callControlId } = event;
     if (
       !(await this.ensureCallAffordable(ctx, callControlId)) ||
       !(await this.ensureNoConcurrentCall(ctx, callControlId))
@@ -550,22 +796,24 @@ export class CallService implements OnModuleDestroy {
         call.id,
         "The call was refused.",
       );
-      return;
+      return false;
     }
 
     const claimed = await this.callRepository.claimPendingCall(call.id, {
       callControlId,
       callSessionId: event.callSessionId,
       callLegId: event.callLegId,
-      connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
+      connectionId: event.connectionId ?? apiConfiguration.TELNYX_CONNECTION_ID,
       startedAt: event.startedAt,
     });
     if (!claimed) {
       const current = await this.callRepository.findById(call.id);
-      if (current?.callControlId !== callControlId)
-        return refuse("its pre-dial was already used by another leg");
+      if (current?.callControlId !== callControlId) {
+        await refuse("its pre-dial was already used by another leg");
+        return false;
+      }
       await this.replayParkedCallEvents(callControlId);
-      return;
+      return true;
     }
 
     const adopted = await this.callRepository.findById(call.id);
@@ -583,6 +831,7 @@ export class CallService implements OnModuleDestroy {
       `📞 External carrier call ${callControlId} adopted → ${call.id}`,
     );
     await this.replayParkedCallEvents(callControlId);
+    return true;
   }
 
   onModuleDestroy(): void {
@@ -1343,6 +1592,7 @@ export class CallService implements OnModuleDestroy {
   async handleTelephonyEvent(event: TelephonyEvent) {
     const { type: eventType, callControlId, payload } = event;
     if (await this.handleDeskPhoneInboundLeg(event)) return;
+    if (await this.handleCarrierOutboundLeg(event)) return;
 
     if (eventType === "unknown") {
       // Carriers emit far more than Ringee acts on. Record it and move on.
@@ -1391,6 +1641,7 @@ export class CallService implements OnModuleDestroy {
           if (
             externalToken ||
             malformedSipTarget ||
+            isCarrierCallKey(sipUser(event.to)) ||
             (target && (await this.externalCarriers.isCarrierHost(target.host)))
           ) {
             await this.adoptExternalOutbound(externalToken, event);

@@ -1,5 +1,7 @@
 import {
   CarrierConnectionConfig,
+  CarrierConnectionIdentity,
+  CarrierOutboundTransfer,
   DeskPhoneInboundTransfer,
 } from "./interfaces/carrier-connection";
 import { Injectable } from "@nestjs/common";
@@ -77,8 +79,8 @@ export class TelephonyService implements TelephonyServiceInterface {
   deleteCarrierConnection(id: string) {
     return this.getServiceProvider().deleteCarrierConnection(id);
   }
-  getCarrierConnection(id: string) {
-    return this.getServiceProvider().getCarrierConnection(id);
+  verifyCarrierConnection(id: string, expected: CarrierConnectionIdentity) {
+    return this.getServiceProvider().verifyCarrierConnection(id, expected);
   }
   findCarrierConnection(reference: string) {
     return this.getServiceProvider().findCarrierConnection(reference);
@@ -89,8 +91,23 @@ export class TelephonyService implements TelephonyServiceInterface {
   getCarrierDialDestination(id: string, destination: string) {
     return this.getServiceProvider().getCarrierDialDestination(id, destination);
   }
-  configureCarrierInbound(id: string, routingKey: string) {
-    return this.getServiceProvider().configureCarrierInbound(id, routingKey);
+  getCarrierOutboundEntry(callKey: string) {
+    return this.getServiceProvider().getCarrierOutboundEntry(callKey);
+  }
+  connectOutboundToCarrier(
+    callControlId: string,
+    params: CarrierOutboundTransfer,
+  ) {
+    return this.getServiceProvider().connectOutboundToCarrier(
+      callControlId,
+      params,
+    );
+  }
+  refuseCarrierOutbound(callControlId: string, commandId: string) {
+    return this.getServiceProvider().refuseCarrierOutbound(
+      callControlId,
+      commandId,
+    );
   }
   connectInboundToDeskPhone(
     callControlId: string,

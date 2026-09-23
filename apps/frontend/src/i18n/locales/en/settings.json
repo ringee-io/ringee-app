@@ -469,6 +469,7 @@
     "required": "This field is required.",
     "tooLong": "This value is too long.",
     "invalidExtension": "Use letters, numbers, +, *, _, - or a period.",
+    "invalidSipUsername": "Use at least 4 letters, numbers, hyphens or underscores, starting with a letter or number.",
     "invalidExpiry": "Use a value between 60 and 86400 seconds.",
     "invalidPhone": "Enter an international phone number beginning with +.",
     "loadError": "Could not load external carriers.",
