@@ -114,7 +114,8 @@ export function normalizeSipInput(input: SipEndpointInput, creating: boolean) {
   };
 }
 
-export function normalizeExternalNumber(value: unknown) {
+/** Strict E.164: what Ringee dials, records and presents. */
+export function normalizeInternationalNumber(value: unknown) {
   const raw = requireText(value, "phone number", 40);
   if (!/^\+[\d ()-.]+$/.test(raw))
     throw new BadRequestException(
@@ -124,4 +125,40 @@ export function normalizeExternalNumber(value: unknown) {
   if (!number || !/^\+[1-9]\d{6,14}$/.test(number))
     throw new BadRequestException("Invalid international phone number.");
   return number;
+}
+
+/**
+ * An external number as the customer's carrier writes it: international, with
+ * or without the leading `+`. The spelling is kept — it is also how the
+ * carrier is sent the numbers it dials (`inCarrierFormat`).
+ */
+export function normalizeExternalNumber(value: unknown) {
+  const raw = requireText(value, "phone number", 40);
+  if (raw.startsWith("+")) return normalizeInternationalNumber(raw);
+  if (!/^[\d\s().-]+$/.test(raw))
+    throw new BadRequestException(
+      "Use an international phone number, with or without the leading +.",
+    );
+  const digits = raw.replace(/[\s().-]/g, "");
+  if (!/^[1-9]\d{6,14}$/.test(digits))
+    throw new BadRequestException("Invalid international phone number.");
+  return digits;
+}
+
+/** The E.164 form of a stored external number, whichever way it was saved. */
+export function externalNumberE164(stored: string) {
+  return stored.startsWith("+") ? stored : `+${stored}`;
+}
+
+/** Every spelling an external number with this E.164 form may be stored as. */
+export function externalNumberSpellings(e164: string) {
+  return e164.startsWith("+") ? [e164, e164.slice(1)] : [e164];
+}
+
+/**
+ * An E.164 number written the way the carrier writes its own external number:
+ * with the `+`, or without it.
+ */
+export function inCarrierFormat(e164: string, stored: string) {
+  return stored.startsWith("+") ? e164 : e164.replace(/^\+/, "");
 }

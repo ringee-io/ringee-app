@@ -59,7 +59,10 @@ export interface CarrierConnectionState extends CarrierConnection {
 
 /** Where a call must be sent to reach a destination through the PBX. */
 export interface CarrierDialDestination {
-  /** `sip:<E.164>@<fqdn>`, built only from the provider-generated host. */
+  /**
+   * `sip:<number>@<fqdn>` — E.164, `+` optional as the carrier takes it — built
+   * only from the provider-generated host.
+   */
   uri: string;
   fqdn: string;
 }
@@ -161,7 +164,10 @@ export function carrierOutboundLeg(
 
 /** Sends an outbound call parked on the Call Control application to its carrier. */
 export interface CarrierOutboundTransfer {
-  /** `sip:<E.164>@<connection host>`, built by the server from its own records. */
+  /**
+   * `sip:<number>@<connection host>` — E.164, `+` optional as the carrier takes
+   * it — built by the server from its own records.
+   */
   destinationUri: string;
   /** E.164 the connection presents; the customer's PBX may apply its own. */
   from: string;

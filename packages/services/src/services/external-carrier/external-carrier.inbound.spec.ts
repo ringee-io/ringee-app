@@ -184,6 +184,36 @@ describe("ExternalCarrierService inbound identification", () => {
       );
     }));
 
+  it("matches the called number with or without its +, and reports it as E.164", () =>
+    withConfig(async () => {
+      const s = setup();
+      s.state.endpoint!.numbers.push({
+        ...s.state.endpoint!.numbers[0],
+        id: "number-2",
+        phoneNumber: "13055550102",
+      });
+      const called = async (value: string) => {
+        const route = await s.service.identifyInbound(
+          s.event({
+            customHeaders: [{ name: "X-Ringee-Called-Number", value }],
+          }),
+        );
+        return route.kind === "identified"
+          ? [route.externalNumberId, route.toNumber]
+          : route.kind;
+      };
+      for (const value of ["13055550101", "+13055550101"])
+        assert.deepEqual(await called(value), ["number-1", "+13055550101"]);
+      for (const value of [
+        "13055550102",
+        "+13055550102",
+        "sip:13055550102@pbx.example.com",
+      ])
+        assert.deepEqual(await called(value), ["number-2", "+13055550102"]);
+      for (const value of ["3055550102", "", "sip:@pbx.example.com"])
+        assert.equal(await called(value), "refused");
+    }));
+
   it("refuses when the endpoint or the called number cannot take the call", () =>
     withConfig(async () => {
       const cases: Array<(s: ReturnType<typeof setup>) => void> = [
@@ -273,6 +303,7 @@ describe("ExternalCarrierService desk phone assignment", () => {
     const service = new ExternalCarrierService(
       {
         find: async () => structuredClone(carrier),
+        findNumberInOrganization: async () => null,
         acquire: async () => true,
         release: async () => {},
         saveNumber: async (

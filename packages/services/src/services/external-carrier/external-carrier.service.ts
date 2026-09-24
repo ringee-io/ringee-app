@@ -33,7 +33,11 @@ import { apiConfiguration } from "@ringee/configuration";
 import { SipDeviceService } from "../sip-device/sip-device.service";
 import { sipUser } from "./sip-target";
 import {
+  externalNumberE164,
+  externalNumberSpellings,
+  inCarrierFormat,
   normalizeExternalNumber,
+  normalizeInternationalNumber,
   normalizeSipInput,
   requireText,
   SipEndpointInput,
@@ -182,9 +186,13 @@ export class ExternalCarrierService {
     if (named.length > 1) return refused("the PBX named several numbers");
     if (named.length === 1) {
       // The header only selects among this verified endpoint's own numbers;
-      // it can never reach a number anywhere else.
-      const called = e164(sipUser(named[0].value));
-      number = numbers.find((row) => row.phoneNumber === called);
+      // it can never reach a number anywhere else. A PBX writes the number the
+      // way its carrier does, so the `+` is optional on either side.
+      const header = sipUser(named[0].value);
+      const called = e164(header.startsWith("+") ? header : `+${header}`);
+      number = numbers.find(
+        (row) => externalNumberE164(row.phoneNumber) === called,
+      );
       if (!number) return refused("the named number is not on this extension");
     } else if (numbers.length === 1) {
       number = numbers[0];
@@ -204,7 +212,7 @@ export class ExternalCarrierService {
       organizationId: endpoint.organizationId,
       fromNumber: e164(caller) ?? caller,
       callerId: e164(caller),
-      toNumber: number.phoneNumber,
+      toNumber: externalNumberE164(number.phoneNumber),
       externalNumberId: number.id,
       externalCarrierId: endpoint.carrierId,
       externalSipEndpointId: endpoint.id,
@@ -228,6 +236,7 @@ export class ExternalCarrierService {
     const owner = await this.authorizeCalling(ctx);
     return (await this.repo.listCallingNumbers(owner)).map((number) => ({
       ...number,
+      phoneNumber: externalNumberE164(number.phoneNumber),
       source: "external_carrier" as const,
       isoCountry: "",
       status: "active",
@@ -237,7 +246,9 @@ export class ExternalCarrierService {
   /**
    * The persisted half of an outbound route: the number is this workspace's,
    * active, and on a synchronized endpoint of an active carrier. Another
-   * organization's number is indistinguishable from a missing one.
+   * organization's number is indistinguishable from a missing one. Ringee
+   * records and presents the number as E.164; `stored` is how the carrier
+   * writes it, which is also how the carrier is sent the number it dials.
    */
   private usableRoute(number: ExternalCallingRoute | null) {
     if (!number) throw new NotFoundException("External number not found.");
@@ -252,7 +263,8 @@ export class ExternalCarrierService {
         "This external number's connection is unavailable. Synchronize its extension and retry.",
       );
     return {
-      fromNumber: number.phoneNumber,
+      fromNumber: externalNumberE164(number.phoneNumber),
+      stored: number.phoneNumber,
       endpoint: {
         ...endpoint,
         providerConnectionId: endpoint.providerConnectionId,
@@ -271,8 +283,8 @@ export class ExternalCarrierService {
     destination: string,
   ) {
     const owner = await this.authorizeCalling(ctx);
-    const toNumber = normalizeExternalNumber(destination);
-    const { fromNumber, endpoint } = this.usableRoute(
+    const toNumber = normalizeInternationalNumber(destination);
+    const { fromNumber, stored, endpoint } = this.usableRoute(
       await this.repo.findCallingRoute(owner, { id: numberId }),
     );
     let registration, dial;
@@ -281,7 +293,7 @@ export class ExternalCarrierService {
         this.telephony.checkCarrierRegistration(endpoint.providerConnectionId),
         this.telephony.getCarrierDialDestination(
           endpoint.providerConnectionId,
-          toNumber,
+          inCarrierFormat(toNumber, stored),
         ),
       ]);
     } catch (error) {
@@ -324,15 +336,24 @@ export class ExternalCarrierService {
     ctx: OwnershipContext,
     route: { fromNumber: string; externalSipEndpointId: string },
   ): Promise<string | null> {
+    return (await this.confirmedRoute(ctx, route))?.host ?? null;
+  }
+
+  private async confirmedRoute(
+    ctx: OwnershipContext,
+    route: { fromNumber: string; externalSipEndpointId: string },
+  ) {
     try {
       const owner = await this.authorizeCalling(ctx);
-      const { endpoint } = this.usableRoute(
+      const { stored, endpoint } = this.usableRoute(
         await this.repo.findCallingRoute(owner, {
-          phoneNumber: route.fromNumber,
+          phoneNumbers: externalNumberSpellings(route.fromNumber),
           endpointId: route.externalSipEndpointId,
         }),
       );
-      return endpoint.providerFqdn;
+      return endpoint.providerFqdn
+        ? { host: endpoint.providerFqdn, stored }
+        : null;
     } catch {
       return null;
     }
@@ -360,8 +381,8 @@ export class ExternalCarrierService {
 
   /**
    * Where the server sends a pre-dial's call, from Ringee's own records only:
-   * its number on its own connection's host. Null when the route no longer
-   * holds.
+   * its number, written the way the carrier writes its external number, on
+   * its own connection's host. Null when the route no longer holds.
    */
   async outboundCarrierDestination(
     ctx: OwnershipContext,
@@ -371,9 +392,9 @@ export class ExternalCarrierService {
       externalSipEndpointId: string;
     },
   ): Promise<string | null> {
-    const host = await this.confirmOutboundRoute(ctx, route);
-    return host && /^\+[1-9]\d{6,14}$/.test(route.toNumber)
-      ? `sip:${route.toNumber}@${host}`
+    const confirmed = await this.confirmedRoute(ctx, route);
+    return confirmed && /^\+[1-9]\d{6,14}$/.test(route.toNumber)
+      ? `sip:${inCarrierFormat(route.toNumber, confirmed.stored)}@${confirmed.host}`
       : null;
   }
 
@@ -524,6 +545,16 @@ export class ExternalCarrierService {
       if (input.active !== undefined && typeof input.active !== "boolean")
         throw new ConflictException("Invalid number state.");
       const phoneNumber = normalizeExternalNumber(input.phoneNumber);
+      // One row per number in the workspace, however it is spelled: the
+      // database's unique index only sees one spelling.
+      const taken = await this.repo.findNumberInOrganization(
+        mutation,
+        externalNumberSpellings(externalNumberE164(phoneNumber)),
+      );
+      if (taken && taken.id !== id)
+        throw new ConflictException(
+          "This extension or phone number already exists in the workspace.",
+        );
       const deviceId =
         input.inboundSipDeviceId === undefined
           ? (previous?.inboundSipDeviceId ?? null)

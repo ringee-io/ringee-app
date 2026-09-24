@@ -587,6 +587,17 @@ describe("UAC outbound routing", () => {
     expect(JSON.stringify(route)).not.toContain(config.password);
   });
 
+  it("dials a number without its + for a carrier that writes numbers that way", async () => {
+    const client = { get: vi.fn().mockResolvedValue(uac()) };
+    const service = new TelnyxService(client as unknown as TelnyxClient);
+    await expect(
+      service.getCarrierDialDestination("uac", "12125550199"),
+    ).resolves.toEqual({
+      uri: "sip:12125550199@provider-generated.example.net",
+      fqdn: "provider-generated.example.net",
+    });
+  });
+
   it.each([
     { active: false },
     { sip_uri_calling_preference: "disabled" },
@@ -642,7 +653,14 @@ describe("UAC outbound routing", () => {
     expect(String((error as Error).message)).not.toContain(config.password);
   });
 
-  it.each(["sip:attacker@elsewhere.test", "12125550199", "+0123456789", ""])(
+  it.each([
+    "sip:attacker@elsewhere.test",
+    "+0123456789",
+    "0123456789",
+    "++12125550199",
+    "12125550199@elsewhere.test",
+    "",
+  ])(
     "never calls the provider for a destination that is not E.164 (%s)",
     async (destination) => {
       const client = { get: vi.fn() };
@@ -813,9 +831,27 @@ describe("UAC inbound routing", () => {
     });
   });
 
+  it("transfers a number without its + as written", async () => {
+    const client = { post: vi.fn().mockResolvedValue({}) };
+    const service = new TelnyxService(client as unknown as TelnyxClient);
+    await service.connectOutboundToCarrier("entry-leg", {
+      destinationUri: "sip:18299621624@6eq9dcjrfudd.uac.telnyx.com",
+      from: "+18495322320",
+      correlation: "c",
+      commandId: "id",
+      timeoutSecs: 90,
+      markEntry: false,
+    });
+    expect(client.post.mock.calls[0][1]).toMatchObject({
+      to: "sip:18299621624@6eq9dcjrfudd.uac.telnyx.com",
+      from: "+18495322320",
+    });
+  });
+
   it.each([
     ["sip:+18299621624@6eq9dcjrfudd.uac.telnyx.com", "not-a-number"],
-    ["sip:18299621624@6eq9dcjrfudd.uac.telnyx.com", "+18495322320"],
+    ["sip:+18299621624@6eq9dcjrfudd.uac.telnyx.com", "18495322320"],
+    ["sip:08299621624@6eq9dcjrfudd.uac.telnyx.com", "+18495322320"],
     ["+18299621624", "+18495322320"],
     ["sip:+18299621624@host.test:5060", "+18495322320"],
     ["sip:+18299621624@a.test@b.test", "+18495322320"],

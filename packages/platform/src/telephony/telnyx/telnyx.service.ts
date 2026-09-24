@@ -274,9 +274,10 @@ export class TelnyxService implements TelephonyService {
 
   /**
    * Transfers the browser's call, parked on the Call Control application, to
-   * `sip:<E.164>@<UAC fqdn>`: from Call Control, Telnyx delivers that to the
-   * PBX the connection is registered with, which places the call on the
-   * customer's carrier. Ringback reaches the browser as early media. The new
+   * `sip:<number>@<UAC fqdn>` — E.164 with or without its `+`, as the carrier
+   * takes it: from Call Control, Telnyx delivers that to the PBX the
+   * connection is registered with, which places the call on the customer's
+   * carrier. Ringback reaches the browser as early media. The new
    * leg is marked, so its webhooks are recognized as part of the call; the
    * parked leg only when it is not the call itself.
    */
@@ -284,7 +285,7 @@ export class TelnyxService implements TelephonyService {
     callControlId: string,
     params: CarrierOutboundTransfer,
   ): Promise<void> {
-    const target = /^sip:(\+[1-9]\d{6,14})@([^@;:]+)$/.exec(
+    const target = /^sip:(\+?[1-9]\d{6,14})@([^@;:]+)$/.exec(
       params.destinationUri,
     );
     if (
@@ -417,13 +418,14 @@ export class TelnyxService implements TelephonyService {
   /**
    * Read-only: a dial never reconfigures the connection. The host is exactly
    * the `fqdn` Telnyx generated for this UAC — never the customer's proxy, a
-   * constructed Telnyx suffix or anything supplied by a client.
+   * constructed Telnyx suffix or anything supplied by a client. The number is
+   * international with or without its `+`, as the customer's carrier takes it.
    */
   async getCarrierDialDestination(
     id: string,
     destination: string,
   ): Promise<CarrierDialDestination | null> {
-    if (!/^\+[1-9]\d{6,14}$/.test(destination))
+    if (!/^\+?[1-9]\d{6,14}$/.test(destination))
       throw new CarrierConnectionError(false);
     const { data } = await this.uacRequest(() =>
       this.telnyxClient.get<{
