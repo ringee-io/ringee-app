@@ -1,3 +1,9 @@
+import {
+  CarrierConnectionConfig,
+  CarrierConnectionIdentity,
+  CarrierOutboundTransfer,
+  DeskPhoneInboundTransfer,
+} from "./interfaces/carrier-connection";
 import { Injectable } from "@nestjs/common";
 import { TelephonyCountryRate } from "./interfaces/telephony.rate";
 import { TelephonyService as TelephonyServiceInterface } from "./interfaces/telephony.service";
@@ -62,6 +68,55 @@ export class TelephonyService implements TelephonyServiceInterface {
 
   getRateByCountry(codeOrName: string): Promise<TelephonyCountryRate | null> {
     return this.getServiceProvider().getRateByCountry(codeOrName);
+  }
+
+  createCarrierConnection(config: CarrierConnectionConfig) {
+    return this.getServiceProvider().createCarrierConnection(config);
+  }
+  updateCarrierConnection(id: string, config: CarrierConnectionConfig) {
+    return this.getServiceProvider().updateCarrierConnection(id, config);
+  }
+  deleteCarrierConnection(id: string) {
+    return this.getServiceProvider().deleteCarrierConnection(id);
+  }
+  verifyCarrierConnection(id: string, expected: CarrierConnectionIdentity) {
+    return this.getServiceProvider().verifyCarrierConnection(id, expected);
+  }
+  findCarrierConnection(reference: string) {
+    return this.getServiceProvider().findCarrierConnection(reference);
+  }
+  checkCarrierRegistration(id: string) {
+    return this.getServiceProvider().checkCarrierRegistration(id);
+  }
+  getCarrierDialDestination(id: string, destination: string) {
+    return this.getServiceProvider().getCarrierDialDestination(id, destination);
+  }
+  getCarrierOutboundEntry(callKey: string) {
+    return this.getServiceProvider().getCarrierOutboundEntry(callKey);
+  }
+  connectOutboundToCarrier(
+    callControlId: string,
+    params: CarrierOutboundTransfer,
+  ) {
+    return this.getServiceProvider().connectOutboundToCarrier(
+      callControlId,
+      params,
+    );
+  }
+  refuseCarrierOutbound(callControlId: string, commandId: string) {
+    return this.getServiceProvider().refuseCarrierOutbound(
+      callControlId,
+      commandId,
+    );
+  }
+  connectInboundToDeskPhone(
+    callControlId: string,
+    params: DeskPhoneInboundTransfer,
+  ) {
+    return this.getServiceProvider().connectInboundToDeskPhone(
+      callControlId,
+      params,
+    );
   }
 
   private getServiceProvider(provider = "telnyx"): TelephonyServiceInterface {

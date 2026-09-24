@@ -5,6 +5,12 @@
   "metaDescription": "Realiza y recibe llamadas con calidad excepcional a más de 180 países directamente desde tu navegador. Con la tecnología de Telnyx y Ringee WebRTC para equipos comerciales y comunicación global.",
   "newCall": "Nueva llamada",
   "incomingCall": "Llamada entrante",
+  "incoming": {
+    "viaRingGroup": "vía {name}",
+    "alreadyAnswered": "Otra persona atendió esta llamada.",
+    "noLongerRinging": "Esta llamada ya no está sonando.",
+    "notOffered": "Esta llamada no se te ofreció."
+  },
   "outgoingCall": "Llamada saliente",
   "missedCall": "Llamada perdida",
   "answered": "Contestada",
@@ -314,5 +320,22 @@
       "neutral": "Neutral",
       "negative": "Negativo"
     }
+  },
+  "dialer": {
+    "externalCarrier": {
+      "invalidDestination": "Introduce un número internacional válido que empiece por +.",
+      "noCredit": "No tienes crédito suficiente para hacer esta llamada.",
+      "notAllowed": "No puedes llamar desde este número en el espacio de trabajo actual.",
+      "numberUnavailable": "Este número ya no está disponible. Elige otro número.",
+      "notReady": "Tu operador no está listo. Comprueba que su extensión esté sincronizada y registrada.",
+      "unavailable": "No se pudo contactar con tu operador. Inténtalo de nuevo en un momento.",
+      "rejected": "Tu operador rechazó la llamada. Revisa los permisos de salida de la extensión en tu PBX.",
+      "destinationRejected": "Tu operador no pudo enrutar este número.",
+      "timeout": "Tu operador no respondió a tiempo.",
+      "failed": "No se pudo completar la llamada a través de tu operador."
+    }
+  },
+  "numberSelector": {
+    "externalCarrier": "Tu operador"
   }
 }

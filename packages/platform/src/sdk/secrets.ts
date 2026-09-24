@@ -18,12 +18,20 @@ import { scryptSync } from "crypto";
 export type SdkKeyPurpose =
   | "publishable_key"
   | "agent_session"
-  | "call_correlation";
+  | "call_correlation"
+  | "carrier_route"
+  | "carrier_uac";
 
 const SALTS: Record<SdkKeyPurpose, string> = {
   publishable_key: "ringee_sdk_pk_v1",
   agent_session: "ringee_sdk_session_v1",
   call_correlation: "ringee_sdk_call_corr_v1",
+  // Not an SDK token: the signed routing key of an external carrier
+  // connection's Internal SIP URI. Same derivation, its own key.
+  carrier_route: "ringee_carrier_route_v1",
+  // Not an SDK token either: the provider-side (internal) credentials of an
+  // external carrier connection, derived so they never need to be stored.
+  carrier_uac: "ringee_carrier_uac_v1",
 };
 
 function baseSecret(): string {

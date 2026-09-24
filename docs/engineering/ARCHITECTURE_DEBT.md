@@ -14,7 +14,46 @@ source of bugs · **Medium** = friction and drift · **Low** = tidy-up.
 
 ## Open
 
-These three are deferred by an explicit decision, not by oversight.
+These are deferred by an explicit decision, not by oversight.
+
+### DEBT-020 — Inbound calls ring every dashboard through one shared WebRTC credential · Critical · Open
+
+**Where:** `apps/frontend/src/features/calls/hooks/use.telnyx.tsx`,
+`use.incoming.listener.ts`; Ringee numbers assigned to `TELNYX_CONNECTION_ID`
+
+**What:** every dashboard registers with the same credential
+(`NEXT_PUBLIC_TELNYX_LOGIN` / `NEXT_PUBLIC_TELNYX_PASSWORD`, shipped in the
+browser bundle). An inbound call to any Ringee number is offered to every
+registered browser, and each browser decides client-side, against its own
+number list, whether to show it.
+
+**Why it matters:** the SIP offer — caller number included — reaches browsers of
+other workspaces, and nothing server-side stops a modified client from answering
+it. It is also why a call cannot be routed to one user's browser: Telnyx accepts
+call-control commands only for calls on a Voice API application, and the
+per-user on-demand credentials the extension and SDK use cannot receive a DID
+call. External carrier numbers therefore ring desk phones only (`NUM-007`).
+
+**Direction:** assign Ringee numbers to the Call Control application, sign the
+dashboard in with per-user credentials, and transfer each inbound call to its
+recipient's credential server-side — the path carrier calls already take. A
+migration of every number's routing, to be validated with live calls; not a side
+effect of another task.
+
+**Since inbound routing shipped:** the server now names the recipient of every
+inbound call and says so on the per-user realtime channel
+(`call.inbound.ringing` / `call.inbound.cancelled`), an answer is claimed
+server-side before the media leg is taken (`NUM-010`), and the dashboard
+presents a leg only once that offer names it — the number check it used before
+survives for one case, a realtime channel that is down, so an inbound call
+still rings when the courier drops. That fixes _attribution_, the answer race
+and ring groups; it does not fix this. The SIP offer still reaches every
+registered browser, caller number included, and only a browser's own restraint
+keeps another workspace's call off the screen: a modified client still receives
+the leg and can still answer it — it just cannot win the call. A carrier call
+still cannot be addressed to a browser at all
+(`transport_cannot_reach_destination`). The migration above is what closes it,
+and it is also what `IVR` needs.
 
 ### DEBT-002 — Migration state is ambiguous and partly untracked · Critical · Open
 

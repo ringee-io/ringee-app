@@ -142,6 +142,7 @@ export class TelnyxEventNormalizer {
       provider: "telnyx",
       providerEventType,
       callControlId,
+      connectionId: str(payload.connection_id),
       callSessionId: str(payload.call_session_id),
       callLegId: str(payload.call_leg_id),
       clientState: str(payload.client_state),

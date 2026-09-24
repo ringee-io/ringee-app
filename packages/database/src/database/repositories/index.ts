@@ -91,3 +91,8 @@ export * from "./offer-stats.repository";
 export * from "./ai-voice-agent.repository";
 export * from "./ai-voice-agent-call.repository";
 export * from "./workspace-company-profile.repository";
+
+export * from "./external-carrier.repository";
+export * from "./inbound-route.repository";
+export * from "./ring-group.repository";
+export * from "./inbound-ring-attempt.repository";

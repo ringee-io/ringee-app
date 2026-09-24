@@ -138,9 +138,14 @@ if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
 
 const nextConfig = withNextIntl(configWithPlugins);
 
-export default withPWA({
+// next-pwa's declarations resolve their own Next 13 installation. At runtime
+// this wrapper preserves the supplied config and wraps webpack; type the
+// boundary with the Next version this app actually builds against.
+const withConfiguredPWA = withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development'
-})(nextConfig);
+}) as unknown as (config: NextConfig) => NextConfig;
+
+export default withConfiguredPWA(nextConfig);

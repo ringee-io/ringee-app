@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CallStatus } from "@prisma/client";
+import { CallStatus, Prisma } from "@prisma/client";
 import { CallRepository } from "./call.repository";
 
 function build(initialStatus: CallStatus) {
@@ -76,5 +76,80 @@ describe("CallRepository.completeCall terminal status", () => {
 
     assert.equal(updates[0]!.data.status, CallStatus.failed);
     assert.equal(result!.status, CallStatus.failed);
+  });
+});
+
+describe("CallRepository carrier lifecycle persistence", () => {
+  it("recovers only the inbound leg's own unique-key conflict", async () => {
+    let target = ["callControlId"];
+    const existing = { id: "call", callControlId: "leg" };
+    const repo = new CallRepository({
+      call: {
+        create: async () => {
+          throw new Prisma.PrismaClientKnownRequestError("duplicate", {
+            code: "P2002",
+            clientVersion: "test",
+            meta: { target },
+          });
+        },
+        findUnique: async () => existing,
+      },
+    } as never);
+    const create = () =>
+      repo.createInboundOnce(
+        { userId: "user", organizationId: "org" },
+        {
+          callControlId: "leg",
+          fromNumber: "+12125550100",
+          toNumber: "+12125550101",
+        },
+      );
+    assert.deepEqual(await create(), { call: existing, created: false });
+    target = ["anotherUniqueKey"];
+    await assert.rejects(create(), { code: "P2002" });
+  });
+
+  it("expires only unbound carrier pre-dials, atomically against adoption", async () => {
+    let query: any;
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: unknown) => {
+          query = args;
+          return { count: 2 };
+        },
+      },
+    } as never);
+    const before = new Date("2026-09-17T12:00:00Z");
+    assert.equal(await repo.expirePendingExternalCalls(before), 2);
+    assert.deepEqual(query.where, {
+      status: CallStatus.pending,
+      callControlId: null,
+      externalSipEndpointId: { not: null },
+      createdAt: { lt: before },
+    });
+    assert.equal(query.data.status, CallStatus.failed);
+  });
+
+  it("does not let another member or workspace abandon a pre-dial", async () => {
+    const queries: any[] = [];
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: unknown) => {
+          queries.push(args);
+          return { count: 0 };
+        },
+      },
+    } as never);
+    await repo.failPendingExternalCall(
+      { userId: "member", organizationId: "org" },
+      "call",
+      "failed",
+    );
+    await repo.failPendingExternalCall({ userId: "member" }, "call", "failed");
+    assert.equal(queries[0].where.userId, "member");
+    assert.equal(queries[0].where.organizationId, "org");
+    assert.equal(queries[1].where.userId, "member");
+    assert.equal(queries[1].where.organizationId, null);
+    assert.equal(queries[0].where.callControlId, null);
   });
 });

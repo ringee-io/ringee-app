@@ -5,6 +5,8 @@ import { devtools } from 'zustand/middleware';
 import { ApiClient } from '@ringee/frontend-shared/lib/api';
 
 export type NumberPurchased = {
+  /** Set for a number on the workspace's own carrier (Bring Your Own Carrier). */
+  source?: 'external_carrier';
   id: string;
   phoneNumber: string;
   isoCountry: string;
@@ -56,8 +58,18 @@ export const useNumbersStore = create<NumbersState>()(
     fetchNumbers: async (api: ApiClient) => {
       set({ status: 'loading' });
       try {
-        const data = await api.get('/telephony/phone-numbers');
-        const list = Array.isArray(data) ? data : [];
+        const [data, external] = await Promise.all([
+          api.get('/telephony/phone-numbers'),
+          // Best effort: an unavailable carrier list must never hide the
+          // workspace's Ringee numbers.
+          api
+            .get('/external-carriers/calling-numbers')
+            .catch(() => [] as NumberPurchased[])
+        ]);
+        const list = [
+          ...(Array.isArray(data) ? data : []),
+          ...(Array.isArray(external) ? external : [])
+        ];
 
         const savedId =
           typeof window !== 'undefined'

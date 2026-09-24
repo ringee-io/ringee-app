@@ -416,6 +416,7 @@ model User {
   numbersOwned            NumberPurchased[]
   userNumbers             UserNumber[]
   sipDevices              SipDevice[]
+  externalCarriers        ExternalCarrier[]
   blockedCalls            BlockedCallLog[]
   Contact                 Contact[]
   ContactNote             ContactNote[]
@@ -456,6 +457,11 @@ model User {
   aiVoiceAgents           AiVoiceAgent[]
   aiVoiceAgentCalls       AiVoiceAgentCall[]
   companyProfile          WorkspaceCompanyProfile?
+  inboundRoutes           InboundRoute[]
+  ringGroups              RingGroup[]
+  ringGroupMemberships    RingGroupMember[]
+  inboundRingAttempts     InboundRingAttempt[]
+  answeredCalls           Call[]                     @relation("callAnsweredByUser")
 
   @@index([clerkId])
 }
@@ -517,6 +523,7 @@ model Organization {
   userNumbers            UserNumber[]
   numbersPurchased       NumberPurchased[]
   sipDevices             SipDevice[]
+  externalCarriers       ExternalCarrier[]
   blockedCalls           BlockedCallLog[]
   contacts               Contact[]
   credits                Credit[]
@@ -550,6 +557,8 @@ model Organization {
   aiVoiceAgents          AiVoiceAgent[]
   aiVoiceAgentCalls      AiVoiceAgentCall[]
   companyProfile         WorkspaceCompanyProfile?
+  inboundRoutes          InboundRoute[]
+  ringGroups             RingGroup[]
 
   @@index([clerkId])
 }
@@ -686,6 +695,26 @@ model Call {
   sipDeviceId String?    @db.Uuid
   sipDevice   SipDevice? @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
 
+  // Set when the call was routed through the workspace's own carrier (Bring
+  // Your Own Carrier) instead of Ringee's PSTN route. Snapshots rather than
+  // relations, so history still names the carrier and SIP endpoint after they
+  // are deleted. The external number is `fromNumber` outbound, `toNumber` inbound.
+  externalCarrierId     String? @db.Uuid
+  externalSipEndpointId String? @db.Uuid
+
+  // ── Inbound routing ──────────────────────────────────────────────────────
+  // Which route decided where this call went, and what it decided. The type
+  // and ids are snapshots as well as relations, so history still reads
+  // correctly after a route or a ring group is edited away.
+  inboundRouteId         String?                 @db.Uuid
+  inboundDestinationType InboundDestinationType?
+  inboundDestinationId   String?                 @db.Uuid
+  routedAt               DateTime?
+  /// The ring group whose members were actually offered the call.
+  ringGroupId            String?                 @db.Uuid
+  /// Which member won it. Claimed atomically, so exactly one destination can.
+  answeredByUserId       String?                 @db.Uuid
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -702,6 +731,10 @@ model Call {
   callbacks          CallbackTask[]
   callSessionItems   CallSessionItem[]
   aiVoiceAgentCall   AiVoiceAgentCall?
+  inboundRoute       InboundRoute?              @relation(fields: [inboundRouteId], references: [id], onDelete: SetNull)
+  ringGroup          RingGroup?                 @relation("callRingGroup", fields: [ringGroupId], references: [id], onDelete: SetNull)
+  answeredByUser     User?                      @relation("callAnsweredByUser", fields: [answeredByUserId], references: [id], onDelete: SetNull)
+  ringAttempts       InboundRingAttempt[]
 
   @@index([userId])
   @@index([organizationId])
@@ -710,6 +743,9 @@ model Call {
   @@index([fromNumber])
   @@index([toNumber])
   @@index([sipDeviceId])
+  @@index([inboundRouteId])
+  @@index([ringGroupId])
+  @@index([answeredByUserId])
 }
 
 model CallTranscriptionSegment {
@@ -860,12 +896,14 @@ model SipDevice {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  assignedNumber NumberPurchased?  @relation("SipDeviceAssignedNumber", fields: [assignedPhoneNumberId], references: [id], onDelete: SetNull)
-  inboundNumbers NumberPurchased[] @relation("NumberInboundSipDevice")
-  calls          Call[]
-  blockedCalls   BlockedCallLog[]
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization           Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  assignedNumber         NumberPurchased?      @relation("SipDeviceAssignedNumber", fields: [assignedPhoneNumberId], references: [id], onDelete: SetNull)
+  inboundNumbers         NumberPurchased[]     @relation("NumberInboundSipDevice")
+  externalInboundNumbers ExternalPhoneNumber[]
+  calls                  Call[]
+  blockedCalls           BlockedCallLog[]
+  ringAttempts           InboundRingAttempt[]
 
   @@index([organizationId])
   @@index([userId])
@@ -989,6 +1027,7 @@ model NumberPurchased {
   rotationMember       CallerIdPoolMember?
   rotationUsage        CallerIdDailyUsage[]
   aiVoiceAgents        AiVoiceAgent[]           @relation("aiVoiceAgentCallerNumber")
+  inboundRoute         InboundRoute?
 
   @@index([isoCountry])
   @@index([provider])
@@ -4367,4 +4406,234 @@ model WorkspaceCompanyProfile {
 
   @@index([userId])
   @@index([organizationId])
+}
+
+/// Organization-owned PBX/carrier. Never used by purchased-number billing.
+model ExternalCarrier {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  organizationId    String    @db.Uuid
+  name              String
+  status            String    @default("active") // active | deleting
+  // Serializes changes across API processes without holding a DB transaction
+  // open during provider requests. A crashed request's lease expires.
+  mutationToken     String?   @db.Uuid
+  mutationExpiresAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  endpoints    ExternalSipEndpoint[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+/// One registration identity; any number of external DIDs can share it.
+model ExternalSipEndpoint {
+  id                   String    @id @default(uuid()) @db.Uuid
+  carrierId            String    @db.Uuid
+  organizationId       String    @db.Uuid
+  extension            String
+  proxy                String
+  sipUsername          String
+  sipPasswordEncrypted String    @db.Text
+  authUsername         String?
+  fromUser             String?
+  outboundProxy        String?
+  transport            String    @default("TLS")
+  expirationSec        Int       @default(600)
+  provider             String    @default("telnyx")
+  providerConnectionId String?   @unique
+  // Host the provider generated for the connection. Ringee's WebRTC legs dial
+  // `sip:<E.164>@<providerFqdn>`; stored as the provider reported it.
+  providerFqdn         String?
+  // Desired configuration is saved before PATCH. Retry synchronizes this row.
+  // pending is durable before POST; an uncertain POST is never blindly retried.
+  syncStatus           String    @default("pending") // pending | synced | error | unknown | deleting
+  registrationStatus   String    @default("unknown")
+  providerStatus       String?
+  lastRegisteredAt     DateTime?
+  lastCheckedAt        DateTime?
+  lastIpAddress        String?
+  lastPort             Int?
+  lastTransport        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  carrier ExternalCarrier       @relation(fields: [carrierId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  numbers ExternalPhoneNumber[]
+
+  @@unique([id, organizationId])
+  @@unique([carrierId, extension])
+  @@index([carrierId])
+  @@index([providerFqdn])
+}
+
+/// A DID the workspace owns at its own carrier. Ownership and extension are
+/// inherited from the endpoint. Any organization member may call from an active
+/// number on a synchronized endpoint (web dialer only).
+model ExternalPhoneNumber {
+  id                 String              @id @default(uuid()) @db.Uuid
+  endpointId         String              @db.Uuid
+  organizationId     String              @db.Uuid
+  phoneNumber        String
+  active             Boolean             @default(true)
+  // Desk phone that rings when the PBX sends a call for this number through
+  // the endpoint's connection; its owner is the recipient. Null: not routed
+  // inbound (outbound only). The browser is not a target: its shared WebRTC
+  // registration cannot be addressed per user.
+  inboundSipDeviceId String?             @db.Uuid
+  inboundSipDevice   SipDevice?          @relation(fields: [inboundSipDeviceId], references: [id], onDelete: SetNull)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  endpoint           ExternalSipEndpoint @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  inboundRoute       InboundRoute?
+
+  @@unique([organizationId, phoneNumber])
+  @@index([phoneNumber])
+  @@index([inboundSipDeviceId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inbound call routing
+//
+// One phone number, one destination. `InboundRoute` is the only place that
+// answers "who owns this incoming call"; carriers identify the number, the
+// routing layer decides where it goes. See docs/engineering/TELEPHONY.md.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// What answers an inbound call.
+///
+/// `ivr` and `ai_receptionist` are modelled now so a route can be stored and a
+/// migration planned, but the router refuses to execute them: those subsystems
+/// do not exist yet. Adding one means adding its destination handler, not
+/// changing the carrier layer.
+enum InboundDestinationType {
+  user
+  ring_group
+  desk_phone
+  ivr
+  ai_receptionist
+}
+
+/// How a ring group offers a call to its members. Simultaneous is the only
+/// strategy today; sequential/round-robin plug in here.
+enum RingGroupStrategy {
+  simultaneous
+}
+
+/// Lifecycle of one endpoint attempt inside an inbound call. Several may ring,
+/// exactly one may answer.
+enum InboundRingAttemptStatus {
+  ringing
+  answered
+  cancelled
+  failed
+}
+
+/// Where inbound calls to one phone number go. Exactly one of `numberId`
+/// (a Ringee-managed DID) and `externalNumberId` (a BYOC DID) is set, and each
+/// is unique: a number has at most one route. Absence of a row is meaningful —
+/// it means the legacy default (see `LegacyInboundFallback`).
+///
+/// `destinationId` is polymorphic on `destinationType`, so no foreign key can
+/// hold it to one workspace. The route service refuses to write a destination
+/// outside the route's workspace, and the resolver re-verifies ownership on
+/// every call before anything rings (WRK-001).
+model InboundRoute {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  numberId         String? @unique @db.Uuid
+  externalNumberId String? @unique @db.Uuid
+
+  destinationType InboundDestinationType
+  /// The row the destination addresses: a User, RingGroup or SipDevice id.
+  destinationId   String                 @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         NumberPurchased?     @relation(fields: [numberId], references: [id], onDelete: Cascade)
+  externalNumber ExternalPhoneNumber? @relation(fields: [externalNumberId], references: [id], onDelete: Cascade)
+  calls          Call[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([destinationType, destinationId])
+}
+
+/// A named set of members that ring together, e.g. "Sales". Workspace-scoped
+/// exactly like every other resource: an organization group belongs to the
+/// organization, a personal group to the user.
+model RingGroup {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  name        String
+  strategy    RingGroupStrategy @default(simultaneous)
+  /// How long the group rings before the attempt is given up on.
+  ringSeconds Int               @default(30)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      RingGroupMember[]
+  calls        Call[]            @relation("callRingGroup")
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+/// Membership of a ring group. A member is a Ringee user; which of their
+/// endpoints ring is decided at routing time, not stored here.
+model RingGroupMember {
+  id          String @id @default(uuid()) @db.Uuid
+  ringGroupId String @db.Uuid
+  userId      String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  ringGroup RingGroup @relation(fields: [ringGroupId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ringGroupId, userId])
+  @@index([userId])
+}
+
+/// One endpoint Ringee offered an inbound call to. Several exist for a ring
+/// group; they are legs of the same logical call, never calls of their own, so
+/// nothing here carries cost, recording or history.
+model InboundRingAttempt {
+  id     String @id @default(uuid()) @db.Uuid
+  callId String @db.Uuid
+
+  /// The member whose endpoints were rung.
+  userId      String? @db.Uuid
+  /// Set when the endpoint was a desk phone.
+  sipDeviceId String? @db.Uuid
+
+  status        InboundRingAttemptStatus @default(ringing)
+  failureReason String?
+  startedAt     DateTime                 @default(now())
+  endedAt       DateTime?
+
+  call      Call       @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sipDevice SipDevice? @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
+
+  /// A redelivered webhook must not ring the same member twice.
+  @@unique([callId, userId])
+  @@index([callId])
+  @@index([userId])
 }

@@ -45,11 +45,14 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
     if (!useMock) {
       fetchNumbers(api);
     }
-  }, [useMock]);
+  }, [useMock, api, fetchNumbers]);
 
   const isLoading = status === 'loading';
   const numbers = rawNumbers.filter(isSelectableNumber);
   const hasNumbers = numbers.length > 0;
+  const hasExternal = numbers.some(
+    (number) => number.source === 'external_carrier'
+  );
 
   return (
     <div className='mb-4'>
@@ -95,13 +98,17 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
       )}
 
       {/* Select de números */}
-      {!rotationEnabled && isLoading && (
+      {(!rotationEnabled || hasExternal) && isLoading && (
         <Skeleton className='h-9 w-full rounded-md' />
       )}
 
-      {!rotationEnabled && !isLoading && hasNumbers && (
+      {(!rotationEnabled || hasExternal) && !isLoading && hasNumbers && (
         <Select
-          value={selectedNumber?.id || ''}
+          value={
+            rotationEnabled && selectedNumber?.source !== 'external_carrier'
+              ? 'public'
+              : (selectedNumber?.id ?? 'public')
+          }
           onValueChange={(id) => {
             const num = numbers.find((n) => n.id === id);
             selectNumber(num || null);
@@ -120,20 +127,28 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
           <SelectContent>
             <SelectItem value='public' key='public'>
               <Phone className='text-muted-foreground h-3.5 w-3.5' />
-              <span>{tCalls('publicNumber')}</span>
+              <span>
+                {rotationEnabled ? t('dialer.auto') : tCalls('publicNumber')}
+              </span>
             </SelectItem>
 
-            {numbers.map((n) => (
-              <SelectItem key={n.id} value={n.id}>
-                <div className='flex items-center gap-2'>
-                  <Phone className='text-muted-foreground h-3.5 w-3.5' />
-                  <span>{n.phoneNumber}</span>
-                  <span className='text-muted-foreground ml-auto text-xs'>
-                    {n.isoCountry}
-                  </span>
-                </div>
-              </SelectItem>
-            ))}
+            {numbers
+              .filter(
+                (n) => !rotationEnabled || n.source === 'external_carrier'
+              )
+              .map((n) => (
+                <SelectItem key={n.id} value={n.id}>
+                  <div className='flex items-center gap-2'>
+                    <Phone className='text-muted-foreground h-3.5 w-3.5' />
+                    <span>{n.phoneNumber}</span>
+                    <span className='text-muted-foreground ml-auto text-xs'>
+                      {n.source === 'external_carrier'
+                        ? tCalls('externalCarrier')
+                        : n.isoCountry}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       )}

@@ -5,6 +5,12 @@
   "metaDescription": "Effettua e ricevi chiamate cristalline verso oltre 180 paesi direttamente dal browser. Tecnologia Telnyx e WebRTC di Ringee per team commerciali e comunicazione globale.",
   "newCall": "Nuova chiamata",
   "incomingCall": "Chiamata in arrivo",
+  "incoming": {
+    "viaRingGroup": "tramite {name}",
+    "alreadyAnswered": "Qualcun altro ha risposto a questa chiamata.",
+    "noLongerRinging": "Questa chiamata non sta più squillando.",
+    "notOffered": "Questa chiamata non ti è stata offerta."
+  },
   "outgoingCall": "Chiamata in uscita",
   "missedCall": "Chiamata persa",
   "answered": "Risposta",

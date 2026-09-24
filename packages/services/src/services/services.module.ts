@@ -1,9 +1,23 @@
+import { ExternalCarrierService } from "./external-carrier/external-carrier.service";
+import {
+  AiReceptionistDestinationHandler,
+  DeskPhoneDestinationHandler,
+  InboundCallRouterService,
+  InboundRingService,
+  InboundRouteResolverService,
+  InboundRouteService,
+  IvrDestinationHandler,
+  RingGroupDestinationHandler,
+  RingGroupService,
+  UserDestinationHandler,
+} from "./inbound-routing";
 import { Global, Module, Provider } from "@nestjs/common";
 import { UserService } from "./user.service";
 import {
   AuthModule,
   NotificationModule,
   TelephonyModule,
+  RealtimeModule,
   RedisModule,
   StripeModule,
   CrmModule,
@@ -324,8 +338,20 @@ const servicesProviders = [
   BackofficeService,
   BackofficeCampaignService,
   // Desk Phones (SIP Devices)
+  ExternalCarrierService,
   SipDeviceService,
   DeskPhoneCallService,
+  // Inbound call routing (number → route → destination → ring)
+  InboundRouteResolverService,
+  InboundCallRouterService,
+  InboundRingService,
+  UserDestinationHandler,
+  RingGroupDestinationHandler,
+  DeskPhoneDestinationHandler,
+  IvrDestinationHandler,
+  AiReceptionistDestinationHandler,
+  InboundRouteService,
+  RingGroupService,
   // Ringee Infra (visual architecture console)
   InfrastructureService,
   // Ringee Dialer SDK (publishable keys, agent OTP auth, call authorize)
@@ -405,6 +431,9 @@ const allProviders: Provider[] = [
     AuthModule,
     NotificationModule,
     TelephonyModule,
+    // InboundRingService offers a call to a member's live sessions and tells
+    // the losers to stop; every app that resolves a service needs it.
+    RealtimeModule,
     StripeModule,
     CrmModule,
     EnrichmentModule,

@@ -20,6 +20,7 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
   ValidateIf,
 } from "class-validator";
@@ -31,6 +32,7 @@ import {
 import {
   CallerIdRotationService,
   ConcurrentCallGuardService,
+  CallService,
 } from "@ringee/services";
 import {
   DialDevice,
@@ -51,9 +53,17 @@ class ResolveCallerIdDto {
   @IsOptional()
   @IsString()
   fallbackPhoneNumber?: string | null;
-  @IsOptional()
+  /** Required when `source` is `external_carrier`: the external number to call from. */
+  @ValidateIf(
+    (object: ResolveCallerIdDto, value) =>
+      object.source === "external_carrier" || value != null,
+  )
   @IsUUID()
   fallbackNumberId?: string | null;
+  /** Omitted for Ringee numbers; `external_carrier` dials through the workspace's own carrier. */
+  @IsOptional()
+  @IsIn(["external_carrier"])
+  source?: "external_carrier";
   @ValidateIf((_object, value) => value !== undefined)
   @IsBoolean()
   allowOverCap?: boolean;
@@ -71,6 +81,14 @@ class UpdateSettingsDto {
   @Min(0)
   @Max(2147483647)
   defaultDailyCap?: number;
+}
+
+class AbandonDialDto {
+  /** The external carrier pre-dial token, when the abandoned dial had one. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  callToken?: string;
 }
 
 class UpdatePoolMemberDto {
@@ -97,6 +115,7 @@ export class CallerIdRotationController {
   constructor(
     private readonly rotationService: CallerIdRotationService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly callService: CallService,
   ) {}
 
   /**
@@ -136,6 +155,23 @@ export class CallerIdRotationController {
     // resolve leaves the browser with nothing to dial, and a lease nobody is
     // using would refuse the user's next attempt from any other surface.
     try {
+      // An external number is not rotated: the pre-flight authorizes that
+      // number's carrier route and pre-creates the call the leg will adopt.
+      if (body.source === "external_carrier") {
+        const prepared = await this.callService.prepareExternalOutbound(
+          ctx,
+          body.fallbackNumberId!,
+          body.destination,
+        );
+        if (decision.leaseId) {
+          await this.concurrentCallGuard.tagPending(
+            user.id,
+            decision.leaseId,
+            prepared.callToken,
+          );
+        }
+        return prepared;
+      }
       const selection = await this.rotationService.selectForDial(
         ctx,
         (body?.destination ?? "").trim(),
@@ -147,14 +183,26 @@ export class CallerIdRotationController {
       );
 
       if (!selection?.phoneNumber) {
-        await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+        await this.releaseOwnLease(user.id, decision.leaseId);
       }
 
       return selection;
     } catch (error) {
-      await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+      await this.releaseOwnLease(user.id, decision.leaseId);
       throw error;
     }
+  }
+
+  /**
+   * Hand back only the lease THIS pre-flight took. An overlapping resolve from
+   * the same device may have replaced it, and that one is not ours to free.
+   */
+  private async releaseOwnLease(
+    userId: string,
+    leaseId: string | undefined,
+  ): Promise<void> {
+    if (!leaseId) return;
+    await this.concurrentCallGuard.releasePendingLease(userId, leaseId);
   }
 
   /**
@@ -168,7 +216,25 @@ export class CallerIdRotationController {
   async abandon(
     @CurrentUser() user: CurrentUserData,
     @DialDevice() device: DialDeviceInfo,
+    @Body() body: AbandonDialDto,
   ): Promise<void> {
+    if (body?.callToken) {
+      try {
+        await this.callService.abandonExternalOutbound(
+          createOwnershipContext(user),
+          body.callToken,
+        );
+      } finally {
+        // Only this pre-dial's own reservation: a late abandon must not free the
+        // lease of a dial the same device has placed since.
+        await this.concurrentCallGuard.releasePendingReservation(
+          user.id,
+          device.deviceId,
+          body.callToken,
+        );
+      }
+      return;
+    }
     await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
   }
 

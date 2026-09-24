@@ -133,6 +133,45 @@ export interface RealtimeAccountRestoredEvent {
   at: string;
 }
 
+/**
+ * An inbound call is being offered to this user, by name of the destination
+ * that chose them: a number routed straight to them, or a ring group they are
+ * a member of. The provider offers the SIP leg separately (today through one
+ * shared WebRTC credential, `DEBT-020`); this event is what says the leg is
+ * *theirs* to take, so a client presents only calls it is named in.
+ */
+export interface RealtimeInboundCallRingingEvent {
+  type: "call.inbound.ringing";
+  callId: string;
+  callControlId: string;
+  /** The number that was called and the caller, both as E.164 when they are. */
+  toNumber: string;
+  fromNumber: string;
+  /** Contact name when Ringee knows one. */
+  callerName: string | null;
+  destinationType: "user" | "ring_group" | "desk_phone";
+  /** Set when a ring group chose this user. */
+  ringGroupId: string | null;
+  ringGroupName: string | null;
+  /** How long the destination rings before it is given up on. */
+  ringSeconds: number;
+  at: string;
+}
+
+/**
+ * Stop presenting an inbound call: somebody else answered it, the caller hung
+ * up, or the destination was given up on. `answeredByUserId` is set only for
+ * the first of those.
+ */
+export interface RealtimeInboundCallCancelledEvent {
+  type: "call.inbound.cancelled";
+  callId: string;
+  callControlId: string;
+  reason: string;
+  answeredByUserId: string | null;
+  at: string;
+}
+
 export interface RealtimePongEvent {
   type: "pong";
   at: string;
@@ -149,6 +188,8 @@ export type RealtimeServerEvent =
   | RealtimeAccountBlockedEvent
   | RealtimeCallsTerminatedEvent
   | RealtimeAccountRestoredEvent
+  | RealtimeInboundCallRingingEvent
+  | RealtimeInboundCallCancelledEvent
   | RealtimePongEvent
   | RealtimeErrorEvent;
 
@@ -156,7 +197,9 @@ export type RealtimeServerEvent =
 export type RealtimeBroadcastEvent =
   | RealtimeAccountBlockedEvent
   | RealtimeCallsTerminatedEvent
-  | RealtimeAccountRestoredEvent;
+  | RealtimeAccountRestoredEvent
+  | RealtimeInboundCallRingingEvent
+  | RealtimeInboundCallCancelledEvent;
 
 /** Envelope carried over Redis so any API instance can deliver the event. */
 export interface RealtimeUserEnvelope {

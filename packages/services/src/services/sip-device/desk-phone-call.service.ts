@@ -8,7 +8,12 @@ import {
   SipDeviceWithNumber,
   BlockedCallLogRepository,
 } from "@ringee/database";
-import { OwnershipContext, TelnyxService } from "@ringee/platform";
+import {
+  OwnershipContext,
+  TelnyxService,
+  carrierInboundHeaderCorrelation,
+  verifyCallCorrelation,
+} from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "../credit.service";
 import { UserService } from "../user.service";
@@ -156,9 +161,30 @@ export class DeskPhoneCallService {
 
     const direction = (payload.direction as string | undefined) ?? "outbound";
     if (direction === "inbound" || direction === "incoming") {
+      if (await this.isCarrierInboundLeg(device, payload)) return;
       return this.recordInbound(device, payload);
     }
     return this.handleOutbound(device, payload, event.id ?? null);
+  }
+
+  /**
+   * The phone's side of a call an external carrier delivered, which Ringee
+   * transferred here. That call is already recorded — from the caller, to the
+   * external number — so recording this leg would list it twice.
+   */
+  private async isCarrierInboundLeg(
+    device: SipDeviceWithNumber,
+    payload: any,
+  ): Promise<boolean> {
+    const token = carrierInboundHeaderCorrelation(payload.custom_headers);
+    const callId = token ? verifyCallCorrelation(token) : null;
+    const call = callId
+      ? await this.callRepository.findById(callId)
+      : payload.call_session_id
+        ? // The header did not reach this connection: same call session.
+          await this.callRepository.findOneBySessionId(payload.call_session_id)
+        : null;
+    return !!call?.externalSipEndpointId && call.sipDeviceId === device.id;
   }
 
   /**

@@ -44,6 +44,12 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Carrier event → Ringee event          | `TelnyxEventNormalizer` — `platform/src/telephony/telnyx/telnyx.event.normalizer.ts` |
 | Inbound event contract                | `TelephonyEvent` — `platform/src/telephony/interfaces/telephony.event.ts`            |
 | Call lifecycle & `Call.status`        | `CallService.handleTelephonyEvent`                                                   |
+| Which number an inbound call was for  | `ExternalCarrierService.identifyInbound` (carrier calls), else the dialed number     |
+| Who owns an inbound call              | `InboundRouteResolverService.resolve` — `services/inbound-routing/`                  |
+| Default inbound behavior (no route)   | `legacyInboundDestination` — `inbound-routing/legacy-inbound-fallback.ts`            |
+| Executing a routing decision          | `InboundCallRouterService.routeInboundCall` + one handler per destination            |
+| Ring legs, and who won the call       | `InboundRingService` + `CallRepository.claimInboundAnswer`                           |
+| Route / ring group configuration      | `InboundRouteService`, `RingGroupService`                                            |
 | One call at a time                    | `ConcurrentCallGuardService` — `services/security/`                                  |
 | Stale call cleanup                    | `StaleCallSweeperService` — same folder                                              |
 | Killing a user's live calls           | `ActiveCallTerminationService` — same folder                                         |
@@ -129,20 +135,22 @@ pick the one matching your runtime.
 
 ## Frontend
 
-| Responsibility                 | Owner                                                                                   |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| Client HTTP                    | `useApi()` → `ApiClient` — `frontend-shared/src/hooks/use.api.ts`, `lib/api.ts`         |
-| Server-component HTTP          | `apiServer` — `frontend-shared/src/lib/api.server.ts`                                   |
-| Device identity                | `getRingeeDeviceId` / `DEVICE_ID_HEADER` — `frontend-shared/src/realtime/device-id`     |
-| UI primitives                  | `frontend-shared/src/components/ui`                                                     |
-| Form controls                  | `frontend-shared/src/components/forms/form-*`                                           |
-| Tables                         | `useDataTable` + `config/data-table.ts`                                                 |
-| Admin page gate                | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                           |
-| Realtime user events           | `frontend-shared/src/realtime/user-events-client.ts`                                    |
-| Campaign disposition write     | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`        |
-| Campaign outcome buttons       | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx` |
-| Validation 400 → `fields` map  | `validationExceptionFactory` — `apps/backend/src/api/validation-error.ts`               |
-| `ApiError` → sentence / fields | `describeApiError`, `fieldErrorsFrom` — `features/ai-voice-agents/lib/api-error.ts`     |
+| Responsibility                 | Owner                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| Client HTTP                    | `useApi()` → `ApiClient` — `frontend-shared/src/hooks/use.api.ts`, `lib/api.ts`          |
+| Server-component HTTP          | `apiServer` — `frontend-shared/src/lib/api.server.ts`                                    |
+| Device identity                | `getRingeeDeviceId` / `DEVICE_ID_HEADER` — `frontend-shared/src/realtime/device-id`      |
+| UI primitives                  | `frontend-shared/src/components/ui`                                                      |
+| Form controls                  | `frontend-shared/src/components/forms/form-*`                                            |
+| Tables                         | `useDataTable` + `config/data-table.ts`                                                  |
+| Admin page gate                | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                            |
+| Realtime user events           | `frontend-shared/src/realtime/user-events-client.ts`                                     |
+| Realtime socket mount          | `AccountLockdownProvider` — `features/security/components/account-lockdown-provider.tsx` |
+| Inbound call offers (client)   | `features/calls/store/inbound-offers.store.ts`                                           |
+| Campaign disposition write     | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`         |
+| Campaign outcome buttons       | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx`  |
+| Validation 400 → `fields` map  | `validationExceptionFactory` — `apps/backend/src/api/validation-error.ts`                |
+| `ApiError` → sentence / fields | `describeApiError`, `fieldErrorsFrom` — `features/ai-voice-agents/lib/api-error.ts`      |
 
 ## Security primitives
 

@@ -354,6 +354,31 @@ export class SipDeviceService {
   // Webhook-facing helpers (registration telemetry)
   // ───────────────────────────────────────────────────────────────────────
 
+  /**
+   * Make a desk phone the target of an external carrier number's inbound
+   * calls. The phone must be the workspace's and accept inbound calls. Its SIP
+   * URI is opened to this account's own connections only — that is how the
+   * Call Control application reaches it — and never to anyone else.
+   */
+  async prepareForCarrierInbound(
+    ctx: OwnershipContext,
+    deviceId: string,
+  ): Promise<SipDeviceWithNumber> {
+    this.assertFeatureEnabled();
+    const device = await this.getOwnedDevice(ctx, deviceId);
+    if (
+      !device.allowInbound ||
+      device.status === SipDeviceStatus.disabled ||
+      device.status === SipDeviceStatus.deleted
+    ) {
+      throw new BadRequestException(
+        "This desk phone does not accept incoming calls.",
+      );
+    }
+    await this.telnyx.allowDeskPhoneInternalCalls(device.telnyxConnectionId);
+    return device;
+  }
+
   /** Mark a device registered from observed call activity / SIP telemetry. */
   async markRegistered(
     deviceId: string,

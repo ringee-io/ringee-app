@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import {
   type Call,
+  type CarrierRoute,
   placeCall,
   muteCall,
   holdCall,
@@ -107,7 +108,14 @@ export function useCall(call?: Call | null) {
         setIsRecordingLoading(false);
       }
     },
-    [call, recordingId]
+    [
+      call,
+      recordingId,
+      api,
+      completeOnboardingStep,
+      setIsRecording,
+      setRecordingId
+    ]
   );
 
   const handleHangup = useCallback(async () => {
@@ -133,13 +141,31 @@ export function useCall(call?: Call | null) {
     [call]
   );
 
+  // Pre-flight refusals for a number on the workspace's own carrier. The server
+  // keeps provider and PBX detail out of its answers; so does this copy.
+  const externalCarrierError = (err: unknown) => {
+    const status = err instanceof ApiError ? err.status : 0;
+    if (status === 400) return t('externalCarrier.invalidDestination');
+    if (status === 402) return t('externalCarrier.noCredit');
+    if (status === 403) return t('externalCarrier.notAllowed');
+    if (status === 404) return t('externalCarrier.numberUnavailable');
+    if (status === 409) return t('externalCarrier.notReady');
+    return t('externalCarrier.unavailable');
+  };
+
   const handleCall = async (number: string) => {
     if (!client) return console.warn('⚠️ Telnyx client not ready');
 
+    const external = selectedNumber?.source === 'external_carrier';
+    let carrierRoute: CarrierRoute | undefined;
     const abandonDial = () =>
-      api.post('/caller-id-rotation/abandon', {}).catch(() => {
-        // Best effort: the reservation expires on its own either way.
-      });
+      api
+        .post('/caller-id-rotation/abandon', {
+          callToken: carrierRoute?.callToken
+        })
+        .catch(() => {
+          // Best effort: the reservation expires on its own either way.
+        });
 
     // This request is the dial pre-flight: it resolves the caller ID AND
     // enforces the one-call-at-a-time rule. The user's selected number is sent
@@ -150,8 +176,11 @@ export function useCall(call?: Call | null) {
       const res = await api.post<{
         phoneNumber: string | null;
         reason: string;
+        destinationUri?: string;
+        callToken?: string;
       }>('/caller-id-rotation/resolve', {
         destination: number,
+        ...(external ? { source: 'external_carrier' } : {}),
         fallbackPhoneNumber: selectedNumber?.phoneNumber ?? null,
         fallbackNumberId:
           selectedNumber?.id && selectedNumber.id !== 'public'
@@ -159,6 +188,17 @@ export function useCall(call?: Call | null) {
             : null
       });
       callerId = res?.phoneNumber ?? null;
+      if (external) {
+        if (!res?.destinationUri || !res.callToken) {
+          toast.error(t('externalCarrier.unavailable'));
+          void abandonDial();
+          return;
+        }
+        carrierRoute = {
+          destinationUri: res.destinationUri,
+          callToken: res.callToken
+        };
+      }
     } catch (err) {
       // A 409 is a deliberate refusal, not a hiccup: the user is already on a
       // call somewhere else. Dialing anyway would only get the leg torn down by
@@ -173,7 +213,9 @@ export function useCall(call?: Call | null) {
         return;
       }
       void abandonDial();
-      toast.error(t('callerIdUnavailable'));
+      toast.error(
+        external ? externalCarrierError(err) : t('callerIdUnavailable')
+      );
       return;
     }
 
@@ -195,6 +237,7 @@ export function useCall(call?: Call | null) {
         client,
         callerId,
         destination: number,
+        carrierRoute,
         userId: userId!,
         organizationId: orgId ?? undefined,
         debug: process.env.NODE_ENV === 'development'

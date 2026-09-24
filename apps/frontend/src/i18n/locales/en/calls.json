@@ -5,6 +5,12 @@
   "metaDescription": "Place and receive crystal-clear calls to 180+ countries directly from your browser. Powered by Telnyx and Ringee WebRTC technology for sales teams and global communication.",
   "newCall": "New call",
   "incomingCall": "Incoming call",
+  "incoming": {
+    "viaRingGroup": "via {name}",
+    "alreadyAnswered": "Someone else answered this call.",
+    "noLongerRinging": "This call is no longer ringing.",
+    "notOffered": "This call wasn't offered to you."
+  },
   "outgoingCall": "Outgoing call",
   "missedCall": "Missed call",
   "answered": "Answered",
@@ -370,7 +376,19 @@
     "balance": "Balance",
     "outboundDisabled": "Outbound calling is disabled for this account.",
     "enterNumber": "Enter number",
-    "callerIdUnavailable": "No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings."
+    "callerIdUnavailable": "No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings.",
+    "externalCarrier": {
+      "invalidDestination": "Enter a valid international number starting with +.",
+      "noCredit": "You don't have enough credit to place this call.",
+      "notAllowed": "You can't call from this number in the current workspace.",
+      "numberUnavailable": "This number is no longer available. Choose another number.",
+      "notReady": "Your carrier isn't ready. Check that its extension is synchronized and registered.",
+      "unavailable": "Your carrier couldn't be reached. Try again in a moment.",
+      "rejected": "Your carrier rejected the call. Check the extension's outbound permissions on your PBX.",
+      "destinationRejected": "Your carrier couldn't route this number.",
+      "timeout": "Your carrier didn't respond in time.",
+      "failed": "The call couldn't be completed through your carrier."
+    }
   },
   "activeCallStatus": {
     "recording": "Recording...",
@@ -420,7 +438,8 @@
     "whyBuyDescription": "Buying a number allows you to make and receive real calls. Prices start at $1.00 USD per month depending on country and number type.",
     "selectNumber": "Select a number",
     "notRequired": "You don't need a number to call",
-    "buy": "Buy number"
+    "buy": "Buy number",
+    "externalCarrier": "Your carrier"
   },
   "concurrentCall": {
     "title": "One call at a time",

@@ -479,8 +479,10 @@ optionally limits which members may. An empty list means no restriction.
 
 ### NUM-004 — Inbound routing is exclusive
 
-`inboundMode = desk_phone_only` means the number does not ring in any Ringee app,
-while staying usable as an outbound caller ID.
+A number has one destination at a time. `inboundMode = desk_phone_only` is the
+pre-routing form of it: the number does not ring in any Ringee app, while
+staying usable as an outbound caller ID. An explicit `InboundRoute` supersedes
+it and is equally exclusive (`NUM-009`).
 
 ### NUM-005 — Campaign caller ID resolves in a fixed order
 
@@ -514,6 +516,76 @@ fresh observations; retain `coolingUntil` as the new health sample's lower
 bound so the old bad sample cannot immediately cool the number again.
 
 - **Source of truth:** `packages/services/src/services/caller-id-rotation/`
+
+### NUM-007 — An external carrier number rings a desk phone, never the browser
+
+An `ExternalPhoneNumber`'s inbound calls ring the one desk phone it is routed to,
+in the same organization, or nothing. Its caller is the call's `fromNumber` and
+the external number its `toNumber`. A call whose called number is ambiguous —
+several numbers on one extension and no `X-Ringee-Called-Number` from the PBX —
+is refused, never guessed. The browser cannot be a target while Ringee's own
+inbound calls ride a shared WebRTC credential (`DEBT-020`), so a route pointing
+a carrier number at a `USER` or `RING_GROUP` destination is refused when it is
+written and, if one ever existed, again before it rings.
+
+- **Source of truth:** `ExternalCarrierService.identifyInbound`,
+  `InboundCallRouterService.routeInboundCall`, `InboundRouteService`
+
+### NUM-009 — One inbound route per number, re-verified on every call
+
+A number has at most one `InboundRoute` (both number columns are unique). The
+workspace a call belongs to is read off the **number row** — never from a
+carrier header, a client body or the route's own columns — and the destination
+is then checked against that workspace before anything rings: it must exist, be
+usable, and belong to the same workspace. `destinationId` is polymorphic, so no
+foreign key can hold it; this re-verification is what does. A route that fails
+it is refused and logged, never approximated by ringing somebody else.
+
+A number with no route keeps its previous behavior exactly: a desk-phone-pinned
+number rings that phone, any other Ringee DID rings its owner, and a carrier DID
+with no pin is not routed inbound. That fallback lives alone in
+`legacyInboundDestination` so it can be deleted in one piece once every number
+carries an explicit route.
+
+`IVR` and `AI_RECEPTIONIST` exist in the model and are **not routable**: the API
+refuses to store one and the router refuses to execute one.
+
+- **Source of truth:** `InboundRouteResolverService.resolve`,
+  `legacy-inbound-fallback.ts`
+
+### NUM-010 — A ring group is one call with one winner
+
+Ringing a group rings every available member at once, as legs of the **one**
+`Call` row the caller already has: one history entry, one recording, one charge,
+however many endpoints rang. The answer is elected by a single conditional
+update (`CallRepository.claimInboundAnswer`), so two members answering in the
+same instant cannot both win; the loser is told the call was taken and every
+other leg is ended immediately. `Call.answeredByUserId` records who took it.
+Only a member the call was actually offered to may claim it.
+
+A group with no member online fails explicitly rather than ringing nobody.
+
+- **Source of truth:** `InboundRingService`, `RingGroupDestinationHandler`
+
+### NUM-008 — Only Ringee's authorization sends a call through a customer's PBX
+
+Outbound, the browser never addresses a carrier. Its leg goes to Ringee's Call
+Control application with the signed call key of its own pre-dial and must carry
+that pre-dial's signed token, within two minutes, or it is hung up. The server
+alone sends the call on to the carrier — once per pre-dial, to that pre-dial's
+number on its own connection's stored host, read from Ringee's records. A leg
+addressed straight to a carrier host is hung up. Inbound, a call is a carrier
+call only when its address carries the signed route key of the endpoint it came
+through. The carrier connection accepts SIP URI calls from this account's
+connections only (`internal`), and a carrier leg never carries Ringee identity
+headers: the PBX presents its own caller ID.
+
+- **Changed 2026-09-23:** the browser used to dial the carrier host itself.
+  Telnyx routes such a WebRTC leg to the PSTN instead of the connection, so the
+  carrier leg is now placed by the server (`TELEPHONY.md`, "Outbound").
+- **Source of truth:** `CallService.prepareExternalOutbound`,
+  `CallService.adoptExternalOutbound`, `CallService.bridgeExternalOutbound`,
+  `carrier-route-key.ts`
 
 ---
 

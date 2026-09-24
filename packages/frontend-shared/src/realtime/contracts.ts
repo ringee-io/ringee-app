@@ -58,6 +58,35 @@ export interface RealtimeAccountRestoredEvent {
   at: string;
 }
 
+/**
+ * An inbound call is being offered to this user by the destination that chose
+ * them (their own number, or a ring group they belong to). The SIP leg arrives
+ * separately; this says the leg is theirs to present.
+ */
+export interface RealtimeInboundCallRingingEvent {
+  type: "call.inbound.ringing";
+  callId: string;
+  callControlId: string;
+  toNumber: string;
+  fromNumber: string;
+  callerName: string | null;
+  destinationType: "user" | "ring_group" | "desk_phone";
+  ringGroupId: string | null;
+  ringGroupName: string | null;
+  ringSeconds: number;
+  at: string;
+}
+
+/** Stop presenting it: answered elsewhere, given up on, or the caller left. */
+export interface RealtimeInboundCallCancelledEvent {
+  type: "call.inbound.cancelled";
+  callId: string;
+  callControlId: string;
+  reason: string;
+  answeredByUserId: string | null;
+  at: string;
+}
+
 export interface RealtimePongEvent {
   type: "pong";
   at: string;
@@ -74,6 +103,8 @@ export type RealtimeServerEvent =
   | RealtimeAccountBlockedEvent
   | RealtimeCallsTerminatedEvent
   | RealtimeAccountRestoredEvent
+  | RealtimeInboundCallRingingEvent
+  | RealtimeInboundCallCancelledEvent
   | RealtimePongEvent
   | RealtimeErrorEvent;
 
