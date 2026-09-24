@@ -202,6 +202,15 @@ The generic, customer-facing integration surface.
   either keeps its own value. Each lookup is best-effort and isolated: one that
   fails leaves its field off the payload rather than dropping the event, so
   `data.user` is absent when that user can no longer be resolved.
+- Every outbound event that names a `callId` also carries `data.call`, the
+  call's full detail (`buildCallDetailData`): outcome and `outcomeNote`, contact,
+  shareable recording URL, the transcript with its segments, the AI voice
+  agent's analysis, and the call's meetings, callbacks and campaign attempts
+  with their notes. It is read centrally, workspace-scoped
+  (`CallRepository.findEventDetailForOwner`), and replaces any summary a
+  producer attached. Cost, provider ids and the encrypted `Recording.url` are
+  never sent. It is a snapshot at queue time, so an early event can precede the
+  transcript and recording.
 - AI voice-agent calls use the same fan-out: terminal status publishes
   `call.completed`/`call.failed`, post-call analysis publishes
   `call.outcome.updated`, confirmed callbacks and bookings publish

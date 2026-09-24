@@ -12,27 +12,29 @@ export type CallTranscriptionWithSegments = CallTranscription & {
   segments: CallTranscriptionSegment[];
 };
 
+/**
+ * Canonical chronological ordering for transcript segments. We sort by the
+ * segment's position in the audio (`startMs`) first — `createdAt` is the DB
+ * write time, which is wrong for two cases:
+ *   - recording (pre-recorded) transcripts insert every segment in one
+ *     `createMany`, so they share a `createdAt` and come back in arbitrary
+ *     order;
+ *   - realtime transcripts finalize an utterance only after the speaker
+ *     pauses, so a long sentence that started first can be written AFTER a
+ *     short reply that started later.
+ * `createdAt` stays as the tiebreaker (and the fallback for any segment that
+ * never got a `startMs`).
+ */
+export const TRANSCRIPT_SEGMENT_ORDER: Prisma.CallTranscriptionSegmentOrderByWithRelationInput[] =
+  [{ startMs: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }];
+
 @Injectable()
 export class CallTranscriptionRepository {
   private readonly logger = new Logger(CallTranscriptionRepository.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Canonical chronological ordering for transcript segments. We sort by the
-   * segment's position in the audio (`startMs`) first — `createdAt` is the DB
-   * write time, which is wrong for two cases:
-   *   - recording (pre-recorded) transcripts insert every segment in one
-   *     `createMany`, so they share a `createdAt` and come back in arbitrary
-   *     order;
-   *   - realtime transcripts finalize an utterance only after the speaker
-   *     pauses, so a long sentence that started first can be written AFTER a
-   *     short reply that started later.
-   * `createdAt` stays as the tiebreaker (and the fallback for any segment that
-   * never got a `startMs`).
-   */
-  private static readonly SEGMENT_ORDER: Prisma.CallTranscriptionSegmentOrderByWithRelationInput[] =
-    [{ startMs: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }];
+  private static readonly SEGMENT_ORDER = TRANSCRIPT_SEGMENT_ORDER;
 
   // ── Segments ──────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ import {
   AiVoiceAgentOutcome,
   Call,
   CallbackTask,
+  CallEventDetail,
   CallStatus,
   Company,
   Contact,
@@ -16,6 +17,8 @@ import {
   DNCEntry,
   Meeting,
   Recording,
+  TranscriptionSource,
+  TranscriptionStatus,
   User,
   UserEmail,
 } from "@ringee/database";
@@ -110,6 +113,131 @@ export function buildCallEventData(call: Call): Record<string, unknown> {
     answeredAt: call.answeredAt?.toISOString(),
     endedAt: call.endedAt?.toISOString(),
     durationSeconds: call.durationSeconds ?? undefined,
+  };
+}
+
+/**
+ * Everything Ringee holds about a call, sent as `data.call` on every event tied
+ * to one: the telephony facts, the outcome and every note written against the
+ * call, the transcript, the recording, the AI voice agent's analysis, and the
+ * meetings, callbacks and campaign attempts it produced.
+ *
+ * It starts from `buildCallEventData`, so the keys `call.outcome.updated`
+ * already sent under `data.call` keep their names and formats and only gain
+ * siblings. Left out on purpose: cost (provider cost is not a customer figure),
+ * provider ids, and `Recording.url`, which points at the encrypted archive —
+ * the recording URL here is the shareable copy `recording.ready` also sends.
+ */
+export function buildCallDetailData(
+  call: CallEventDetail,
+): Record<string, unknown> {
+  const agentCall = call.aiVoiceAgentCall;
+  return {
+    ...buildCallEventData(call),
+    source: call.source ?? undefined,
+    createdAt: call.createdAt.toISOString(),
+    outcome: call.outcome ?? undefined,
+    outcomeNote: call.outcomeNote ?? undefined,
+    contact: contactRef(call.contact),
+    user: userRef(call.user),
+    recording: callRecordingData(call),
+    transcription: callTranscriptionData(call.callTranscriptions),
+    voiceAgentCall: agentCall
+      ? {
+          id: agentCall.id,
+          agent: voiceAgentRef(agentCall.agent),
+          status: agentCall.status,
+          outcome: normalizeVoiceAgentOutcome(agentCall.outcome) ?? undefined,
+          summary: agentCall.summary ?? undefined,
+          sentiment: agentCall.sentiment ?? undefined,
+          extractedData: agentCall.extractedData ?? undefined,
+          variables: agentCall.variables ?? undefined,
+          metadata: agentCall.metadata ?? undefined,
+        }
+      : undefined,
+    meetings: call.meetings.map((meeting) => ({
+      id: meeting.id,
+      title: meeting.title ?? undefined,
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      duration: meeting.duration,
+      location: meeting.location ?? undefined,
+      status: meeting.status,
+      notes: meeting.notes ?? undefined,
+    })),
+    callbacks: call.callbacks.map((callback) => ({
+      id: callback.id,
+      scheduledAt: callback.scheduledAt.toISOString(),
+      status: callback.status,
+      note: callback.note ?? undefined,
+    })),
+    campaignAttempts: call.callAttempts.map((attempt) => ({
+      id: attempt.id,
+      attemptNumber: attempt.attemptNumber,
+      status: attempt.status,
+      campaign: attempt.campaign
+        ? { id: attempt.campaign.id, name: attempt.campaign.name }
+        : undefined,
+      disposition: attempt.disposition
+        ? { code: attempt.disposition.code, label: attempt.disposition.label }
+        : attempt.dispositionCode
+          ? { code: attempt.dispositionCode }
+          : undefined,
+      dispositionNote: attempt.dispositionNote ?? undefined,
+    })),
+  };
+}
+
+/** The shareable recording, with the archive row's facts when one exists. */
+function callRecordingData(
+  call: Pick<CallEventDetail, "recordings" | "publicRecordings">,
+): Record<string, unknown> | undefined {
+  const shared = call.publicRecordings[0];
+  const archived = call.recordings[call.recordings.length - 1];
+  if (!shared && !archived) return undefined;
+  return {
+    recordingId: archived?.id,
+    url: shared?.url,
+    status: archived?.status ?? undefined,
+    format: archived?.format ?? undefined,
+    durationSec: archived?.durationSec ?? undefined,
+  };
+}
+
+/**
+ * The call's transcript, chosen the way the transcript screen chooses it: a
+ * finished post-call (recording) transcript over a finished realtime one, and
+ * otherwise whichever exists, so a consumer can still see it is in progress.
+ */
+function callTranscriptionData(
+  transcriptions: CallEventDetail["callTranscriptions"],
+): Record<string, unknown> | undefined {
+  const recording = transcriptions.find(
+    (t) => t.source === TranscriptionSource.recording,
+  );
+  const realtime = transcriptions.find(
+    (t) => t.source === TranscriptionSource.realtime,
+  );
+  const primary =
+    [recording, realtime].find(
+      (t) => t?.status === TranscriptionStatus.completed,
+    ) ??
+    recording ??
+    realtime;
+  if (!primary) return undefined;
+  return {
+    source: primary.source,
+    status: primary.status,
+    language: primary.language ?? undefined,
+    confidence: primary.confidence ?? undefined,
+    completedAt: primary.completedAt?.toISOString(),
+    text: primary.text ?? undefined,
+    segments: primary.segments.map((segment) => ({
+      text: segment.text,
+      speaker: segment.speaker ?? undefined,
+      track: segment.track ?? undefined,
+      startMs: segment.startMs ?? undefined,
+      endMs: segment.endMs ?? undefined,
+    })),
   };
 }
 

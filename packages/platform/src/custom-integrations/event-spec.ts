@@ -327,6 +327,23 @@ const VOICE_AGENT_EXTERNAL_ID = {
   description:
     "Caller-supplied external_id from the originating AI voice-agent call. Present on every event produced by that call when supplied.",
 };
+const ENTITY_CALL_DETAIL = {
+  name: "data.call",
+  type: "object",
+  description:
+    "Full detail of the call the event belongs to: callId, fromNumber, toNumber, status, direction, source, " +
+    "startedAt, answeredAt, endedAt, createdAt, durationSeconds, outcome, outcomeNote, contact, user, " +
+    "recording { recordingId, url, status, format, durationSec }, " +
+    "transcription { source, status, language, confidence, completedAt, text, segments[{ text, speaker, track, startMs, endMs }] }, " +
+    "voiceAgentCall { id, agent, status, outcome, summary, sentiment, extractedData, variables, metadata }, " +
+    "meetings[{ id, title, scheduledAt, duration, location, status, notes }], callbacks[{ id, scheduledAt, status, note }] " +
+    "and campaignAttempts[{ id, attemptNumber, status, campaign, disposition, dispositionNote }]. " +
+    "Fields with no value yet are omitted.",
+};
+const CALL_DETAIL_NOTE =
+  "Every event tied to a call carries data.call — the call as Ringee holds it when the event is queued. " +
+  "The transcript and recording are produced after the call ends, so an early event such as call.completed " +
+  "may show them as pending or leave them out; later events carry whatever exists by then.";
 
 export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
   {
@@ -367,6 +384,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_USER,
       ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
+      ENTITY_CALL_DETAIL,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       {
@@ -421,7 +439,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       ACTOR_NOTE,
       ENVELOPE_NOTE,
-      "This event does NOT include the outcome. Outcomes are sent separately via call.outcome.updated.",
+      "The outcome is sent separately via call.outcome.updated, which may arrive well after this event; data.call.outcome is present here only if one was already recorded.",
+      CALL_DETAIL_NOTE,
     ],
   },
   {
@@ -449,12 +468,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_USER,
       ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
-      {
-        name: "data.call",
-        type: "object",
-        description:
-          "The call itself, in the same shape as call.completed's data: callId, fromNumber, toNumber, status, direction, startedAt, answeredAt, endedAt, durationSeconds.",
-      },
+      ENTITY_CALL_DETAIL,
       {
         name: "data.outcomeNote",
         type: "string",
@@ -497,6 +511,60 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           answeredAt: "2026-05-23T14:40:02.000Z",
           endedAt: "2026-05-23T14:42:18.000Z",
           durationSeconds: 142,
+          source: "ai_voice_agent",
+          createdAt: "2026-05-23T14:39:55.000Z",
+          outcome: "meeting_booked",
+          outcomeNote: "Demo scheduled for next Tuesday",
+          contact: {
+            id: "…",
+            phoneNumber: "+14155550123",
+            fullName: "Charles Babbage",
+          },
+          user: { id: "usr_…", fullName: "Ada Lovelace" },
+          recording: {
+            recordingId: "r_…",
+            url: "https://recordings.ringee.app/...",
+            status: "completed",
+            format: "mp3",
+            durationSec: 136,
+          },
+          transcription: {
+            source: "recording",
+            status: "completed",
+            language: "en",
+            completedAt: "2026-05-23T14:43:10.000Z",
+            text: "Hi Charles, this is Ada from Ringee…",
+            segments: [
+              {
+                text: "Hi Charles, this is Ada from Ringee…",
+                speaker: 0,
+                track: "outbound",
+                startMs: 0,
+                endMs: 2400,
+              },
+            ],
+          },
+          voiceAgentCall: {
+            id: "vac_…",
+            agent: { id: "va_…", name: "Sofia" },
+            status: "completed",
+            outcome: "meeting_booked",
+            summary: "Charles wants a demo for his team of 12.",
+            sentiment: "positive",
+            extractedData: { teamSize: 12 },
+          },
+          meetings: [
+            {
+              id: "m_…",
+              title: "Demo with Babbage Engines",
+              scheduledAt: "2026-05-30T16:00:00.000Z",
+              duration: 30,
+              status: "scheduled",
+              notes: "Bring pricing for 12 seats",
+            },
+          ],
+          callbacks: [],
+          campaignAttempts: [],
         },
         externalId: "crm-123",
         user: {
@@ -513,7 +581,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       ACTOR_NOTE,
       "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
-      "`data.call` carries the telephony detail so consumers do not have to correlate with call.completed; it is omitted only when the call row can no longer be resolved.",
+      CALL_DETAIL_NOTE,
+      "`data.call` carries the full call so consumers do not have to correlate with call.completed; it is omitted only when the call row can no longer be resolved.",
       "When the outcome is meeting_booked, a separate meeting.created event is also fired.",
       "AI voice-agent calls report no pickup, busy and voicemail as no_answer; no_conversation means the call was answered without a meaningful exchange.",
     ],
@@ -600,6 +669,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         description: "Originating Ringee call UUID.",
       },
       VOICE_AGENT_EXTERNAL_ID,
+      ENTITY_CALL_DETAIL,
       { name: "data.note", type: "string", description: "Free-text note." },
     ],
     examplePayload: {
@@ -628,7 +698,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         createdAt: "2026-05-23T15:05:00.000Z",
       },
     },
-    notes: [ACTOR_NOTE, ENVELOPE_NOTE],
+    notes: [ACTOR_NOTE, ENVELOPE_NOTE, CALL_DETAIL_NOTE],
   },
   {
     name: "meeting.created",
@@ -664,6 +734,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         description: "Originating Ringee call UUID.",
       },
       VOICE_AGENT_EXTERNAL_ID,
+      ENTITY_CALL_DETAIL,
       { name: "data.title", type: "string", description: "Meeting title." },
       {
         name: "data.duration",
@@ -710,7 +781,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         createdAt: "2026-05-23T15:10:00.000Z",
       },
     },
-    notes: [ACTOR_NOTE, ENVELOPE_NOTE],
+    notes: [ACTOR_NOTE, ENVELOPE_NOTE, CALL_DETAIL_NOTE],
   },
   {
     name: "recording.ready",
@@ -740,6 +811,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_USER,
       ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
+      ENTITY_CALL_DETAIL,
       {
         name: "data.format",
         type: "string",
@@ -780,6 +852,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       ACTOR_NOTE,
       "Do not assume recording.ready arrives immediately after call.completed.",
+      CALL_DETAIL_NOTE,
     ],
   },
   {
@@ -809,6 +882,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_USER,
       ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
+      ENTITY_CALL_DETAIL,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       {
@@ -838,6 +912,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       ACTOR_NOTE,
       "Optional event — opt in via the outbound event selector.",
+      CALL_DETAIL_NOTE,
     ],
   },
   {
@@ -868,6 +943,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_USER,
       ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
+      ENTITY_CALL_DETAIL,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       {
@@ -904,6 +980,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       ACTOR_NOTE,
       "Optional event — opt in via the outbound event selector.",
+      CALL_DETAIL_NOTE,
     ],
   },
   {

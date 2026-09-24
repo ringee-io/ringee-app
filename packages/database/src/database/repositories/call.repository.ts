@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Prisma, Call, CallStatus, CallOutcome } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import { TRANSCRIPT_SEGMENT_ORDER } from "./call.transcription.repository";
 
 /**
  * The relations the call-detail screen reads.
@@ -114,6 +115,50 @@ export const CALL_DETAIL_INCLUDE = {
 /** A call with every relation the detail screen needs. */
 export type CallDetail = Prisma.CallGetPayload<{
   include: typeof CALL_DETAIL_INCLUDE;
+}>;
+
+/**
+ * The call detail an outbound Custom Integration event carries: the detail
+ * screen's relations, plus what the screen loads on its own — the transcripts
+ * with their segments, and the shareable recording. `Recording.url` points at
+ * the encrypted archive, so the public copy is the only one an event can send.
+ */
+export const CALL_EVENT_DETAIL_INCLUDE = {
+  ...CALL_DETAIL_INCLUDE,
+  meetings: {
+    ...CALL_DETAIL_INCLUDE.meetings,
+    select: { ...CALL_DETAIL_INCLUDE.meetings.select, notes: true },
+  },
+  publicRecordings: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { url: true, createdAt: true },
+  },
+  callTranscriptions: {
+    orderBy: { createdAt: "asc" },
+    select: {
+      source: true,
+      status: true,
+      text: true,
+      language: true,
+      confidence: true,
+      completedAt: true,
+      segments: {
+        orderBy: TRANSCRIPT_SEGMENT_ORDER,
+        select: {
+          text: true,
+          speaker: true,
+          track: true,
+          startMs: true,
+          endMs: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.CallInclude;
+
+export type CallEventDetail = Prisma.CallGetPayload<{
+  include: typeof CALL_EVENT_DETAIL_INCLUDE;
 }>;
 
 @Injectable()
@@ -682,6 +727,20 @@ export class CallRepository {
         ...(options.filterUserId ? { userId: options.filterUserId } : {}),
       },
       include: CALL_DETAIL_INCLUDE,
+    });
+  }
+
+  /**
+   * The call detail an outbound event carries, in one owner-scoped read. As
+   * with `findDetailForOwner`, another workspace's call reads as missing.
+   */
+  async findEventDetailForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<CallEventDetail | null> {
+    return this.prisma.call.findFirst({
+      where: { id, ...buildOwnershipFilter(ctx) },
+      include: CALL_EVENT_DETAIL_INCLUDE,
     });
   }
 

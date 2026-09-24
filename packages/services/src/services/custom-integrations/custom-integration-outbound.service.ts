@@ -5,6 +5,7 @@ import {
   AiVoiceAgentCallRepository,
   AiVoiceAgentRepository,
   Call,
+  CallRepository,
   CustomIntegrationDeliveryRepository,
   CustomIntegrationEventType,
   CustomIntegrationRepository,
@@ -19,6 +20,7 @@ import {
   OwnershipContext,
 } from "@ringee/platform";
 import {
+  buildCallDetailData,
   buildCallEventData,
   callOwnershipFromCall,
   pickCallTerminalEvent,
@@ -50,6 +52,7 @@ export class CustomIntegrationOutboundService {
     private readonly agentCalls: AiVoiceAgentCallRepository,
     private readonly users: UserRepository,
     private readonly voiceAgents: AiVoiceAgentRepository,
+    private readonly calls: CallRepository,
   ) {}
 
   /**
@@ -131,10 +134,16 @@ export class CustomIntegrationOutboundService {
    * placed the call. Events tied to an agent call also carry the caller's own
    * correlation id at `data.externalId`.
    *
+   * Every event that names a call also carries `data.call`: the call's full
+   * detail — notes, transcript, recording, AI analysis — as it stands when the
+   * event is queued.
+   *
    * Meeting, callback and recording events all expose their source `callId`, so
    * one central lookup covers the entire fan-out instead of relying on each
-   * producer to remember the agent and the metadata. A producer that already
-   * resolved any of these keeps its own, richer value.
+   * producer to remember the agent, the metadata and the call. A producer that
+   * already resolved the user, agent or external id keeps its own, richer
+   * value; a producer's `data.call` is only the fallback, since the central
+   * detail is a superset of it.
    *
    * Every lookup here is best-effort and isolated: one that fails leaves its
    * field off the payload rather than dropping the event, because the delivery
@@ -144,13 +153,15 @@ export class CustomIntegrationOutboundService {
     ctx: OwnershipContext,
     data: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const [user, agentCall] = await Promise.all([
+    const [user, agentCall, call] = await Promise.all([
       this.resolveUser(ctx, data),
       this.resolveAgentCall(ctx, data),
+      this.resolveCallDetail(ctx, data),
     ]);
 
     const enriched = { ...data };
     if (user) enriched.user = user;
+    if (call) enriched.call = call;
 
     if (agentCall) {
       if (
@@ -218,6 +229,31 @@ export class CustomIntegrationOutboundService {
         }`,
       );
       return null;
+    }
+  }
+
+  /**
+   * The full detail of the call this event names. The read is scoped to the
+   * caller's workspace, so a call id from anywhere else resolves to nothing
+   * rather than to another workspace's transcript.
+   */
+  private async resolveCallDetail(
+    ctx: OwnershipContext,
+    data: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | undefined> {
+    const callId = typeof data.callId === "string" ? data.callId : null;
+    if (!callId) return undefined;
+
+    try {
+      const call = await this.calls.findEventDetailForOwner(ctx, callId);
+      return call ? buildCallDetailData(call) : undefined;
+    } catch (err) {
+      this.logger.warn(
+        `Could not resolve the detail of call ${callId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return undefined;
     }
   }
 
