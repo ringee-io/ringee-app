@@ -61,14 +61,35 @@ export class InboundRouteController {
     return this.service.listNumbers(createOwnershipContext(user));
   }
 
+  @Get("receptionists")
+  receptionists(@CurrentUser() user: CurrentUserData) {
+    return this.service.receptionistCandidates(createOwnershipContext(user));
+  }
+
+  @Get("extensions")
+  extensions(@CurrentUser() user: CurrentUserData) {
+    return this.service.extensions(createOwnershipContext(user));
+  }
+
   @Get("directory")
-  directory(@CurrentUser() user: CurrentUserData, @Query("query") query?: string) {
+  directory(
+    @CurrentUser() user: CurrentUserData,
+    @Query("query") query?: string,
+  ) {
     return this.service.directory(createOwnershipContext(user), query);
   }
 
   @Put("extensions/:userId")
-  extension(@CurrentUser() user: CurrentUserData, @Param("userId", ParseUUIDPipe) userId: string, @Body() body: InternalExtensionDto) {
-    return this.service.setExtension(createOwnershipContext(user), userId, body.extension ?? null);
+  extension(
+    @CurrentUser() user: CurrentUserData,
+    @Param("userId", ParseUUIDPipe) userId: string,
+    @Body() body: InternalExtensionDto,
+  ) {
+    return this.service.setExtension(
+      createOwnershipContext(user),
+      userId,
+      body.extension ?? null,
+    );
   }
 
   @Get(":numberKind/:numberId")

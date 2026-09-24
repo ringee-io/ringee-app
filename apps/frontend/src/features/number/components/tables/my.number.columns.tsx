@@ -6,6 +6,7 @@ import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTranslations } from 'next-intl';
+import { InboundRoutingButton } from '@ringee/frontend-shared/components/inbound-routing/routing-panel';
 import { NumberActionsCell } from './number.actions.cell';
 
 export type NumberPurchased = {
@@ -122,15 +123,13 @@ export const columns: ColumnDef<NumberPurchased>[] = [
   },
   {
     accessorKey: 'inboundMode',
-    header: () => <>Inbound destination</>,
-    cell: ({ cell }) => {
-      const mode = cell.getValue<string>();
-      return mode === 'desk_phone_only' ? (
-        <Badge variant='secondary'>Desk phone only</Badge>
-      ) : (
-        <Badge variant='outline'>Ringee Web/Mobile</Badge>
-      );
-    }
+    header: () => {
+      const t = useTranslations('settings.routing');
+      return <>{t('title')}</>;
+    },
+    cell: ({ row }) => (
+      <InboundRoutingButton number={{ kind: 'ringee', id: row.original.id }} />
+    )
   },
   {
     accessorKey: 'providerConnectionName',

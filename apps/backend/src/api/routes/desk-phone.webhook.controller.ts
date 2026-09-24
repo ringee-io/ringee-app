@@ -11,8 +11,12 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import type { Request as ExpressRequest } from "express";
-import { Public, TelnyxWebhookVerifier } from "@ringee/platform";
-import { DeskPhoneCallService } from "@ringee/services";
+import {
+  Public,
+  TelnyxWebhookVerifier,
+  TelnyxEventNormalizer,
+} from "@ringee/platform";
+import { DeskPhoneCallService, InboundRingService } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
 
 /**
@@ -33,6 +37,8 @@ export class DeskPhoneWebhookController {
   constructor(
     private readonly deskPhoneCallService: DeskPhoneCallService,
     private readonly verifier: TelnyxWebhookVerifier,
+    private readonly normalizer: TelnyxEventNormalizer,
+    private readonly inboundRing: InboundRingService,
   ) {}
 
   @Public()
@@ -66,6 +72,12 @@ export class DeskPhoneWebhookController {
 
     const event = body?.data;
     if (event?.event_type) {
+      const normalized = this.normalizer.normalize(event);
+      if (
+        normalized &&
+        (await this.inboundRing.handleControlledEvent(normalized))
+      )
+        return { received: true };
       this.logger.debug(`📟 Desk-phone webhook: ${event.event_type}`);
       // Never throw back to Telnyx for processing errors — that triggers retries
       // we handle idempotently anyway. Ack and log.

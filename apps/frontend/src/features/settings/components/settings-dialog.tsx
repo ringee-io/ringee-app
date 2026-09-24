@@ -57,6 +57,13 @@ const RecordingSettingsCard = dynamic(
     ),
   { loading }
 );
+const InboundRoutingPanel = dynamic(
+  () =>
+    import(
+      '@ringee/frontend-shared/components/inbound-routing/routing-panel'
+    ).then((m) => m.InboundRoutingPanel),
+  { loading }
+);
 const ExternalCarriersPanel = dynamic(
   () =>
     import(
@@ -372,6 +379,8 @@ function SettingsPanel({
       return <RecordingSettingsCard className='max-w-2xl' />;
     case 'external-carriers':
       return <ExternalCarriersPanel />;
+    case 'call-routing':
+      return <InboundRoutingPanel />;
     case 'desk-phones':
       return <DeskPhonesView />;
     case 'crm':

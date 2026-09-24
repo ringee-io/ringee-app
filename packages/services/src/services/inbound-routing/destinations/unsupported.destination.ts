@@ -39,4 +39,3 @@ export class IvrDestinationHandler extends UnsupportedDestinationHandler {
   readonly type = InboundDestinationType.ivr;
   readonly label = "IVR";
 }
-

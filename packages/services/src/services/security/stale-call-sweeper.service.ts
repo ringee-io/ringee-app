@@ -1,5 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CallRepository } from "@ringee/database";
+import {
+  InboundRingService,
+  STALLED_TRANSFER_MS,
+} from "../inbound-routing/inbound-ring.service";
 import { EXTERNAL_PRE_DIAL_TTL_MS } from "../external-carrier/external-carrier.service";
 import {
   CONNECTED_SUSPECT_MS,
@@ -31,11 +35,20 @@ export class StaleCallSweeperService {
   constructor(
     private readonly callRepository: CallRepository,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly inboundRing: InboundRingService,
   ) {}
 
   /** Returns how many ghost calls were closed. */
   async sweep(limit = SWEEP_BATCH_SIZE): Promise<number> {
     const now = Date.now();
+    // Normal ring timeout is handled by provider events. This bounds abandoned
+    // handoffs after an uncertain command response or a process restart, and
+    // never holds up the sweep below, which is what frees users' call slots.
+    await this.inboundRing
+      .expireStalledTransfers(new Date(now - STALLED_TRANSFER_MS), limit)
+      .catch((error: Error) =>
+        this.logger.warn(`Stalled transfer sweep failed: ${error.message}`),
+      );
     // Atomic against call.initiated adoption: never closes a row whose provider
     // leg won the race, and never touches SDK/campaign pre-dials.
     const expired = await this.callRepository.expirePendingExternalCalls(

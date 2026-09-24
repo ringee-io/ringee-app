@@ -115,6 +115,12 @@ export interface TelephonyEvent<TPayload = unknown> {
   customHeaders: TelephonyCustomHeader[];
   /** Set on `call.conversation.*` events, null on every other event. */
   conversation: TelephonyConversationDetails | null;
+  /** Signed correlation of a server-created inbound endpoint. */
+  inboundRingAttempt?: string | null;
+  cost?: {
+    total: string | number | null;
+    parts: Array<{ call_part?: string; cost?: string | number }>;
+  } | null;
   /** Untouched provider body. */
   payload: TPayload;
 }

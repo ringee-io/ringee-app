@@ -177,6 +177,7 @@ function build(
         return { amount: balance };
       },
     } as never,
+    { listByDestination: async () => [] } as never,
   );
   return {
     service,

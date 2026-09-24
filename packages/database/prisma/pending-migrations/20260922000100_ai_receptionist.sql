@@ -27,3 +27,12 @@ CREATE UNIQUE INDEX "InboundRingAttempt_callId_endpointKey_key"
   ON "InboundRingAttempt" ("callId", "endpointKey");
 CREATE UNIQUE INDEX "InboundRingAttempt_providerCallControlId_key"
   ON "InboundRingAttempt" ("providerCallControlId");
+
+ALTER TABLE "InboundRingAttempt"
+  ADD COLUMN "recipientConnectionId" TEXT,
+  ADD COLUMN "recipientCallControlId" TEXT,
+  ADD COLUMN "providerCallSessionId" TEXT,
+  ADD COLUMN "recipientCallSessionId" TEXT;
+CREATE UNIQUE INDEX "InboundRingAttempt_recipientCallControlId_key" ON "InboundRingAttempt"("recipientCallControlId");
+CREATE INDEX "InboundRingAttempt_providerCallSessionId_idx" ON "InboundRingAttempt"("providerCallSessionId");
+CREATE INDEX "InboundRingAttempt_recipientCallSessionId_idx" ON "InboundRingAttempt"("recipientCallSessionId");

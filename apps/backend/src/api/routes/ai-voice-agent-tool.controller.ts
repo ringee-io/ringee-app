@@ -20,6 +20,38 @@ export class AiVoiceAgentToolController {
   constructor(private readonly tools: VoiceAgentToolService) {}
 
   @Public()
+  @Post(":agentId/directory")
+  directory(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { query?: string },
+  ) {
+    return this.tools.searchDirectory(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
+
+  @Public()
+  @Post(":agentId/transfer")
+  transfer(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { destination_type?: string; destination_id?: string },
+  ) {
+    return this.tools.transferToDestination(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
+
+  @Public()
   @Post(":agentId/available-slots")
   getAvailableSlots(
     @Param("agentId") agentId: string,

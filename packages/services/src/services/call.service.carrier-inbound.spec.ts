@@ -13,10 +13,8 @@ import type { CarrierInboundCall } from "./external-carrier/external-carrier.ser
 import { DeskPhoneCallService } from "./sip-device/desk-phone-call.service";
 import { InboundCallRouterService } from "./inbound-routing/inbound-call-router.service";
 import { DeskPhoneDestinationHandler } from "./inbound-routing/destinations/desk-phone.destination";
-import {
-  AiReceptionistDestinationHandler,
-  IvrDestinationHandler,
-} from "./inbound-routing/destinations/unsupported.destination";
+import { IvrDestinationHandler } from "./inbound-routing/destinations/unsupported.destination";
+import { AiReceptionistDestinationHandler } from "./inbound-routing/destinations/ai-receptionist.destination";
 import type { InboundRouteResolution } from "./inbound-routing/inbound-routing.types";
 
 process.env.SDK_SIGNING_SECRET ||= "carrier-inbound-spec-secret";
@@ -132,7 +130,9 @@ function setup() {
       attempts as never,
     ),
     new IvrDestinationHandler(),
-    new AiReceptionistDestinationHandler(),
+    new AiReceptionistDestinationHandler({
+      startInbound: async () => {},
+    } as never),
   );
   const deps = {
     logger: Object.assign(new Logger("spec"), {
@@ -175,6 +175,7 @@ function setup() {
     },
     inboundRouter,
     inboundRing: {
+      handleControlledEvent: async () => false,
       recordAnswer: async () => {},
       cancelRinging: async () => 0,
       cancelForEndedCall: async () => {},

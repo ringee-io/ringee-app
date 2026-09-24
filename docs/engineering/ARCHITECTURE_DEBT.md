@@ -32,13 +32,20 @@ other workspaces, and nothing server-side stops a modified client from answering
 it. It is also why a call cannot be routed to one user's browser: Telnyx accepts
 call-control commands only for calls on a Voice API application, and the
 per-user on-demand credentials the extension and SDK use cannot receive a DID
-call. External carrier numbers therefore ring desk phones only (`NUM-007`).
+call directly. Controlled routes now dial the per-user credential from the
+Call Control application; they do not deliver DIDs to on-demand credentials.
 
 **Direction:** assign Ringee numbers to the Call Control application, sign the
 dashboard in with per-user credentials, and transfer each inbound call to its
 recipient's credential server-side — the path carrier calls already take. A
 migration of every number's routing, to be validated with live calls; not a side
 effect of another task.
+
+**Receptionist extension:** opting a Ringee number into AI reception moves that
+number to Call Control, and opting it out moves it back. Both it and BYOC use server-issued per-user inbound
+credentials and server-side endpoint arbitration for User/Group/Extension
+handoffs. The shared legacy client and unmigrated DID delivery remain in place,
+so this debt remains open for those numbers.
 
 **Since inbound routing shipped:** the server now names the recipient of every
 inbound call and says so on the per-user realtime channel

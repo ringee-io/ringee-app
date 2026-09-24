@@ -1,5 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Prisma, Call, CallStatus, CallOutcome, InboundDestinationType } from "@prisma/client";
+import {
+  Prisma,
+  Call,
+  CallStatus,
+  CallOutcome,
+  InboundDestinationType,
+} from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
@@ -226,10 +232,7 @@ export class CallRepository {
       where: {
         callControlId,
         answeredByUserId: null,
-        OR: [
-          { answeredAt: null },
-          { inboundTransferState: "ringing" },
-        ],
+        OR: [{ answeredAt: null }, { inboundTransferState: "ringing" }],
         endedAt: null,
       },
       data: { answeredByUserId: userId },
@@ -244,27 +247,127 @@ export class CallRepository {
     destination: { type: InboundDestinationType; id: string },
   ) {
     await this.prisma.call.updateMany({
-      where: { id, ...buildOwnershipFilter(ctx), direction: "inbound", endedAt: null, inboundTransferState: null },
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        direction: "inbound",
+        endedAt: null,
+        inboundTransferState: null,
+      },
       data: {
         inboundTransferDestinationType: destination.type,
         inboundTransferDestinationId: destination.id,
+        ...(destination.type === "ring_group"
+          ? { ringGroupId: destination.id }
+          : {}),
         inboundTransferState: "preparing",
         inboundTransferRequestedAt: new Date(),
       },
     });
-    return this.prisma.call.findFirst({ where: { id, ...buildOwnershipFilter(ctx) } });
+    return this.prisma.call.findFirst({
+      where: { id, ...buildOwnershipFilter(ctx) },
+    });
   }
 
-  async claimInboundEndpoint(callId: string, attemptId: string, userId: string) {
+  async markTransferRinging(callControlId: string) {
     await this.prisma.call.updateMany({
       where: {
-        id: callId, endedAt: null, answeredByRingAttemptId: null,
-        OR: [{ answeredByUserId: null }, { answeredByUserId: userId }],
+        callControlId,
+        endedAt: null,
+        inboundTransferState: "preparing",
+      },
+      data: { inboundTransferState: "ringing" },
+    });
+    return this.findByControlId(callControlId);
+  }
+
+  /**
+   * Hands a transfer that could ring nobody back to the AI conversation. Only
+   * a handoff still in flight with no winner is reset, so a connected or
+   * failed transfer is never reopened.
+   */
+  async resetInboundTransfer(id: string): Promise<boolean> {
+    const { count } = await this.prisma.call.updateMany({
+      where: {
+        id,
+        endedAt: null,
+        answeredByRingAttemptId: null,
+        inboundTransferState: { in: ["preparing", "ringing"] },
+      },
+      data: {
+        inboundTransferState: null,
+        inboundTransferDestinationType: null,
+        inboundTransferDestinationId: null,
+        inboundTransferRequestedAt: null,
+        ringGroupId: null,
+      },
+    });
+    return count === 1;
+  }
+
+  /** Bounded watchdog candidates; lifecycle completion still belongs to CallService. */
+  findStalledInboundTransfers(before: Date, limit: number) {
+    return this.prisma.call.findMany({
+      where: {
+        direction: "inbound",
+        endedAt: null,
+        callControlId: { not: null },
+        inboundTransferState: { in: ["preparing", "ringing", "failed"] },
+        inboundTransferRequestedAt: { lt: before },
+      },
+      orderBy: { inboundTransferRequestedAt: "asc" },
+      take: limit,
+    });
+  }
+
+  async failStalledInboundTransfer(id: string, before: Date) {
+    const { count } = await this.prisma.call.updateMany({
+      where: {
+        id,
+        direction: "inbound",
+        endedAt: null,
+        inboundTransferState: { in: ["preparing", "ringing", "failed"] },
+        inboundTransferRequestedAt: { lt: before },
+      },
+      data: {
+        inboundTransferState: "failed",
+        errorMessage: "The transfer timed out.",
+      },
+    });
+    return count === 1;
+  }
+
+  async claimInboundEndpoint(
+    callId: string,
+    attemptId: string,
+    userId: string,
+  ) {
+    await this.prisma.call.updateMany({
+      where: {
+        id: callId,
+        endedAt: null,
+        answeredByRingAttemptId: null,
+        AND: [
+          { OR: [{ answeredByUserId: null }, { answeredByUserId: userId }] },
+          {
+            OR: [
+              { inboundTransferState: null },
+              { inboundTransferState: "ringing" },
+            ],
+          },
+        ],
       },
       data: { answeredByRingAttemptId: attemptId, answeredByUserId: userId },
     });
     const call = await this.findById(callId);
-    return { won: call?.answeredByRingAttemptId === attemptId, call };
+    return {
+      won:
+        !!call &&
+        !call.endedAt &&
+        call.inboundTransferState !== "failed" &&
+        call.answeredByRingAttemptId === attemptId,
+      call,
+    };
   }
 
   /** Closes the caller's own external carrier pre-dial that never got a leg. */
@@ -359,11 +462,43 @@ export class CallRepository {
   }
 
   async findBySessionId(callSessionId: string): Promise<Call[]> {
-    return this.prisma.call.findMany({ where: { callSessionId } });
+    return this.prisma.call.findMany({
+      where: {
+        OR: [
+          { callSessionId },
+          {
+            ringAttempts: {
+              some: {
+                OR: [
+                  { providerCallSessionId: callSessionId },
+                  { recipientCallSessionId: callSessionId },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    });
   }
 
   async findOneBySessionId(callSessionId: string): Promise<Call | null> {
-    return this.prisma.call.findFirst({ where: { callSessionId } });
+    return this.prisma.call.findFirst({
+      where: {
+        OR: [
+          { callSessionId },
+          {
+            ringAttempts: {
+              some: {
+                OR: [
+                  { providerCallSessionId: callSessionId },
+                  { recipientCallSessionId: callSessionId },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    });
   }
 
   async findActiveByOwner(ctx: OwnershipContext): Promise<Call[]> {
@@ -575,6 +710,8 @@ export class CallRepository {
       lastCommandId?: string;
       lastEventType?: string;
       errorMessage?: string | null;
+      inboundTransferState?: string;
+      sipDeviceId?: string;
     },
   ): Promise<Call> {
     return this.prisma.call.update({

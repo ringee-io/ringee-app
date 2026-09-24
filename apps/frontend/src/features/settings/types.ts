@@ -13,6 +13,7 @@ export type SettingsItemId =
   | 'script'
   | 'calendars'
   | 'recording'
+  | 'call-routing'
   | 'desk-phones'
   | 'external-carriers'
   | 'crm'

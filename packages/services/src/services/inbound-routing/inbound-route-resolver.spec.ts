@@ -103,6 +103,7 @@ function setup() {
             }))
           : [],
     } as never,
+    { findByIdForOwner: async () => null } as never,
   );
   const ringee = (): InboundCallOrigin => ({
     transport: "ringee_webrtc",
@@ -451,11 +452,11 @@ describe("InboundRouteResolverService — not implemented yet", () => {
     assert.equal(refusal.destinationType, InboundDestinationType.ivr);
   });
 
-  it("refuses an AI receptionist destination as not implemented", async () => {
+  it("refuses an AI receptionist that does not exist", async () => {
     const s = setup();
     s.route(InboundDestinationType.ai_receptionist, "receptionist-1");
     const refusal = unroutable(await s.service.resolve(s.ringee()));
-    assert.equal(refusal.reason, "destination_not_implemented");
+    assert.equal(refusal.reason, "destination_deleted");
     assert.equal(
       refusal.destinationType,
       InboundDestinationType.ai_receptionist,

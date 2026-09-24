@@ -242,9 +242,7 @@ export class InboundRouteResolverService {
 
     const [memberships, groups, devices] = await Promise.all([
       ctx.organizationId
-        ? this.organizations
-            .listMembersWithUsers(ctx.organizationId)
-            
+        ? this.organizations.listMembersWithUsers(ctx.organizationId)
         : this.users
             .getCachedUserById(ctx.userId)
             .then((user) => (user ? [{ id: "", extension: null, user }] : [])),
@@ -253,7 +251,9 @@ export class InboundRouteResolverService {
         ? this.sipDevices.listByOwner(ctx)
         : Promise.resolve([]),
     ]);
-    const members = memberships.flatMap((membership) => membership.user ? [membership.user] : []);
+    const members = memberships.flatMap((membership) =>
+      membership.user ? [membership.user] : [],
+    );
     const memberIds = new Set(members.map((member) => member.id));
     const entries: InboundDirectoryEntry[] = [];
     for (const member of members) {
@@ -270,7 +270,15 @@ export class InboundRouteResolverService {
     }
     for (const membership of memberships) {
       if (membership.extension && membership.user)
-        entries.push({ destinationType: "extension", destinationId: membership.id, label: [membership.user.firstName, membership.user.lastName].filter(Boolean).join(" ") || membership.extension, extension: membership.extension });
+        entries.push({
+          destinationType: "extension",
+          destinationId: membership.id,
+          label:
+            [membership.user.firstName, membership.user.lastName]
+              .filter(Boolean)
+              .join(" ") || membership.extension,
+          extension: membership.extension,
+        });
     }
     for (const group of groups) {
       if (group.members.some((member) => memberIds.has(member.userId)))
@@ -298,7 +306,11 @@ export class InboundRouteResolverService {
     // the first person or department with a similar name on their behalf.
     const search = query.trim().toLocaleLowerCase();
     const matches = entries
-      .filter((entry) => entry.label.toLocaleLowerCase().includes(search) || entry.extension === search)
+      .filter(
+        (entry) =>
+          entry.label.toLocaleLowerCase().includes(search) ||
+          entry.extension === search,
+      )
       .sort(
         (left, right) =>
           left.label.localeCompare(right.label) ||
@@ -316,17 +328,46 @@ export class InboundRouteResolverService {
   > {
     switch (intent.destinationType) {
       case InboundDestinationType.ai_receptionist: {
-        const agent = ctx.organizationId ? await this.agents.findByIdForOwner(ctx, intent.destinationId) : null;
-        if (!agent || agent.status !== "active" || !agent.providerAssistantId || !agent.toolSecretHash)
-          return { reason: "destination_deleted", detail: "The voice agent is unavailable." };
-        return { type: "ai_receptionist", agentId: agent.id, ownerUserId: agent.userId };
+        const agent = ctx.organizationId
+          ? await this.agents.findByIdForOwner(ctx, intent.destinationId)
+          : null;
+        if (
+          !agent ||
+          agent.status !== "active" ||
+          !agent.providerAssistantId ||
+          !agent.toolSecretHash
+        )
+          return {
+            reason: "destination_deleted",
+            detail: "The voice agent is unavailable.",
+          };
+        return {
+          type: "ai_receptionist",
+          agentId: agent.id,
+          ownerUserId: agent.userId,
+        };
       }
       case InboundDestinationType.extension: {
-        const membership = ctx.organizationId ? await this.organizations.findExtension(ctx.organizationId, intent.destinationId) : null;
+        const membership = ctx.organizationId
+          ? await this.organizations.findExtension(
+              ctx.organizationId,
+              intent.destinationId,
+            )
+          : null;
         if (!membership?.userId || !membership.extension)
-          return { reason: "destination_deleted", detail: "The internal extension was not found." };
+          return {
+            reason: "destination_deleted",
+            detail: "The internal extension was not found.",
+          };
         const user = await this.resolveUser(ctx, membership.userId);
-        return "reason" in user ? user : { type: "extension", membershipId: membership.id, userId: membership.userId, extension: membership.extension };
+        return "reason" in user
+          ? user
+          : {
+              type: "extension",
+              membershipId: membership.id,
+              userId: membership.userId,
+              extension: membership.extension,
+            };
       }
       case InboundDestinationType.user:
         return this.resolveUser(ctx, intent.destinationId);

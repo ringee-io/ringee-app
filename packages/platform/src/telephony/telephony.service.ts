@@ -162,11 +162,36 @@ export class TelephonyService implements TelephonyServiceInterface {
     );
   }
 
-  bridgeCalls(callControlId: string, otherCallControlId: string, commandId: string) {
-    return this.getServiceProvider().bridgeCalls(callControlId, otherCallControlId, commandId);
+  allowDeskPhoneInternalCalls(connectionId: string) {
+    return this.getServiceProvider().allowDeskPhoneInternalCalls(connectionId);
   }
 
-  dialInboundEndpoint(params: { sipUsername: string; from: string; correlation: string; commandId: string; timeoutSecs: number }) {
+  answerInboundCall(callControlId: string, commandId: string) {
+    return this.getServiceProvider().answerInboundCall(
+      callControlId,
+      commandId,
+    );
+  }
+
+  bridgeCalls(
+    callControlId: string,
+    otherCallControlId: string,
+    commandId: string,
+  ) {
+    return this.getServiceProvider().bridgeCalls(
+      callControlId,
+      otherCallControlId,
+      commandId,
+    );
+  }
+
+  dialInboundEndpoint(params: {
+    sipUsername: string;
+    from: string;
+    correlation: string;
+    commandId: string;
+    timeoutSecs: number;
+  }) {
     return this.getServiceProvider().dialInboundEndpoint(params);
   }
 

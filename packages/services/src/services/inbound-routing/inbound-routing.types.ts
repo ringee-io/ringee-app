@@ -12,8 +12,8 @@ import type { OwnershipContext } from "@ringee/platform";
  *   and a desk phone is reached by the number's own assignment, so Ringee
  *   notifies and arbitrates rather than commanding legs (`DEBT-020`).
  * - `call_control` — the call is parked on a Call Control application. Legs
- *   are opened server-side, and the browser cannot be addressed at all until
- *   `DEBT-020` is closed.
+ *   are opened server-side to registered per-user browser endpoints and
+ *   workspace-owned desk phones, with one atomic winning endpoint.
  */
 export type InboundTransport = "ringee_webrtc" | "call_control";
 
@@ -60,7 +60,12 @@ export interface InboundCallOrigin {
 /** A destination, resolved down to what ringing it actually needs. */
 export type InboundDestination =
   | { type: "user"; userId: string }
-  | { type: "extension"; membershipId: string; userId: string; extension: string }
+  | {
+      type: "extension";
+      membershipId: string;
+      userId: string;
+      extension: string;
+    }
   | { type: "ai_receptionist"; agentId: string; ownerUserId: string }
   | {
       type: "ring_group";
@@ -93,6 +98,7 @@ export type InboundRoutingFailure =
   | "ring_group_no_available_members"
   | "user_unavailable"
   | "desk_phone_unavailable"
+  | "agent_unavailable"
   | "transport_cannot_reach_destination"
   | "provider_refused";
 

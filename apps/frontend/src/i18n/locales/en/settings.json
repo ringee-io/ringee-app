@@ -324,6 +324,10 @@
       "external-carriers": {
         "label": "External carriers",
         "description": "Connect your carrier or PBX, SIP extensions and external numbers."
+      },
+      "call-routing": {
+        "label": "Call Routing",
+        "description": "Choose who answers each number. An AI Voice Agent can help callers directly and transfer to your team when needed."
       }
     },
     "general": {
@@ -480,5 +484,37 @@
     "inboundHelp": "If several numbers share this extension, your PBX must send the called number in the X-Ringee-Called-Number SIP header.",
     "inboundNoDeskPhones": "Add a desk phone that accepts incoming calls to route this number's calls to it.",
     "inboundLoadError": "Could not load desk phones. Reopen this form to retry."
+  },
+  "routing": {
+    "title": "Call Routing",
+    "description": "Choose who answers each number. An AI Voice Agent can help callers directly and transfer to your team when needed.",
+    "assign": "Assign destination",
+    "receptionistNumbers": "Receptionist numbers",
+    "destination": "Destination",
+    "search": "Find a person, team or extension",
+    "chooseDestination": "Choose a destination",
+    "default": "Default routing",
+    "refine": "Refine your search to see more destinations.",
+    "activateAgent": "Activate this agent before assigning incoming numbers.",
+    "numbers": "Phone numbers",
+    "empty": "No active phone numbers yet.",
+    "byoc": "BYOC",
+    "ringee": "Ringee",
+    "save": "Save",
+    "saving": "Saving…",
+    "error": "Some changes could not be saved or loaded. Review your selection and try again.",
+    "retry": "Try again",
+    "extensions": "Internal extensions",
+    "extensionsDescription": "Assign a unique 2–6 digit extension to a team member. Leave it empty to remove it.",
+    "extensionError": "Could not save the extension. Use 2–6 digits and a number that is not already assigned.",
+    "noMembers": "No team members found.",
+    "types": {
+      "user": "User",
+      "ring_group": "Ring group",
+      "extension": "Extension",
+      "desk_phone": "Desk phone",
+      "ai_receptionist": "AI Receptionist",
+      "ivr": "IVR"
+    }
   }
 }

@@ -6,8 +6,15 @@ import {
   GoneException,
   Param,
   Post,
+  Get,
+  Delete,
+  ParseUUIDPipe,
 } from "@nestjs/common";
-import { CurrentUser, CurrentUserData } from "@ringee/platform";
+import {
+  createOwnershipContext,
+  CurrentUser,
+  CurrentUserData,
+} from "@ringee/platform";
 import { InboundRingService } from "@ringee/services";
 
 /** Provider call ids are opaque; accept only what one can look like. */
@@ -24,6 +31,41 @@ const CALL_CONTROL_ID = /^[A-Za-z0-9_=+/-]{8,256}$/;
 @Controller("inbound-calls")
 export class InboundCallController {
   constructor(private readonly ring: InboundRingService) {}
+
+  @Post("browser-endpoints")
+  createBrowserEndpoint(@CurrentUser() user: CurrentUserData) {
+    return this.ring.createBrowserEndpoint(createOwnershipContext(user));
+  }
+
+  @Post("browser-endpoints/:id/ready")
+  ready(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.ring.touchBrowserEndpoint(createOwnershipContext(user), id);
+  }
+
+  @Delete("browser-endpoints/:id")
+  remove(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.ring.touchBrowserEndpoint(
+      createOwnershipContext(user),
+      id,
+      true,
+    );
+  }
+
+  @Get("legs/:callControlId")
+  leg(
+    @CurrentUser() user: CurrentUserData,
+    @Param("callControlId") id: string,
+  ) {
+    if (!CALL_CONTROL_ID.test(id))
+      throw new BadRequestException("Unknown call.");
+    return this.ring.browserLeg(createOwnershipContext(user), id);
+  }
 
   @Post(":callControlId/claim")
   async claim(

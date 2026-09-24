@@ -77,7 +77,10 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
   }
 
   stopInboundAssistant(callControlId: string, commandId: string) {
-    return this.getServiceProvider().stopInboundAssistant(callControlId, commandId);
+    return this.getServiceProvider().stopInboundAssistant(
+      callControlId,
+      commandId,
+    );
   }
 
   configureCallingApp(

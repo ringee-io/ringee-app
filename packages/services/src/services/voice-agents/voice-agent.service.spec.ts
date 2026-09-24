@@ -67,6 +67,7 @@ function build(currentWebhookUrls: string[], runtimeContextConfigured = true) {
     } as never,
     {} as never,
     {} as never,
+    { listByDestination: async () => [] } as never,
   );
 
   (
@@ -117,5 +118,34 @@ describe("VoiceAgentService tool delivery", () => {
     await service.ensureToolEndpoints(CTX, AGENT as never);
 
     assert.deepEqual(syncs, ["agent-1"]);
+  });
+});
+
+describe("VoiceAgentService inbound-only activation", () => {
+  it("activates an existing configured agent without requiring an outbound caller ID", async () => {
+    const agent = { ...AGENT, callerNumberId: null };
+    let checkedCaller = false;
+    const service = Object.assign(Object.create(VoiceAgentService.prototype), {
+      require: async () => agent,
+      assertReadyForCalls: () => {},
+      assertCallerNumberReady: async () => {
+        checkedCaller = true;
+      },
+      agents: {
+        update: async (_id: string, data: unknown) => ({
+          ...agent,
+          ...(data as object),
+        }),
+      },
+    }) as VoiceAgentService;
+    assert.equal(
+      (await service.setStatus(CTX, AGENT.id, "active")).status,
+      "active",
+    );
+    assert.equal(checkedCaller, false);
+    (agent as { callerNumberId: string | null }).callerNumberId =
+      "assigned-number";
+    await service.setStatus(CTX, AGENT.id, "active");
+    assert.equal(checkedCaller, true);
   });
 });

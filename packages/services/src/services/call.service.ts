@@ -173,7 +173,11 @@ export class CallService implements OnModuleDestroy {
             externalSipEndpointId: carrier.externalSipEndpointId,
           }
         : {
-            transport: "ringee_webrtc",
+            transport:
+              event.connectionId &&
+              event.connectionId === apiConfiguration.TELNYX_CALL_CONTROL_APP_ID
+                ? "call_control"
+                : "ringee_webrtc",
             toNumber: event.to ?? "",
             fromNumber: event.from ?? "",
             callerId: event.from ?? null,
@@ -241,7 +245,12 @@ export class CallService implements OnModuleDestroy {
     const existing = await this.callRepository.findByControlId(callControlId);
     // A redelivery is not a new routing decision. A leg already ringing its
     // destination — or answered — is left exactly as it is.
-    if (existing?.answeredAt || existing?.endedAt) {
+    if (
+      existing?.endedAt ||
+      (existing?.answeredAt &&
+        (existing.inboundDestinationType !== "ai_receptionist" ||
+          existing.inboundTransferState))
+    ) {
       await this.replayParkedCallEvents(callControlId);
       return;
     }
@@ -269,6 +278,9 @@ export class CallService implements OnModuleDestroy {
             source: "sip_device",
             sipDevice: { connect: { id: destination.sipDeviceId } },
           }
+        : {}),
+      ...(destination.type === "ai_receptionist"
+        ? { source: "ai_voice_agent" }
         : {}),
       externalCarrierId: origin.externalCarrierId,
       externalSipEndpointId: origin.externalSipEndpointId,
@@ -300,7 +312,14 @@ export class CallService implements OnModuleDestroy {
     // A hangup that beat this webhook closes the row before anything rings.
     await this.replayParkedCallEvents(callControlId);
     const current = await this.callRepository.findById(call.id);
-    if (!current || current.endedAt || current.answeredAt) return;
+    if (
+      !current ||
+      current.endedAt ||
+      (current.answeredAt &&
+        (current.inboundDestinationType !== "ai_receptionist" ||
+          current.inboundTransferState))
+    )
+      return;
     if (
       call.userId !== ctx.userId ||
       call.organizationId !== (ctx.organizationId ?? null) ||
@@ -1600,6 +1619,7 @@ export class CallService implements OnModuleDestroy {
    */
   async handleTelephonyEvent(event: TelephonyEvent) {
     const { type: eventType, callControlId, payload } = event;
+    if (await this.inboundRing.handleControlledEvent(event)) return;
     if (await this.handleDeskPhoneInboundLeg(event)) return;
     if (await this.handleCarrierOutboundLeg(event)) return;
 
@@ -1886,6 +1906,25 @@ export class CallService implements OnModuleDestroy {
           // Beat `call.initiated` here too — park instead of throwing on a
           // missing row (which used to 500 the webhook).
           await this.parkOrphanCallEvent(callControlId, event);
+          break;
+        }
+        if (
+          ringingCall.direction === "inbound" &&
+          ringingCall.connectionId ===
+            apiConfiguration.TELNYX_CALL_CONTROL_APP_ID &&
+          (ringingCall.inboundDestinationType === "ai_receptionist" ||
+            ringingCall.inboundDestinationType === "user" ||
+            ringingCall.inboundDestinationType === "ring_group" ||
+            ringingCall.inboundDestinationType === "extension")
+        ) {
+          const answered =
+            await this.callRepository.markAnsweredOnce(callControlId);
+          if (
+            answered &&
+            (await this.enforceAnsweredCreditPolicy(answered)) &&
+            answered.inboundDestinationType !== "ai_receptionist"
+          )
+            await this.applyAnswerAutomation(answered);
           break;
         }
         if (

@@ -116,33 +116,55 @@ export class VoiceAgentCallService {
     private readonly users: UserService,
   ) {}
 
-  async startInbound(ctx: OwnershipContext, agentId: string, call: Call): Promise<void> {
+  async startInbound(
+    ctx: OwnershipContext,
+    agentId: string,
+    call: Call,
+  ): Promise<void> {
     assertVoiceAgentAccess(ctx);
-    if (call.organizationId !== ctx.organizationId || call.direction !== "inbound" || !call.callControlId || call.endedAt)
+    if (
+      call.organizationId !== ctx.organizationId ||
+      call.direction !== "inbound" ||
+      !call.callControlId ||
+      call.endedAt
+    )
       throw new ForbiddenException("This inbound call is unavailable.");
     const agent = await this.agents.require(ctx, agentId);
     const existing = await this.agentCalls.findByCallId(call.id);
     if (existing && existing.agentId !== agentId)
-      throw new ForbiddenException("This call already belongs to another agent.");
-    if (existing?.providerConversationId || existing?.status === AiVoiceAgentCallStatus.completed) return;
+      throw new ForbiddenException(
+        "This call already belongs to another agent.",
+      );
+    if (
+      existing?.providerConversationId ||
+      existing?.status === AiVoiceAgentCallStatus.completed
+    )
+      return;
     if ((await this.credits.getBalance(ctx)) <= 0)
       throw new ForbiddenException("Insufficient credits");
     const config = await this.agents.inboundConfig(ctx, agentId);
     const agentCall = await this.agentCalls.createInboundOnce({
-      agentId, callId: call.id, userId: ctx.userId, organizationId: ctx.organizationId,
-      fromNumber: call.toNumber, toNumber: call.fromNumber,
-      contactId: call.contactId, providerCallControlId: call.callControlId,
+      agentId,
+      callId: call.id,
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
+      fromNumber: call.toNumber,
+      toNumber: call.fromNumber,
+      contactId: call.contactId,
+      providerCallControlId: call.callControlId,
       status: AiVoiceAgentCallStatus.initiating,
       metadata: { direction: "inbound" },
     });
     const started = await this.provider.startInboundCall({
-      callControlId: call.callControlId, assistantId: agent.providerAssistantId!,
-      commandId: `receptionist-${call.id}`, config,
+      callControlId: call.callControlId,
+      assistantId: agent.providerAssistantId!,
+      commandId: `receptionist-${call.id}`,
+      config,
     });
-    await this.agentCalls.update(agentCall.id, {
-      providerConversationId: started.conversationId,
-      status: AiVoiceAgentCallStatus.in_progress,
-    });
+    await this.agentCalls.markInboundStarted(
+      agentCall.id,
+      started.conversationId,
+    );
   }
 
   async startCall(

@@ -324,6 +324,10 @@
       "external-carriers": {
         "label": "Operadores externos",
         "description": "Conecta tu operador o centralita, sus extensiones SIP y números externos."
+      },
+      "call-routing": {
+        "label": "Enrutamiento de llamadas",
+        "description": "Elige quién contesta cada número. Un AI Voice Agent puede ayudar directamente y transferir a tu equipo cuando haga falta."
       }
     },
     "general": {
@@ -480,5 +484,37 @@
     "inboundHelp": "Si varios números comparten esta extensión, tu PBX debe enviar el número llamado en la cabecera SIP X-Ringee-Called-Number.",
     "inboundNoDeskPhones": "Añade un teléfono de escritorio que acepte llamadas entrantes para enrutar a él las llamadas de este número.",
     "inboundLoadError": "No se pudieron cargar los teléfonos de escritorio. Vuelve a abrir el formulario."
+  },
+  "routing": {
+    "title": "Enrutamiento de llamadas",
+    "description": "Elige quién contesta cada número. Un AI Voice Agent puede ayudar directamente y transferir a tu equipo cuando haga falta.",
+    "assign": "Asignar destino",
+    "receptionistNumbers": "Números de recepción",
+    "destination": "Destino",
+    "search": "Buscar persona, equipo o extensión",
+    "chooseDestination": "Elige un destino",
+    "default": "Enrutamiento predeterminado",
+    "refine": "Afina la búsqueda para ver más destinos.",
+    "activateAgent": "Activa este agente antes de asignarle números entrantes.",
+    "numbers": "Números de teléfono",
+    "empty": "Todavía no hay números de teléfono activos.",
+    "byoc": "BYOC",
+    "ringee": "Ringee",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "error": "No se pudieron cargar o guardar algunos cambios. Revisa la selección e inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "extensions": "Extensiones internas",
+    "extensionsDescription": "Asigna una extensión única de 2 a 6 dígitos a un miembro del equipo. Déjala vacía para eliminarla.",
+    "extensionError": "No se pudo guardar la extensión. Usa de 2 a 6 dígitos y un número que no esté asignado.",
+    "noMembers": "No se encontraron miembros del equipo.",
+    "types": {
+      "user": "Usuario",
+      "ring_group": "Grupo de llamada",
+      "extension": "Extensión",
+      "desk_phone": "Teléfono de escritorio",
+      "ai_receptionist": "Recepcionista IA",
+      "ivr": "IVR"
+    }
   }
 }

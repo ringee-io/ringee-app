@@ -215,6 +215,12 @@ function build(
         return call;
       },
     } as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
   );
 
   return {

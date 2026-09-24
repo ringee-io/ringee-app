@@ -40,6 +40,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
     adminOnly: true,
     organizationOnly: true
   },
+  { id: 'call-routing', section: 'settings', icon: Phone, adminOnly: true },
   { id: 'desk-phones', section: 'settings', icon: Phone, adminOnly: true },
   { id: 'crm', section: 'integrations', icon: Plug, adminOnly: true },
   {

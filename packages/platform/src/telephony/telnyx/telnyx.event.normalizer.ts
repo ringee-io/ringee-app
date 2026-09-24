@@ -120,6 +120,18 @@ function normalizeCustomHeaders(raw: unknown): TelephonyCustomHeader[] {
   });
 }
 
+function ringAttempt(clientState: unknown): string | null {
+  if (typeof clientState !== "string" || clientState.length > 4096) return null;
+  try {
+    return str(
+      JSON.parse(Buffer.from(clientState, "base64").toString("utf8"))
+        .inboundRingAttempt,
+    );
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class TelnyxEventNormalizer {
   /**
@@ -159,6 +171,30 @@ export class TelnyxEventNormalizer {
       startedAt: normalizeDate(payload.start_time),
       customHeaders: normalizeCustomHeaders(payload.custom_headers),
       conversation: normalizeConversation(type, payload),
+      inboundRingAttempt:
+        ringAttempt(payload.client_state) ??
+        normalizeCustomHeaders(payload.custom_headers).find(
+          (h) => h.name.toLowerCase() === "x-ringee-inbound-attempt",
+        )?.value ??
+        null,
+      cost:
+        type === "call.cost"
+          ? {
+              total:
+                typeof payload.total_cost === "string" ||
+                typeof payload.total_cost === "number"
+                  ? payload.total_cost
+                  : null,
+              parts: Array.isArray(payload.cost_parts)
+                ? payload.cost_parts.map(
+                    (part: { call_part?: string; cost?: string | number }) => ({
+                      call_part: part.call_part,
+                      cost: part.cost,
+                    }),
+                  )
+                : [],
+            }
+          : null,
       payload,
     };
   }

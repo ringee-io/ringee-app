@@ -421,7 +421,9 @@ export interface VoiceAgentProvider {
   ): Promise<void>;
 
   startCall(request: VoiceAgentCallRequest): Promise<VoiceAgentCallHandle>;
-  startInboundCall(request: VoiceAgentInboundRequest): Promise<{ conversationId: string | null }>;
+  startInboundCall(
+    request: VoiceAgentInboundRequest,
+  ): Promise<{ conversationId: string | null }>;
   stopInboundAssistant(callControlId: string, commandId: string): Promise<void>;
 
   /**

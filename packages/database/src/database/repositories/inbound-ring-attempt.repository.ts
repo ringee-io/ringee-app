@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { InboundRingAttempt, InboundRingAttemptStatus, Prisma } from "@prisma/client";
+import {
+  InboundRingAttempt,
+  InboundRingAttemptStatus,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 /** One endpoint a call was offered to. */
@@ -7,27 +11,81 @@ export type RingAttemptTarget = {
   userId?: string | null;
   sipDeviceId?: string | null;
   endpointKey?: string;
+  recipientConnectionId?: string;
 };
 
 /**
  * Data access for the legs of an inbound call. These rows are call *state*,
- * never calls of their own: they carry no cost, recording or history, and they
- * exist so a ring group can be cancelled, audited and replayed safely.
+ * never calls of their own. Provider handles and settled endpoint costs live
+ * here; recording and history belong to the original Call. Attempts let a
+ * ring group be cancelled, audited and replayed safely.
  */
 @Injectable()
 export class InboundRingAttemptRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findById(id: string) {
-    return this.prisma.inboundRingAttempt.findUnique({ where: { id }, include: { call: true } });
+    return this.prisma.inboundRingAttempt.findUnique({
+      where: { id },
+      include: { call: true },
+    });
   }
 
   findByControlId(providerCallControlId: string) {
-    return this.prisma.inboundRingAttempt.findUnique({ where: { providerCallControlId }, include: { call: true } });
+    return this.prisma.inboundRingAttempt.findFirst({
+      where: {
+        OR: [
+          { providerCallControlId },
+          { recipientCallControlId: providerCallControlId },
+        ],
+      },
+      include: { call: true },
+    });
+  }
+
+  findBySessionId(sessionId: string) {
+    return this.prisma.inboundRingAttempt.findFirst({
+      where: {
+        OR: [
+          { providerCallSessionId: sessionId },
+          { recipientCallSessionId: sessionId },
+        ],
+      },
+      include: { call: true },
+    });
+  }
+
+  async bindRecipient(
+    id: string,
+    recipientCallControlId: string,
+    recipientCallSessionId: string | null,
+  ) {
+    return this.prisma.inboundRingAttempt.updateMany({
+      where: {
+        id,
+        OR: [{ recipientCallControlId: null }, { recipientCallControlId }],
+      },
+      data: { recipientCallControlId, recipientCallSessionId },
+    });
   }
 
   update(id: string, data: Prisma.InboundRingAttemptUncheckedUpdateInput) {
     return this.prisma.inboundRingAttempt.update({ where: { id }, data });
+  }
+
+  async bindProvider(
+    id: string,
+    providerCallControlId: string,
+    providerCallLegId: string | null,
+    providerCallSessionId?: string | null,
+  ) {
+    return this.prisma.inboundRingAttempt.updateMany({
+      where: {
+        id,
+        OR: [{ providerCallControlId: null }, { providerCallControlId }],
+      },
+      data: { providerCallControlId, providerCallLegId, providerCallSessionId },
+    });
   }
 
   listByCall(callId: string): Promise<InboundRingAttempt[]> {
@@ -55,7 +113,12 @@ export class InboundRingAttemptRepository {
         callId,
         userId: target.userId ?? null,
         sipDeviceId: target.sipDeviceId ?? null,
-        endpointKey: target.endpointKey ?? (target.sipDeviceId ? `desk:${target.sipDeviceId}` : `user:${target.userId}`),
+        recipientConnectionId: target.recipientConnectionId,
+        endpointKey:
+          target.endpointKey ??
+          (target.sipDeviceId
+            ? `desk:${target.sipDeviceId}`
+            : `user:${target.userId}`),
       })),
       skipDuplicates: true,
     });

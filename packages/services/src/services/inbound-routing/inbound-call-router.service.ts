@@ -84,22 +84,31 @@ export class InboundCallRouterService {
 
   /** Which transports can reach a destination type at all. */
   transportsFor(type: InboundDestinationType): readonly InboundTransport[] {
-    return this.handlers.get(type === InboundDestinationType.extension ? InboundDestinationType.user : type)?.transports ?? [];
+    return (
+      this.handlers.get(
+        type === InboundDestinationType.extension
+          ? InboundDestinationType.user
+          : type,
+      )?.transports ?? []
+    );
   }
 
   /**
    * Ring the destination that owns this call.
    *
    * A destination the delivering transport cannot reach is refused explicitly
-   * rather than approximated: a carrier call parked on the Call Control
-   * application cannot be offered to a browser at all until `DEBT-020` is
-   * closed, and quietly ringing somebody else would be worse than saying so.
+   * rather than approximated. Each handler owns its supported transports;
+   * callers select a logical destination, never a provider address.
    */
   async routeInboundCall(
     request: RouteExecutionRequest,
   ): Promise<RouteExecutionResult> {
     const type = destinationTypeOf(request.destination);
-    const handler = this.handlers.get(type === InboundDestinationType.extension ? InboundDestinationType.user : type);
+    const handler = this.handlers.get(
+      type === InboundDestinationType.extension
+        ? InboundDestinationType.user
+        : type,
+    );
     if (!handler)
       return {
         status: "failed",

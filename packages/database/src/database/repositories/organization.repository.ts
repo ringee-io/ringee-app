@@ -108,13 +108,23 @@ export class OrganizationRepository {
 
   findExtension(organizationId: string, membershipId: string) {
     return this.prisma.organizationMembership.findFirst({
-      where: { id: membershipId, organizationId, userId: { not: null }, extension: { not: null } },
+      where: {
+        id: membershipId,
+        organizationId,
+        userId: { not: null },
+        extension: { not: null },
+      },
     });
   }
 
-  async setExtension(organizationId: string, userId: string, extension: string | null) {
+  async setExtension(
+    organizationId: string,
+    userId: string,
+    extension: string | null,
+  ) {
     return this.prisma.organizationMembership.updateMany({
-      where: { organizationId, userId }, data: { extension },
+      where: { organizationId, userId },
+      data: { extension },
     });
   }
 
