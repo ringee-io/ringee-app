@@ -46,9 +46,10 @@ function setup() {
     providerError: null as Error | null,
   };
   const repo = {
-    listCallingNumbers: async () => [
-      { id: "number-1", phoneNumber: "+13055550101" },
-    ],
+    listCallingNumbers: async () =>
+      state.number
+        ? [{ id: state.number.id, phoneNumber: state.number.phoneNumber }]
+        : [],
     findCallingRoute: async (
       owner: typeof ctx,
       where: Record<string, unknown>,
@@ -212,7 +213,7 @@ describe("ExternalCarrierService outbound calling", () => {
     );
     assert.deepEqual(s.lookups.at(-1), {
       organizationId: "org-1",
-      phoneNumber: "+13055550101",
+      phoneNumbers: ["+13055550101", "13055550101"],
       endpointId: "endpoint-1",
     });
     s.state.number!.endpoint.syncStatus = "error";
@@ -270,6 +271,35 @@ describe("ExternalCarrierService outbound calling", () => {
     s.state.number!.endpoint.providerFqdn = null;
     assert.equal(await s.service.outboundCarrierDestination(ctx, route), null);
     assert.deepEqual(s.provider, []);
+  });
+
+  it("dials in the format the external number was saved in, keeping Ringee's records E.164", async () => {
+    const s = setup();
+    s.state.number!.phoneNumber = "13055550101";
+    s.state.dial = { uri: `sip:12125550199@${HOST}`, fqdn: HOST };
+    const route = await s.service.resolveOutbound(
+      ctx,
+      "number-1",
+      "+1 (212) 555-0199",
+    );
+    assert.equal(route.fromNumber, "+13055550101");
+    assert.equal(route.toNumber, "+12125550199");
+    assert.equal(route.destinationUri, `sip:12125550199@${HOST}`);
+    assert.ok(s.provider.includes("destination:uac-1:12125550199"));
+    assert.deepEqual(
+      (await s.service.listCallingNumbers(ctx)).map((n) => n.phoneNumber),
+      ["+13055550101"],
+    );
+
+    s.state.number!.endpoint.providerFqdn = HOST;
+    assert.equal(
+      await s.service.outboundCarrierDestination(ctx, {
+        fromNumber: "+13055550101",
+        toNumber: "+18299621624",
+        externalSipEndpointId: "endpoint-1",
+      }),
+      `sip:18299621624@${HOST}`,
+    );
   });
 
   it("recognizes carrier hosts case-insensitively", async () => {

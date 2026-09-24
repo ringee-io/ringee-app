@@ -175,6 +175,14 @@ function setup() {
         updatedAt: new Date(),
       });
     },
+    findNumberInOrganization: async (
+      owner: typeof ctx,
+      phoneNumbers: string[],
+    ) =>
+      rows
+        .filter((row) => row.organizationId === owner.organizationId)
+        .flatMap((row) => row.endpoints.flatMap((ep) => ep.numbers))
+        .find((number) => phoneNumbers.includes(number.phoneNumber)) ?? null,
     deleteNumber: async (
       owner: typeof ctx & { carrierId: string },
       id: string,
@@ -792,6 +800,36 @@ describe("ExternalCarrierService", () => {
     assert.equal(h.calls.length, 0);
   });
 
+  it("keeps a number saved without its +, and refuses the other spelling of a saved number", async () => {
+    const h = setup();
+    const row = await h.create();
+    const endpointId = row.endpoints[0].id;
+    await h.service.saveNumber(ctx, row.id, {
+      endpointId,
+      phoneNumber: "1 (305) 555-0101",
+    });
+    const [number] = row.endpoints[0].numbers;
+    assert.equal(number.phoneNumber, "13055550101");
+    await assert.rejects(
+      h.service.saveNumber(ctx, row.id, {
+        endpointId,
+        phoneNumber: "+13055550101",
+      }),
+      ConflictException,
+    );
+    // The same row may switch spellings.
+    await h.service.saveNumber(
+      ctx,
+      row.id,
+      { endpointId, phoneNumber: "+13055550101" },
+      number.id,
+    );
+    assert.deepEqual(
+      row.endpoints[0].numbers.map((n) => n.phoneNumber),
+      ["+13055550101"],
+    );
+  });
+
   it("rejects foreign extension/number ids within an owned carrier", async () => {
     const h = setup();
     const row = await h.create();
@@ -885,6 +923,8 @@ describe("external SIP validation", () => {
     );
     assert.equal(normalizeSipInput(input, true).sipUsername, "auth201");
     assert.equal(normalizeExternalNumber("+1 (305) 555-0101"), "+13055550101");
+    assert.equal(normalizeExternalNumber("1 (305) 555-0101"), "13055550101");
+    assert.equal(normalizeExternalNumber("5215512345678"), "5215512345678");
   });
   it("rejects URLs, credentials, private targets, invalid ports and header injection", () => {
     for (const value of [
@@ -911,6 +951,14 @@ describe("external SIP validation", () => {
     assert.throws(() =>
       normalizeSipInput({ ...input, expirationSec: 0 }, true),
     );
-    assert.throws(() => normalizeExternalNumber("201"));
+    for (const value of [
+      "201",
+      "0305550101",
+      "sip:13055550101@host",
+      "13055550101;x=1",
+      "++13055550101",
+      "1".repeat(16),
+    ])
+      assert.throws(() => normalizeExternalNumber(value), value);
   });
 });

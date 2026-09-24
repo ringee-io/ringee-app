@@ -490,6 +490,14 @@ leg C  Call Control → UAC FQDN ──► customer's PBX ──► their carrie
   it is MAC'd under its own label, so it never passes as an inbound route key.
 - **The server chooses the destination.** Leg C goes to the row's own number on
   its own endpoint's stored FQDN, re-read from the database at transfer time.
+- **Number format follows the carrier.** An external number is saved as the
+  admin writes it — international, with or without the `+` — because some
+  carriers refuse one form. The `+` is the only thing kept: the destination in
+  leg C's SIP URI is written the same way as the external number it is called
+  from (`inCarrierFormat`). Everything else in Ringee stays E.164: the `Call`
+  row, the `from` sent to Telnyx, the numbers the dialer lists, and inbound
+  `toNumber`. One number may exist once per organization under either spelling
+  (checked on save; the unique index only sees one).
   One transfer per pre-dial: a second leg dialed with the same key is hung up,
   and a redelivered webhook changes nothing.
 - **Leg B is the call.** Verified on a live call (2026-09-23): the browser's
@@ -576,8 +584,8 @@ caller → carrier → PBX → extension registered by the UAC
 
 **PBX requirements.** Route each external number to the extension the UAC
 registers. When several numbers share an extension, add
-`X-Ringee-Called-Number: <dialed number in E.164>` to the INVITE sent to that
-extension; without it those calls are refused.
+`X-Ringee-Called-Number: <dialed number>` (international, `+` optional) to the
+INVITE sent to that extension; without it those calls are refused.
 
 **UAC SIP subdomain (verified 2026-09-23).** Telnyx documents Telnyx → PBX
 traffic as using the UAC's own `inbound.sip_subdomain`, but that subdomain

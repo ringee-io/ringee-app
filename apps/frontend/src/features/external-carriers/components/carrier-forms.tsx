@@ -277,7 +277,7 @@ export function NumberForm({
     phoneNumber: z
       .string()
       .trim()
-      .regex(/^\+[\d ()-]{7,25}$/, t('invalidPhone')),
+      .regex(/^\+?[\d ()-]{7,25}$/, t('invalidPhone')),
     active: z.enum(['active', 'inactive']),
     inboundSipDeviceId: z.string()
   });
@@ -336,6 +336,7 @@ export function NumberForm({
           placeholder='+1 305 555 0101'
           type='tel'
           description={t('numberHelp')}
+          tooltip={t('numberFormatHelp')}
           required
           disabled={busy}
         />

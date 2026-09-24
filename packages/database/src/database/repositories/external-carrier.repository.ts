@@ -58,14 +58,22 @@ export class ExternalCarrierRepository {
     });
   }
 
-  /** Scoped to the workspace: another organization's number is "not found". */
+  /**
+   * Scoped to the workspace: another organization's number is "not found".
+   * `phoneNumbers` lists the spellings (with and without `+`) it may be saved as.
+   */
   findCallingRoute(
     ctx: OrganizationOwner,
-    number: { id: string } | { phoneNumber: string; endpointId: string },
+    number: { id: string } | { phoneNumbers: string[]; endpointId: string },
   ): Promise<ExternalCallingRoute | null> {
     return this.prisma.externalPhoneNumber.findFirst({
       where: {
-        ...number,
+        ...("id" in number
+          ? { id: number.id }
+          : {
+              phoneNumber: { in: number.phoneNumbers },
+              endpointId: number.endpointId,
+            }),
         organizationId: ctx.organizationId,
         endpoint: {
           organizationId: ctx.organizationId,
@@ -129,6 +137,17 @@ export class ExternalCarrierRepository {
           },
         },
       },
+    });
+  }
+
+  /** The workspace's number saved under any of these spellings, if one is. */
+  findNumberInOrganization(ctx: OrganizationOwner, phoneNumbers: string[]) {
+    return this.prisma.externalPhoneNumber.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        phoneNumber: { in: phoneNumbers },
+      },
+      select: { id: true },
     });
   }
 
