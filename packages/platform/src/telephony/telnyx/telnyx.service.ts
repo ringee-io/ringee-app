@@ -291,7 +291,7 @@ export class TelnyxService implements TelephonyService {
     if (
       !target ||
       uacFqdn(target[2]) !== target[2] ||
-      !/^\+[1-9]\d{6,14}$/.test(params.from)
+      !/^\+?[1-9]\d{6,14}$/.test(params.from)
     )
       throw new CarrierConnectionError(false);
     await this.uacRequest(() =>

@@ -200,9 +200,14 @@ function setup() {
       },
       outboundCarrierDestination: async (
         _ctx: unknown,
-        target: { toNumber: string },
+        target: { fromNumber: string; toNumber: string },
       ) =>
-        state.routeHost ? `sip:${target.toNumber}@${state.routeHost}` : null,
+        state.routeHost
+          ? {
+              uri: `sip:${target.toNumber}@${state.routeHost}`,
+              from: target.fromNumber,
+            }
+          : null,
       confirmOutboundRoute: async () => state.routeHost,
       isCarrierHost: async (host: string) => {
         hostLookups.push(host);

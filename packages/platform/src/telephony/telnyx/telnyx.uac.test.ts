@@ -831,12 +831,12 @@ describe("UAC inbound routing", () => {
     });
   });
 
-  it("transfers a number without its + as written", async () => {
+  it("transfers numbers without their + as written", async () => {
     const client = { post: vi.fn().mockResolvedValue({}) };
     const service = new TelnyxService(client as unknown as TelnyxClient);
     await service.connectOutboundToCarrier("entry-leg", {
       destinationUri: "sip:18299621624@6eq9dcjrfudd.uac.telnyx.com",
-      from: "+18495322320",
+      from: "18495322320",
       correlation: "c",
       commandId: "id",
       timeoutSecs: 90,
@@ -844,13 +844,14 @@ describe("UAC inbound routing", () => {
     });
     expect(client.post.mock.calls[0][1]).toMatchObject({
       to: "sip:18299621624@6eq9dcjrfudd.uac.telnyx.com",
-      from: "+18495322320",
+      from: "18495322320",
     });
   });
 
   it.each([
     ["sip:+18299621624@6eq9dcjrfudd.uac.telnyx.com", "not-a-number"],
-    ["sip:+18299621624@6eq9dcjrfudd.uac.telnyx.com", "18495322320"],
+    ["sip:+18299621624@6eq9dcjrfudd.uac.telnyx.com", "08495322320"],
+    ["sip:+18299621624@6eq9dcjrfudd.uac.telnyx.com", "++18495322320"],
     ["sip:08299621624@6eq9dcjrfudd.uac.telnyx.com", "+18495322320"],
     ["+18299621624", "+18495322320"],
     ["sip:+18299621624@host.test:5060", "+18495322320"],

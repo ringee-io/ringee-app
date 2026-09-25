@@ -254,10 +254,10 @@ describe("ExternalCarrierService outbound calling", () => {
       toNumber: "+18299621624",
       externalSipEndpointId: "endpoint-1",
     };
-    assert.equal(
-      await s.service.outboundCarrierDestination(ctx, route),
-      `sip:+18299621624@${HOST}`,
-    );
+    assert.deepEqual(await s.service.outboundCarrierDestination(ctx, route), {
+      uri: `sip:+18299621624@${HOST}`,
+      from: "+13055550101",
+    });
     assert.equal(
       await s.service.outboundCarrierDestination(ctx, {
         ...route,
@@ -292,13 +292,14 @@ describe("ExternalCarrierService outbound calling", () => {
     );
 
     s.state.number!.endpoint.providerFqdn = HOST;
-    assert.equal(
+    // The carrier leg is placed from the number as saved: no `+` is added.
+    assert.deepEqual(
       await s.service.outboundCarrierDestination(ctx, {
         fromNumber: "+13055550101",
         toNumber: "+18299621624",
         externalSipEndpointId: "endpoint-1",
       }),
-      `sip:18299621624@${HOST}`,
+      { uri: `sip:18299621624@${HOST}`, from: "13055550101" },
     );
   });
 
