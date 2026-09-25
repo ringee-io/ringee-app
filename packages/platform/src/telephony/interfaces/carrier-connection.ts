@@ -169,7 +169,10 @@ export interface CarrierOutboundTransfer {
    * it — built by the server from its own records.
    */
   destinationUri: string;
-  /** E.164 the connection presents; the customer's PBX may apply its own. */
+  /**
+   * The external number the call is placed from, written like the destination
+   * (`+` optional as the carrier takes it); a PBX may present its own.
+   */
   from: string;
   /** Signed correlation of the call both legs are marked with. */
   correlation: string;

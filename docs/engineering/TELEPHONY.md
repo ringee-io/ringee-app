@@ -492,11 +492,11 @@ leg C  Call Control → UAC FQDN ──► customer's PBX ──► their carrie
   its own endpoint's stored FQDN, re-read from the database at transfer time.
 - **Number format follows the carrier.** An external number is saved as the
   admin writes it — international, with or without the `+` — because some
-  carriers refuse one form. The `+` is the only thing kept: the destination in
-  leg C's SIP URI is written the same way as the external number it is called
-  from (`inCarrierFormat`). Everything else in Ringee stays E.164: the `Call`
-  row, the `from` sent to Telnyx, the numbers the dialer lists, and inbound
-  `toNumber`. One number may exist once per organization under either spelling
+  carriers refuse one form. The `+` is the only thing kept: leg C's transfer
+  `from` is the external number as saved, and the destination in its SIP URI
+  is written the same way (`inCarrierFormat`) — a number saved without `+`
+  never gains one on its way to the carrier. Everything else in Ringee stays
+  E.164: the `Call` row, the numbers the dialer lists, and inbound `toNumber`. One number may exist once per organization under either spelling
   (checked on save; the unique index only sees one).
   One transfer per pre-dial: a second leg dialed with the same key is hung up,
   and a redelivered webhook changes nothing.

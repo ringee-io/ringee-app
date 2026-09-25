@@ -381,8 +381,9 @@ export class ExternalCarrierService {
 
   /**
    * Where the server sends a pre-dial's call, from Ringee's own records only:
-   * its number, written the way the carrier writes its external number, on
-   * its own connection's host. Null when the route no longer holds.
+   * its number on its own connection's host, and the external number it is
+   * sent from — both written the way the carrier writes its external number.
+   * Null when the route no longer holds.
    */
   async outboundCarrierDestination(
     ctx: OwnershipContext,
@@ -391,11 +392,13 @@ export class ExternalCarrierService {
       toNumber: string;
       externalSipEndpointId: string;
     },
-  ): Promise<string | null> {
+  ): Promise<{ uri: string; from: string } | null> {
     const confirmed = await this.confirmedRoute(ctx, route);
-    return confirmed && /^\+[1-9]\d{6,14}$/.test(route.toNumber)
-      ? `sip:${inCarrierFormat(route.toNumber, confirmed.stored)}@${confirmed.host}`
-      : null;
+    if (!confirmed || !/^\+[1-9]\d{6,14}$/.test(route.toNumber)) return null;
+    return {
+      uri: `sip:${inCarrierFormat(route.toNumber, confirmed.stored)}@${confirmed.host}`,
+      from: confirmed.stored,
+    };
   }
 
   /** Whether a SIP host is one of the carrier connections Ringee manages. */

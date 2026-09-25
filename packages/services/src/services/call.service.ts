@@ -551,8 +551,8 @@ export class CallService implements OnModuleDestroy {
     );
     try {
       await this.telephonyService.connectOutboundToCarrier(entry, {
-        destinationUri: destination,
-        from: call.fromNumber,
+        destinationUri: destination.uri,
+        from: destination.from,
         correlation: signCallCorrelation(call.id),
         commandId: `carrier-outbound-${call.id}`,
         timeoutSecs: EXTERNAL_CARRIER_RING_SECS,
