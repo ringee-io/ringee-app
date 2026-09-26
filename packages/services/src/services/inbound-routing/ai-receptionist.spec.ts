@@ -81,9 +81,9 @@ function setup() {
           return { ...call };
         },
         markTransferRinging: async () => {
-          if (call.inboundTransferState === "preparing")
-            call.inboundTransferState = "ringing";
-          return { ...call };
+          const transitioned = call.inboundTransferState === "preparing";
+          if (transitioned) call.inboundTransferState = "ringing";
+          return { call: { ...call }, transitioned };
         },
         resetInboundTransfer: async () => {
           log.push("reset");
@@ -260,6 +260,20 @@ describe("AI receptionist live directory and handoff", () => {
       assert.equal((await s.transfer()).ok, true);
       assert.deepEqual(s.stops, [s.call.callControlId]);
     });
+  it("rings the destination once when the assistant repeats the transfer", async () => {
+    const s = setup();
+    await s.search();
+    const results = await Promise.all([s.transfer(), s.transfer()]);
+    assert.ok(results.every((result) => result.ok));
+    assert.equal(s.routes.length, 1);
+    assert.deepEqual(await s.transfer(), {
+      ok: true,
+      transferred: false,
+      ringing: true,
+    });
+    assert.equal(s.routes.length, 1);
+    assert.ok(!s.log.includes("cancel"));
+  });
   it("does not re-route a completed transfer on a duplicate callback", async () => {
     const s = setup();
     await s.search();

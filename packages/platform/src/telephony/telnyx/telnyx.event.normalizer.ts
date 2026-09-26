@@ -3,6 +3,7 @@ import type {
   CallDirection,
   TelephonyConversationDetails,
   TelephonyConversationInsight,
+  TelephonyCostPart,
   TelephonyCustomHeader,
   TelephonyEvent,
   TelephonyEventType,
@@ -187,9 +188,15 @@ export class TelnyxEventNormalizer {
                   : null,
               parts: Array.isArray(payload.cost_parts)
                 ? payload.cost_parts.map(
-                    (part: { call_part?: string; cost?: string | number }) => ({
-                      call_part: part.call_part,
-                      cost: part.cost,
+                    (part: {
+                      call_part?: string;
+                      cost?: string | number;
+                    }): TelephonyCostPart => ({
+                      kind:
+                        part.call_part === "call-recording"
+                          ? "recording"
+                          : "call",
+                      amount: part.cost ?? null,
                     }),
                   )
                 : [],

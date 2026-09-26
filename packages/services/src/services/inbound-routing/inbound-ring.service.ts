@@ -31,7 +31,7 @@ import { UserService } from "../user.service";
 import { randomUUID } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "../credit.service";
-import { calculateCallCharge } from "../call-cost.util";
+import { calculateCallCharge, fromTelephonyCostParts } from "../call-cost.util";
 import type {
   RouteExecutionRequest,
   RouteExecutionResult,
@@ -131,7 +131,7 @@ export class InboundRingService {
     if (await this.redis.has(key)) return;
     try {
       await this.telephony.allowDeskPhoneInternalCalls(connectionId);
-      await this.redis.set(key, "1", INTERNAL_CALLING_TTL_SECONDS);
+      await this.redis.set(key, "1", INTERNAL_CALLING_TTL_SECONDS * 1000);
     } catch (error) {
       // A connection already configured still takes the dial; one that is
       // not refuses it, and that refusal is handled like any other.
@@ -259,6 +259,13 @@ export class InboundRingService {
         detail: "Missing caller leg",
       };
     const targets = await this.controlledTargets(ctx, userIds);
+    // Duplicate prevention is per handoff: an assistant that retries after a
+    // failed transfer may ring the same endpoints again.
+    if (call.inboundTransferRequestedAt)
+      await this.attempts.retireEndedBefore(
+        call.id,
+        call.inboundTransferRequestedAt,
+      );
     const started = await this.attempts.startMany(call.id, targets);
     const notified = new Set<string>();
     const freshUsers = new Set(started.map((a) => a.userId));
@@ -457,7 +464,7 @@ export class InboundRingService {
     if (event.type === "call.cost") {
       if (attempt.chargedCredits == null && event.cost) {
         const charge = calculateCallCharge({
-          costParts: event.cost.parts,
+          costParts: fromTelephonyCostParts(event.cost.parts),
           totalCost: event.cost.total,
           callProfitMultiplier: apiConfiguration.CALL_PROFIT_MARGIN,
           recordingProfitMultiplier:
@@ -478,12 +485,19 @@ export class InboundRingService {
       }
       return true;
     }
+    // A redelivered hangup must finish what its first delivery started — that
+    // one may have ended the attempt and then failed to end the caller. A leg
+    // Ringee cancelled has nothing to finish: after a handoff is handed back
+    // to the assistant, its hangup must not end the caller.
+    const replayableHangup =
+      event.type === "call.hangup" && attempt.status !== "cancelled";
     if (
       call.endedAt ||
-      call.inboundTransferState === "failed" ||
-      attempt.endedAt ||
-      attempt.status === "cancelled" ||
-      attempt.status === "failed"
+      (!replayableHangup &&
+        (call.inboundTransferState === "failed" ||
+          attempt.endedAt ||
+          attempt.status === "cancelled" ||
+          attempt.status === "failed"))
     ) {
       if (event.type === "call.answered" || event.type === "call.initiated")
         await this.endLeg(event.callControlId, `inbound-cancel-${attempt.id}`);
@@ -562,18 +576,24 @@ export class InboundRingService {
         answeredByUserId: attempt.userId,
       });
     } else if (event.type === "call.hangup") {
-      await this.attempts.update(attempt.id, {
-        status: attempt.status === "answered" ? "answered" : "failed",
-        endedAt: event.occurredAt ?? new Date(),
-      });
+      if (!attempt.endedAt)
+        await this.attempts.update(attempt.id, {
+          status: attempt.status === "answered" ? "answered" : "failed",
+          endedAt: event.occurredAt ?? new Date(),
+        });
       const remaining = await this.attempts.listByCall(call.id);
       const winnerLeft = call.answeredByRingAttemptId === attempt.id;
+      // A handoff given back to the assistant is the AI's conversation again.
+      const handedBack =
+        call.inboundDestinationType === "ai_receptionist" &&
+        !call.inboundTransferState;
       if (
         winnerLeft ||
-        !remaining.some(
-          (a) =>
-            a.status === "ringing" || (a.status === "answered" && !a.endedAt),
-        )
+        (!handedBack &&
+          !remaining.some(
+            (a) =>
+              a.status === "ringing" || (a.status === "answered" && !a.endedAt),
+          ))
       ) {
         // Nobody took the handoff: say so on the call, so its history does
         // not read as an AI conversation that simply ended.
@@ -906,9 +926,15 @@ export class InboundRingService {
         ),
       ),
     );
+    // The winner's other endpoints stop ringing, but the winner is not told
+    // their own call was cancelled: that would take it off their screen.
     await Promise.allSettled(
       ended
-        .filter((attempt) => attempt.userId)
+        .filter(
+          (attempt) =>
+            attempt.userId &&
+            attempt.userId !== (params.answeredByUserId ?? null),
+        )
         .map((attempt) =>
           this.realtime.inboundCallCancelled(attempt.userId!, {
             callId: call.id,

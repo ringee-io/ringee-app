@@ -124,6 +124,28 @@ export class InboundRingAttemptRepository {
     });
   }
 
+  /**
+   * Frees the endpoints of an earlier handoff on the same call, so a new one
+   * opens fresh attempts — new ids, so a new dial command and correlation —
+   * instead of finding them taken. The rows stay as history. Attempts of the
+   * current handoff started after `before` and are never touched.
+   */
+  async retireEndedBefore(callId: string, before: Date): Promise<void> {
+    const ended = await this.prisma.inboundRingAttempt.findMany({
+      where: {
+        callId,
+        endedAt: { lt: before },
+        NOT: { endpointKey: { contains: "#" } },
+      },
+      select: { id: true, endpointKey: true },
+    });
+    for (const attempt of ended)
+      await this.prisma.inboundRingAttempt.update({
+        where: { id: attempt.id },
+        data: { endpointKey: `${attempt.endpointKey}#${attempt.id}` },
+      });
+  }
+
   /** Records the winner. Only a still-ringing attempt can become the answer. */
   async markAnswered(callId: string, userId: string | null): Promise<boolean> {
     const { count } = await this.prisma.inboundRingAttempt.updateMany({

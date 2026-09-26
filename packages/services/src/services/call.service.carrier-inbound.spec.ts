@@ -300,6 +300,27 @@ describe("CallService carrier inbound calls", () => {
     assert.deepEqual(s.log, ["hangup:leg-a"]);
   });
 
+  it("leaves an answered AI conversation alone when its route changed before a redelivery", async () => {
+    const s = setup();
+    const receptionist = (agentId: string) =>
+      ({
+        ...DESK_PHONE_ROUTE,
+        destination: {
+          type: "ai_receptionist",
+          agentId,
+          ownerUserId: "user-a",
+        },
+      }) as InboundRouteResolution;
+    s.state.resolution = receptionist("agent-1");
+    await s.service.handleTelephonyEvent(s.event());
+    const [row] = [...s.rows.values()];
+    row.answeredAt = new Date();
+    s.state.resolution = receptionist("agent-2");
+    await s.service.handleTelephonyEvent(s.event());
+    assert.equal(row.inboundDestinationId, "agent-1");
+    assert.deepEqual(s.log, []);
+  });
+
   it("presents the called number when the caller has no E.164 number", async () => {
     const s = setup();
     s.state.carrier = {

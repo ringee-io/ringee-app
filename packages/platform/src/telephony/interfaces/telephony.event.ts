@@ -21,6 +21,12 @@ export interface TelephonyCustomHeader {
   value: string;
 }
 
+/** One line of a settled leg cost. Recording is priced apart from the call. */
+export interface TelephonyCostPart {
+  kind: "call" | "recording";
+  amount: string | number | null;
+}
+
 /**
  * Carrier-neutral event names.
  *
@@ -119,7 +125,7 @@ export interface TelephonyEvent<TPayload = unknown> {
   inboundRingAttempt?: string | null;
   cost?: {
     total: string | number | null;
-    parts: Array<{ call_part?: string; cost?: string | number }>;
+    parts: TelephonyCostPart[];
   } | null;
   /** Untouched provider body. */
   payload: TPayload;

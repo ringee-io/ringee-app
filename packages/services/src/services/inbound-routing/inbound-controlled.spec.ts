@@ -184,6 +184,9 @@ describe("Controlled inbound routing", () => {
       assert.equal(s.call.inboundTransferState, "connected");
       assert.equal(s.call.callControlId, "caller");
       assert.ok(!s.ended.includes("caller"));
+      // The winner's own other endpoint stops, but they are not told their
+      // call was cancelled.
+      assert.deepEqual(s.cancelled, sameUser ? [] : ["user-b"]);
     });
   it("replays the winner safely without creating or billing another call", async () => {
     const s = setup();
@@ -306,6 +309,121 @@ describe("Controlled inbound routing", () => {
     assert.ok(s.ended.includes("caller"));
     assert.equal(s.call.inboundTransferState, "failed");
     assert.equal(s.call.errorMessage, "Nobody answered the transfer.");
+  });
+  it("finishes ending the caller when the last leg's hangup is redelivered", async () => {
+    const s = setup();
+    await s.service.handleControlledEvent(
+      s.event("browser-leg", "call.hangup"),
+    );
+    const telephony = (s.service as any).telephony;
+    const hangup = telephony.hangupCall;
+    telephony.hangupCall = async () => {
+      throw new HttpException("provider", 502);
+    };
+    await assert.rejects(
+      s.service.handleControlledEvent(s.event("desk-leg", "call.hangup")),
+      HttpException,
+    );
+    const endedAt = s.attempts[1].endedAt;
+    assert.ok(endedAt);
+    telephony.hangupCall = hangup;
+    await s.service.handleControlledEvent(
+      s.event("desk-leg", "call.hangup", { occurredAt: new Date(0) }),
+    );
+    assert.ok(s.ended.includes("caller"));
+    assert.equal(s.attempts[1].endedAt, endedAt);
+  });
+  it("never ends a caller handed back to the assistant when an old leg hangs up", async () => {
+    const s = setup();
+    s.call.inboundTransferState = null;
+    for (const [i, status] of ["cancelled", "failed"].entries())
+      Object.assign(s.attempts[i], { status, endedAt: new Date() });
+    await s.service.handleControlledEvent(
+      s.event("browser-leg", "call.hangup"),
+    );
+    await s.service.handleControlledEvent(s.event("desk-leg", "call.hangup"));
+    assert.deepEqual(s.ended, []);
+  });
+  it("rings an endpoint again on a new handoff after an earlier one failed", async () => {
+    const s = setup();
+    const requestedAt = new Date();
+    Object.assign(s.call, { inboundTransferRequestedAt: requestedAt });
+    // Left by the first handoff: it never got a leg.
+    s.attempts.splice(0, s.attempts.length, {
+      id: "earlier",
+      callId: s.call.id,
+      userId: "user-a",
+      endpointKey: "browser:one",
+      providerCallControlId: null,
+      status: "failed",
+      endedAt: new Date(requestedAt.getTime() - 1000),
+    });
+    const dialed: string[] = [];
+    Object.assign((s.service as any).attempts, {
+      retireEndedBefore: async (_callId: string, before: Date) => {
+        for (const a of s.attempts)
+          if (a.endedAt && a.endedAt < before && !a.endpointKey.includes("#"))
+            a.endpointKey = `${a.endpointKey}#${a.id}`;
+      },
+      startMany: async (_callId: string, targets: Row[]) => {
+        const fresh = targets
+          .filter(
+            (t) => !s.attempts.some((a) => a.endpointKey === t.endpointKey),
+          )
+          .map((t) => ({
+            ...t,
+            id: "retry",
+            callId: s.call.id,
+            status: "ringing",
+            providerCallControlId: null,
+          }));
+        s.attempts.push(...fresh);
+        return fresh;
+      },
+      bindProvider: async (id: string, controlId: string) => {
+        s.attempts.find((a) => a.id === id)!.providerCallControlId = controlId;
+        return { count: 1 };
+      },
+    });
+    Object.assign(s.service as any, {
+      controlledTargets: async () => [
+        {
+          userId: "user-a",
+          endpointKey: "browser:one",
+          sipUsername: "member-credential",
+          sipDeviceId: null,
+          recipientConnectionId: "browser-connection",
+        },
+      ],
+      ensureInternalCalling: async () => {},
+      offerToMember: async () => ({ userId: "user-a", sockets: 1, devices: 0 }),
+      callRepository: {
+        ...(s.service as any).callRepository,
+        findById: async () => ({ ...s.call }),
+      },
+    });
+    (s.service as any).telephony.dialInboundEndpoint = async (params: Row) => {
+      dialed.push(params.commandId);
+      return {
+        callControlId: "retry-leg",
+        callLegId: null,
+        callSessionId: null,
+      };
+    };
+    const result = await s.service.offerControlled(
+      {
+        call: { ...s.call },
+        ctx: { userId: "owner", organizationId: "org" },
+        destination: { type: "user", userId: "user-a" },
+        callerName: null,
+        origin: { transport: "call_control" },
+      } as never,
+      ["user-a"],
+      45,
+    );
+    assert.deepEqual(result, { status: "ringing", targets: 1 });
+    assert.deepEqual(dialed, ["inbound-endpoint-retry"]);
+    assert.equal(s.attempts[0].endpointKey, "browser:one#earlier");
   });
   it("routes an inbound call carrying a copied correlation as an ordinary call", async () => {
     const s = setup();

@@ -214,6 +214,30 @@ describe("CallRepository receptionist transfer concurrency", () => {
     assert.equal(query.data.ringGroupId, "sales");
     assert.equal(query.data.answeredAt, undefined);
   });
+  it("reports which request moved the handoff to ringing", async () => {
+    const call = { id: "call", inboundTransferState: "preparing" };
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: any) => {
+          if (call.inboundTransferState !== args.where.inboundTransferState)
+            return { count: 0 };
+          Object.assign(call, args.data);
+          return { count: 1 };
+        },
+        findUnique: async () => ({ ...call }),
+      },
+    } as never);
+    const [first, second] = await Promise.all([
+      repo.markTransferRinging("caller"),
+      repo.markTransferRinging("caller"),
+    ]);
+    assert.deepEqual([first.transitioned, second.transitioned].sort(), [
+      false,
+      true,
+    ]);
+    assert.equal(first.call?.inboundTransferState, "ringing");
+    assert.equal(second.call?.inboundTransferState, "ringing");
+  });
   it("does not time out a handoff that has already connected", async () => {
     let query: any;
     const repo = new CallRepository({

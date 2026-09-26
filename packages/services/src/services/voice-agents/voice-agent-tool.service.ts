@@ -260,13 +260,18 @@ export class VoiceAgentToolService {
       return { ok: true, transferred: true };
     if (locked.inboundTransferState === "failed")
       return { ok: false, error: "The transfer could not be completed." };
-    const current = await this.calls.markTransferRinging(call.callControlId!);
+    const { call: current, transitioned } =
+      await this.calls.markTransferRinging(call.callControlId!);
     if (!current || current.endedAt)
       return { ok: false, error: "The caller disconnected." };
     if (current.inboundTransferState === "connected")
       return { ok: true, transferred: true };
     if (current.inboundTransferState !== "ringing")
       return { ok: false, error: "The transfer is no longer available." };
+    // Only the request that started the ringing rings anyone. A concurrent or
+    // repeated call would otherwise race it, and its failure path would cancel
+    // the legs the first one is ringing.
+    if (!transitioned) return { ok: true, transferred: false, ringing: true };
     let result: RouteExecutionResult;
     try {
       result = await this.router.routeInboundCall({

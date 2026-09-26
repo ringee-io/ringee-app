@@ -400,7 +400,12 @@ IVR remains unimplemented.
 **Deployment and verification:** apply
 `packages/database/prisma/pending-migrations/20260922000100_ai_receptionist.sql`
 after the existing inbound routing migrations, then regenerate Prisma and deploy
-backend and dashboard together. The Call Control application must be configured
+backend and dashboard together. Its `InboundRingAttempt_legacy_endpointKey`
+trigger keeps inserts from instances still on the previous client valid during
+the rollout; drop it and its function once none remain. Then run
+`20260922000200_ai_receptionist_call_indexes.sql` by hand with `psql` — never
+through Prisma — to build the stalled-handoff sweep's partial `Call` index
+`CONCURRENTLY`. The Call Control application must be configured
 as documented for BYOC. Per-user SIP credentials and handsets must accept internal
 account calls. No migration of all legacy Ringee numbers is performed.
 

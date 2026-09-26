@@ -269,8 +269,12 @@ export class CallRepository {
     });
   }
 
+  /**
+   * `transitioned` is true only for the one request that moved the handoff
+   * from preparing to ringing — the request that may ring its destination.
+   */
   async markTransferRinging(callControlId: string) {
-    await this.prisma.call.updateMany({
+    const { count } = await this.prisma.call.updateMany({
       where: {
         callControlId,
         endedAt: null,
@@ -278,7 +282,10 @@ export class CallRepository {
       },
       data: { inboundTransferState: "ringing" },
     });
-    return this.findByControlId(callControlId);
+    return {
+      call: await this.findByControlId(callControlId),
+      transitioned: count > 0,
+    };
   }
 
   /**

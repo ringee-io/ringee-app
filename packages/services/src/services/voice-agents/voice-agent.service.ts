@@ -1175,10 +1175,10 @@ export class VoiceAgentService {
     return {
       ...config,
       instructions: `${config.instructions}\n\n${RECEPTIONIST_INSTRUCTIONS}`,
-      dynamicVariables: {
-        ...config.dynamicVariables,
-        ...voiceAgentRuntimeVariables(agent.timezone),
-      },
+      // Composed for this call, so the clock is current and in the calendar's
+      // zone — the one the instructions and booking tools use. The agent's own
+      // field would put the two out of step.
+      dynamicVariables: config.dynamicVariables,
       tools: [
         ...config.tools,
         ...buildReceptionistTools({

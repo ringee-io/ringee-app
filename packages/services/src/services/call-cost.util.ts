@@ -1,3 +1,5 @@
+import type { TelephonyCostPart } from "@ringee/platform";
+
 export type CallCostPart = {
   call_part?: string;
   cost?: string | number;
@@ -23,6 +25,15 @@ const toNonNegativeNumber = (value: unknown): number => {
 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 };
+
+/** Reads a normalized `TelephonyEvent` cost with the same pricing. */
+export const fromTelephonyCostParts = (
+  parts: TelephonyCostPart[],
+): CallCostPart[] =>
+  parts.map((part) => ({
+    call_part: part.kind === "recording" ? RECORDING_CALL_PART : part.kind,
+    cost: part.amount ?? undefined,
+  }));
 
 /**
  * Applies the voice-call multiplier to every Telnyx cost part except recording,

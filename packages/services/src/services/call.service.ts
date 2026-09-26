@@ -327,7 +327,10 @@ export class CallService implements OnModuleDestroy {
     ) {
       // A retry after the route was changed must not ring a different
       // recipient using the original recipient's row and correlation token.
-      await this.telephonyService.hangupCall(callControlId);
+      // An answered call is already the original route's conversation:
+      // hanging it up would cut the caller off mid-sentence.
+      if (!current.answeredAt)
+        await this.telephonyService.hangupCall(callControlId);
       return;
     }
 

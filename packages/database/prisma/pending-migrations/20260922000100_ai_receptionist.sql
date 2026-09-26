@@ -21,6 +21,25 @@ UPDATE "InboundRingAttempt" SET "endpointKey" =
   CASE WHEN "sipDeviceId" IS NOT NULL THEN 'desk:' || "sipDeviceId"::text
        WHEN "userId" IS NOT NULL THEN 'user:' || "userId"::text
        ELSE 'legacy:' || "id"::text END;
+-- Rollout shim: instances still on the previous Prisma client insert without
+-- "endpointKey". Derive it the way they deduplicated — one attempt per member —
+-- so their inserts keep working and a redelivered webhook still rings nobody
+-- twice. New code always sets the key. Drop the trigger and function once no
+-- instance predating this migration runs.
+CREATE OR REPLACE FUNCTION "InboundRingAttempt_legacy_endpointKey"()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW."endpointKey" IS NULL THEN
+    NEW."endpointKey" :=
+      CASE WHEN NEW."sipDeviceId" IS NOT NULL THEN 'desk:' || NEW."sipDeviceId"::text
+           WHEN NEW."userId" IS NOT NULL THEN 'user:' || NEW."userId"::text
+           ELSE 'legacy:' || NEW."id"::text END;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER "InboundRingAttempt_legacy_endpointKey"
+  BEFORE INSERT ON "InboundRingAttempt"
+  FOR EACH ROW EXECUTE FUNCTION "InboundRingAttempt_legacy_endpointKey"();
 ALTER TABLE "InboundRingAttempt" ALTER COLUMN "endpointKey" SET NOT NULL;
 DROP INDEX "InboundRingAttempt_callId_userId_key";
 CREATE UNIQUE INDEX "InboundRingAttempt_callId_endpointKey_key"

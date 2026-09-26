@@ -1495,7 +1495,8 @@ export class TelnyxService implements TelephonyService {
       from: params.from,
       command_id: params.commandId,
       timeout_secs: params.timeoutSecs,
-      time_limit_secs: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
+      // A person answers this leg, so it keeps the connection's own limit;
+      // the AI voice agent cap would cut a human conversation short.
       client_state: Buffer.from(
         JSON.stringify({ inboundRingAttempt: params.correlation }),
       ).toString("base64"),

@@ -149,3 +149,27 @@ describe("VoiceAgentService inbound-only activation", () => {
     assert.equal(checkedCaller, true);
   });
 });
+
+describe("VoiceAgentService inbound receptionist config", () => {
+  it("keeps the calendar's time zone the booking tools use", async () => {
+    const agent = {
+      ...AGENT,
+      status: "active",
+      toolSecretHash: "hash",
+      timezone: "Europe/Madrid",
+      providerInsightGroupId: "insights",
+    };
+    const service = Object.assign(Object.create(VoiceAgentService.prototype), {
+      require: async () => agent,
+      assertReadyForCalls: () => {},
+      ensureInsightGroup: async () => {},
+      composeConfig: async () => ({
+        instructions: "Help",
+        tools: [],
+        dynamicVariables: { agent_timezone: "America/New_York" },
+      }),
+    }) as VoiceAgentService;
+    const config = await service.inboundConfig(CTX, AGENT.id);
+    assert.equal(config.dynamicVariables?.agent_timezone, "America/New_York");
+  });
+});
