@@ -110,6 +110,7 @@ const COUNTRY_OPTIONS = [
   { flag: '🇭🇰', name: 'Hong Kong', value: 'HK' },
   { flag: '🇭🇺', name: 'Hungary', value: 'HU' },
   { flag: '🇮🇸', name: 'Iceland', value: 'IS' },
+  { flag: '🇮🇳', name: 'India', value: 'IN' },
   { flag: '🇮🇩', name: 'Indonesia', value: 'ID' },
   { flag: '🇮🇪', name: 'Ireland', value: 'IE' },
   { flag: '🇮🇱', name: 'Israel', value: 'IL' },
