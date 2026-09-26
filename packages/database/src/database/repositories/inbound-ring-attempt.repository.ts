@@ -139,11 +139,15 @@ export class InboundRingAttemptRepository {
       },
       select: { id: true, endpointKey: true },
     });
-    for (const attempt of ended)
-      await this.prisma.inboundRingAttempt.update({
-        where: { id: attempt.id },
-        data: { endpointKey: `${attempt.endpointKey}#${attempt.id}` },
-      });
+    if (ended.length === 0) return;
+    await this.prisma.$transaction(
+      ended.map((attempt) =>
+        this.prisma.inboundRingAttempt.update({
+          where: { id: attempt.id },
+          data: { endpointKey: `${attempt.endpointKey}#${attempt.id}` },
+        }),
+      ),
+    );
   }
 
   /** Records the winner. Only a still-ringing attempt can become the answer. */
