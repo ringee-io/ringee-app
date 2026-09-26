@@ -10,3 +10,4 @@ export * from "./destinations/user.destination";
 export * from "./destinations/ring-group.destination";
 export * from "./destinations/desk-phone.destination";
 export * from "./destinations/unsupported.destination";
+export * from "./destinations/ai-receptionist.destination";

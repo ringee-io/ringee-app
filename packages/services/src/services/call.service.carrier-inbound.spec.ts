@@ -13,10 +13,8 @@ import type { CarrierInboundCall } from "./external-carrier/external-carrier.ser
 import { DeskPhoneCallService } from "./sip-device/desk-phone-call.service";
 import { InboundCallRouterService } from "./inbound-routing/inbound-call-router.service";
 import { DeskPhoneDestinationHandler } from "./inbound-routing/destinations/desk-phone.destination";
-import {
-  AiReceptionistDestinationHandler,
-  IvrDestinationHandler,
-} from "./inbound-routing/destinations/unsupported.destination";
+import { IvrDestinationHandler } from "./inbound-routing/destinations/unsupported.destination";
+import { AiReceptionistDestinationHandler } from "./inbound-routing/destinations/ai-receptionist.destination";
 import type { InboundRouteResolution } from "./inbound-routing/inbound-routing.types";
 
 process.env.SDK_SIGNING_SECRET ||= "carrier-inbound-spec-secret";
@@ -132,7 +130,9 @@ function setup() {
       attempts as never,
     ),
     new IvrDestinationHandler(),
-    new AiReceptionistDestinationHandler(),
+    new AiReceptionistDestinationHandler({
+      startInbound: async () => {},
+    } as never),
   );
   const deps = {
     logger: Object.assign(new Logger("spec"), {
@@ -175,6 +175,7 @@ function setup() {
     },
     inboundRouter,
     inboundRing: {
+      handleControlledEvent: async () => false,
       recordAnswer: async () => {},
       cancelRinging: async () => 0,
       cancelForEndedCall: async () => {},
@@ -297,6 +298,27 @@ describe("CallService carrier inbound calls", () => {
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.transfers.length, 1);
     assert.deepEqual(s.log, ["hangup:leg-a"]);
+  });
+
+  it("leaves an answered AI conversation alone when its route changed before a redelivery", async () => {
+    const s = setup();
+    const receptionist = (agentId: string) =>
+      ({
+        ...DESK_PHONE_ROUTE,
+        destination: {
+          type: "ai_receptionist",
+          agentId,
+          ownerUserId: "user-a",
+        },
+      }) as InboundRouteResolution;
+    s.state.resolution = receptionist("agent-1");
+    await s.service.handleTelephonyEvent(s.event());
+    const [row] = [...s.rows.values()];
+    row.answeredAt = new Date();
+    s.state.resolution = receptionist("agent-2");
+    await s.service.handleTelephonyEvent(s.event());
+    assert.equal(row.inboundDestinationId, "agent-1");
+    assert.deepEqual(s.log, []);
   });
 
   it("presents the called number when the caller has no E.164 number", async () => {

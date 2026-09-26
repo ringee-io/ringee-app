@@ -127,6 +127,7 @@ function setup() {
     },
   };
   const deps = {
+    inboundRing: { handleControlledEvent: async () => false },
     logger: Object.assign(new Logger("spec"), {
       log: () => {},
       debug: () => {},

@@ -153,3 +153,110 @@ describe("CallRepository carrier lifecycle persistence", () => {
     assert.equal(queries[0].where.callControlId, null);
   });
 });
+
+describe("CallRepository receptionist transfer concurrency", () => {
+  it("preserves the AI answer and caller while atomically electing one human endpoint", async () => {
+    let query: any;
+    const answeredAt = new Date();
+    const call = {
+      id: "call",
+      answeredAt,
+      answeredByRingAttemptId: "browser",
+      endedAt: null,
+      inboundTransferState: "ringing",
+    };
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: unknown) => {
+          query = args;
+          return { count: 1 };
+        },
+        findUnique: async () => call,
+      },
+    } as never);
+    assert.equal(
+      (await repo.claimInboundEndpoint("call", "browser", "member")).won,
+      true,
+    );
+    assert.equal(query.where.answeredByRingAttemptId, null);
+    assert.equal(query.where.endedAt, null);
+    assert.equal(query.data.answeredAt, undefined);
+    assert.equal(query.data.callControlId, undefined);
+    assert.equal(
+      (await repo.claimInboundEndpoint("call", "desk", "member")).won,
+      false,
+    );
+    call.inboundTransferState = "failed";
+    assert.equal(
+      (await repo.claimInboundEndpoint("call", "browser", "member")).won,
+      false,
+    );
+  });
+  it("claims the transfer in the authenticated workspace without resetting its answer timestamp", async () => {
+    let query: any;
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: unknown) => {
+          query = args;
+          return { count: 1 };
+        },
+        findFirst: async () => null,
+      },
+    } as never);
+    await repo.beginInboundTransfer(
+      { userId: "member", organizationId: "org" },
+      "call",
+      { type: "ring_group", id: "sales" },
+    );
+    assert.equal(query.where.organizationId, "org");
+    assert.equal(query.where.inboundTransferState, null);
+    assert.equal(query.where.endedAt, null);
+    assert.equal(query.data.ringGroupId, "sales");
+    assert.equal(query.data.answeredAt, undefined);
+  });
+  it("reports which request moved the handoff to ringing", async () => {
+    const call = { id: "call", inboundTransferState: "preparing" };
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: any) => {
+          if (call.inboundTransferState !== args.where.inboundTransferState)
+            return { count: 0 };
+          Object.assign(call, args.data);
+          return { count: 1 };
+        },
+        findUnique: async () => ({ ...call }),
+      },
+    } as never);
+    const [first, second] = await Promise.all([
+      repo.markTransferRinging("caller"),
+      repo.markTransferRinging("caller"),
+    ]);
+    assert.deepEqual([first.transitioned, second.transitioned].sort(), [
+      false,
+      true,
+    ]);
+    assert.equal(first.call?.inboundTransferState, "ringing");
+    assert.equal(second.call?.inboundTransferState, "ringing");
+  });
+  it("does not time out a handoff that has already connected", async () => {
+    let query: any;
+    const repo = new CallRepository({
+      call: {
+        updateMany: async (args: unknown) => {
+          query = args;
+          return { count: 0 };
+        },
+      },
+    } as never);
+    assert.equal(
+      await repo.failStalledInboundTransfer("call", new Date()),
+      false,
+    );
+    assert.equal(
+      query.where.inboundTransferState.in.includes("connected"),
+      false,
+    );
+    assert.equal(query.where.endedAt, null);
+    assert.equal(query.data.status, undefined);
+  });
+});

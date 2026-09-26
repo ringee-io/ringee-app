@@ -69,37 +69,38 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 ## AI voice agents
 
-| Responsibility                        | Owner                                                                           |
-| ------------------------------------- | ------------------------------------------------------------------------------- |
-| Any voice-agent provider command      | `VoiceAgentProviderService` — `platform/src/voice-agents/`                      |
-| Organization-only module access       | `assertVoiceAgentAccess` — `services/voice-agents/voice-agent-access.ts`        |
-| Provider assistant ⇄ Ringee config    | `telnyx.voice-agent.mapper.ts` (+ spec)                                         |
-| What an agent type _is_               | `services/voice-agents/blueprints/*` + `VoiceAgentBlueprintRegistry`            |
-| Agent CRUD + assistant sync           | `VoiceAgentService` — `services/voice-agents/voice-agent.service.ts`            |
-| Starting an agent call (all surfaces) | `VoiceAgentCallService.startCall`                                               |
-| Conversation events → result          | `VoiceAgentResultService`                                                       |
-| AI usage settlement                   | `VoiceAgentBillingService` (BILL-020)                                           |
-| Agent tool callbacks                  | `VoiceAgentToolService`                                                         |
-| Human-support notification delivery   | `VoiceAgentHumanSupportService`                                                 |
-| Knowledge bases                       | `VoiceAgentKnowledgeService` + `TelnyxKnowledgeStore`                           |
-| Browser test sessions                 | `VoiceAgentTestSessionService` (AGENT-005)                                      |
-| Agent company context (AGENT-007)     | `CompanyProfileService.resolveForAgent`                                         |
-| Voice sample playback                 | `VoiceAgentService.previewVoice` → `renderVoicePreview`                         |
-| Workspace voice cloning               | VoiceAgentService.cloneVoice / listCustomVoices + AiVoiceAgentRepository        |
-| Voice-clone reading samples           | `VoiceCloneReadingSampleService`                                                |
-| Browser microphone lifecycle          | useAudioRecorder — frontend-shared/src/hooks/use-audio-recorder.ts              |
-| Browser WAV encoding                  | encodeBlobToWav — frontend-shared/src/lib/audio-wav.ts                          |
-| Curated voice list                    | `curateVoices` — `platform/src/voice-agents/voices.catalog.ts`                  |
-| Model behind each user choice         | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts`        |
-| BYO LLM key verification              | `LlmCredentialVerifier`                                                         |
-| Bookable slots for an agent           | `CalendarService.getBookableSlots` (strict; AGENT-002)                          |
-| Which calendar a booking uses         | `CalendarService.resolveCalendar` — never a model-supplied id                   |
-| Ringee calendars (CRUD, archive)      | `CalendarService` + `CalendarRepository`                                        |
-| The workspace's global calendar       | `CalendarService.ensureGlobalCalendar`                                          |
-| Recurring booking hours and capacity  | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository` |
-| Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)           |
-| Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`                      |
-| Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                   |
+| Responsibility                        | Owner                                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| Any voice-agent provider command      | `VoiceAgentProviderService` — `platform/src/voice-agents/`                           |
+| Organization-only module access       | `assertVoiceAgentAccess` — `services/voice-agents/voice-agent-access.ts`             |
+| Provider assistant ⇄ Ringee config    | `telnyx.voice-agent.mapper.ts` (+ spec)                                              |
+| What an agent type _is_               | `services/voice-agents/blueprints/*` + `VoiceAgentBlueprintRegistry`                 |
+| Agent CRUD + assistant sync           | `VoiceAgentService` — `services/voice-agents/voice-agent.service.ts`                 |
+| Starting an agent call (all surfaces) | `VoiceAgentCallService.startCall` / `startInbound`                                   |
+| Conversation events → result          | `VoiceAgentResultService`                                                            |
+| AI usage settlement                   | `VoiceAgentBillingService` (BILL-020)                                                |
+| Agent tool callbacks                  | `VoiceAgentToolService`                                                              |
+| Human-support notification delivery   | `VoiceAgentHumanSupportService`                                                      |
+| Knowledge bases                       | `VoiceAgentKnowledgeService` + `TelnyxKnowledgeStore`                                |
+| Inbound agent directory and transfer  | `VoiceAgentToolService` → `InboundRouteResolverService` / `InboundCallRouterService` |
+| Browser test sessions                 | `VoiceAgentTestSessionService` (AGENT-005)                                           |
+| Agent company context (AGENT-007)     | `CompanyProfileService.resolveForAgent`                                              |
+| Voice sample playback                 | `VoiceAgentService.previewVoice` → `renderVoicePreview`                              |
+| Workspace voice cloning               | VoiceAgentService.cloneVoice / listCustomVoices + AiVoiceAgentRepository             |
+| Voice-clone reading samples           | `VoiceCloneReadingSampleService`                                                     |
+| Browser microphone lifecycle          | useAudioRecorder — frontend-shared/src/hooks/use-audio-recorder.ts                   |
+| Browser WAV encoding                  | encodeBlobToWav — frontend-shared/src/lib/audio-wav.ts                               |
+| Curated voice list                    | `curateVoices` — `platform/src/voice-agents/voices.catalog.ts`                       |
+| Model behind each user choice         | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts`             |
+| BYO LLM key verification              | `LlmCredentialVerifier`                                                              |
+| Bookable slots for an agent           | `CalendarService.getBookableSlots` (strict; AGENT-002)                               |
+| Which calendar a booking uses         | `CalendarService.resolveCalendar` — never a model-supplied id                        |
+| Ringee calendars (CRUD, archive)      | `CalendarService` + `CalendarRepository`                                             |
+| The workspace's global calendar       | `CalendarService.ensureGlobalCalendar`                                               |
+| Recurring booking hours and capacity  | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository`      |
+| Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)                |
+| Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`                           |
+| Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                        |
 
 ## Phone numbers
 

@@ -36,6 +36,20 @@ export class AiVoiceAgentRepository {
 
   // ── Agents ───────────────────────────────────────────────────
 
+  listReceptionistCandidates(ctx: OwnershipContext) {
+    return this.prisma.aiVoiceAgent.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        deletedAt: null,
+        status: "active",
+        providerAssistantId: { not: null },
+        toolSecretHash: { not: null },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
   create(
     ctx: OwnershipContext,
     data: Omit<

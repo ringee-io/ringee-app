@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import {
+  CallRepository,
+  InboundDestinationType,
   AiVoiceAgent,
   AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
@@ -13,6 +15,8 @@ import {
   AiVoiceAgentRepository,
 } from "@ringee/database";
 import {
+  RedisService,
+  VoiceAgentProviderService,
   hashApiKey,
   safeHashEqual,
   type OwnershipContext,
@@ -27,6 +31,11 @@ import {
 } from "./voice-agent.types";
 import { VoiceAgentHumanSupportService } from "./voice-agent-human-support.service";
 import { VoiceAgentResultService } from "./voice-agent-result.service";
+
+import { InboundRouteResolverService } from "../inbound-routing/inbound-route-resolver.service";
+import { InboundCallRouterService } from "../inbound-routing/inbound-call-router.service";
+import { InboundRingService } from "../inbound-routing/inbound-ring.service";
+import type { RouteExecutionResult } from "../inbound-routing/inbound-routing.types";
 
 /**
  * Headers the provider sends: the shared secret it holds for this agent, and
@@ -99,7 +108,215 @@ export class VoiceAgentToolService {
     private readonly humanSupport: VoiceAgentHumanSupportService,
     private readonly callbacks: CallbackService,
     private readonly results: VoiceAgentResultService,
+    private readonly calls: CallRepository,
+    private readonly directory: InboundRouteResolverService,
+    private readonly router: InboundCallRouterService,
+    private readonly ring: InboundRingService,
+    private readonly provider: VoiceAgentProviderService,
+    private readonly redis: RedisService,
   ) {}
+
+  private async authorizeReceptionist(
+    agentId: string,
+    secret: string,
+    controlId: string | null,
+  ) {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    const agentCall = controlId
+      ? await this.agentCalls.findByCallControlId(controlId)
+      : null;
+    const call = agentCall?.callId
+      ? await this.calls.findById(agentCall.callId)
+      : null;
+    if (
+      !ctx.organizationId ||
+      !agentCall ||
+      agentCall.agentId !== agent.id ||
+      !call ||
+      call.organizationId !== ctx.organizationId ||
+      call.direction !== "inbound" ||
+      call.callControlId !== controlId ||
+      call.inboundDestinationType !== "ai_receptionist" ||
+      call.inboundDestinationId !== agent.id ||
+      call.endedAt
+    )
+      throw new UnauthorizedException(
+        "No active inbound conversation for this agent.",
+      );
+    return { ctx, call };
+  }
+
+  async searchDirectory(
+    agentId: string,
+    secret: string,
+    controlId: string | null,
+    input: { query?: string },
+  ) {
+    const { ctx, call } = await this.authorizeReceptionist(
+      agentId,
+      secret,
+      controlId,
+    );
+    if (call.inboundTransferState)
+      return { ok: false, error: "A transfer is already in progress." };
+    const result = await this.directory.searchDirectory(ctx, input.query ?? "");
+    const destinations = result.destinations.filter(
+      (entry) => entry.destinationType !== "desk_phone",
+    );
+    // A valid id alone is insufficient: it must have come from this call's directory lookup.
+    await Promise.all(
+      destinations.map((entry) =>
+        this.redis.hashSet(
+          `receptionist-directory:${call.id}`,
+          `${entry.destinationType}:${entry.destinationId}`,
+          true,
+          3600,
+        ),
+      ),
+    );
+    return { ok: true, destinations, has_more: result.hasMore };
+  }
+
+  async transferToDestination(
+    agentId: string,
+    secret: string,
+    controlId: string | null,
+    input: { destination_type?: string; destination_id?: string },
+  ) {
+    const { ctx, call } = await this.authorizeReceptionist(
+      agentId,
+      secret,
+      controlId,
+    );
+    const type = input.destination_type;
+    const id = input.destination_id;
+    if (
+      !type ||
+      !["user", "ring_group", "extension"].includes(type) ||
+      !id ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        id,
+      )
+    )
+      return {
+        ok: false,
+        error: "Select a destination returned by search_directory.",
+      };
+    // A completed command remains successful even if availability or the directory
+    // changes afterwards. The stored destination is the authorization for its replay.
+    if (call.inboundTransferState) {
+      if (
+        call.inboundTransferDestinationType !== type ||
+        call.inboundTransferDestinationId !== id
+      )
+        return { ok: false, error: "Another transfer is already in progress." };
+      if (call.inboundTransferState === "connected")
+        return { ok: true, transferred: true };
+      if (call.inboundTransferState === "failed")
+        return { ok: false, error: "The transfer could not be completed." };
+    }
+    const seen = await this.redis.hashGetAll<boolean>(
+      `receptionist-directory:${call.id}`,
+    );
+    if (!seen[`${type}:${id}`])
+      return {
+        ok: false,
+        error: "Look up this destination in the directory first.",
+      };
+    const destination = await this.directory.resolveDestination(ctx, {
+      destinationType: type as InboundDestinationType,
+      destinationId: id,
+    });
+    if ("reason" in destination)
+      return {
+        ok: false,
+        error:
+          "I cannot find that destination. Ask the caller what they would like to do instead.",
+      };
+    const userIds =
+      destination.type === "ring_group"
+        ? destination.memberUserIds
+        : destination.type === "user" || destination.type === "extension"
+          ? [destination.userId]
+          : [];
+    if (!(await this.ring.controlledTargets(ctx, userIds)).length)
+      return {
+        ok: false,
+        error:
+          "Nobody is available at that destination. Ask the caller what they would like to do instead.",
+      };
+    const locked = await this.calls.beginInboundTransfer(ctx, call.id, {
+      type: type as InboundDestinationType,
+      id,
+    });
+    if (
+      !locked ||
+      locked.endedAt ||
+      locked.inboundTransferDestinationId !== id ||
+      locked.inboundTransferDestinationType !== type
+    )
+      return { ok: false, error: "Another transfer is already in progress." };
+    if (locked.inboundTransferState === "connected")
+      return { ok: true, transferred: true };
+    if (locked.inboundTransferState === "failed")
+      return { ok: false, error: "The transfer could not be completed." };
+    const { call: current, transitioned } =
+      await this.calls.markTransferRinging(call.callControlId!);
+    if (!current || current.endedAt)
+      return { ok: false, error: "The caller disconnected." };
+    if (current.inboundTransferState === "connected")
+      return { ok: true, transferred: true };
+    if (current.inboundTransferState !== "ringing")
+      return { ok: false, error: "The transfer is no longer available." };
+    // Only the request that started the ringing rings anyone. A concurrent or
+    // repeated call would otherwise race it, and its failure path would cancel
+    // the legs the first one is ringing.
+    if (!transitioned) return { ok: true, transferred: false, ringing: true };
+    let result: RouteExecutionResult;
+    try {
+      result = await this.router.routeInboundCall({
+        call: current,
+        ctx,
+        destination,
+        callerName: null,
+        origin: {
+          transport: "call_control",
+          toNumber: call.toNumber,
+          fromNumber: call.fromNumber,
+          callerId: call.fromNumber,
+        },
+      });
+    } catch (error) {
+      result = {
+        status: "failed",
+        reason: "provider_refused",
+        detail: (error as Error).message,
+      };
+    }
+    if (result.status === "failed") {
+      // Nothing rings, so the caller is still talking to the assistant. Hand
+      // the conversation back rather than hanging up on them; a leg whose
+      // dial outcome was lost is cancelled and hung up when it reports in.
+      this.logger.warn(
+        `Transfer of call ${call.id} could not ring ${type} ${id}: ${result.detail}`,
+      );
+      await this.ring.cancelRinging(current, { reason: "transfer_failed" });
+      await this.calls.resetInboundTransfer(call.id);
+      return {
+        ok: false,
+        error:
+          "Nobody at that destination could be reached. Ask the caller what they would like to do instead.",
+      };
+    }
+    // Only now does the assistant stop, so it cannot talk over the person who
+    // picks up. The caller leg, its recording and the logical call stay as
+    // they are; the answer handler repeats this stop if it wins the race.
+    await this.provider.stopInboundAssistant(
+      call.callControlId!,
+      `receptionist-stop-${call.id}`,
+    );
+    return { ok: true, transferred: false, ringing: true };
+  }
 
   async getAvailableSlots(
     agentId: string,

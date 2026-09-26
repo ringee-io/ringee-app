@@ -6,15 +6,14 @@ import { InboundRingService } from "./inbound-ring.service";
 import { UserDestinationHandler } from "./destinations/user.destination";
 import { RingGroupDestinationHandler } from "./destinations/ring-group.destination";
 import { DeskPhoneDestinationHandler } from "./destinations/desk-phone.destination";
-import {
-  AiReceptionistDestinationHandler,
-  IvrDestinationHandler,
-} from "./destinations/unsupported.destination";
+import { IvrDestinationHandler } from "./destinations/unsupported.destination";
 import type {
   InboundCallOrigin,
   InboundDestination,
   RouteExecutionResult,
 } from "./inbound-routing.types";
+
+import { AiReceptionistDestinationHandler } from "./destinations/ai-receptionist.destination";
 
 type Row = Record<string, any>;
 
@@ -129,8 +128,20 @@ function setup(options: { online?: string[] } = {}) {
         cancelled.push(userId);
       },
     } as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
   );
 
+  ring.offerControlled = async () => ({
+    status: "failed",
+    reason: "user_unavailable",
+    detail: "No registered endpoints",
+  });
   const router = new InboundCallRouterService(
     new UserDestinationHandler(ring),
     new RingGroupDestinationHandler(ring),
@@ -143,7 +154,9 @@ function setup(options: { online?: string[] } = {}) {
       attempts as never,
     ),
     new IvrDestinationHandler(),
-    new AiReceptionistDestinationHandler(),
+    new AiReceptionistDestinationHandler({
+      startInbound: async () => {},
+    } as never),
   );
 
   const origin = (
@@ -340,7 +353,7 @@ describe("InboundCallRouterService — users and desk phones", () => {
     assert.deepEqual(s.transfers, []);
   });
 
-  it("refuses a destination the delivering transport cannot reach", async () => {
+  it("reports unavailable controlled endpoints without changing legacy routing", async () => {
     const s = setup();
     for (const destination of [
       GROUP,
@@ -350,7 +363,7 @@ describe("InboundCallRouterService — users and desk phones", () => {
       assert.equal(result.status, "failed");
       assert.equal(
         result.status === "failed" && result.reason,
-        "transport_cannot_reach_destination",
+        "user_unavailable",
       );
     }
     // Nothing was offered to anybody.
@@ -359,12 +372,9 @@ describe("InboundCallRouterService — users and desk phones", () => {
 });
 
 describe("InboundCallRouterService — destinations that do not exist yet", () => {
-  it("reports IVR and AI receptionist as not implemented", async () => {
+  it("reports IVR as not implemented", async () => {
     const s = setup();
-    for (const type of [
-      InboundDestinationType.ivr,
-      InboundDestinationType.ai_receptionist,
-    ]) {
+    for (const type of [InboundDestinationType.ivr]) {
       const handler = s.router["handlers"].get(type)!;
       const result = await handler.execute({
         call: CALL as never,

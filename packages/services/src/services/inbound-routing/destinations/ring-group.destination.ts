@@ -30,7 +30,10 @@ import type {
 @Injectable()
 export class RingGroupDestinationHandler implements InboundDestinationHandler {
   readonly type = InboundDestinationType.ring_group;
-  readonly transports: readonly InboundTransport[] = ["ringee_webrtc"];
+  readonly transports: readonly InboundTransport[] = [
+    "ringee_webrtc",
+    "call_control",
+  ];
   private readonly logger = new Logger(RingGroupDestinationHandler.name);
 
   constructor(private readonly ring: InboundRingService) {}
@@ -43,6 +46,13 @@ export class RingGroupDestinationHandler implements InboundDestinationHandler {
         reason: "destination_missing",
         detail: "a ring group handler was given another destination",
       };
+
+    if (request.origin.transport === "call_control")
+      return this.ring.offerControlled(
+        request,
+        destination.memberUserIds,
+        destination.ringSeconds,
+      );
 
     const fanout = await this.ring.offerToMembers(
       call,

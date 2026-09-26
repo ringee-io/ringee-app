@@ -517,19 +517,21 @@ bound so the old bad sample cannot immediately cool the number again.
 
 - **Source of truth:** `packages/services/src/services/caller-id-rotation/`
 
-### NUM-007 — An external carrier number rings a desk phone, never the browser
+### NUM-007 — Carrier identification precedes destination routing
 
-An `ExternalPhoneNumber`'s inbound calls ring the one desk phone it is routed to,
-in the same organization, or nothing. Its caller is the call's `fromNumber` and
-the external number its `toNumber`. A call whose called number is ambiguous —
-several numbers on one extension and no `X-Ringee-Called-Number` from the PBX —
-is refused, never guessed. The browser cannot be a target while Ringee's own
-inbound calls ride a shared WebRTC credential (`DEBT-020`), so a route pointing
-a carrier number at a `USER` or `RING_GROUP` destination is refused when it is
-written and, if one ever existed, again before it rings.
+An external carrier call is identified by the signed route key and the active
+number on that SIP endpoint. An ambiguous called number is refused, never
+guessed. The original caller remains `Call.fromNumber`, the called DID remains
+`Call.toNumber`, and the carrier/endpoint remain on that same row through an AI
+conversation and human transfer.
+
+The Call Control transport supports User, Ring Group, internal user Extension,
+Desk Phone and an existing AI Voice Agent acting as receptionist. Browser legs
+use server-issued per-user credentials; handsets use validated workspace-owned
+SIP devices. A carrier's SIP extension is not a Ringee internal user extension.
 
 - **Source of truth:** `ExternalCarrierService.identifyInbound`,
-  `InboundCallRouterService.routeInboundCall`, `InboundRouteService`
+  `InboundCallRouterService.routeInboundCall`, `InboundRingService`
 
 ### NUM-009 — One inbound route per number, re-verified on every call
 
@@ -547,8 +549,17 @@ with no pin is not routed inbound. That fallback lives alone in
 `legacyInboundDestination` so it can be deleted in one piece once every number
 carries an explicit route.
 
-`IVR` and `AI_RECEPTIONIST` exist in the model and are **not routable**: the API
-refuses to store one and the router refuses to execute one.
+`IVR` remains unavailable. `AI_RECEPTIONIST` references an active existing
+`AiVoiceAgent`; there is no separate receptionist model. An agent can receive
+several Ringee and BYOC numbers. Only that route holds a Ringee DID on the Call
+Control application; changing or resetting it returns the DID to its own
+connection. Activation without an outbound caller ID is
+allowed for inbound use; outbound execution still requires an eligible workspace
+caller ID. An explicitly assigned outbound number is revalidated at activation.
+Removing or disabling an assigned agent is
+refused until its numbers are reassigned. Receptionist tools only accept logical
+destinations returned by that call's live directory search and revalidate their
+workspace and current membership before transferring.
 
 - **Source of truth:** `InboundRouteResolverService.resolve`,
   `legacy-inbound-fallback.ts`
@@ -556,9 +567,11 @@ refuses to store one and the router refuses to execute one.
 ### NUM-010 — A ring group is one call with one winner
 
 Ringing a group rings every available member at once, as legs of the **one**
-`Call` row the caller already has: one history entry, one recording, one charge,
-however many endpoints rang. The answer is elected by a single conditional
-update (`CallRepository.claimInboundAnswer`), so two members answering in the
+`Call` row the caller already has: one history entry and the original recording.
+Controlled endpoint costs are settled with a separate idempotency key per attempt,
+without creating another Call. The answer is elected by a single conditional
+update (`claimInboundAnswer` for legacy delivery, `claimInboundEndpoint` for
+controlled media legs), so two members answering in the
 same instant cannot both win; the loser is told the call was taken and every
 other leg is ended immediately. `Call.answeredByUserId` records who took it.
 Only a member the call was actually offered to may claim it.

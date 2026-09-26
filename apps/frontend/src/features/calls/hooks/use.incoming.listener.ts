@@ -8,8 +8,12 @@ import { useTelnyxStore } from '../store/telnyx.store';
 import {
   awaitInboundOffer,
   isInboundRealtimeConnected,
+  useInboundOffersStore,
+  type InboundOffer,
   releaseInboundOffer
 } from '../store/inbound-offers.store';
+
+import { controlledInboundLegs } from './use.telnyx';
 
 const RINGING_STATES = ['ringing', 'trying', 'requesting'];
 
@@ -84,17 +88,25 @@ export function useIncomingListener() {
 
     void (async () => {
       try {
-        const ours = await isOursToPresent(
-          api,
-          call.id,
-          {
-            to: options?.destinationNumber ?? '',
-            from: options?.remoteCallerNumber ?? '',
-            // The provider updates the leg in place, so this is its live state.
-            isRinging: () => RINGING_STATES.includes(call.state)
-          },
-          match.signal
-        );
+        const ours = controlledInboundLegs.has(call.id)
+          ? await resolveControlledOffer(
+              api,
+              call.id,
+              call.telnyxIDs?.telnyxCallControlId,
+              () => RINGING_STATES.includes(call.state),
+              match.signal
+            )
+          : await isOursToPresent(
+              api,
+              call.id,
+              {
+                to: options?.destinationNumber ?? '',
+                from: options?.remoteCallerNumber ?? '',
+                // The provider updates the leg in place, so this is its live state.
+                isRinging: () => RINGING_STATES.includes(call.state)
+              },
+              match.signal
+            );
         // Abandoned while it waited: this listener no longer owns the queue.
         if (match.signal.aborted) return;
         // Not ours. The wait lasts as long as the leg rings — a ringing leg
@@ -141,4 +153,36 @@ async function ownsDialledNumber(api: ApiClient, to: string): Promise<boolean> {
     .get<{ phoneNumber: string }[]>('/telephony/phone-numbers')
     .catch(() => [] as { phoneNumber: string }[]);
   return numbers.some((n) => digits(n.phoneNumber) === digits(to));
+}
+
+/** Resolve by the actual media leg, so simultaneous calls cannot bind by caller number. */
+async function resolveControlledOffer(
+  api: ApiClient,
+  localId: string,
+  controlId: string | undefined,
+  isRinging: () => boolean,
+  signal: AbortSignal
+) {
+  if (!controlId) return false;
+  while (!signal.aborted && isRinging()) {
+    try {
+      const result = await api.get<InboundOffer & { ringSeconds: number }>(
+        `/inbound-calls/legs/${encodeURIComponent(controlId)}`
+      );
+      if (signal.aborted || !isRinging()) return false;
+      const offer = {
+        ...result,
+        expiresAt: Date.now() + result.ringSeconds * 1000
+      };
+      useInboundOffersStore.setState((state) => ({
+        pending: state.pending.filter((p) => p.callId !== offer.callId),
+        presented: { ...state.presented, [localId]: offer }
+      }));
+      return true;
+    } catch {
+      // A provider INVITE can beat the server's persisted dial response.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  return false;
 }

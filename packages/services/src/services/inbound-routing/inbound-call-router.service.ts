@@ -3,10 +3,8 @@ import { InboundDestinationType } from "@ringee/database";
 import { UserDestinationHandler } from "./destinations/user.destination";
 import { RingGroupDestinationHandler } from "./destinations/ring-group.destination";
 import { DeskPhoneDestinationHandler } from "./destinations/desk-phone.destination";
-import {
-  AiReceptionistDestinationHandler,
-  IvrDestinationHandler,
-} from "./destinations/unsupported.destination";
+import { IvrDestinationHandler } from "./destinations/unsupported.destination";
+import { AiReceptionistDestinationHandler } from "./destinations/ai-receptionist.destination";
 import type {
   InboundDestination,
   InboundDestinationHandler,
@@ -22,6 +20,10 @@ export function destinationTypeOf(
   switch (destination.type) {
     case "user":
       return InboundDestinationType.user;
+    case "extension":
+      return InboundDestinationType.extension;
+    case "ai_receptionist":
+      return InboundDestinationType.ai_receptionist;
     case "ring_group":
       return InboundDestinationType.ring_group;
     case "desk_phone":
@@ -34,6 +36,10 @@ export function destinationIdOf(destination: InboundDestination): string {
   switch (destination.type) {
     case "user":
       return destination.userId;
+    case "extension":
+      return destination.membershipId;
+    case "ai_receptionist":
+      return destination.agentId;
     case "ring_group":
       return destination.ringGroupId;
     case "desk_phone":
@@ -78,22 +84,31 @@ export class InboundCallRouterService {
 
   /** Which transports can reach a destination type at all. */
   transportsFor(type: InboundDestinationType): readonly InboundTransport[] {
-    return this.handlers.get(type)?.transports ?? [];
+    return (
+      this.handlers.get(
+        type === InboundDestinationType.extension
+          ? InboundDestinationType.user
+          : type,
+      )?.transports ?? []
+    );
   }
 
   /**
    * Ring the destination that owns this call.
    *
    * A destination the delivering transport cannot reach is refused explicitly
-   * rather than approximated: a carrier call parked on the Call Control
-   * application cannot be offered to a browser at all until `DEBT-020` is
-   * closed, and quietly ringing somebody else would be worse than saying so.
+   * rather than approximated. Each handler owns its supported transports;
+   * callers select a logical destination, never a provider address.
    */
   async routeInboundCall(
     request: RouteExecutionRequest,
   ): Promise<RouteExecutionResult> {
     const type = destinationTypeOf(request.destination);
-    const handler = this.handlers.get(type);
+    const handler = this.handlers.get(
+      type === InboundDestinationType.extension
+        ? InboundDestinationType.user
+        : type,
+    );
     if (!handler)
       return {
         status: "failed",

@@ -1460,6 +1460,61 @@ export class TelnyxService implements TelephonyService {
     }
   }
 
+  async answerInboundCall(callControlId: string, commandId: string) {
+    await this.telnyxClient.post(
+      `/calls/${encodeURIComponent(callControlId)}/actions/answer`,
+      { command_id: commandId },
+    );
+  }
+
+  async bridgeCalls(
+    callControlId: string,
+    otherCallControlId: string,
+    commandId: string,
+  ) {
+    await this.telnyxClient.post(
+      `/calls/${encodeURIComponent(callControlId)}/actions/bridge`,
+      {
+        call_control_id: otherCallControlId,
+        command_id: commandId,
+        prevent_double_bridge: true,
+      },
+    );
+  }
+
+  async dialInboundEndpoint(params: {
+    sipUsername: string;
+    from: string;
+    correlation: string;
+    commandId: string;
+    timeoutSecs: number;
+  }) {
+    if (!/^[A-Za-z0-9_.-]{1,128}$/.test(params.sipUsername))
+      throw new Error("Invalid inbound endpoint");
+    const { data } = await this.telnyxClient.post("/calls", {
+      connection_id: apiConfiguration.TELNYX_CALL_CONTROL_APP_ID,
+      to: `sip:${params.sipUsername}@sip.telnyx.com`,
+      from: params.from,
+      command_id: params.commandId,
+      timeout_secs: params.timeoutSecs,
+      // A person answers this leg, so it keeps the connection's own limit;
+      // the AI voice agent cap would cut a human conversation short.
+      client_state: Buffer.from(
+        JSON.stringify({ inboundRingAttempt: params.correlation }),
+      ).toString("base64"),
+      custom_headers: [
+        { name: "X-Ringee-Inbound-Attempt", value: params.correlation },
+      ],
+    });
+    if (!data?.call_control_id)
+      throw new Error("Provider returned no inbound endpoint handle");
+    return {
+      callControlId: data.call_control_id as string,
+      callLegId: (data.call_leg_id ?? null) as string | null,
+      callSessionId: (data.call_session_id ?? null) as string | null,
+    };
+  }
+
   async hangupCall(callControlId: string, commandId?: string): Promise<void> {
     await this.telnyxClient.post(`/calls/${callControlId}/actions/hangup`, {
       client_state: Buffer.from("hangup").toString("base64"),

@@ -9,6 +9,7 @@ import {
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import {
+  InboundRouteRepository,
   AiVoiceAgent,
   AiVoiceAgentCustomVoice,
   AiVoiceAgentRepository,
@@ -41,6 +42,10 @@ import { calculateVoiceClonePrice } from "./voice-clone-pricing";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
+import {
+  buildReceptionistTools,
+  RECEPTIONIST_INSTRUCTIONS,
+} from "./blueprints/receptionist.tools";
 import { CompanyProfileService } from "./company-profile.service";
 import {
   composeVoiceAgentInstructions,
@@ -191,6 +196,7 @@ export class VoiceAgentService {
     private readonly calendarService: CalendarService,
     private readonly numbers: NumberPurchasedService,
     private readonly credits: CreditService,
+    private readonly inboundRoutes: InboundRouteRepository,
   ) {}
 
   // ── Catalogue ────────────────────────────────────────────────
@@ -758,6 +764,7 @@ export class VoiceAgentService {
    */
   async delete(ctx: OwnershipContext, id: string): Promise<void> {
     const agent = await this.require(ctx, id);
+    await this.assertNotAssignedReceptionist(ctx, id);
 
     if (agent.providerAssistantId) {
       await this.provider.deleteAssistant(agent.providerAssistantId);
@@ -794,15 +801,31 @@ export class VoiceAgentService {
     await this.agents.softDelete(id);
   }
 
+  private async assertNotAssignedReceptionist(
+    ctx: OwnershipContext,
+    id: string,
+  ) {
+    if (
+      (await this.inboundRoutes.listByDestination(ctx, "ai_receptionist", id))
+        .length
+    )
+      throw new ConflictException(
+        "Reassign this agent's incoming numbers before disabling or deleting it.",
+      );
+  }
+
   async setStatus(
     ctx: OwnershipContext,
     id: string,
     status: Extract<AiVoiceAgentStatus, "active" | "disabled">,
   ): Promise<AiVoiceAgent> {
     const agent = await this.require(ctx, id);
+    if (status === AiVoiceAgentStatus.disabled)
+      await this.assertNotAssignedReceptionist(ctx, id);
     if (status === AiVoiceAgentStatus.active) {
       this.assertReadyForCalls(agent);
-      await this.assertCallerNumberReady(ctx, agent);
+      // Inbound-only agents (including BYOC) do not need an outbound caller ID.
+      if (agent.callerNumberId) await this.assertCallerNumberReady(ctx, agent);
     }
     return this.agents.update(id, { status });
   }
@@ -1131,6 +1154,41 @@ export class VoiceAgentService {
       }
     }
     return ids;
+  }
+
+  async inboundConfig(
+    ctx: OwnershipContext,
+    agentId: string,
+  ): Promise<VoiceAgentConfig> {
+    const agent = await this.require(ctx, agentId);
+    this.assertReadyForCalls(agent);
+    if (agent.status !== AiVoiceAgentStatus.active || !agent.toolSecretHash)
+      throw new BadRequestException(
+        "Activate this voice agent before assigning inbound calls.",
+      );
+    await this.ensureInsightGroup(agent);
+    const config = await this.composeConfig(
+      ctx,
+      agent,
+      agent.providerInsightGroupId!,
+    );
+    return {
+      ...config,
+      instructions: `${config.instructions}\n\n${RECEPTIONIST_INSTRUCTIONS}`,
+      // Composed for this call, so the clock is current and in the calendar's
+      // zone — the one the instructions and booking tools use. The agent's own
+      // field would put the two out of step.
+      dynamicVariables: config.dynamicVariables,
+      tools: [
+        ...config.tools,
+        ...buildReceptionistTools({
+          agentId: agent.id,
+          toolBaseUrl: this.toolBaseUrl(),
+          toolSecretRef: this.toolSecretIdentifier(agent.id),
+          knowledgeBucketIds: [],
+        }),
+      ],
+    };
   }
 
   private async composeConfig(

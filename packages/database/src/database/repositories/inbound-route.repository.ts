@@ -59,6 +59,34 @@ export class InboundRouteRepository {
     });
   }
 
+  /**
+   * Whether any of the organization's calls reach people through legs the
+   * server dials: an AI receptionist (which can transfer to anyone), or a BYOC
+   * number routed to a person, group or extension.
+   */
+  async hasControlledRoutes(organizationId: string): Promise<boolean> {
+    const route = await this.prisma.inboundRoute.findFirst({
+      where: {
+        organizationId,
+        OR: [
+          { destinationType: InboundDestinationType.ai_receptionist },
+          {
+            externalNumberId: { not: null },
+            destinationType: {
+              in: [
+                InboundDestinationType.user,
+                InboundDestinationType.ring_group,
+                InboundDestinationType.extension,
+              ],
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    return route !== null;
+  }
+
   /** Every route pointing at one destination, e.g. a ring group about to go. */
   listByDestination(
     ctx: OwnershipContext,

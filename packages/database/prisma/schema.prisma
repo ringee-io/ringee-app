@@ -569,6 +569,8 @@ model OrganizationMembership {
   userId         String?  @db.Uuid
   clerkUserId    String? // Clerk user ID for pending invitations
   role           String
+  /// Optional internal dialing extension, unique inside this organization.
+  extension      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -577,6 +579,7 @@ model OrganizationMembership {
 
   @@unique([organizationId, userId])
   @@unique([organizationId, clerkUserId])
+  @@unique([organizationId, extension])
   @@index([organizationId])
   @@index([userId])
   @@index([clerkUserId])
@@ -706,14 +709,21 @@ model Call {
   // Which route decided where this call went, and what it decided. The type
   // and ids are snapshots as well as relations, so history still reads
   // correctly after a route or a ring group is edited away.
-  inboundRouteId         String?                 @db.Uuid
-  inboundDestinationType InboundDestinationType?
-  inboundDestinationId   String?                 @db.Uuid
-  routedAt               DateTime?
+  inboundRouteId                 String?                 @db.Uuid
+  inboundDestinationType         InboundDestinationType?
+  inboundDestinationId           String?                 @db.Uuid
+  routedAt                       DateTime?
   /// The ring group whose members were actually offered the call.
-  ringGroupId            String?                 @db.Uuid
+  ringGroupId                    String?                 @db.Uuid
   /// Which member won it. Claimed atomically, so exactly one destination can.
-  answeredByUserId       String?                 @db.Uuid
+  answeredByUserId               String?                 @db.Uuid
+  /// The endpoint that won a server-controlled transfer (browser or handset).
+  answeredByRingAttemptId        String?                 @db.Uuid
+  /// Original inbound destination remains the AI; these snapshot its handoff.
+  inboundTransferDestinationType InboundDestinationType?
+  inboundTransferDestinationId   String?                 @db.Uuid
+  inboundTransferState           String?
+  inboundTransferRequestedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4517,6 +4527,7 @@ enum InboundDestinationType {
   desk_phone
   ivr
   ai_receptionist
+  extension
 }
 
 /// How a ring group offers a call to its members. Simultaneous is the only
@@ -4619,9 +4630,18 @@ model InboundRingAttempt {
   callId String @db.Uuid
 
   /// The member whose endpoints were rung.
-  userId      String? @db.Uuid
+  userId                 String? @db.Uuid
   /// Set when the endpoint was a desk phone.
-  sipDeviceId String? @db.Uuid
+  sipDeviceId            String? @db.Uuid
+  /// Stable per-call target key, including the individual browser/desk phone.
+  endpointKey            String
+  providerCallControlId  String? @unique
+  recipientConnectionId  String?
+  recipientCallControlId String? @unique
+  providerCallSessionId  String?
+  recipientCallSessionId String?
+  providerCallLegId      String?
+  chargedCredits         Float?
 
   status        InboundRingAttemptStatus @default(ringing)
   failureReason String?
@@ -4633,7 +4653,9 @@ model InboundRingAttempt {
   sipDevice SipDevice? @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
 
   /// A redelivered webhook must not ring the same member twice.
-  @@unique([callId, userId])
+  @@unique([callId, endpointKey])
   @@index([callId])
   @@index([userId])
+  @@index([providerCallSessionId])
+  @@index([recipientCallSessionId])
 }

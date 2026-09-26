@@ -29,19 +29,29 @@ export const USER_RING_SECONDS = 45;
 @Injectable()
 export class UserDestinationHandler implements InboundDestinationHandler {
   readonly type = InboundDestinationType.user;
-  readonly transports: readonly InboundTransport[] = ["ringee_webrtc"];
+  readonly transports: readonly InboundTransport[] = [
+    "ringee_webrtc",
+    "call_control",
+  ];
   private readonly logger = new Logger(UserDestinationHandler.name);
 
   constructor(private readonly ring: InboundRingService) {}
 
   async execute(request: RouteExecutionRequest): Promise<RouteExecutionResult> {
     const { destination, call } = request;
-    if (destination.type !== "user")
+    if (destination.type !== "user" && destination.type !== "extension")
       return {
         status: "failed",
         reason: "destination_missing",
         detail: "a user handler was given another destination",
       };
+
+    if (request.origin.transport === "call_control")
+      return this.ring.offerControlled(
+        request,
+        [destination.userId],
+        USER_RING_SECONDS,
+      );
 
     const fanout = await this.ring.offerToMembers(call, [destination.userId], {
       callerName: request.callerName,

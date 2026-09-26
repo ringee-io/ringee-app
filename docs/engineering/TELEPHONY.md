@@ -251,7 +251,8 @@ router                 ring it
       ├─ DESK_PHONE      → transfer to the handset (or let the number's own
       │                     assignment ring it)
       ├─ IVR             → not implemented
-      └─ AI_RECEPTIONIST → not implemented
+      ├─ EXTENSION       → resolve the organization membership, then User
+      └─ AI_RECEPTIONIST → attach the existing AI Voice Agent to this call
 ```
 
 **The split is the point.** The carrier layer knows carriers and no
@@ -265,11 +266,12 @@ does not exist. It describes the **delivery path**, not the provider:
 | Transport       | What it is                                    | Can reach                                                     |
 | --------------- | --------------------------------------------- | ------------------------------------------------------------- |
 | `ringee_webrtc` | Ringee's shared WebRTC credential connection  | user, ring group, desk phone (by the number's own assignment) |
-| `call_control`  | a call parked on the Call Control application | desk phone only, until `DEBT-020` is closed                   |
+| `call_control`  | a call parked on the Call Control application | user, ring group, internal extension, desk phone, AI agent    |
 
 A destination the transport cannot reach is refused explicitly — when the route
-is written, and again before it rings. That is why a BYOC number can only be
-pointed at a desk phone today.
+is written, and again before it rings. Assigning a Ringee number to an AI agent
+moves only that number to the Call Control application; BYOC already arrives
+there. The original direct routes retain their existing delivery path.
 
 ### Ring groups
 
@@ -304,8 +306,14 @@ Pedro claims  ──► Call.answeredByUserId = Pedro   (one conditional UPDATE)
   members being rung. The number check runs only while the realtime channel is
   down, so a dropped courier degrades to the pre-routing behavior instead of
   silencing inbound calls.
-- Attempts carry no cost, recording or history. Whatever rang, there is one
-  history row, one recording and one debit.
+- Attempts never create separate Call/history or recording rows. Controlled
+  endpoints carry their provider handles and settle actual endpoint cost through
+  CreditService using `inbound-leg-cost:<attemptId>`. The original caller's
+  telephony and AI usage retain their existing settlement keys.
+- On Call Control delivery, the authenticated browser claim verifies that it was
+  offered the call; the provider's answer elects the actual endpoint atomically
+  with `claimInboundEndpoint`. This includes competing devices of the same user.
+  The router bridges the winner and hangs up all other physical legs.
 - A member who leaves the workspace stops being a target on the next call,
   without anyone editing the group.
 
@@ -329,27 +337,82 @@ Deleting a ring group deletes the routes that pointed at it: a route naming a
 group that is gone would refuse every call to that number, which is an outage
 wearing configuration's clothes.
 
-### What IVR and AI Receptionist still need
+### AI Receptionist
 
-Both are in `InboundDestinationType` and in nothing else. Adding one is:
+A receptionist is an existing `AiVoiceAgent` selected by an `InboundRoute`.
+`VoiceAgentService.inboundConfig` reuses its voice, language, model, greeting,
+company context, instructions, knowledge tools and post-call insights. It adds
+inbound help-first instructions and authenticated directory/transfer tools as
+per-call overrides; the saved outbound assistant is not replaced.
 
-1. A model for the thing itself (menu + key map, or agent + transfer targets),
-   workspace-scoped like `RingGroup`.
-2. Resolution in `InboundRouteResolverService.resolveDestination`, returning a
-   new `InboundDestination` variant.
-3. A handler replacing `IvrDestinationHandler` /
-   `AiReceptionistDestinationHandler` in the router's table, declaring which
-   transports it supports. An IVR needs media control (answer, play, gather
-   DTMF), which means the number must be on the Call Control application —
-   the same migration `DEBT-020` describes.
-4. Removing the type from the `NotImplementedException` guard in
-   `InboundRouteService`.
+`VoiceAgentCallService.startInbound` attaches one `AiVoiceAgentCall` to the
+existing inbound Call, answers that caller leg, and starts the native assistant
+with a stable command id. Questions can be resolved without a transfer.
+`VoiceAgentResultService` continues to store the AI transcript and summary on
+the existing relationship when the AI conversation finishes. Finishing the AI
+conversation does not finish a transferred human call.
 
-Transferring **back** into routing — an AI receptionist resolving `"sales"` to a
-ring group — is already shaped: call `routeInboundCall` again with the new
-destination on the same `Call` row. Nothing in the carrier layer is involved,
-and the ring attempts of the finished leg are ended the same way a ring group's
-losers are.
+`search_directory` reads current organization members, groups and internal user
+extensions. The model sees names and logical identifiers only. No matches or
+ambiguous matches require clarification. `transfer_to_destination` binds its
+identity to the provider-filled call header and the agent's hashed tool secret.
+Only entries returned by that call's search are accepted; the destination is
+re-resolved immediately before use. No SIP URI or credentials can be supplied.
+
+The transfer stores the requested logical destination on Call and invokes the
+same `InboundCallRouterService` on the original Call. `InboundRingService` opens
+endpoint attempts on the existing Call Control application and bridges the first
+answer. It never creates a second Call. The native assistant is stopped only
+once something is ringing — and again, with the same command id, before a
+person is bridged — so it never talks over whoever picks up. When nothing can
+ring, the transfer is reset and the assistant keeps the caller and says so.
+When every endpoint ends unanswered, the transfer is recorded as failed
+("Nobody answered the transfer.") and the caller is hung up; there is no
+voicemail or return to the assistant in this version.
+Original caller, called number, carrier, AI agent, recording and session remain
+unchanged. `answeredByUserId` and `answeredByRingAttemptId` record the human winner.
+Provider and receiving endpoint sessions both resolve to the original Call.
+Signed correlation handles receiving-side webhooks from Browser and Desk Phone
+without duplicate history or billing.
+
+The dashboard maintains a separate per-user inbound registration using the
+existing credential API. Only a server-issued endpoint with a recent ready
+heartbeat is eligible; usernames are stored server-side, passwords are returned
+only to the authenticated browser. It is issued only to organizations that have
+a route delivered this way (an AI receptionist, or a BYOC number routed to a
+User, Ring Group or Extension); every other dashboard keeps just the shared
+client and asks again every two minutes. The legacy shared client still serves
+unmigrated numbers and existing outbound calls (`DEBT-020` remains open there).
+Controlled legs send no mobile push: the app has no leg to answer.
+
+Only an AI route holds a Ringee DID on the Call Control application.
+`InboundRouteService` moves it there before the route names the agent, and
+moves it back — to the desk phone it is pinned to, or to the shared Ringee
+connection — when the route is changed or reset, so direct routes keep the
+delivery they had. While the AI route exists, pinning, moving or releasing a
+desk phone number changes only that fallback, never the number's connection.
+
+Settings / Call Routing, My Numbers and the AI agent detail reuse one assignment
+modal. Multiple numbers can select the same agent. Internal extensions are unique
+2–6 digit organization membership attributes, edited in a separate modal.
+IVR remains unimplemented.
+
+**Deployment and verification:** apply
+`packages/database/prisma/pending-migrations/20260922000100_ai_receptionist.sql`
+after the existing inbound routing migrations, then regenerate Prisma and deploy
+backend and dashboard together. Its `InboundRingAttempt_legacy_endpointKey`
+trigger keeps inserts from instances still on the previous client valid during
+the rollout; drop it and its function once none remain. Then run
+`20260922000200_ai_receptionist_call_indexes.sql` by hand with `psql` — never
+through Prisma — to build the stalled-handoff sweep's partial `Call` index
+`CONCURRENTLY`. The Call Control application must be configured
+as documented for BYOC. Per-user SIP credentials and handsets must accept internal
+account calls. No migration of all legacy Ringee numbers is performed.
+
+Before production rollout, use controlled Ringee and BYOC numbers to verify a
+knowledge-only conversation, a transfer to User/Group/Extension, simultaneous
+Browser and Desk Phone answers, caller hangup during ringing, repeated provider
+events, and the resulting transcript, summary, recording and ledger entries.
 
 ## Desk phones (SIP)
 
@@ -552,12 +615,9 @@ caller → carrier → PBX → extension registered by the UAC
   phone's own connection webhook: the marked leg is not recorded a second time
 ```
 
-- **The browser is not a target.** The dashboard receives Ringee's own inbound
-  calls through one shared WebRTC credential (`DEBT-020`). Telnyx accepts
-  call-control commands only for calls on a Voice API application, and an
-  on-demand credential cannot receive a DID call, so a carrier call cannot be
-  addressed to one user's browser without first moving Ringee's numbers to the
-  Call Control application.
+- Explicit routes can target a User, Ring Group, internal Extension or AI agent
+  through the common controlled transport. The default without an explicit
+  route remains the pinned desk phone, if any.
 - The Internal SIP URI uses the SIP subdomain the Call Control application is
   configured with, read from the API on every synchronization. Configuration
   fails closed — no UAC is created or updated — unless that application accepts
@@ -839,3 +899,10 @@ they get a pass of their own: `listMissingArtifacts` finds completed calls whose
 recording or transcript is still missing and retries them for a bounded window.
 Without it, a settled call — one that left the billing list on the first sweep —
 kept whatever it had at that moment and nothing ever went back for the rest.
+
+The existing stale-call sweep also bounds interrupted AI handoffs: transfers still
+preparing or ringing after six minutes — longer than the longest ring a group can
+be given (300 seconds) — are marked failed and their provider legs are terminated
+on the next sweep. A failure there never holds up the rest of the sweep. Normal ring timeouts remain with the provider;
+`CallService` remains the owner of final call lifecycle updates. Commands use
+stable IDs, and failed termination is retried by the same sweep.

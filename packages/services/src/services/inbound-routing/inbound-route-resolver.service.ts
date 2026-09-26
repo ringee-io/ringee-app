@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   ExternalCarrierRepository,
+  AiVoiceAgentRepository,
   InboundDestinationType,
   InboundRouteRepository,
   OrganizationRepository,
@@ -20,6 +21,7 @@ import {
 import type {
   InboundCallOrigin,
   InboundDestination,
+  InboundDirectoryEntry,
   InboundRouteResolution,
   InboundRoutingFailure,
 } from "./inbound-routing.types";
@@ -29,13 +31,17 @@ const IMPLEMENTED: ReadonlySet<InboundDestinationType> = new Set([
   InboundDestinationType.user,
   InboundDestinationType.ring_group,
   InboundDestinationType.desk_phone,
+  InboundDestinationType.ai_receptionist,
+  InboundDestinationType.extension,
 ]);
 
 /** Which member a call row is attributed to, when the number names none. */
 function destinationOwner(destination: InboundDestination): string {
   switch (destination.type) {
     case "user":
+    case "extension":
       return destination.userId;
+    case "ai_receptionist":
     case "desk_phone":
       return destination.ownerUserId;
     case "ring_group":
@@ -69,6 +75,7 @@ export class InboundRouteResolverService {
     private readonly sipDevices: SipDeviceRepository,
     private readonly users: UserService,
     private readonly organizations: OrganizationRepository,
+    private readonly agents: AiVoiceAgentRepository,
   ) {}
 
   /**
@@ -218,13 +225,150 @@ export class InboundRouteResolverService {
 
   // ── the destination ──────────────────────────────────────────────────────
 
-  private async resolveDestination(
+  /**
+   * Current, workspace-owned logical destinations for a caller asking for a
+   * person or team. Names are data from the directory, never prompt defaults.
+   * Selection is not authorization: resolveDestination rechecks the selected
+   * entry immediately before routing, including membership and availability.
+   */
+  async searchDirectory(
+    ctx: OwnershipContext,
+    query = "",
+  ): Promise<{ destinations: InboundDirectoryEntry[]; hasMore: boolean }> {
+    if (typeof query !== "string" || query.length > 200)
+      throw new BadRequestException(
+        "Directory search must be at most 200 characters.",
+      );
+
+    const [memberships, groups, devices] = await Promise.all([
+      ctx.organizationId
+        ? this.organizations.listMembersWithUsers(ctx.organizationId)
+        : this.users
+            .getCachedUserById(ctx.userId)
+            .then((user) => (user ? [{ id: "", extension: null, user }] : [])),
+      this.ringGroups.listByOwner(ctx),
+      apiConfiguration.DESK_PHONES_ENABLED
+        ? this.sipDevices.listByOwner(ctx)
+        : Promise.resolve([]),
+    ]);
+    const members = memberships.flatMap((membership) =>
+      membership.user ? [membership.user] : [],
+    );
+    const memberIds = new Set(members.map((member) => member.id));
+    const entries: InboundDirectoryEntry[] = [];
+    for (const member of members) {
+      const label = [member.firstName, member.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      if (label)
+        entries.push({
+          destinationType: "user",
+          destinationId: member.id,
+          label,
+        });
+    }
+    for (const membership of memberships) {
+      if (membership.extension && membership.user)
+        entries.push({
+          destinationType: "extension",
+          destinationId: membership.id,
+          label:
+            [membership.user.firstName, membership.user.lastName]
+              .filter(Boolean)
+              .join(" ") || membership.extension,
+          extension: membership.extension,
+        });
+    }
+    for (const group of groups) {
+      if (group.members.some((member) => memberIds.has(member.userId)))
+        entries.push({
+          destinationType: "ring_group",
+          destinationId: group.id,
+          label: group.name,
+        });
+    }
+    for (const device of devices) {
+      if (
+        device.allowInbound &&
+        device.status !== SipDeviceStatus.disabled &&
+        device.status !== SipDeviceStatus.deleted &&
+        memberIds.has(device.userId)
+      )
+        entries.push({
+          destinationType: "desk_phone",
+          destinationId: device.id,
+          label: device.label,
+        });
+    }
+
+    // Preserve ambiguous matches for the caller to disambiguate; never pick
+    // the first person or department with a similar name on their behalf.
+    const search = query.trim().toLocaleLowerCase();
+    const matches = entries
+      .filter(
+        (entry) =>
+          entry.label.toLocaleLowerCase().includes(search) ||
+          entry.extension === search,
+      )
+      .sort(
+        (left, right) =>
+          left.label.localeCompare(right.label) ||
+          left.destinationId.localeCompare(right.destinationId),
+      );
+    return { destinations: matches.slice(0, 50), hasMore: matches.length > 50 };
+  }
+
+  /** Server-only resolution. Its result may contain provider routing details. */
+  async resolveDestination(
     ctx: OwnershipContext,
     intent: ImplicitInboundRoute,
   ): Promise<
     InboundDestination | { reason: InboundRoutingFailure; detail: string }
   > {
     switch (intent.destinationType) {
+      case InboundDestinationType.ai_receptionist: {
+        const agent = ctx.organizationId
+          ? await this.agents.findByIdForOwner(ctx, intent.destinationId)
+          : null;
+        if (
+          !agent ||
+          agent.status !== "active" ||
+          !agent.providerAssistantId ||
+          !agent.toolSecretHash
+        )
+          return {
+            reason: "destination_deleted",
+            detail: "The voice agent is unavailable.",
+          };
+        return {
+          type: "ai_receptionist",
+          agentId: agent.id,
+          ownerUserId: agent.userId,
+        };
+      }
+      case InboundDestinationType.extension: {
+        const membership = ctx.organizationId
+          ? await this.organizations.findExtension(
+              ctx.organizationId,
+              intent.destinationId,
+            )
+          : null;
+        if (!membership?.userId || !membership.extension)
+          return {
+            reason: "destination_deleted",
+            detail: "The internal extension was not found.",
+          };
+        const user = await this.resolveUser(ctx, membership.userId);
+        return "reason" in user
+          ? user
+          : {
+              type: "extension",
+              membershipId: membership.id,
+              userId: membership.userId,
+              extension: membership.extension,
+            };
+      }
       case InboundDestinationType.user:
         return this.resolveUser(ctx, intent.destinationId);
       case InboundDestinationType.ring_group:

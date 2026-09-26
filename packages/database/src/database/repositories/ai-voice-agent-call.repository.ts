@@ -41,6 +41,26 @@ export class AiVoiceAgentCallRepository {
     return this.prisma.aiVoiceAgentCall.findUnique({ where: { callId } });
   }
 
+  markInboundStarted(id: string, conversationId: string | null) {
+    return this.prisma.aiVoiceAgentCall.updateMany({
+      where: { id, status: AiVoiceAgentCallStatus.initiating },
+      data: {
+        providerConversationId: conversationId,
+        status: AiVoiceAgentCallStatus.in_progress,
+      },
+    });
+  }
+
+  createInboundOnce(
+    data: Prisma.AiVoiceAgentCallUncheckedCreateInput & { callId: string },
+  ) {
+    return this.prisma.aiVoiceAgentCall.upsert({
+      where: { callId: data.callId },
+      create: data,
+      update: {},
+    });
+  }
+
   findByConversationId(
     providerConversationId: string,
   ): Promise<AiVoiceAgentCall | null> {

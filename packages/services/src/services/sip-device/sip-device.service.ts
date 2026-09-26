@@ -7,6 +7,8 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "crypto";
 import {
+  InboundDestinationType,
+  InboundRouteRepository,
   NumberInboundMode,
   NumberKind,
   NumberPurchased,
@@ -46,6 +48,7 @@ export class SipDeviceService {
     private readonly numberRepo: NumberPurchasedRepository,
     private readonly telnyx: TelnyxService,
     private readonly crypto: CryptoService,
+    private readonly inboundRoutes: InboundRouteRepository,
   ) {}
 
   // ───────────────────────────────────────────────────────────────────────
@@ -458,13 +461,26 @@ export class SipDeviceService {
     return number;
   }
 
+  /**
+   * A number an AI receptionist answers stays on the Call Control application:
+   * its explicit route owns delivery, and pinning or unpinning a desk phone
+   * only changes the fallback it returns to when that route is removed.
+   */
+  private async answeredByReceptionist(numberId: string): Promise<boolean> {
+    const route = await this.inboundRoutes.findByNumber({
+      kind: "ringee",
+      id: numberId,
+    });
+    return route?.destinationType === InboundDestinationType.ai_receptionist;
+  }
+
   /** Point a number at the device (caller ID always; inbound when allowed). */
   private async assignNumberToDevice(
     deviceId: string,
     number: NumberPurchased,
     routeInbound: boolean,
   ): Promise<void> {
-    if (routeInbound) {
+    if (routeInbound && !(await this.answeredByReceptionist(number.id))) {
       await this.telnyx.assignNumberToConnection(
         number.phoneNumber,
         // Connection id lives on the device row — fetch lazily to avoid a stale
@@ -491,7 +507,8 @@ export class SipDeviceService {
     // rings in Web/Extension/Mobile again.
     if (
       number.inboundMode === NumberInboundMode.desk_phone_only &&
-      number.inboundSipDeviceId === device.id
+      number.inboundSipDeviceId === device.id &&
+      !(await this.answeredByReceptionist(number.id))
     ) {
       await this.telnyx
         .assignNumberToConnection(
@@ -514,13 +531,14 @@ export class SipDeviceService {
   ): Promise<void> {
     const number = from.assignedNumber;
     if (!number) return;
-    await this.telnyx
-      .assignNumberToConnection(number.phoneNumber, to.telnyxConnectionId)
-      .catch((err) =>
-        this.logger.warn(
-          `Failed to move ${number.phoneNumber} to ${to.publicRef}: ${err.message}`,
-        ),
-      );
+    if (!(await this.answeredByReceptionist(number.id)))
+      await this.telnyx
+        .assignNumberToConnection(number.phoneNumber, to.telnyxConnectionId)
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to move ${number.phoneNumber} to ${to.publicRef}: ${err.message}`,
+          ),
+        );
     await this.sipDeviceRepo.detachNumber({
       deviceId: from.id,
       restore: NumberInboundMode.desk_phone_only,

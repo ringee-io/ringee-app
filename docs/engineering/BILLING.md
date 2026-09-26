@@ -54,6 +54,7 @@ a failure. Side effects are gated on the returned boolean (`BILL-004`).
 | ---------------------------- | ------------------------------------------------------------------ |
 | Call settlement              | `call-cost:<callId>` (source `telnyx.call.cost`)                   |
 | Desk-phone call              | `call-cost:<callId>` (source `telnyx.desk-phone.call.cost`)        |
+| Server-dialed inbound leg    | `inbound-leg-cost:<ringAttemptId>` (source `inbound-routing`)      |
 | Message                      | `message-cost:<messageId>`                                         |
 | Live transcription           | `transcription-realtime:<headerId>`                                |
 | Recording transcription      | `transcription-recording:<headerId>`                               |

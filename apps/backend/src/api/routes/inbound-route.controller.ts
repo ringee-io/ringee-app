@@ -7,8 +7,9 @@ import {
   Param,
   ParseUUIDPipe,
   Put,
+  Query,
 } from "@nestjs/common";
-import { IsIn, IsUUID } from "class-validator";
+import { IsIn, IsUUID, IsOptional, Matches } from "class-validator";
 import { InboundDestinationType } from "@ringee/database";
 import {
   CurrentUser,
@@ -31,6 +32,12 @@ class InboundRouteDto {
   @IsUUID() destinationId!: string;
 }
 
+class InternalExtensionDto {
+  @IsOptional()
+  @Matches(/^[0-9]{2,6}$/)
+  extension!: string | null;
+}
+
 /**
  * Where a number's inbound calls go. Writing a route is workspace
  * configuration, so it is admin-only inside an organization; a freelancer is
@@ -47,6 +54,42 @@ export class InboundRouteController {
   @Get()
   list(@CurrentUser() user: CurrentUserData) {
     return this.service.list(createOwnershipContext(user));
+  }
+
+  @Get("numbers")
+  numbers(@CurrentUser() user: CurrentUserData) {
+    return this.service.listNumbers(createOwnershipContext(user));
+  }
+
+  @Get("receptionists")
+  receptionists(@CurrentUser() user: CurrentUserData) {
+    return this.service.receptionistCandidates(createOwnershipContext(user));
+  }
+
+  @Get("extensions")
+  extensions(@CurrentUser() user: CurrentUserData) {
+    return this.service.extensions(createOwnershipContext(user));
+  }
+
+  @Get("directory")
+  directory(
+    @CurrentUser() user: CurrentUserData,
+    @Query("query") query?: string,
+  ) {
+    return this.service.directory(createOwnershipContext(user), query);
+  }
+
+  @Put("extensions/:userId")
+  extension(
+    @CurrentUser() user: CurrentUserData,
+    @Param("userId", ParseUUIDPipe) userId: string,
+    @Body() body: InternalExtensionDto,
+  ) {
+    return this.service.setExtension(
+      createOwnershipContext(user),
+      userId,
+      body.extension ?? null,
+    );
   }
 
   @Get(":numberKind/:numberId")

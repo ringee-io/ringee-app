@@ -58,6 +58,7 @@ import { ConversationSection } from './sections/conversation-section';
 import { ResultsSection } from './sections/results-section';
 import { SetupSection } from './sections/setup-section';
 import { VoiceSection } from './sections/voice-section';
+import { InboundRoutingButton } from '@ringee/frontend-shared/components/inbound-routing/routing-panel';
 import { StartCallDialog } from './start-call-dialog';
 import { TestPanel } from './test-panel';
 
@@ -286,6 +287,7 @@ function AgentDetailView({
             </span>
           </label>
 
+          <InboundRoutingButton agentId={agent.id} />
           <StartCallDialog
             agentId={agent.id}
             callerNumberId={agent.callerNumberId}
