@@ -2,13 +2,19 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, BellRing, CalendarCheck } from 'lucide-react';
+import {
+  ArrowRight,
+  BellRing,
+  CalendarCheck,
+  PhoneIncoming
+} from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { VoiceAgentType, VoiceAgentTypeInfo } from '../types';
 
 const ICONS: Record<VoiceAgentType, typeof CalendarCheck> = {
   appointment_booking: CalendarCheck,
-  reminders_notifications: BellRing
+  reminders_notifications: BellRing,
+  receptionist: PhoneIncoming
 };
 
 /**

@@ -9,6 +9,7 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   ExternalCarrierRepository,
   AiVoiceAgentRepository,
+  AiVoiceAgentType,
   InboundDestinationType,
   InboundRoute,
   InboundRouteRepository,
@@ -387,7 +388,22 @@ export class InboundRouteService {
       new NotFoundException("That routing destination was not found.");
 
     switch (input.destinationType) {
-      case InboundDestinationType.ai_receptionist:
+      case InboundDestinationType.ai_receptionist: {
+        // Said plainly rather than as "not found": the agent exists, it is
+        // just not a type that answers calls. The resolver enforces the same
+        // rule again on every call.
+        const agent = await this.agents.findByIdForOwner(
+          ctx,
+          input.destinationId,
+        );
+        if (agent && agent.type !== AiVoiceAgentType.receptionist)
+          throw new BadRequestException(
+            "Only an AI receptionist can be assigned to a phone number.",
+          );
+        const destination = await this.resolver.resolveDestination(ctx, input);
+        if ("reason" in destination) throw missing();
+        return;
+      }
       case InboundDestinationType.extension: {
         const destination = await this.resolver.resolveDestination(ctx, input);
         if ("reason" in destination) throw missing();

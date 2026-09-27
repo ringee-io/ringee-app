@@ -72,6 +72,7 @@ import { MeetingService } from "./meeting.service";
 import {
   AppointmentBookingBlueprint,
   CompanyProfileService,
+  ReceptionistBlueprint,
   RemindersNotificationsBlueprint,
   VoiceAgentBillingService,
   VoiceAgentBlueprintRegistry,
@@ -369,6 +370,7 @@ const servicesProviders = [
   // AI Voice Agents
   AppointmentBookingBlueprint,
   RemindersNotificationsBlueprint,
+  ReceptionistBlueprint,
   VoiceAgentBlueprintRegistry,
   VoiceAgentService,
   VoiceAgentCallService,
@@ -405,8 +407,13 @@ const voiceAgentBlueprintsProvider: Provider = {
   useFactory: (
     appointments: AppointmentBookingBlueprint,
     reminders: RemindersNotificationsBlueprint,
-  ) => [appointments, reminders],
-  inject: [AppointmentBookingBlueprint, RemindersNotificationsBlueprint],
+    receptionist: ReceptionistBlueprint,
+  ) => [appointments, reminders, receptionist],
+  inject: [
+    AppointmentBookingBlueprint,
+    RemindersNotificationsBlueprint,
+    ReceptionistBlueprint,
+  ],
 };
 
 const reminderChannelsProvider: Provider = {

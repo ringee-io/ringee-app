@@ -14,6 +14,7 @@ import {
   AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
   AiVoiceAgentCallStatus,
+  AiVoiceAgentType,
   CallRepository,
   Call,
   CallStatus,
@@ -192,6 +193,14 @@ export class VoiceAgentCallService {
   ): Promise<StartVoiceAgentCallResult> {
     assertVoiceAgentAccess(ctx);
     const agent = await this.agents.require(ctx, agentId);
+    // A receptionist only answers the numbers routed to it. Refused before
+    // anything is written, and as a policy rejection, so a surface that lists
+    // every agent (API, CLI, MCP) gets a clear answer and nothing retries it.
+    if (agent.type === AiVoiceAgentType.receptionist) {
+      throw new BadRequestException(
+        "An AI receptionist answers incoming calls and cannot place calls.",
+      );
+    }
     this.agents.assertReadyForCalls(agent);
 
     const to = this.requireDialableNumber(input.to);

@@ -9,10 +9,8 @@ import { hashApiKey } from "@ringee/platform";
 import { VoiceAgentToolService } from "../voice-agents/voice-agent-tool.service";
 import { VoiceAgentCallService } from "../voice-agents/voice-agent-call.service";
 import { AiReceptionistDestinationHandler } from "./destinations/ai-receptionist.destination";
-import {
-  buildReceptionistTools,
-  RECEPTIONIST_INSTRUCTIONS,
-} from "../voice-agents/blueprints/receptionist.tools";
+import { buildReceptionistTools } from "../voice-agents/blueprints/receptionist.tools";
+import { ReceptionistBlueprint } from "../voice-agents/blueprints/receptionist.blueprint";
 
 const AGENT = "00000000-0000-4000-8000-000000000001";
 const GROUP = "00000000-0000-4000-8000-000000000002";
@@ -172,7 +170,11 @@ describe("AI receptionist live directory and handoff", () => {
     assert.deepEqual(s.stops, []);
     assert.deepEqual(s.routes, []);
     assert.match(
-      RECEPTIONIST_INSTRUCTIONS,
+      new ReceptionistBlueprint().buildInstructions({
+        agentName: "Sofia",
+        company: { name: "Acme", description: "", website: "" },
+        language: "en",
+      }),
       /successful conversation does not require a transfer/,
     );
   });

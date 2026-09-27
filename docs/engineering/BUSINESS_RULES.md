@@ -549,14 +549,13 @@ with no pin is not routed inbound. That fallback lives alone in
 `legacyInboundDestination` so it can be deleted in one piece once every number
 carries an explicit route.
 
-`IVR` remains unavailable. `AI_RECEPTIONIST` references an active existing
-`AiVoiceAgent`; there is no separate receptionist model. An agent can receive
+`IVR` remains unavailable. `AI_RECEPTIONIST` references an active
+`AiVoiceAgent` of type `receptionist` (AGENT-016); there is no separate
+receptionist model. An agent can receive
 several Ringee and BYOC numbers. Only that route holds a Ringee DID on the Call
 Control application; changing or resetting it returns the DID to its own
-connection. Activation without an outbound caller ID is
-allowed for inbound use; outbound execution still requires an eligible workspace
-caller ID. An explicitly assigned outbound number is revalidated at activation.
-Removing or disabling an assigned agent is
+connection. A receptionist activates without an outbound caller ID because it
+never places calls. Removing or disabling an assigned agent is
 refused until its numbers are reassigned. Receptionist tools only accept logical
 destinations returned by that call's live directory search and revalidate their
 workspace and current membership before transferring.
@@ -1260,6 +1259,29 @@ silently omit the external id.
 
 - **Source of truth:** `CustomIntegrationOutboundService.enqueue` and
   `voiceAgentExternalId`
+
+### AGENT-016 — The agent type decides whether it answers or places calls
+
+`receptionist` is the only type that answers incoming calls, and it never
+places one. `appointment_booking` and `reminders_notifications` only place
+calls. A number can therefore be routed (`AI_RECEPTIONIST`) only to a
+receptionist: the route is refused when it is saved, the resolver refuses it
+again on every call, and `inboundConfig` refuses to start any other type. The
+routing picker only offers receptionists. `VoiceAgentCallService.startCall`
+refuses a receptionist as a terminal policy rejection, before any contact, call
+row or provider leg exists, so every outbound surface (web, public API, CLI,
+MCP, scheduled callbacks) gets the same answer.
+
+The receptionist blueprint owns the inbound prompt and the directory/transfer
+tools. It has no per-call variables and no `schedule_callback` tool — an agent
+callback is an outbound call by the same agent — so a caller who wants to be
+called back is handed to `request_human_support`.
+
+- **Source of truth:** `ReceptionistBlueprint`,
+  `InboundRouteResolverService.resolveDestination`,
+  `VoiceAgentCallService.startCall`
+- **Risk if violated:** a caller is answered by a prompt written for a person
+  the agent dialed ("I'm calling about…"), or a receptionist dials strangers
 
 ---
 

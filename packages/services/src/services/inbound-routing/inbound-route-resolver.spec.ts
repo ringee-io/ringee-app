@@ -22,6 +22,7 @@ function setup() {
   const state = {
     members: new Set(["user-a", "user-b"]),
     route: null as Row | null,
+    agent: null as Row | null,
     ringGroup: {
       id: "group-1",
       userId: "user-a",
@@ -103,7 +104,10 @@ function setup() {
             }))
           : [],
     } as never,
-    { findByIdForOwner: async () => null } as never,
+    {
+      findByIdForOwner: async (ctx: OwnershipContext, id: string) =>
+        state.agent?.id === id && owned(ctx, state.agent) ? state.agent : null,
+    } as never,
   );
   const ringee = (): InboundCallOrigin => ({
     transport: "ringee_webrtc",
@@ -462,6 +466,44 @@ describe("InboundRouteResolverService — not implemented yet", () => {
       InboundDestinationType.ai_receptionist,
     );
   });
+});
+
+describe("InboundRouteResolverService — AI receptionist", () => {
+  const agent = (type: string): Row => ({
+    id: "agent-1",
+    userId: "user-a",
+    organizationId: "org-1",
+    type,
+    status: "active",
+    providerAssistantId: "assistant-1",
+    toolSecretHash: "hash",
+    deletedAt: null,
+  });
+
+  it("routes a number to an active receptionist agent", async () => {
+    const s = setup();
+    s.state.agent = agent("receptionist");
+    s.route(InboundDestinationType.ai_receptionist, "agent-1");
+    const resolution = routed(await s.service.resolve(s.ringee()));
+    assert.deepEqual(resolution.destination, {
+      type: "ai_receptionist",
+      agentId: "agent-1",
+      ownerUserId: "user-a",
+    });
+  });
+
+  for (const type of ["appointment_booking", "reminders_notifications"])
+    it(`refuses a route to a ${type} agent on every call`, async () => {
+      const s = setup();
+      s.state.agent = agent(type);
+      s.route(InboundDestinationType.ai_receptionist, "agent-1");
+      const refusal = unroutable(await s.service.resolve(s.ringee()));
+      assert.equal(refusal.reason, "destination_deleted");
+      assert.equal(
+        refusal.destinationType,
+        InboundDestinationType.ai_receptionist,
+      );
+    });
 });
 
 describe("InboundRouteResolverService — the default, for numbers with no route", () => {

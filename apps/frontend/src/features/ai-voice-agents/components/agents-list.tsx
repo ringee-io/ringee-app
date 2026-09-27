@@ -10,6 +10,7 @@ import {
   CalendarCheck,
   Mic,
   PhoneCall,
+  PhoneIncoming,
   Plus,
   RotateCw
 } from 'lucide-react';
@@ -33,7 +34,8 @@ import { AgentTypeCards } from './agent-type-cards';
 
 const TYPE_ICONS: Record<VoiceAgentType, typeof CalendarCheck> = {
   appointment_booking: CalendarCheck,
-  reminders_notifications: BellRing
+  reminders_notifications: BellRing,
+  receptionist: PhoneIncoming
 };
 
 /** The module's home: the agents you have, and one way to add another. */

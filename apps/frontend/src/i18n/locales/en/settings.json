@@ -327,7 +327,7 @@
       },
       "call-routing": {
         "label": "Call Routing",
-        "description": "Choose who answers each number. An AI Voice Agent can help callers directly and transfer to your team when needed."
+        "description": "Choose who answers each number. An AI Receptionist can help callers directly and transfer to your team when needed."
       }
     },
     "general": {
@@ -487,7 +487,7 @@
   },
   "routing": {
     "title": "Call Routing",
-    "description": "Choose who answers each number. An AI Voice Agent can help callers directly and transfer to your team when needed.",
+    "description": "Choose who answers each number. An AI Receptionist can help callers directly and transfer to your team when needed.",
     "assign": "Assign destination",
     "receptionistNumbers": "Receptionist numbers",
     "destination": "Destination",

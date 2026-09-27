@@ -55,7 +55,8 @@ export type AiVoiceAgentOutcome =
 
 export type AiVoiceAgentType =
   | 'appointment_booking'
-  | 'reminders_notifications';
+  | 'reminders_notifications'
+  | 'receptionist';
 
 /**
  * Where the call came from. `null` is a legacy row rather than an unknown

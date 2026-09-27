@@ -42,10 +42,6 @@ import { calculateVoiceClonePrice } from "./voice-clone-pricing";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
-import {
-  buildReceptionistTools,
-  RECEPTIONIST_INSTRUCTIONS,
-} from "./blueprints/receptionist.tools";
 import { CompanyProfileService } from "./company-profile.service";
 import {
   composeVoiceAgentInstructions,
@@ -1156,39 +1152,36 @@ export class VoiceAgentService {
     return ids;
   }
 
+  /**
+   * The configuration an inbound call starts the assistant with. Composed for
+   * this call, so the clock is current; the receptionist blueprint already
+   * supplies the inbound instructions and the directory/transfer tools.
+   */
   async inboundConfig(
     ctx: OwnershipContext,
     agentId: string,
   ): Promise<VoiceAgentConfig> {
     const agent = await this.require(ctx, agentId);
+    this.assertAnswersInbound(agent);
     this.assertReadyForCalls(agent);
     if (agent.status !== AiVoiceAgentStatus.active || !agent.toolSecretHash)
       throw new BadRequestException(
         "Activate this voice agent before assigning inbound calls.",
       );
     await this.ensureInsightGroup(agent);
-    const config = await this.composeConfig(
-      ctx,
-      agent,
-      agent.providerInsightGroupId!,
-    );
-    return {
-      ...config,
-      instructions: `${config.instructions}\n\n${RECEPTIONIST_INSTRUCTIONS}`,
-      // Composed for this call, so the clock is current and in the calendar's
-      // zone — the one the instructions and booking tools use. The agent's own
-      // field would put the two out of step.
-      dynamicVariables: config.dynamicVariables,
-      tools: [
-        ...config.tools,
-        ...buildReceptionistTools({
-          agentId: agent.id,
-          toolBaseUrl: this.toolBaseUrl(),
-          toolSecretRef: this.toolSecretIdentifier(agent.id),
-          knowledgeBucketIds: [],
-        }),
-      ],
-    };
+    return this.composeConfig(ctx, agent, agent.providerInsightGroupId!);
+  }
+
+  /**
+   * Only an AI receptionist answers incoming calls; the other types only place
+   * them. Checked here as well as when a route is saved and resolved, so a
+   * route written before the rule existed cannot start the wrong assistant.
+   */
+  private assertAnswersInbound(agent: AiVoiceAgent): void {
+    if (agent.type !== AiVoiceAgentType.receptionist)
+      throw new BadRequestException(
+        "Only an AI receptionist can answer incoming calls.",
+      );
   }
 
   private async composeConfig(

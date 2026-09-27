@@ -339,11 +339,13 @@ wearing configuration's clothes.
 
 ### AI Receptionist
 
-A receptionist is an existing `AiVoiceAgent` selected by an `InboundRoute`.
-`VoiceAgentService.inboundConfig` reuses its voice, language, model, greeting,
-company context, instructions, knowledge tools and post-call insights. It adds
-inbound help-first instructions and authenticated directory/transfer tools as
-per-call overrides; the saved outbound assistant is not replaced.
+A receptionist is an `AiVoiceAgent` of type `receptionist`, created and
+configured on the AI Voice Agents screen like every other type, and selected by
+an `InboundRoute`. Only that type can be routed to, and it never places calls
+(`AGENT-016`). `ReceptionistBlueprint` owns its help-first inbound instructions,
+greeting and the authenticated directory/transfer tools, so they are part of
+the saved assistant. `VoiceAgentService.inboundConfig` composes that
+configuration again for each call, so the runtime clock is current.
 
 `VoiceAgentCallService.startInbound` attaches one `AiVoiceAgentCall` to the
 existing inbound Call, answers that caller leg, and starts the native assistant
@@ -405,7 +407,8 @@ trigger keeps inserts from instances still on the previous client valid during
 the rollout; drop it and its function once none remain. Then run
 `20260922000200_ai_receptionist_call_indexes.sql` by hand with `psql` — never
 through Prisma — to build the stalled-handoff sweep's partial `Call` index
-`CONCURRENTLY`. The Call Control application must be configured
+`CONCURRENTLY`. Apply `20260926000100_ai_voice_agent_receptionist_type.sql`
+(the `receptionist` agent type) before deploying the backend that offers it. The Call Control application must be configured
 as documented for BYOC. Per-user SIP credentials and handsets must accept internal
 account calls. No migration of all legacy Ringee numbers is performed.
 
