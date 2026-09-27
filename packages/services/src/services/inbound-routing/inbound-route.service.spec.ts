@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  BadRequestException,
   ConflictException,
   NotFoundException,
   NotImplementedException,
@@ -151,7 +152,11 @@ describe("InboundRouteService", () => {
     config.TELNYX_CALL_CONTROL_APP_ID = "receptionist-app";
     try {
       const s = setup();
-      s.state.agent = { id: "existing-agent", name: "Reception" };
+      s.state.agent = {
+        id: "existing-agent",
+        name: "Reception",
+        type: "receptionist",
+      };
       const destination = {
         destinationType: InboundDestinationType.ai_receptionist,
         destinationId: "existing-agent",
@@ -169,6 +174,22 @@ describe("InboundRouteService", () => {
     }
   });
 
+  it("refuses to assign a number to an agent that is not a receptionist", async () => {
+    for (const type of ["appointment_booking", "reminders_notifications"]) {
+      const s = setup();
+      s.state.agent = { id: "outbound-agent", name: "Sofia", type };
+      await assert.rejects(
+        s.service.saveForNumber(ADMIN, ringee, {
+          destinationType: InboundDestinationType.ai_receptionist,
+          destinationId: "outbound-agent",
+        }),
+        BadRequestException,
+      );
+      assert.deepEqual(s.saved, []);
+      assert.deepEqual(s.assignments, []);
+    }
+  });
+
   for (const pinned of [false, true])
     for (const leave of ["reroute", "reset"] as const)
       it(`returns a Ringee DID to its ${pinned ? "desk phone" : "shared"} connection when it leaves the AI (${leave})`, () =>
@@ -181,7 +202,11 @@ describe("InboundRouteService", () => {
           config.TELNYX_CONNECTION_ID = "shared-webrtc";
           try {
             const s = setup();
-            s.state.agent = { id: "existing-agent", name: "Reception" };
+            s.state.agent = {
+              id: "existing-agent",
+              name: "Reception",
+              type: "receptionist",
+            };
             s.state.device = {
               ...s.state.device,
               telnyxConnectionId: "desk-connection",

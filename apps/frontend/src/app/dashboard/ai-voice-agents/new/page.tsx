@@ -4,7 +4,8 @@ import type { VoiceAgentType } from '@/features/ai-voice-agents/types';
 
 const TYPES: VoiceAgentType[] = [
   'appointment_booking',
-  'reminders_notifications'
+  'reminders_notifications',
+  'receptionist'
 ];
 
 export const metadata = { title: 'New AI voice agent' };

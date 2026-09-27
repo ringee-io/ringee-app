@@ -183,6 +183,9 @@ function AgentDetailView({
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const active = agent.status === 'active';
+  // A receptionist answers the numbers routed to it and never dials; every
+  // other type only dials. The server enforces both directions.
+  const receptionist = agent.type === 'receptionist';
 
   useEffect(() => {
     onDirtyChange(draft.dirty);
@@ -287,16 +290,19 @@ function AgentDetailView({
             </span>
           </label>
 
-          <InboundRoutingButton agentId={agent.id} />
-          <StartCallDialog
-            agentId={agent.id}
-            callerNumberId={agent.callerNumberId}
-            variables={typeInfo?.variables ?? []}
-            onStarted={() => {
-              setTab('calls');
-              setCallsKey((k) => k + 1);
-            }}
-          />
+          {receptionist ? (
+            <InboundRoutingButton agentId={agent.id} />
+          ) : (
+            <StartCallDialog
+              agentId={agent.id}
+              callerNumberId={agent.callerNumberId}
+              variables={typeInfo?.variables ?? []}
+              onStarted={() => {
+                setTab('calls');
+                setCallsKey((k) => k + 1);
+              }}
+            />
+          )}
 
           <AlertDialog>
             <AlertDialogTrigger asChild>

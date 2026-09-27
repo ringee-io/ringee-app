@@ -52,6 +52,8 @@ function build(options: {
   attachError?: Error;
   /** Agent-local clock used for runtime context. */
   timezone?: string | null;
+  /** The agent's type; an outbound type unless a test says otherwise. */
+  type?: string;
 }) {
   const placed: Array<{ from: string }> = [];
   const providerVariables: Array<Record<string, string>> = [];
@@ -59,7 +61,7 @@ function build(options: {
   const agent = {
     id: "agent-1",
     name: "Sofia",
-    type: "reminders_notifications",
+    type: options.type ?? "reminders_notifications",
     providerAssistantId: "assistant-1",
     providerTexmlAppId: "app-1",
     callerNumberId: options.callerNumberId ?? null,
@@ -365,6 +367,28 @@ describe("VoiceAgentCallService start outcomes", () => {
       },
     );
     assert.deepEqual(placed, []);
+  });
+
+  it("refuses to place a call with a receptionist, before writing anything", async () => {
+    const { service, placed, contacts, agentCallUpdates } = build({
+      type: "receptionist",
+      usable: [NUMBERS.miami],
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", { to: TO }),
+      (error: unknown) => {
+        assert.ok(error instanceof VoiceAgentCallStartError);
+        assert.equal(
+          error.outcome,
+          VoiceAgentCallStartOutcome.terminal_rejection,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(placed, []);
+    assert.deepEqual(contacts, []);
+    assert.deepEqual(agentCallUpdates, []);
   });
 
   it("exposes a retryable failure before a leg is placed", async () => {

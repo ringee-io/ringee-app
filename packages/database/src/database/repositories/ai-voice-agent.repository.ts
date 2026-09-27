@@ -36,10 +36,12 @@ export class AiVoiceAgentRepository {
 
   // ── Agents ───────────────────────────────────────────────────
 
+  /** Agents a number can be routed to: active, provisioned receptionists. */
   listReceptionistCandidates(ctx: OwnershipContext) {
     return this.prisma.aiVoiceAgent.findMany({
       where: {
         ...buildOwnershipFilter(ctx),
+        type: AiVoiceAgentType.receptionist,
         deletedAt: null,
         status: "active",
         providerAssistantId: { not: null },

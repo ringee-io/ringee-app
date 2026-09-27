@@ -2,13 +2,11 @@ import type { VoiceAgentTool } from "@ringee/platform";
 import type { VoiceAgentToolContext } from "../voice-agent.types";
 import { voiceAgentWebhookHeaders } from "./human-support.tool";
 
-export const RECEPTIONIST_INSTRUCTIONS = `Inbound receptionist mode:
-Help the caller directly first using your instructions, company context and knowledge base. Answer questions, explain information, and collect details. A successful conversation does not require a transfer.
-If the caller needs a person, department or internal extension, use search_directory to look up the current organization directory. Never invent a person, department, extension or identifier, and never treat names in your prompt as directory entries.
-If there are multiple matches, ask which one they mean. If no match exists, explain that you cannot find it and ask what they would like to do instead.
-Only use transfer_to_destination with the exact logical destination_type and destination_id returned by search_directory. Ringee validates and connects the destination; you cannot supply a phone number, SIP URI or credentials. Announce the transfer briefly before calling the tool. If it fails, do not claim that a person answered.
-Use request_human_support only for a follow-up request, not as a substitute for an explicitly requested live transfer.`;
-
+/**
+ * The directory and transfer tools only the receptionist blueprint carries.
+ * Their handlers accept a call only while it is the inbound call routed to
+ * this agent (`VoiceAgentToolService.authorizeReceptionist`).
+ */
 export function buildReceptionistTools(
   ctx: VoiceAgentToolContext,
 ): VoiceAgentTool[] {

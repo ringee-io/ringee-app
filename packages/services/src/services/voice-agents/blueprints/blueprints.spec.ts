@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { AiVoiceAgentOutcome } from "@ringee/database";
 import { AppointmentBookingBlueprint } from "./appointment-booking.blueprint";
 import { RemindersNotificationsBlueprint } from "./reminders-notifications.blueprint";
+import { ReceptionistBlueprint } from "./receptionist.blueprint";
 import { DEFAULT_ANALYSIS_SETTINGS } from "../voice-agent.types";
 
 const promptContext = {
@@ -373,5 +374,53 @@ describe("RemindersNotificationsBlueprint", () => {
       ),
       false,
     );
+  });
+});
+
+describe("ReceptionistBlueprint", () => {
+  const blueprint = new ReceptionistBlueprint();
+
+  it("answers calls with no per-call variables and no calendar", () => {
+    assert.equal(blueprint.type, "receptionist");
+    assert.deepEqual(blueprint.variables, []);
+    assert.equal(blueprint.requiresCalendar, false);
+  });
+
+  it("carries the directory, transfer and support tools, and nothing that dials or books", () => {
+    const tools = blueprint.buildTools(toolContext);
+    const names = tools.flatMap((tool) =>
+      tool.kind === "webhook" ? [tool.name] : [],
+    );
+    assert.deepEqual(names.sort(), [
+      "request_human_support",
+      "search_directory",
+      "transfer_to_destination",
+    ]);
+    assert.ok(tools.some((tool) => tool.kind === "hangup"));
+  });
+
+  it("keeps the directory rules when the prompt is replaced", () => {
+    const safety = blueprint.buildSafetyInstructions(promptContext);
+    assert.match(safety, /Never invent a person, department, extension/);
+    assert.match(safety, /`search_directory` returned on this call/);
+    assert.match(safety, /cannot book, move or cancel appointments/);
+  });
+
+  it("greets an incoming caller in the agent's own language", () => {
+    assert.match(blueprint.buildGreeting(promptContext), /^Gracias por llamar/);
+    assert.match(
+      blueprint.buildGreeting({ ...promptContext, language: "en" }),
+      /^Thank you for calling /,
+    );
+    assert.match(blueprint.buildInstructions(promptContext), /Speak Spanish/);
+  });
+
+  it("offers no outbound outcomes", () => {
+    for (const outcome of [
+      AiVoiceAgentOutcome.meeting_booked,
+      AiVoiceAgentOutcome.callback_scheduled,
+      AiVoiceAgentOutcome.confirmed,
+    ])
+      assert.equal(blueprint.outcomes.includes(outcome), false);
   });
 });

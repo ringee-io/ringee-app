@@ -3,7 +3,10 @@
  * contract is a single edit here rather than a hunt through components.
  */
 
-export type VoiceAgentType = 'appointment_booking' | 'reminders_notifications';
+export type VoiceAgentType =
+  | 'appointment_booking'
+  | 'reminders_notifications'
+  | 'receptionist';
 
 export type VoiceAgentStatus = 'draft' | 'active' | 'disabled' | 'error';
 

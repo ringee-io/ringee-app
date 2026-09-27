@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { BadRequestException } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentService } from "./voice-agent.service";
 
@@ -151,15 +152,16 @@ describe("VoiceAgentService inbound-only activation", () => {
 });
 
 describe("VoiceAgentService inbound receptionist config", () => {
-  it("keeps the calendar's time zone the booking tools use", async () => {
+  function inboundService(type: string) {
     const agent = {
       ...AGENT,
+      type,
       status: "active",
       toolSecretHash: "hash",
       timezone: "Europe/Madrid",
       providerInsightGroupId: "insights",
     };
-    const service = Object.assign(Object.create(VoiceAgentService.prototype), {
+    return Object.assign(Object.create(VoiceAgentService.prototype), {
       require: async () => agent,
       assertReadyForCalls: () => {},
       ensureInsightGroup: async () => {},
@@ -169,7 +171,22 @@ describe("VoiceAgentService inbound receptionist config", () => {
         dynamicVariables: { agent_timezone: "America/New_York" },
       }),
     }) as VoiceAgentService;
-    const config = await service.inboundConfig(CTX, AGENT.id);
+  }
+
+  it("uses the config composed for this call", async () => {
+    const config = await inboundService("receptionist").inboundConfig(
+      CTX,
+      AGENT.id,
+    );
     assert.equal(config.dynamicVariables?.agent_timezone, "America/New_York");
+    assert.equal(config.instructions, "Help");
+  });
+
+  it("refuses to answer with an agent that is not a receptionist", async () => {
+    for (const type of ["appointment_booking", "reminders_notifications"])
+      await assert.rejects(
+        inboundService(type).inboundConfig(CTX, AGENT.id),
+        BadRequestException,
+      );
   });
 });

@@ -22,7 +22,11 @@ import {
   type ValidatorConstraintInterface,
 } from "class-validator";
 
-const AGENT_TYPES = ["appointment_booking", "reminders_notifications"] as const;
+const AGENT_TYPES = [
+  "appointment_booking",
+  "reminders_notifications",
+  "receptionist",
+] as const;
 const MODEL_PROVIDERS = ["ringee", "openai", "anthropic", "google"] as const;
 const EXTRACTION_TYPES = ["text", "number", "boolean", "select"] as const;
 const GREETING_MODES = [

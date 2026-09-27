@@ -13,3 +13,4 @@ export * from "./company-profile.service";
 export * from "./blueprints/voice-agent-blueprint.registry";
 export * from "./blueprints/appointment-booking.blueprint";
 export * from "./blueprints/reminders-notifications.blueprint";
+export * from "./blueprints/receptionist.blueprint";

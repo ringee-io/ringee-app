@@ -4093,11 +4093,16 @@ model OfferEvent {
 // Not to be confused with AiConversation/AiAgentType above, which belong to the
 // in-app chat agent.
 
-/// The pre-built agent types shipped in V1. Each one owns its instructions,
-/// tools and dynamic-variable schema in @ringee/services.
+/// The pre-built agent types. Each one owns its instructions, tools and
+/// dynamic-variable schema in @ringee/services.
+///
+/// `receptionist` is the only inbound type: it is the only agent an
+/// `ai_receptionist` InboundRoute may name, and it never places calls. The
+/// other types only place calls.
 enum AiVoiceAgentType {
   appointment_booking
   reminders_notifications
+  receptionist
 }
 
 enum AiVoiceAgentStatus {
@@ -4517,10 +4522,10 @@ model ExternalPhoneNumber {
 
 /// What answers an inbound call.
 ///
-/// `ivr` and `ai_receptionist` are modelled now so a route can be stored and a
-/// migration planned, but the router refuses to execute them: those subsystems
-/// do not exist yet. Adding one means adding its destination handler, not
-/// changing the carrier layer.
+/// `ivr` is modelled now so a route can be stored and a migration planned, but
+/// the router refuses to execute it: that subsystem does not exist yet. Adding
+/// one means adding its destination handler, not changing the carrier layer.
+/// `ai_receptionist` names an AiVoiceAgent whose type is `receptionist`.
 enum InboundDestinationType {
   user
   ring_group

@@ -3,6 +3,7 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   ExternalCarrierRepository,
   AiVoiceAgentRepository,
+  AiVoiceAgentType,
   InboundDestinationType,
   InboundRouteRepository,
   OrganizationRepository,
@@ -340,6 +341,13 @@ export class InboundRouteResolverService {
           return {
             reason: "destination_deleted",
             detail: "The voice agent is unavailable.",
+          };
+        // Only the receptionist type answers calls. An outbound agent's prompt
+        // and tools are written for a person it dialed, not for a caller.
+        if (agent.type !== AiVoiceAgentType.receptionist)
+          return {
+            reason: "destination_deleted",
+            detail: "Only an AI receptionist can answer incoming calls.",
           };
         return {
           type: "ai_receptionist",

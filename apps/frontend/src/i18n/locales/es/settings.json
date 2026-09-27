@@ -327,7 +327,7 @@
       },
       "call-routing": {
         "label": "Enrutamiento de llamadas",
-        "description": "Elige quién contesta cada número. Un AI Voice Agent puede ayudar directamente y transferir a tu equipo cuando haga falta."
+        "description": "Elige quién contesta cada número. Un Recepcionista IA puede ayudar directamente y transferir a tu equipo cuando haga falta."
       }
     },
     "general": {
@@ -488,7 +488,7 @@
   },
   "routing": {
     "title": "Enrutamiento de llamadas",
-    "description": "Elige quién contesta cada número. Un AI Voice Agent puede ayudar directamente y transferir a tu equipo cuando haga falta.",
+    "description": "Elige quién contesta cada número. Un Recepcionista IA puede ayudar directamente y transferir a tu equipo cuando haga falta.",
     "assign": "Asignar destino",
     "receptionistNumbers": "Números de recepción",
     "destination": "Destino",
