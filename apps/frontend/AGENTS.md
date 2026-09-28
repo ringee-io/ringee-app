@@ -73,6 +73,15 @@ a ring group, and answering is claimed server-side
 touched. The socket is mounted **once**, in `AccountLockdownProvider`; a second
 `useUserEvents` is a second socket and a duplicate device in the backoffice.
 
+**An answered inbound call is identified by its offer, not by its leg.** On an
+inbound leg the SDK's `destinationNumber`, `callerNumber` and `callerName` are
+the side that was called — our number, or the per-user credential a transfer
+rang; the caller is `remoteCallerNumber`. A transferred leg is one the server
+dialed, not the call's own, so the Ringee call is not looked up from the leg's
+session. On answer, `IncomingCall` writes the offer's `callId`, caller number
+and contact into the call store; the call screen and the post-call outcome read
+them from there.
+
 **A live call is ended by the hang-up button or by the person on the other end,
 and by nothing else.** No other control may call `hangup()` — not a disposition,
 not a shortcut, not a timer. In the campaign dialer the outcome buttons are live

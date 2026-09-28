@@ -1,5 +1,5 @@
 'use client';
-import { getCallDestination } from '@ringee/dialer-core';
+import { getCallDestination, isValidPhoneNumber } from '@ringee/dialer-core';
 
 import { useCall } from '../hooks/use.call';
 import { ActiveCallModal } from './active.call.modal';
@@ -17,8 +17,15 @@ export function ShowActiveCall() {
   const t = useTranslations('calls.activeCallStatus');
   const dialerSessionId = useDialerSessionStore((s) => s.sessionId);
   const { activeCall, setActiveCall } = useTelnyxStore();
-  const { postCallPhase, reset, setCallContact, setCallPhoneNumber } =
-    useCallStore();
+  const {
+    postCallPhase,
+    callPhoneNumber,
+    callContactId,
+    callContactName,
+    reset,
+    setCallContact,
+    setCallPhoneNumber
+  } = useCallStore();
   const api = useApi();
   const {
     isMuted,
@@ -60,7 +67,13 @@ export function ShowActiveCall() {
     if (storeCallId) setCallId(storeCallId);
   }, [storeCallId]);
 
-  const logicalDestination = getCallDestination(activeCall);
+  // Who is on the other end. An inbound leg's destination is our own side of
+  // the line — the number that was called, or the credential a transfer rang —
+  // so an inbound call is matched on the caller recorded when it was answered.
+  const inbound = activeCall?.direction === 'inbound';
+  const logicalDestination = inbound
+    ? callPhoneNumber
+    : getCallDestination(activeCall);
   useEffect(() => {
     const destNumber = logicalDestination;
     if (!destNumber || resolvedNumberRef.current === destNumber) return;
@@ -71,6 +84,17 @@ export function ShowActiveCall() {
     // Kept in the store because the post-call voicemail drop places a brand
     // new leg, long after the WebRTC call object is gone.
     setCallPhoneNumber(destNumber);
+
+    if (inbound) {
+      // The server named the caller's saved contact when the call rang.
+      if (callContactId) {
+        setContactId(callContactId);
+        setContactName(callContactName || undefined);
+        return;
+      }
+      // A withheld or unparseable caller id is not a number to save.
+      if (!isValidPhoneNumber(destNumber)) return;
+    }
 
     // Find or create contact by phone number
     api
@@ -86,7 +110,14 @@ export function ShowActiveCall() {
       .catch(() => {
         // Silently fail - contactId will remain null
       });
-  }, [logicalDestination, api, setCallPhoneNumber]);
+  }, [
+    logicalDestination,
+    inbound,
+    callContactId,
+    callContactName,
+    api,
+    setCallPhoneNumber
+  ]);
 
   // Sync resolved contact into the call store for post-call phase
   useEffect(() => {
@@ -134,7 +165,7 @@ export function ShowActiveCall() {
         freeTrialRemainingSeconds={remainingSeconds}
         freeTrialTotalSeconds={totalSeconds}
         onClose={handleHangup}
-        number={getCallDestination(activeCall) || '+CALL'}
+        number={logicalDestination || '+CALL'}
         contactName={contactName}
         statusText={statusText}
         isConnected={activeCall?.state === 'active'}
