@@ -17,8 +17,11 @@ import {
 } from "@ringee/platform";
 import { InboundRingService } from "@ringee/services";
 
-/** Provider call ids are opaque; accept only what one can look like. */
-const CALL_CONTROL_ID = /^[A-Za-z0-9_=+/-]{8,256}$/;
+/**
+ * Provider call ids are opaque; accept only what one can look like. Telnyx
+ * prefixes them with a version (`v3:…`), so the colon is part of every id.
+ */
+const CALL_CONTROL_ID = /^[A-Za-z0-9_=+/:-]{8,256}$/;
 
 /**
  * Taking an inbound call that is being offered to more than one endpoint.
