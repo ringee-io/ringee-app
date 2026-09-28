@@ -37,6 +37,12 @@ export function IncomingCall({
   const setActiveCall = useTelnyxStore((s) => s.setActiveCall);
   const activeCall = useTelnyxStore((s) => s.activeCall);
   const dequeue = useTelnyxStore((s) => s.dequeue);
+  /**
+   * The previous call's wrap-up is still open. A call answered behind it has
+   * no controls on screen, and closing the wrap-up takes the active call off
+   * the screen — so this one can be answered once the wrap-up is done.
+   */
+  const wrappingUp = useCallStore((s) => s.postCallPhase);
   /** What the server said about this leg — absent on the legacy fallback path. */
   const offer = useInboundOffer(call.id);
   const [answering, setAnswering] = useState(false);
@@ -102,7 +108,7 @@ export function IncomingCall({
   );
 
   const handleAnswer = useCallback(async () => {
-    if (isCurrentCallActive || answering) return;
+    if (isCurrentCallActive || answering || wrappingUp) return;
     setAnswering(true);
     try {
       if (offer?.callControlId) await claim(offer.callControlId);
@@ -111,8 +117,9 @@ export function IncomingCall({
       // destination is our side of the line, and a transfer rings a leg of
       // its own. The offer does: it goes to the call screen, and the outcome
       // is saved against its call. Written before the call becomes active, so
-      // the screen never sees the call without it, and never over the
-      // previous call's wrap-up, whose outcome would land on this one.
+      // the screen never sees the call without it, and never over a wrap-up
+      // that opened while this call was being answered, whose outcome would
+      // land on this one.
       const callState = useCallStore.getState();
       if (!callState.postCallPhase) {
         callState.setCallId(offer?.callId ?? null);
@@ -138,7 +145,8 @@ export function IncomingCall({
     isCurrentCallActive,
     offer?.callControlId,
     offer?.callId,
-    setActiveCall
+    setActiveCall,
+    wrappingUp
   ]);
 
   const handleDecline = useCallback(() => {
@@ -211,7 +219,7 @@ export function IncomingCall({
         <Button
           size='icon'
           className='h-10 w-10 rounded-full bg-green-600 text-white hover:bg-green-700'
-          disabled={isCurrentCallActive || answering}
+          disabled={isCurrentCallActive || answering || wrappingUp}
           aria-label={t('actions.answer')}
           onClick={handleAnswer}
         >
