@@ -1,28 +1,38 @@
 'use client';
 
+import {
+  Avatar,
+  AvatarFallback
+} from '@ringee/frontend-shared/components/ui/avatar';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Phone, PhoneOff, Users } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { Call } from '@telnyx/webrtc';
 import { useTranslations } from 'next-intl';
-import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { ApiError } from '@ringee/frontend-shared/lib/api';
+import { ApiError, type ApiClient } from '@ringee/frontend-shared/lib/api';
 import { useTelnyxStore } from '../store/telnyx.store';
 import {
   releaseInboundOffer,
   useInboundOffer
 } from '../store/inbound-offers.store';
+import { getInitials } from './dialer-side-panel/shared';
 
+/**
+ * Rendered by the root `<Toaster />`, which sits outside `ClerkProvider`: a
+ * Clerk hook here (`useApi`) throws and takes the whole dashboard down. The
+ * dashboard builds the client and hands it in.
+ */
 export function IncomingCall({
   call,
+  api,
   onClose
 }: {
   call: Call;
+  api: ApiClient;
   onClose: () => void;
 }) {
   const t = useTranslations('calls');
-  const api = useApi();
   const setActiveCall = useTelnyxStore((s) => s.setActiveCall);
   const activeCall = useTelnyxStore((s) => s.activeCall);
   const dequeue = useTelnyxStore((s) => s.dequeue);
@@ -111,19 +121,42 @@ export function IncomingCall({
     close();
   }, [call, close, offer?.destinationType]);
 
-  const callerName = offer?.callerName ?? call.options?.callerName;
-  const callerNumber = offer?.fromNumber ?? call.options?.callerNumber;
+  /** The caller as the workspace has them saved — absent for a stranger. */
+  const contact = offer?.contact ?? null;
+  const callerNumber = offer?.fromNumber ?? call.options?.callerNumber ?? '';
+  const callerName =
+    contact?.name || offer?.callerName || call.options?.callerName || null;
+  const role = [contact?.jobTitle, contact?.company]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className='bg-background flex w-[320px] flex-col gap-3 rounded-xl border p-3 shadow-lg'>
-      <div className='flex items-center justify-between gap-2'>
-        <div className='min-w-0'>
-          <p className='truncate text-sm font-semibold'>
-            {callerName ?? callerNumber}
-          </p>
-          <p className='text-muted-foreground truncate text-xs'>
-            {callerNumber}
-          </p>
+      <div className='flex items-start justify-between gap-2'>
+        <div className='flex min-w-0 items-center gap-2.5'>
+          <Avatar className='size-9 shrink-0'>
+            <AvatarFallback className='text-[11px] font-semibold'>
+              {getInitials(callerName, callerNumber)}
+            </AvatarFallback>
+          </Avatar>
+          <div className='min-w-0'>
+            <p className='truncate text-sm font-semibold'>
+              {callerName ?? callerNumber}
+            </p>
+            {role ? (
+              <p className='text-muted-foreground truncate text-xs'>{role}</p>
+            ) : null}
+            {callerName ? (
+              <p className='text-muted-foreground truncate text-xs'>
+                {callerNumber}
+              </p>
+            ) : null}
+            {contact?.email ? (
+              <p className='text-muted-foreground truncate text-xs'>
+                {contact.email}
+              </p>
+            ) : null}
+          </div>
         </div>
         <span className='text-muted-foreground shrink-0 text-[10px]'>
           {t('incomingCall')}

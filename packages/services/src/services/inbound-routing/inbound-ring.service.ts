@@ -7,6 +7,7 @@ import {
 import {
   Call,
   CallRepository,
+  ContactRepository,
   SipDeviceRepository,
   OrganizationRepository,
   InboundRouteRepository,
@@ -21,6 +22,7 @@ import {
   signCallCorrelation,
   verifyCallCorrelation,
   type OwnershipContext,
+  type RealtimeInboundCaller,
   type TelephonyEvent,
   RealtimePresenceService,
   RealtimeUserEventsPublisher,
@@ -115,10 +117,44 @@ export class InboundRingService {
     private readonly credits: CreditService,
     private readonly routes: InboundRouteRepository,
     private readonly voiceAgents: VoiceAgentProviderService,
+    private readonly contacts: ContactRepository,
   ) {}
 
   private browserKey(ctx: OwnershipContext) {
     return `inbound-browser:${ctx.organizationId ?? "personal"}:${ctx.userId}`;
+  }
+
+  /**
+   * Who is calling, as the person being rung should see them: the call's own
+   * contact, read again inside the call's workspace. A caller saved after this
+   * copy of the row was read (off the ring path) is linked on the stored row,
+   * so that is read when the copy has none. A failed read is just no contact —
+   * it never keeps a call from ringing.
+   */
+  private async callerContact(
+    call: Call,
+  ): Promise<RealtimeInboundCaller | null> {
+    if (!call.userId) return null;
+    try {
+      const contactId =
+        call.contactId ??
+        (await this.callRepository.findById(call.id))?.contactId;
+      if (!contactId) return null;
+      const contact = await this.contacts.findByIdForOwner(
+        { userId: call.userId, organizationId: call.organizationId },
+        contactId,
+      );
+      if (!contact) return null;
+      return {
+        id: contact.id,
+        name: contact.name,
+        company: contact.company,
+        jobTitle: contact.jobTitle,
+        email: contact.email,
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -269,6 +305,7 @@ export class InboundRingService {
     const started = await this.attempts.startMany(call.id, targets);
     const notified = new Set<string>();
     const freshUsers = new Set(started.map((a) => a.userId));
+    const contact = freshUsers.size ? await this.callerContact(call) : null;
     const attempts = await this.attempts.listByCall(call.id);
     await Promise.all(
       attempts
@@ -345,6 +382,7 @@ export class InboundRingService {
             notified.add(target.userId);
             await this.offerToMember(call, target.userId, {
               callerName: request.callerName,
+              contact,
               destinationType:
                 destination.type === "ring_group" ? "ring_group" : "user",
               ringGroupId:
@@ -648,12 +686,14 @@ export class InboundRingService {
     )
       throw new NotFoundException("This call was not offered to you.");
     const call = attempt.call;
+    const contact = await this.callerContact(call);
     return {
       callId: call.id,
       callControlId: call.callControlId,
       toNumber: call.toNumber,
       fromNumber: call.fromNumber,
-      callerName: null,
+      callerName: contact?.name ?? null,
+      contact,
       destinationType:
         call.inboundTransferDestinationType === "ring_group" ||
         call.inboundDestinationType === "ring_group"
@@ -714,11 +754,15 @@ export class InboundRingService {
       : new Set<string | null>();
     const alreadyRinging = duplicates.filter((userId) => ringing.has(userId));
 
+    const contact = fresh.size ? await this.callerContact(call) : null;
     const results = await Promise.all(
       userIds
         .filter((userId) => fresh.has(userId))
         .map(async (userId) => {
-          const offer = await this.offerToMember(call, userId, context);
+          const offer = await this.offerToMember(call, userId, {
+            ...context,
+            contact,
+          });
           return { userId, offer };
         }),
     );
@@ -746,6 +790,8 @@ export class InboundRingService {
     userId: string,
     context: {
       callerName: string | null;
+      /** The caller's contact, read once per offer rather than per member. */
+      contact: RealtimeInboundCaller | null;
       destinationType: "user" | "ring_group";
       ringGroupId?: string | null;
       ringGroupName?: string | null;
@@ -754,6 +800,8 @@ export class InboundRingService {
       push?: boolean;
     },
   ): Promise<RingOffer> {
+    // A transfer is offered without a name; the contact still has one.
+    const callerName = context.callerName ?? context.contact?.name ?? null;
     const [sockets, devices, user] = await Promise.all([
       this.presence.list(userId).catch(() => []),
       context.push === false
@@ -769,7 +817,8 @@ export class InboundRingService {
           callControlId: call.callControlId ?? "",
           toNumber: call.toNumber,
           fromNumber: call.fromNumber,
-          callerName: context.callerName,
+          callerName,
+          contact: context.contact,
           destinationType: context.destinationType,
           ringGroupId: context.ringGroupId ?? null,
           ringGroupName: context.ringGroupName ?? null,
@@ -790,7 +839,7 @@ export class InboundRingService {
         devices.map((device) =>
           this.notifications.sendNotification(device.fcmToken, {
             title: "📞 Incoming Call",
-            body: `Call from ${context.callerName || call.fromNumber}`,
+            body: `Call from ${callerName || call.fromNumber}`,
             data: {
               type: "INCOMING_CALL",
               callerNumber: call.fromNumber,

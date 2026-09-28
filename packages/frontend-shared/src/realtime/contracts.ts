@@ -58,6 +58,16 @@ export interface RealtimeAccountRestoredEvent {
   at: string;
 }
 
+/** The caller as the workspace has them saved. */
+export interface RealtimeInboundCaller {
+  /** The contact's id. */
+  id: string;
+  name: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  email: string | null;
+}
+
 /**
  * An inbound call is being offered to this user by the destination that chose
  * them (their own number, or a ring group they belong to). The SIP leg arrives
@@ -70,6 +80,8 @@ export interface RealtimeInboundCallRingingEvent {
   toNumber: string;
   fromNumber: string;
   callerName: string | null;
+  /** The caller's contact when the workspace has one; absent from older servers. */
+  contact?: RealtimeInboundCaller | null;
   destinationType: "user" | "ring_group" | "desk_phone";
   ringGroupId: string | null;
   ringGroupName: string | null;

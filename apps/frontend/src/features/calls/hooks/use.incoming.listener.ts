@@ -172,6 +172,8 @@ async function resolveControlledOffer(
       if (signal.aborted || !isRinging()) return false;
       const offer = {
         ...result,
+        // Absent from a server that predates it.
+        contact: result.contact ?? null,
         expiresAt: Date.now() + result.ringSeconds * 1000
       };
       useInboundOffersStore.setState((state) => ({

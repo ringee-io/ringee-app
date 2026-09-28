@@ -300,6 +300,12 @@ Pedro claims  ──► Call.answeredByUserId = Pedro   (one conditional UPDATE)
   realtime channel, and to stop from `call.inbound.cancelled`. The push payload
   a phone receives is unchanged, so a ring group looks to the mobile app exactly
   like a direct call.
+- The offer names the caller: the call's own contact (name, job title,
+  company, email), re-read inside the call's workspace. A controlled leg gets
+  the same from `GET /api/inbound-calls/legs/:callControlId`. A caller with no
+  contact is saved as one (`findOrCreateByPhone`, source `inbound-call`) — only
+  by the delivery that wrote the call row, and off the ring path, since a CRM
+  lookup can take seconds. A withheld caller id is never saved.
 - That offer is also what the dashboard presents on. Every browser is offered
   every SIP leg (`DEBT-020`), so a browser's own number list cannot decide
   whose call it is — a group's number belongs to the workspace, not to the

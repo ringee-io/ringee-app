@@ -1,5 +1,6 @@
 'use client';
 
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { toast } from 'sonner';
 import { IncomingCall } from '../components/incoming.call';
@@ -16,6 +17,9 @@ import { useEffect, useRef } from 'react';
  */
 export function useIncomingCallToasts() {
   const queue = useTelnyxStore((s) => s.queue);
+  // Toasts render under the root `<Toaster />`, outside `ClerkProvider`, so
+  // the client is built here, inside the dashboard, and passed to each one.
+  const api = useApi();
   const shown = useRef(new Set<string>());
 
   useEffect(() => {
@@ -34,13 +38,14 @@ export function useIncomingCallToasts() {
           <IncomingCall
             key={call.id}
             call={call}
+            api={api}
             onClose={() => toast.dismiss(call.id)}
           />
         ),
         { id: call.id, duration: Infinity }
       );
     });
-  }, [queue]);
+  }, [queue, api]);
 
   useEffect(() => {
     const presented = shown.current;

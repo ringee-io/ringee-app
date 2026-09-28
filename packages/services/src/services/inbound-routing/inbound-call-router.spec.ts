@@ -96,6 +96,7 @@ function setup(options: { online?: string[] } = {}) {
   };
 
   const callRepository = {
+    findById: async (id: string) => (call.id === id ? call : null),
     findByControlId: async (id: string) =>
       call.callControlId === id ? call : null,
     // The real thing is a single conditional UPDATE; this is the same
@@ -135,6 +136,7 @@ function setup(options: { online?: string[] } = {}) {
     {} as never,
     {} as never,
     {} as never,
+    { findByIdForOwner: async () => null } as never,
   );
 
   ring.offerControlled = async () => ({

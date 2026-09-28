@@ -93,6 +93,15 @@ function orphanEventsKey(callControlId: string): string {
 /** Signed pre-dial token a browser leg carries to use an external carrier. */
 const EXTERNAL_CALL_HEADER = "X-Ringee-Byoc-Call-Id";
 
+/** Attribution for a contact saved because it called in. */
+const INBOUND_CALL_CONTACT_SOURCE = "inbound-call";
+
+/**
+ * A caller id that is a real number. A withheld one (`anonymous`) or a SIP
+ * user is not somebody to save as a contact.
+ */
+const DIALABLE_CALLER = /^\+[1-9]\d{6,14}$/;
+
 /**
  * How long a pre-dial's carrier leg rings. A carrier network usually gives up
  * sooner; this only bounds a leg nobody ends.
@@ -307,6 +316,11 @@ export class CallService implements OnModuleDestroy {
             err.stack,
           ),
         );
+      // Only the delivery that wrote the row saves the caller, so a
+      // redelivered webhook never creates a second contact. Off the ring
+      // path: the CRM lookup can take seconds and the caller is waiting.
+      if (!contact && DIALABLE_CALLER.test(origin.fromNumber))
+        void this.saveInboundCaller(ctx, call.id, origin.fromNumber);
     }
 
     // A hangup that beat this webhook closes the row before anything rings.
@@ -342,6 +356,30 @@ export class CallService implements OnModuleDestroy {
       callerName: contact?.name ?? null,
     });
     if (result.status === "failed") await this.failInboundCall(call, result);
+  }
+
+  /**
+   * An unknown caller becomes a contact, like every number Ringee dials:
+   * pulled from a connected CRM when it knows them, a bare number otherwise.
+   * Best effort — a call is never refused or delayed for want of a contact.
+   */
+  private async saveInboundCaller(
+    ctx: OwnershipContext,
+    callId: string,
+    fromNumber: string,
+  ): Promise<void> {
+    try {
+      const contact = await this.contactService.findOrCreateByPhone(
+        ctx,
+        fromNumber,
+        { source: INBOUND_CALL_CONTACT_SOURCE },
+      );
+      await this.callRepository.attachContact(ctx, callId, contact.id);
+    } catch (error) {
+      this.logger.warn(
+        `Could not save the caller of inbound call ${callId} as a contact: ${(error as Error).message}`,
+      );
+    }
   }
 
   /** Nothing could take the call: say so on the row, stop ringing, hang up. */

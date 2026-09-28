@@ -133,6 +133,16 @@ export interface RealtimeAccountRestoredEvent {
   at: string;
 }
 
+/** The caller as the workspace has them saved, shown to whoever is rung. */
+export interface RealtimeInboundCaller {
+  /** The contact's id. */
+  id: string;
+  name: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  email: string | null;
+}
+
 /**
  * An inbound call is being offered to this user, by name of the destination
  * that chose them: a number routed straight to them, or a ring group they are
@@ -149,6 +159,8 @@ export interface RealtimeInboundCallRingingEvent {
   fromNumber: string;
   /** Contact name when Ringee knows one. */
   callerName: string | null;
+  /** The caller's contact when the workspace has one; absent from older servers. */
+  contact?: RealtimeInboundCaller | null;
   destinationType: "user" | "ring_group" | "desk_phone";
   /** Set when a ring group chose this user. */
   ringGroupId: string | null;
