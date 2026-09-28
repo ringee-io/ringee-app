@@ -444,16 +444,7 @@ export class CrmController {
     const conn = await this.connections.findById(connectionId);
     if (!conn) throw new BadRequestException("connection not found");
     await this.connections.assertAccess(ctx, conn);
-
-    const provider = this.providerRegistry.get(conn.provider);
-    if (!provider.listLists) return [];
-
-    // Fresh credentials, not the stored token: HubSpot access tokens expire
-    // after 30 minutes.
-    const listLists = provider.listLists.bind(provider);
-    return this.connections.runWithFreshCredentials(conn, (creds) =>
-      listLists(creds),
-    );
+    return this.connections.listLists(conn);
   }
 
   @Get("connections/:id/members")

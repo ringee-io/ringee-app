@@ -17,7 +17,7 @@ import {
   CryptoService,
   OwnershipContext,
 } from "@ringee/platform";
-import type { CrmCapabilities } from "@ringee/platform";
+import type { CrmCapabilities, CrmListRef } from "@ringee/platform";
 
 export type DecryptedCrmCredentials = {
   connection: CrmConnection;
@@ -96,6 +96,22 @@ export class CrmConnectionService {
       Record<CrmCapabilityFlag, unknown>
     > | null;
     return recorded?.[capability] !== false;
+  }
+
+  /**
+   * The CRM's lists for a connection, read with a fresh token. Empty when the
+   * provider has none, or when the connection recorded that it may not read
+   * them — HubSpot's optional `crm.lists.read` scope, declined at install —
+   * rather than asking the provider for a guaranteed 403.
+   */
+  async listLists(connection: CrmConnection): Promise<CrmListRef[]> {
+    if (!this.allows(connection, "supportsLists")) return [];
+    const provider = this.registry.get(connection.provider);
+    if (!provider.listLists) return [];
+    const listLists = provider.listLists.bind(provider);
+    return this.runWithFreshCredentials(connection, (creds) =>
+      listLists(creds),
+    );
   }
 
   /**
