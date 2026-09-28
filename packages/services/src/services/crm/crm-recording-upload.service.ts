@@ -122,6 +122,16 @@ export class CrmRecordingUploadService {
       const counterpartE164 = normalizePhoneE164(callerPhone ?? "");
 
       for (const connection of connections) {
+        // A portal can decline the scope uploads need (HubSpot's optional
+        // `files.write`); the connection records that at connect time.
+        const capabilities = connection.capabilities as Record<
+          string,
+          unknown
+        > | null;
+        if (capabilities && capabilities.supportsRecordingUpload === false) {
+          continue;
+        }
+
         let link = links.find((l) => l.connectionId === connection.id);
         if (!link && counterpartE164) {
           link =

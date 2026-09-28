@@ -36,9 +36,9 @@ interface Props {
 
 const PROVIDER_ORDER: CrmProviderType[] = [
   'attio',
+  'hubspot',
   'odoo_14_18',
   'odoo_19_plus',
-  'hubspot',
   'salesforce'
 ];
 

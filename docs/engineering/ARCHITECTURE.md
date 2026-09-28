@@ -19,6 +19,7 @@ pnpm workspaces (`pnpm@10.16.1`), roots `apps/*` and `packages/*`.
 | `apps/agent-cli`         | `ringee`                 | Published CLI driving the Ringee MCP tools.                                                                                                   |
 | `apps/chatgpt-app`       | `@ringee-io/chatgpt-app` | ChatGPT Apps SDK surface + widget renderer.                                                                                                   |
 | `apps/attio`             | `ringee-io`              | Attio CRM app (own SDK, own rules — see `apps/attio/AGENTS.md`).                                                                              |
+| `apps/hubspot`           | —                        | HubSpot developer project: the HubSpot app's OAuth scopes, redirect URLs and webhooks (`hs project upload`; see `apps/hubspot/AGENTS.md`).    |
 | `apps/sdk-playground`    | —                        | Static playgrounds exercising the published Dialer SDK bundle.                                                                                |
 
 ### Packages

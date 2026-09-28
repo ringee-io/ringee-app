@@ -104,13 +104,13 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 ## Phone numbers
 
-| Responsibility                             | Owner                                                                                                                             |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Browser-side normalize / validate / format | `packages/dialer-core/src/phone/normalize.ts` (libphonenumber)                                                                    |
-| Finding numbers in page text               | `packages/dialer-core/src/phone/detect.ts`                                                                                        |
-| Country calling code for a keypad          | `countryCallingCode` — `normalize.ts`                                                                                             |
-| Server-side normalize + CRM matching       | `normalizePhoneE164`, `phoneSuffix`, `phoneMatchesSuffix` — `platform/src/crm/phone.ts` (libphonenumber, with a lenient fallback) |
-| E.164 validation in agent schemas          | `E164_REGEX` — `packages/agent/src/schemas/common.ts`                                                                             |
+| Responsibility                             | Owner                                                                                                                                                    |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser-side normalize / validate / format | `packages/dialer-core/src/phone/normalize.ts` (libphonenumber)                                                                                           |
+| Finding numbers in page text               | `packages/dialer-core/src/phone/detect.ts`                                                                                                               |
+| Country calling code for a keypad          | `countryCallingCode` — `normalize.ts`                                                                                                                    |
+| Server-side normalize + CRM matching       | `normalizePhoneE164`, `phoneSuffix`, `phoneMatchesSuffix`, `phoneNationalNumber` — `platform/src/crm/phone.ts` (libphonenumber, with a lenient fallback) |
+| E.164 validation in agent schemas          | `E164_REGEX` — `packages/agent/src/schemas/common.ts`                                                                                                    |
 
 Two normalizers exist because they run in different places; both are
 libphonenumber-backed and agree. The server one additionally keeps a lenient

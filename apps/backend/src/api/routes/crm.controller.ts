@@ -449,13 +449,12 @@ export class CrmController {
     const provider = this.providerRegistry.get(conn.provider);
     if (!provider.listLists) return [];
 
-    const decrypted = await this.connections.decrypt(conn);
-    return provider.listLists({
-      accessToken: decrypted.accessToken,
-      refreshToken: decrypted.refreshToken,
-      accountId: conn.externalAccountId,
-      connectionId: conn.id,
-    });
+    // Fresh credentials, not the stored token: HubSpot access tokens expire
+    // after 30 minutes.
+    const listLists = provider.listLists.bind(provider);
+    return this.connections.runWithFreshCredentials(conn, (creds) =>
+      listLists(creds),
+    );
   }
 
   @Get("connections/:id/members")
@@ -471,14 +470,11 @@ export class CrmController {
     const provider = this.providerRegistry.get(conn.provider);
     if (!provider.listMembers) return [];
 
-    const decrypted = await this.connections.decrypt(conn);
+    const listMembers = provider.listMembers.bind(provider);
     try {
-      return await provider.listMembers({
-        accessToken: decrypted.accessToken,
-        refreshToken: decrypted.refreshToken,
-        accountId: conn.externalAccountId,
-        connectionId: conn.id,
-      });
+      return await this.connections.runWithFreshCredentials(conn, (creds) =>
+        listMembers(creds),
+      );
     } catch {
       return [];
     }

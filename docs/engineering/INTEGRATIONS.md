@@ -155,13 +155,45 @@ Node app. Backend counterpart: `attio-app.controller.ts` / `AttioAppService`.
 
 ### CRM sync (`packages/platform/src/crm`, `packages/services/src/services/crm`)
 
-Provider registry pattern: `provider.ts` + `registry.ts` + `providers/*` for
-Attio, HubSpot, Salesforce, Odoo (14–18 and 19+), plus a legacy GoHighLevel kept
-for existing records. Syncs contacts, companies, calls, notes, meetings, tasks and
-recording uploads through an outbox drained by a Temporal schedule.
+Provider registry pattern: `provider.ts` + `registry.ts` + `providers/*`.
+Implemented adapters: Attio, HubSpot and Odoo (14–18 and 19+). `salesforce` and
+a legacy `gohighlevel` exist only as `CrmProviderType` values (the latter kept
+for existing records). Syncs contacts, companies, calls, notes, meetings, tasks
+and recording uploads through an outbox drained by a Temporal schedule.
 
 Matching uses `normalizePhoneE164` and `phoneMatchesSuffix` from
 `packages/platform/src/crm/phone.ts` — the server-side phone helpers.
+
+**Per-connection capabilities.** A provider's `capabilities` constant says what
+the adapter can do; `CrmConnection.capabilities` says what one connected
+account allows, recorded at connect time. Outbound services skip a connection
+that recorded `false` for the capability they need (`supportsTasks`,
+`supportsRecordingUpload`) — an absent value means "not known", never "no".
+
+**HubSpot** (`providers/hubspot/`). OAuth app configured through the
+`HUBSPOT_OAUTH_*` variables. The app itself is defined in `apps/hubspot`, a
+HubSpot developer project (`hs project upload`): its scopes must equal the ones
+Ringee requests, or HubSpot rejects the install URL, and its `uid` must never
+change — see `apps/hubspot/AGENTS.md`. Details that bite:
+
+- Every request is pinned to one date-based API version, `HUBSPOT_API_VERSION`
+  in `hubspot.api.ts` — OAuth included (the `v1` OAuth endpoints stop refreshing
+  on 2027-02-16). Bumping it is a reviewed code change, not configuration.
+- Calls are native call activities (direction, duration, status, built-in
+  outcome, inline recording). `Call.durationSeconds` includes ringing, so the
+  call's status comes from its outcome and `CrmCallLogInput.answered`, never
+  from the duration.
+- A `403` is a missing scope, not a revoked token: it must never mark the
+  connection revoked. Revocation is `invalid_grant` from the OAuth endpoints.
+- HubSpot's searchable phone properties hold the national number (no country
+  code), so phone lookups search that form as well as E.164
+  (`phoneNationalNumber`), and results are re-checked against the real number.
+- Creates are not idempotent in HubSpot. Calls, meetings and recording notes
+  look for the activity a previous attempt left before creating one; the
+  search index lags writes by seconds, so this narrows the duplicate window
+  rather than closing it.
+- Existing records only get their empty properties filled — Ringee never
+  overwrites a name, e-mail or number someone typed into HubSpot.
 
 **Campaign membership from the CRM.** A synced person joins an outbound campaign
 by carrying its Ringee campaign id in a field the CRM admin named `Campaign`

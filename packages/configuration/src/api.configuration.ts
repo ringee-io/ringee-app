@@ -174,6 +174,23 @@ const apiConfiguration = {
   ATTIO_OAUTH_TOKEN_URL:
     process.env.ATTIO_OAUTH_TOKEN_URL || "https://app.attio.com/oauth/token",
   ATTIO_API_BASE_URL: process.env.ATTIO_API_BASE_URL || "https://api.attio.com",
+  // Optional: without a client id/secret the HubSpot connect flow reports
+  // that it is not configured instead of sending users to HubSpot.
+  HUBSPOT_OAUTH_CLIENT_ID: process.env.HUBSPOT_OAUTH_CLIENT_ID,
+  HUBSPOT_OAUTH_CLIENT_SECRET: process.env.HUBSPOT_OAUTH_CLIENT_SECRET,
+  HUBSPOT_OAUTH_AUTHORIZE_URL:
+    process.env.HUBSPOT_OAUTH_AUTHORIZE_URL ||
+    "https://app.hubspot.com/oauth/authorize",
+  HUBSPOT_API_BASE_URL:
+    process.env.HUBSPOT_API_BASE_URL || "https://api.hubapi.com",
+  // Space-separated. The required scopes must equal the ones configured on
+  // the HubSpot app, or HubSpot rejects the install URL. Optional scopes gate
+  // contact lists and recording uploads; set it to "" to request none.
+  HUBSPOT_OAUTH_SCOPES:
+    process.env.HUBSPOT_OAUTH_SCOPES ||
+    "oauth crm.objects.contacts.read crm.objects.contacts.write crm.objects.companies.read crm.objects.companies.write crm.objects.owners.read",
+  HUBSPOT_OAUTH_OPTIONAL_SCOPES:
+    process.env.HUBSPOT_OAUTH_OPTIONAL_SCOPES ?? "crm.lists.read files.write",
   CRM_DRY_RUN: process.env.CRM_DRY_RUN === "true",
   // ── Data Enrichment & Lead Search ──
   ENRICHMENT_FEATURE_ENABLED:

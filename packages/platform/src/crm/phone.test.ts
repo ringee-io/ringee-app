@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { normalizePhoneE164, phoneMatchesSuffix, phoneSuffix } from "./phone";
+import {
+  normalizePhoneE164,
+  phoneMatchesSuffix,
+  phoneNationalNumber,
+  phoneSuffix,
+} from "./phone";
 
 describe("normalizePhoneE164", () => {
   it("keeps a valid international number as-is", () => {
@@ -52,6 +57,22 @@ describe("normalizePhoneE164", () => {
     expect(normalizePhoneE164("")).toBeNull();
     expect(normalizePhoneE164("   ")).toBeNull();
     expect(normalizePhoneE164("12345")).toBeNull();
+  });
+});
+
+describe("phoneNationalNumber", () => {
+  it("drops the country code and keeps the area code", () => {
+    expect(phoneNationalNumber("+14155552671")).toBe("4155552671");
+    expect(phoneNationalNumber("+18095551234")).toBe("8095551234");
+    expect(phoneNationalNumber("+34600123456")).toBe("600123456");
+  });
+
+  it("drops the trunk prefix a local UK number is written with", () => {
+    expect(phoneNationalNumber("+447911123456")).toBe("7911123456");
+  });
+
+  it("returns null for a value libphonenumber cannot parse", () => {
+    expect(phoneNationalNumber("not a number")).toBeNull();
   });
 });
 

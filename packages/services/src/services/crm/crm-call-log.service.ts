@@ -242,6 +242,7 @@ export class CrmCallLogService {
         startedAt: call.startedAt ?? call.createdAt,
         endedAt: call.endedAt ?? null,
         durationSeconds: call.durationSeconds ?? null,
+        answered,
         outcome: call.outcome ?? null,
         outcomeLabel:
           outcomeLabel(call.outcome) ?? opts.fallbackOutcomeLabel ?? null,
@@ -359,6 +360,7 @@ export class CrmCallLogService {
         currentPayload.notes = call.outcomeNote ?? currentPayload.notes ?? null;
         currentPayload.durationSeconds =
           call.durationSeconds ?? currentPayload.durationSeconds ?? null;
+        currentPayload.answered = call.answeredAt != null;
         currentPayload.endedAt = call.endedAt ?? currentPayload.endedAt ?? null;
         if (agentName && !currentPayload.agentName)
           currentPayload.agentName = agentName;

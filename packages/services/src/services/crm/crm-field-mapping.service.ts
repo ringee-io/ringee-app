@@ -145,6 +145,94 @@ export class CrmFieldMappingService {
         },
       ];
     }
+    if (provider === "hubspot") {
+      return [
+        {
+          ringeeEntity: "contact",
+          ringeeField: "firstName",
+          externalEntity: "contacts",
+          externalField: "firstname",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "lastName",
+          externalEntity: "contacts",
+          externalField: "lastname",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "phoneNumber",
+          externalEntity: "contacts",
+          externalField: "phone",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "mobile",
+          externalEntity: "contacts",
+          externalField: "mobilephone",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "email",
+          externalEntity: "contacts",
+          externalField: "email",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "jobTitle",
+          externalEntity: "contacts",
+          externalField: "jobtitle",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "name",
+          externalEntity: "companies",
+          externalField: "name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "domain",
+          externalEntity: "companies",
+          externalField: "domain",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "industry",
+          externalEntity: "companies",
+          externalField: "industry",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "disposition",
+          externalEntity: "calls",
+          externalField: "hs_call_disposition",
+          direction: "push",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "recordingUrl",
+          externalEntity: "calls",
+          externalField: "hs_call_recording_url",
+          direction: "push",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "transcript",
+          externalEntity: "calls",
+          externalField: "hs_call_body",
+          direction: "push",
+        },
+      ];
+    }
     if (provider === "odoo_14_18" || provider === "odoo_19_plus") {
       return [
         {

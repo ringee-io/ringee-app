@@ -10,6 +10,8 @@ export * from "./providers/attio/attio.provider";
 export * from "./providers/attio/attio.capabilities";
 export * from "./providers/attio/attio.mapper";
 export * from "./providers/attio/attio.types";
+export * from "./providers/hubspot/hubspot.provider";
+export * from "./providers/hubspot/hubspot.capabilities";
 export * from "./providers/odoo/odoo.capabilities";
 export * from "./providers/odoo/odoo.credentials";
 export * from "./providers/odoo/odoo.errors";
