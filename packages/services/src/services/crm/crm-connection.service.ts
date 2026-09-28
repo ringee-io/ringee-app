@@ -17,12 +17,18 @@ import {
   CryptoService,
   OwnershipContext,
 } from "@ringee/platform";
+import type { CrmCapabilities } from "@ringee/platform";
 
 export type DecryptedCrmCredentials = {
   connection: CrmConnection;
   accessToken: string;
   refreshToken: string | null;
 };
+
+/** The on/off capabilities a connection can record when it connects. */
+export type CrmCapabilityFlag = {
+  [K in keyof CrmCapabilities]: CrmCapabilities[K] extends boolean ? K : never;
+}[keyof CrmCapabilities];
 
 const REFRESH_SKEW_MS = 60_000;
 
@@ -77,6 +83,19 @@ export class CrmConnectionService {
       userId: ctx.userId,
       organizationId: ctx.organizationId ?? null,
     });
+  }
+
+  /**
+   * Whether a connection may be used for a capability. Only an explicit
+   * `false` recorded when it connected rules it out — an optional HubSpot
+   * scope the portal declined, an Odoo key without activity rights. A
+   * capability the connection never recorded is "not known", never "no".
+   */
+  allows(connection: CrmConnection, capability: CrmCapabilityFlag): boolean {
+    const recorded = connection.capabilities as Partial<
+      Record<CrmCapabilityFlag, unknown>
+    > | null;
+    return recorded?.[capability] !== false;
   }
 
   /**

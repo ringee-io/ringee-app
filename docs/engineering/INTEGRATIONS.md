@@ -169,6 +169,8 @@ the adapter can do; `CrmConnection.capabilities` says what one connected
 account allows, recorded at connect time. Outbound services skip a connection
 that recorded `false` for the capability they need (`supportsTasks`,
 `supportsRecordingUpload`) — an absent value means "not known", never "no".
+Ask `CrmConnectionService.allows(connection, flag)`, which types the flag,
+instead of reading the JSON column inline.
 
 **HubSpot** (`providers/hubspot/`). OAuth app configured through the
 `HUBSPOT_OAUTH_*` variables. The app itself is defined in `apps/hubspot`, a

@@ -21,6 +21,15 @@ export class CrmFieldMappingService {
 
   constructor(private readonly repo: CrmFieldMappingRepository) {}
 
+  /**
+   * Every enabled mapping of a connection — all entities, all directions.
+   * This is what the settings screen lists; `getMappings` resolves the subset
+   * one sync direction applies.
+   */
+  listMappings(connectionId: string): Promise<CrmFieldMapping[]> {
+    return this.repo.listByConnection(connectionId);
+  }
+
   async getMappings(
     connectionId: string,
     entity: string,

@@ -124,11 +124,7 @@ export class CrmRecordingUploadService {
       for (const connection of connections) {
         // A portal can decline the scope uploads need (HubSpot's optional
         // `files.write`); the connection records that at connect time.
-        const capabilities = connection.capabilities as Record<
-          string,
-          unknown
-        > | null;
-        if (capabilities && capabilities.supportsRecordingUpload === false) {
+        if (!this.connections.allows(connection, "supportsRecordingUpload")) {
           continue;
         }
 

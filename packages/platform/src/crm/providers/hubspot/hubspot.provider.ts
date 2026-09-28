@@ -384,9 +384,24 @@ export class HubSpotProvider extends AbstractCrmProvider {
       return { externalId: created.id, externalType: "person" };
     } catch (err) {
       // Two syncs creating the same e-mail at once: HubSpot tells the loser
-      // which contact won, and that is the one to log against.
+      // which contact won. That is the one to log against, and it gets this
+      // sync's data the same way a contact found by search does — gaps only.
       const existingId = hubspotConflictExistingId(err);
       if (!existingId) throw err;
+      const winner = await this.getObjectOrNull(
+        creds,
+        "contacts",
+        existingId,
+        HUBSPOT_CONTACT_PROPERTIES,
+      );
+      if (winner) {
+        await this.fillGaps(
+          creds,
+          "contacts",
+          winner.id,
+          hubspotContactGaps(winner.properties, desired),
+        );
+      }
       return { externalId: existingId, externalType: "person" };
     }
   }

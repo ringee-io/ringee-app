@@ -37,11 +37,7 @@ export class CrmTaskSyncService {
       const now = Date.now();
 
       for (const connection of connections) {
-        const capabilities = connection.capabilities as Record<
-          string,
-          unknown
-        > | null;
-        if (capabilities && capabilities.supportsTasks === false) continue;
+        if (!this.connections.allows(connection, "supportsTasks")) continue;
 
         const link = links.find((l) => l.connectionId === connection.id);
         if (!link) {

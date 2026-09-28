@@ -350,27 +350,50 @@ describe("HubSpotProvider.upsertPerson", () => {
     expect(patch?.body).toEqual({ properties: { lastname: "Byron" } });
   });
 
-  it("adopts the contact that won a concurrent create", async () => {
-    stubFetch((request) => {
-      if (request.method === "GET") return json({}, 404);
-      if (request.url.pathname.endsWith("/search"))
-        return json({ results: [] });
-      return json(
-        {
-          status: "error",
-          category: "CONFLICT",
-          message: "Contact already exists. Existing ID: 9001",
-        },
-        409,
-      );
+  it("adopts the contact that won a concurrent create and fills its gaps", async () => {
+    const requests = stubFetch((request) => {
+      const path = request.url.pathname;
+      // Not found by e-mail yet: the winner's create is still being indexed.
+      if (path === "/crm/objects/2026-09/contacts/ada%40example.com") {
+        return json({}, 404);
+      }
+      if (path.endsWith("/search")) return json({ results: [] });
+      if (
+        path === "/crm/objects/2026-09/contacts" &&
+        request.method === "POST"
+      ) {
+        return json(
+          {
+            status: "error",
+            category: "CONFLICT",
+            message: "Contact already exists. Existing ID: 9001",
+          },
+          409,
+        );
+      }
+      if (path === "/crm/objects/2026-09/contacts/9001") {
+        return request.method === "GET"
+          ? json({
+              id: "9001",
+              properties: { email: "ada@example.com", firstname: "Ada" },
+            })
+          : json({ id: "9001", properties: {} });
+      }
+      return unexpected(request);
     });
 
     const ref = await provider().upsertPerson(credentials, {
+      displayName: "Ada Lovelace",
       email: "ada@example.com",
       phoneE164: "+14155552671",
     });
 
     expect(ref).toEqual({ externalId: "9001", externalType: "person" });
+    // The winner keeps its first name; it gains what only this sync had.
+    const patch = requests.find((request) => request.method === "PATCH");
+    expect(patch?.body).toEqual({
+      properties: { phone: "+14155552671", lastname: "Lovelace" },
+    });
   });
 });
 

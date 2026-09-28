@@ -414,11 +414,10 @@ export class CrmController {
     const conn = await this.connections.findById(connectionId);
     if (!conn) throw new BadRequestException("connection not found");
     await this.connections.assertAccess(ctx, conn);
-    return this.fieldMappings.getMappings(
-      connectionId,
-      "contact",
-      "bidirectional",
-    );
+    // Full rows for every entity and direction: the settings tab groups them
+    // by entity and shows each direction. The resolved contact/bidirectional
+    // subset this used to return had no id, entity or direction at all.
+    return this.fieldMappings.listMappings(connectionId);
   }
 
   @Post("connections/:id/field-mappings/seed")
