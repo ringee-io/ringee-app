@@ -414,11 +414,10 @@ export class CrmController {
     const conn = await this.connections.findById(connectionId);
     if (!conn) throw new BadRequestException("connection not found");
     await this.connections.assertAccess(ctx, conn);
-    return this.fieldMappings.getMappings(
-      connectionId,
-      "contact",
-      "bidirectional",
-    );
+    // Full rows for every entity and direction: the settings tab groups them
+    // by entity and shows each direction. The resolved contact/bidirectional
+    // subset this used to return had no id, entity or direction at all.
+    return this.fieldMappings.listMappings(connectionId);
   }
 
   @Post("connections/:id/field-mappings/seed")
@@ -445,17 +444,7 @@ export class CrmController {
     const conn = await this.connections.findById(connectionId);
     if (!conn) throw new BadRequestException("connection not found");
     await this.connections.assertAccess(ctx, conn);
-
-    const provider = this.providerRegistry.get(conn.provider);
-    if (!provider.listLists) return [];
-
-    const decrypted = await this.connections.decrypt(conn);
-    return provider.listLists({
-      accessToken: decrypted.accessToken,
-      refreshToken: decrypted.refreshToken,
-      accountId: conn.externalAccountId,
-      connectionId: conn.id,
-    });
+    return this.connections.listLists(conn);
   }
 
   @Get("connections/:id/members")
@@ -471,14 +460,11 @@ export class CrmController {
     const provider = this.providerRegistry.get(conn.provider);
     if (!provider.listMembers) return [];
 
-    const decrypted = await this.connections.decrypt(conn);
+    const listMembers = provider.listMembers.bind(provider);
     try {
-      return await provider.listMembers({
-        accessToken: decrypted.accessToken,
-        refreshToken: decrypted.refreshToken,
-        accountId: conn.externalAccountId,
-        connectionId: conn.id,
-      });
+      return await this.connections.runWithFreshCredentials(conn, (creds) =>
+        listMembers(creds),
+      );
     } catch {
       return [];
     }

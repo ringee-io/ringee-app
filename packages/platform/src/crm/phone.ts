@@ -108,6 +108,19 @@ export function normalizePhoneE164(
   return lenientE164(phonePart.replace(/[\s()\-.]/g, ""));
 }
 
+/**
+ * The national significant number of an E.164 value: area code plus local
+ * number, without the country code or a trunk prefix (`+14155552671` →
+ * `4155552671`, `+447911123456` → `7911123456`). Some CRMs index phones the
+ * way they are dialled locally — HubSpot's searchable phone properties drop
+ * the country code — so a lookup has to send this form. Null when
+ * libphonenumber cannot parse the value.
+ */
+export function phoneNationalNumber(e164: string): string | null {
+  const parsed = parsePhoneNumberFromString(e164);
+  return parsed?.nationalNumber ? String(parsed.nationalNumber) : null;
+}
+
 export function phoneSuffix(e164: string, length = 9): string {
   const digits = e164.replace(/\D/g, "");
   return digits.slice(-length);

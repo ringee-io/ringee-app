@@ -17,12 +17,18 @@ import {
   CryptoService,
   OwnershipContext,
 } from "@ringee/platform";
+import type { CrmCapabilities, CrmListRef } from "@ringee/platform";
 
 export type DecryptedCrmCredentials = {
   connection: CrmConnection;
   accessToken: string;
   refreshToken: string | null;
 };
+
+/** The on/off capabilities a connection can record when it connects. */
+export type CrmCapabilityFlag = {
+  [K in keyof CrmCapabilities]: CrmCapabilities[K] extends boolean ? K : never;
+}[keyof CrmCapabilities];
 
 const REFRESH_SKEW_MS = 60_000;
 
@@ -77,6 +83,35 @@ export class CrmConnectionService {
       userId: ctx.userId,
       organizationId: ctx.organizationId ?? null,
     });
+  }
+
+  /**
+   * Whether a connection may be used for a capability. Only an explicit
+   * `false` recorded when it connected rules it out — an optional HubSpot
+   * scope the portal declined, an Odoo key without activity rights. A
+   * capability the connection never recorded is "not known", never "no".
+   */
+  allows(connection: CrmConnection, capability: CrmCapabilityFlag): boolean {
+    const recorded = connection.capabilities as Partial<
+      Record<CrmCapabilityFlag, unknown>
+    > | null;
+    return recorded?.[capability] !== false;
+  }
+
+  /**
+   * The CRM's lists for a connection, read with a fresh token. Empty when the
+   * provider has none, or when the connection recorded that it may not read
+   * them — HubSpot's optional `crm.lists.read` scope, declined at install —
+   * rather than asking the provider for a guaranteed 403.
+   */
+  async listLists(connection: CrmConnection): Promise<CrmListRef[]> {
+    if (!this.allows(connection, "supportsLists")) return [];
+    const provider = this.registry.get(connection.provider);
+    if (!provider.listLists) return [];
+    const listLists = provider.listLists.bind(provider);
+    return this.runWithFreshCredentials(connection, (creds) =>
+      listLists(creds),
+    );
   }
 
   /**

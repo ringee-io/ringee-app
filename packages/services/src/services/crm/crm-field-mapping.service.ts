@@ -21,6 +21,15 @@ export class CrmFieldMappingService {
 
   constructor(private readonly repo: CrmFieldMappingRepository) {}
 
+  /**
+   * Every enabled mapping of a connection — all entities, all directions.
+   * This is what the settings screen lists; `getMappings` resolves the subset
+   * one sync direction applies.
+   */
+  listMappings(connectionId: string): Promise<CrmFieldMapping[]> {
+    return this.repo.listByConnection(connectionId);
+  }
+
   async getMappings(
     connectionId: string,
     entity: string,
@@ -142,6 +151,94 @@ export class CrmFieldMappingService {
           externalEntity: "companies",
           externalField: "categories",
           direction: "pull",
+        },
+      ];
+    }
+    if (provider === "hubspot") {
+      return [
+        {
+          ringeeEntity: "contact",
+          ringeeField: "firstName",
+          externalEntity: "contacts",
+          externalField: "firstname",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "lastName",
+          externalEntity: "contacts",
+          externalField: "lastname",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "phoneNumber",
+          externalEntity: "contacts",
+          externalField: "phone",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "mobile",
+          externalEntity: "contacts",
+          externalField: "mobilephone",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "email",
+          externalEntity: "contacts",
+          externalField: "email",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "jobTitle",
+          externalEntity: "contacts",
+          externalField: "jobtitle",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "name",
+          externalEntity: "companies",
+          externalField: "name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "domain",
+          externalEntity: "companies",
+          externalField: "domain",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "industry",
+          externalEntity: "companies",
+          externalField: "industry",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "disposition",
+          externalEntity: "calls",
+          externalField: "hs_call_disposition",
+          direction: "push",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "recordingUrl",
+          externalEntity: "calls",
+          externalField: "hs_call_recording_url",
+          direction: "push",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "transcript",
+          externalEntity: "calls",
+          externalField: "hs_call_body",
+          direction: "push",
         },
       ];
     }

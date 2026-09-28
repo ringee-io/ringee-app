@@ -138,9 +138,10 @@ export const PROVIDER_META: Record<
   },
   hubspot: {
     name: 'HubSpot',
-    description: 'Coming soon — same playbook, different pipeline.',
+    description:
+      'Log calls as native HubSpot call activities with outcomes, recordings and notes, and sync contacts and companies.',
     color: 'bg-orange-500/15 text-orange-500 border-orange-500/20',
-    available: false,
+    available: true,
     logo: '/companies/hubspot.svg',
     logoDarkInvert: false,
     authKind: 'oauth'

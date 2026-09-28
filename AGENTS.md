@@ -43,7 +43,7 @@ adapter, injected through NestJS DI.
 
 Directory-level rules exist where a domain needs them — read the nearest one:
 `apps/backend`, `apps/frontend`, `apps/orchestrator`, `apps/attio`,
-`packages/services`, `packages/platform`, `packages/database`,
+`apps/hubspot`, `packages/services`, `packages/platform`, `packages/database`,
 `packages/dialer-core`, `packages/dialer-sdk`, `packages/agent`.
 
 ## Business rules

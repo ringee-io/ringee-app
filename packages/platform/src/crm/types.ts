@@ -65,7 +65,18 @@ export type CrmCallLogInput = {
   to: string | null;
   startedAt: Date;
   endedAt?: Date | null;
+  /**
+   * Seconds from placement to hangup — ringing included, so a positive value
+   * does not mean anyone picked up. Read `answered` for that.
+   */
   durationSeconds?: number | null;
+  /**
+   * Whether the call connected. Null or absent when unknown (snapshots taken
+   * before this field existed). Providers with a native call status (HubSpot)
+   * use it to tell a missed inbound call from an answered one that simply has
+   * no outcome yet.
+   */
+  answered?: boolean | null;
   outcome?: string | null;
   outcomeLabel?: string | null;
   notes?: string | null;
