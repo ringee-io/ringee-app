@@ -556,8 +556,7 @@ export const COMPARISONS: ComparisonContent[] = [
     competitorBlurb:
       'Kixie is a sales-engagement platform with a power dialer, local presence, and CRM automation, popular with SDR and inside-sales teams.',
     metaTitle: 'Ringee vs Kixie — Open-Source, Flat-Price Alternative',
-    metaDescription:
-      'Ringee vs Kixie: flat $20/month with unlimited users, pay-as-you-go calling, open source and native AI agent control, versus Kixie’s per-user power dialer.',
+    metaDescription: `Ringee vs Kixie: flat ${TEAM_PRICE} with unlimited users, pay-as-you-go calling, open source and native AI agent control, versus Kixie’s per-user power dialer.`,
     h1: 'Ringee vs Kixie',
     intro: [
       'Kixie is a sales-engagement platform built around a power dialer and tight CRM automation. It is priced per user per month, often with add-ons for higher-volume dialing features.',

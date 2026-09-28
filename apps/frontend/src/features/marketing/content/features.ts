@@ -375,7 +375,7 @@ export const FEATURES: FeatureContent[] = [
       {
         question: 'Which plan includes campaigns?',
         answer:
-          'Campaigns are part of the Organization plan: $20/month for the whole organization, with unlimited users.'
+          'Campaigns are part of the Organization plan for the whole organization, with unlimited users.'
       }
     ]
   },
