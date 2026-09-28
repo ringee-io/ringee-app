@@ -135,6 +135,7 @@ function setup(options: { online?: string[] } = {}) {
     {} as never,
     {} as never,
     {} as never,
+    { findByIdForOwner: async () => null } as never,
   );
 
   ring.offerControlled = async () => ({

@@ -54,11 +54,16 @@ function setup() {
   const rows = new Map<string, Row>();
   const log: string[] = [];
   const transfers: Array<Record<string, unknown>> = [];
+  const saved: Row[] = [];
+  const attached: Array<[string, string]> = [];
   const state = {
     carrier: IDENTIFIED as CarrierInboundCall,
     resolution: DESK_PHONE_ROUTE as InboundRouteResolution,
     transferError: null as Error | null,
     parkedHangup: false,
+    contact: null as Row | null,
+    /** Set to hold the contact save open, like a CRM that never answers. */
+    pendingSave: null as Promise<Row> | null,
   };
   const byControl = (id: string) =>
     [...rows.values()].find((row) => row.callControlId === id) ?? null;
@@ -82,6 +87,10 @@ function setup() {
     findByControlId: async (id: string) => byControl(id),
     updateControlState: async (id: string, data: Row) => {
       Object.assign(byControl(id)!, data);
+    },
+    attachContact: async (id: string, contactId: string) => {
+      attached.push([id, contactId]);
+      return true;
     },
     // The ordinary lifecycle: a leg with no row of its own is parked.
     completeCall: async (id: string) => byControl(id),
@@ -143,7 +152,13 @@ function setup() {
     }),
     lowBalanceHangupTimers: new Map(),
     callRepository,
-    contactService: { findByPhone: async () => null },
+    contactService: {
+      findByPhone: async () => state.contact,
+      findOrCreateByPhone: async (ctx: Row, phone: string, hint: Row) => {
+        saved.push({ ctx, phone, hint });
+        return state.pendingSave ?? { id: "contact-new" };
+      },
+    },
     inboxTimelineService: { ensureThreadForCall: async () => {} },
     redis: {
       get: async () =>
@@ -226,8 +241,21 @@ function setup() {
         call: signCallCorrelation(callId),
       }),
     ).toString("base64");
-  return { service, rows, log, transfers, state, event, legState };
+  return {
+    service,
+    rows,
+    log,
+    transfers,
+    saved,
+    attached,
+    state,
+    event,
+    legState,
+  };
 }
+
+/** Lets a save the webhook started without awaiting it run to completion. */
+const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 describe("CallService carrier inbound calls", () => {
   it("records the call on the Call model and rings the routed desk phone", async () => {
@@ -331,6 +359,47 @@ describe("CallService carrier inbound calls", () => {
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.transfers[0].from, "+13055550101");
     assert.equal(s.transfers[0].fromDisplayName, "anonymous");
+  });
+
+  it("saves an unknown caller as a contact once and links it to the call", async () => {
+    const s = setup();
+    await s.service.handleTelephonyEvent(s.event());
+    await s.service.handleTelephonyEvent(s.event());
+    await settle();
+    const [row] = [...s.rows.values()];
+    assert.deepEqual(s.saved, [
+      {
+        ctx: { userId: "user-a", organizationId: "org-1" },
+        phone: "+12125550199",
+        hint: { source: "inbound-call" },
+      },
+    ]);
+    assert.deepEqual(s.attached, [[row.id, "contact-new"]]);
+  });
+
+  it("rings without waiting for the caller to be saved", async () => {
+    const s = setup();
+    s.state.pendingSave = new Promise<Row>(() => {});
+    await s.service.handleTelephonyEvent(s.event());
+    assert.equal(s.transfers.length, 1);
+    assert.deepEqual(s.attached, []);
+  });
+
+  it("does not save a withheld caller or one already saved", async () => {
+    for (const withheld of [true, false]) {
+      const s = setup();
+      if (withheld)
+        s.state.carrier = {
+          ...IDENTIFIED,
+          fromNumber: "anonymous",
+          callerId: null,
+        } as CarrierInboundCall;
+      else s.state.contact = { id: "contact-1", name: "Pedro" };
+      await s.service.handleTelephonyEvent(s.event());
+      await settle();
+      assert.deepEqual(s.saved, []);
+      assert.deepEqual(s.attached, []);
+    }
   });
 
   it("hangs up a refused carrier call without creating history", async () => {

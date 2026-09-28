@@ -818,6 +818,18 @@ export class CallRepository {
     });
   }
 
+  /**
+   * Links a contact that became known after the call row was written. Never
+   * replaces one already linked, so a late or repeated write is a no-op.
+   */
+  async attachContact(callId: string, contactId: string): Promise<boolean> {
+    const { count } = await this.prisma.call.updateMany({
+      where: { id: callId, contactId: null },
+      data: { contactId },
+    });
+    return count === 1;
+  }
+
   async deleteCall(callControlId: string): Promise<void> {
     await this.prisma.call.delete({ where: { callControlId } });
   }

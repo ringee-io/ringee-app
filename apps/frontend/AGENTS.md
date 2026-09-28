@@ -23,6 +23,11 @@ Use the existing clients — do not hand-roll `fetch` with an auth header.
   "second device" for the one-call-at-a-time rule. Do not strip it.
 - Errors surface as `ApiError` with `status` and `data`. Handle `402`
   (out of credit) and `409` (already on a call) explicitly on dial surfaces.
+- `ClerkProvider` wraps only the authenticated route groups
+  (`ClerkAppProvider`); the root `<Toaster />` sits outside it. Content
+  rendered through `toast.custom` must not call a Clerk hook — `useApi()`
+  included — or the whole app crashes the moment the toast shows. Build the
+  client in the dashboard tree and pass it in (`useIncomingCallToasts`).
 
 ## Business logic
 

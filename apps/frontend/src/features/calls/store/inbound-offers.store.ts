@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type {
+  RealtimeInboundCaller,
   RealtimeInboundCallCancelledEvent,
   RealtimeInboundCallRingingEvent
 } from '@ringee/frontend-shared/realtime';
@@ -28,6 +29,8 @@ export interface InboundOffer {
   toNumber: string;
   fromNumber: string;
   callerName: string | null;
+  /** The caller's saved contact, when the workspace has one. */
+  contact: RealtimeInboundCaller | null;
   destinationType: 'user' | 'ring_group' | 'desk_phone';
   ringGroupId: string | null;
   ringGroupName: string | null;
@@ -139,6 +142,7 @@ export function applyInboundRealtimeEvent(
       toNumber: event.toNumber,
       fromNumber: event.fromNumber,
       callerName: event.callerName,
+      contact: event.contact ?? null,
       destinationType: event.destinationType,
       ringGroupId: event.ringGroupId,
       ringGroupName: event.ringGroupName,
