@@ -117,6 +117,11 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
     blurb: 'Calls, campaigns, outcomes, callbacks, and meetings.',
     links: [
       {
+        label: 'Sales dialer',
+        href: '/sales-dialer',
+        description: 'Progressive and preview dialing for teams'
+      },
+      {
         label: 'Outbound calling',
         href: '/features/outbound-calling',
         description: 'Browser-based international dialing'
@@ -124,7 +129,7 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
       {
         label: 'Campaigns',
         href: '/features/campaigns',
-        description: 'Run shared team calling campaigns'
+        description: 'Progressive dialing campaigns for teams'
       },
       {
         label: 'Phone numbers',
@@ -187,6 +192,16 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
         label: 'AI Voice Agents',
         href: '/ai-voice-agents',
         description: 'Agents that place calls and hold conversations'
+      },
+      {
+        label: 'AI outbound calling',
+        href: '/ai-voice-agents/outbound-calling',
+        description: 'Agents that place your outbound calls'
+      },
+      {
+        label: 'AI SDR',
+        href: '/ai-voice-agents/ai-sdr',
+        description: 'Calls leads, qualifies and books meetings'
       },
       {
         label: 'AI call automation',
@@ -276,6 +291,11 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
         description: 'Encryption and access controls'
       },
       {
+        label: 'Bring your own carrier',
+        href: '/byoc',
+        description: 'Keep your carrier and your numbers'
+      },
+      {
         label: 'Self-hosted option',
         href: '/self-hosted',
         description: 'Run Ringee on your own infra'
@@ -284,13 +304,17 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
   }
 ];
 
-/** Top-level navigation, in order. "Product" renders the mega-menu above. */
+/**
+ * Top-level navigation, in order. "Product" renders the mega-menu above.
+ * The bar fits six links next to the menu at `xl`; Security lives in the
+ * Product menu and the footer.
+ */
 export const MAIN_NAV: NavLink[] = [
   { label: 'AI Voice Agents', href: '/ai-voice-agents' },
+  { label: 'Sales Dialer', href: '/sales-dialer' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'Use Cases', href: '/use-cases' },
   { label: 'Integrations', href: '/integrations' },
-  { label: 'Security', href: '/security' },
   { label: 'Open Source', href: '/open-source' }
 ];
 
@@ -301,7 +325,14 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     title: 'Product',
     links: [
       { label: 'AI Voice Agents', href: '/ai-voice-agents' },
+      {
+        label: 'AI outbound calling',
+        href: '/ai-voice-agents/outbound-calling'
+      },
+      { label: 'AI SDR', href: '/ai-voice-agents/ai-sdr' },
+      { label: 'Sales dialer', href: '/sales-dialer' },
       { label: 'Phone numbers by country', href: '/phone-numbers' },
+      { label: 'Bring your own carrier', href: '/byoc' },
       { label: 'Outbound calling', href: '/features/outbound-calling' },
       { label: 'Campaigns', href: '/features/campaigns' },
       { label: 'Call recording', href: '/features/call-recording' },
@@ -350,6 +381,17 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'iOS app', href: IOS_APP_URL },
       { label: 'Android app', href: ANDROID_APP_URL },
       { label: 'GitHub', href: GITHUB_URL }
+    ]
+  },
+  {
+    title: 'Compare',
+    links: [
+      { label: 'vs Aircall', href: '/compare/aircall' },
+      { label: 'vs Ringover', href: '/compare/ringover' },
+      { label: 'vs JustCall', href: '/compare/justcall' },
+      { label: 'vs Dapta', href: '/compare/dapta' },
+      { label: 'Aircall alternatives', href: '/alternatives/aircall' },
+      { label: 'All comparisons', href: '/alternatives' }
     ]
   },
   {

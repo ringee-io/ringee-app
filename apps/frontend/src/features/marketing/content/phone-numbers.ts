@@ -333,6 +333,48 @@ export const CHEAPEST_PER_MINUTE_USD = Math.min(
 );
 
 /**
+ * The headline "calls from" price used in marketing copy outside the country
+ * pages: $0.012/min, chosen by the product owner. It is a floor claim, so it
+ * is clamped to never undercut the cheapest minute the snapshot actually
+ * prices — if the rate deck moves above it, the copy follows the deck instead
+ * of promising a price nobody can get (BILL-021).
+ */
+const ADVERTISED_CALL_RATE_FROM_USD = Math.max(0.012, CHEAPEST_PER_MINUTE_USD);
+
+/** "$0.012" — the headline calling price, without trailing zeros. */
+export const CALL_RATE_FROM = `$${Number(ADVERTISED_CALL_RATE_FROM_USD.toFixed(4))}`;
+
+/**
+ * The shorter name a country is searched by, used where a title has to fit in
+ * ~60 characters ("US virtual phone number", not "United States of America…").
+ * Everything else keeps the catalog name.
+ */
+const SEARCH_NAMES: Record<string, string> = {
+  US: 'US',
+  GB: 'UK',
+  HK: 'Hong Kong',
+  RU: 'Russia',
+  CD: 'DR Congo',
+  VI: 'US Virgin Islands'
+};
+
+export function searchName(country: PhoneNumberCountry): string {
+  return SEARCH_NAMES[country.countryCode] ?? country.countryName;
+}
+
+/** "Local, toll-free and mobile" — a country's types as one phrase. */
+export function typeList(country: PhoneNumberCountry): string {
+  const labels = country.offers.map(
+    (offer) => NUMBER_TYPE_META[numberTypeSlug(offer.numberType)].label
+  );
+  const phrase =
+    labels.length > 1
+      ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+      : (labels[0] ?? '');
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1).toLowerCase();
+}
+
+/**
  * What an agent minute costs into one country: the agent itself plus the call
  * it places. Null when that country's minute is not priced in the deck.
  */

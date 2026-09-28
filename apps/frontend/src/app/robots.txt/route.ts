@@ -78,9 +78,10 @@ export function GET() {
     '',
     // AI crawler groups first — order matters for some AI crawler parsers.
     ...AI_BOTS.flatMap(group),
-    // Catch-all for normal search engines and everything else.
+    // Catch-all for normal search engines and everything else. No `Host:`
+    // line: it is a Yandex-only directive that expects a bare host, and the
+    // canonical tags already name www.ringee.io.
     ...group('*'),
-    `Host: ${SITE_URL}`,
     `Sitemap: ${SITE_URL}/sitemap.xml`,
     ''
   ].join('\n');

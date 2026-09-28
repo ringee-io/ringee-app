@@ -334,12 +334,12 @@ export const INTEGRATIONS: IntegrationContent[] = [
     icon: Sparkles,
     tagline:
       'Orchestrate human calls or trigger an AI voice agent from ChatGPT.',
-    metaTitle: 'ChatGPT Integration | Ringee',
+    metaTitle: 'Make Phone Calls from ChatGPT | Ringee',
     metaDescription:
-      'Use ChatGPT to drive Ringee outbound workflows — prospect, import leads, start calls, log outcomes, and schedule follow-ups through Ringee’s MCP tools.',
-    h1: 'ChatGPT + Ringee: outbound from a conversation',
+      'Use ChatGPT to make real phone calls with Ringee: prospect and import leads, start human or AI voice agent calls, log outcomes and schedule follow-ups.',
+    h1: 'Make phone calls from ChatGPT with Ringee',
     intro: [
-      'Ringee exposes its outbound workflow through an MCP server, which means ChatGPT can use Ringee’s tools directly. Ask it to find leads, build a list, start a human calling session, trigger a configured AI voice agent, or schedule a follow-up.',
+      'ChatGPT can make real phone calls through Ringee. Ringee exposes its outbound workflow through an MCP server and a ChatGPT app, so ChatGPT can use Ringee’s tools directly: find leads, build a list, start a human calling session, trigger a configured AI voice agent, or schedule a follow-up.',
       'You choose who takes the conversation. ChatGPT can ring your active device for a human-led call, or start a Ringee voice agent that places the call, speaks with the person, and returns a structured result.'
     ],
     enables: [
@@ -369,9 +369,9 @@ export const INTEGRATIONS: IntegrationContent[] = [
     },
     faqs: [
       {
-        question: 'Does ChatGPT make calls on its own?',
+        question: 'Can ChatGPT make phone calls?',
         answer:
-          'ChatGPT can use Ringee to trigger a configured AI voice agent that places the outbound call and holds the conversation. It can also start a human-led call that rings your active device. Ringee asks for confirmation before a real billed voice-agent call.'
+          'Yes, with Ringee connected. ChatGPT can use Ringee to trigger a configured AI voice agent that places the outbound call and holds the conversation. It can also start a human-led call that rings your active device. Ringee asks for confirmation before a real billed voice-agent call.'
       },
       {
         question: 'How is this connected?',
@@ -386,12 +386,12 @@ export const INTEGRATIONS: IntegrationContent[] = [
     category: 'AI tools',
     icon: Bot,
     tagline: 'Use Claude to prospect, call, and follow up through Ringee.',
-    metaTitle: 'Claude Integration | Ringee',
+    metaTitle: 'Make Phone Calls from Claude | Ringee',
     metaDescription:
-      'Connect Claude to Ringee through MCP. Prospect leads, manage contacts, start human calls or AI voice agent calls, and handle results from a Claude conversation.',
-    h1: 'Claude + Ringee: orchestrate human and AI calling',
+      'Connect Claude to Ringee over MCP and make real phone calls from a chat: prospect leads, start human or AI voice agent calls, and handle the follow-up.',
+    h1: 'Make phone calls from Claude with Ringee',
     intro: [
-      'Claude can drive Ringee through the same MCP server, with safety rules for sensitive operations. Ask Claude to research and import leads, queue a human calling session, trigger a configured AI voice agent, or handle the follow-up.',
+      'Claude can make real phone calls through Ringee’s MCP server, with safety rules for sensitive operations. Connect it in Claude or Claude Code, then ask Claude to research and import leads, queue a human calling session, trigger a configured AI voice agent, or handle the follow-up.',
       'For human-led work, Ringee rings your device. For AI-led work, the Ringee voice agent places the call and holds the conversation asynchronously, then Claude can read the outcome and structured result.'
     ],
     enables: [
@@ -421,6 +421,16 @@ export const INTEGRATIONS: IntegrationContent[] = [
     },
     faqs: [
       {
+        question: 'Can Claude make phone calls?',
+        answer:
+          'Yes, with Ringee connected over MCP. Claude can start a configured Ringee AI voice agent that places the call and holds the conversation, or ring your device so you take the call yourself. It asks you to confirm before a billed agent call.'
+      },
+      {
+        question: 'How do I connect Claude to Ringee?',
+        answer:
+          'Copy your MCP URL from the Ringee dashboard and add it as a connector in Claude, or with the claude mcp add command in Claude Code. The URL is bound to one workspace.'
+      },
+      {
         question: 'What are the safety rules?',
         answer:
           'Ringee guards sensitive actions — like spending credits or revoking dialer links — and requires explicit confirmation before destructive actions such as deleting a contact.'
@@ -438,19 +448,21 @@ export const INTEGRATIONS: IntegrationContent[] = [
     category: 'AI tools',
     icon: Workflow,
     tagline: 'Connect any MCP-compatible agent to Ringee’s outbound toolset.',
-    metaTitle: 'MCP Integration for AI Agents | Ringee',
+    metaTitle: 'MCP Server for Phone Calls — Let AI Agents Call | Ringee',
     metaDescription:
-      'Ringee ships an MCP server so any compatible agent can prospect, manage contacts, start human calls or AI voice agent calls, and schedule follow-ups with safety guardrails.',
-    h1: 'MCP: connect any agent to Ringee',
+      'Ringee’s MCP server lets Claude, ChatGPT and any MCP agent make phone calls: prospect leads, start human or AI voice agent calls, and log every result.',
+    h1: 'An MCP server for phone calls',
     intro: [
-      'The Model Context Protocol (MCP) is an open standard for giving AI agents tools. Ringee provides an MCP server, so any MCP-compatible agent — not just ChatGPT or Claude — can read and act on your Ringee data.',
-      'Agents can search and import leads, manage contacts, create human calling sessions, list and trigger configured AI voice agents, read their call results, log outcomes, and schedule callbacks and meetings, all within Ringee’s safety rules for sensitive and destructive actions.'
+      'The Model Context Protocol (MCP) is an open standard for giving AI agents tools. Ringee provides an MCP server for phone calls, so Claude, ChatGPT and any MCP-compatible agent can prospect, manage contacts and run real calls through Ringee.',
+      'Your agent chooses who takes the conversation: it can build a calling session for a teammate, ring your own device, or start a configured AI voice agent that places the call and returns a structured result. Agents also read results, log outcomes, and schedule callbacks and meetings, all within Ringee’s safety rules for sensitive and destructive actions.'
     ],
     enables: [
-      'Standard tool access for any MCP agent',
-      'Lead prospecting, reveal, and import',
-      'Human call sessions and AI voice agent calls',
-      'Call results, outcomes, callbacks, and meetings'
+      'Search, reveal and import leads from Apollo or Prospeo',
+      'Create, update and look up contacts',
+      'Create calling sessions and shareable dialer links',
+      'Start human calls or AI voice agent calls, and read their results',
+      'Log outcomes, schedule callbacks and book meetings',
+      'Read call analytics, campaigns and AI pipeline results'
     ],
     workflow: [
       'Point your MCP-compatible agent at Ringee’s MCP server.',
@@ -481,6 +493,16 @@ export const INTEGRATIONS: IntegrationContent[] = [
         question: 'Which agents can connect?',
         answer:
           'Any MCP-compatible client — including ChatGPT, Claude, and custom agents — can use Ringee’s MCP tools.'
+      },
+      {
+        question: 'Can an AI agent make phone calls through MCP?',
+        answer:
+          'Yes. Through Ringee’s MCP server an agent can start a configured AI voice agent call — the voice agent places the call, holds the conversation and returns the outcome, summary and transcript — or ring your device for a call you take yourself.'
+      },
+      {
+        question: 'Is it safe to let an agent place calls?',
+        answer:
+          'Every call passes the same checks as a call you place yourself: your do-not-call list, workspace credit and caller ID. Tools that spend credit ask for confirmation, deleting a contact needs its phone number as a second confirmation, and every tool works inside one workspace.'
       }
     ]
   },

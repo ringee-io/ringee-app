@@ -13,14 +13,17 @@ import {
 import { PUBLISHED_SKILLS } from './skills.generated';
 import {
   AI_VOICE_AGENT_PRICING,
+  CALL_RATE_FROM,
   CHEAPEST_MONTHLY_USD,
-  CHEAPEST_PER_MINUTE_USD,
   formatMonthly,
   formatPerMinute,
   PHONE_NUMBER_COUNTRIES
 } from './phone-numbers';
+import { ALTERNATIVES } from './alternatives';
+import { COMPARISONS } from './comparisons';
 import { FEATURES } from './features';
 import { INTEGRATION_CATEGORIES, INTEGRATIONS } from './integrations';
+import { SOLUTIONS } from './solutions';
 import { USE_CASES } from './use-cases';
 
 /**
@@ -268,7 +271,9 @@ export const MACHINE_SURFACES: readonly MachineSurface[] = [
 const CLAIMS: string[] = [
   'category: open-source calling infrastructure for human teams and AI voice agents',
   `pricing: ${PRICING.freelancer.name} $${PRICING.freelancer.price}/${PRICING.freelancer.period} · ${PRICING.organization.name} $${PRICING.organization.price}/${PRICING.organization.period} per organization, unlimited members`,
-  `calling: pay-as-you-go credits from ${formatPerMinute(CHEAPEST_PER_MINUTE_USD)}/min, billed separately from the plan`,
+  `calling: pay-as-you-go credits from ${CALL_RATE_FROM}/min, billed separately from the plan`,
+  'dialer: progressive and preview modes, one line per rep; no predictive or parallel dialing',
+  'bring your own carrier: an organization connects its SIP carrier or PBX as an extension; its numbers stay with the carrier',
   `numbers: local, toll-free and mobile numbers in ${PHONE_NUMBER_COUNTRIES.length} countries from ${formatMonthly(CHEAPEST_MONTHLY_USD)}/month, no setup fee in stock (types sourced on request can carry a one-time carrier fee)`,
   `voice-agent price: ${formatPerMinute(AI_VOICE_AGENT_PRICING.perMinuteUsd)}/min for the conversation, plus the per-minute price of the call it places`,
   'users: unlimited on the $20/month team plan. no per-user fees',
@@ -352,6 +357,17 @@ export function buildClaimsDocument(): string {
 
   sections.push(
     [
+      `## Solutions (${SOLUTIONS.length})`,
+      '',
+      ...SOLUTIONS.map(
+        (solution) =>
+          `- ${solution.name}: ${solution.tagline} → ${SITE_URL}${solution.path}`
+      )
+    ].join('\n')
+  );
+
+  sections.push(
+    [
       `## Features (${FEATURES.length})`,
       '',
       ...FEATURES.map(
@@ -387,6 +403,21 @@ export function buildClaimsDocument(): string {
       ...USE_CASES.map(
         (useCase) =>
           `- ${useCase.name}: ${useCase.tagline} → ${SITE_URL}/use-cases/${useCase.slug}`
+      )
+    ].join('\n')
+  );
+
+  sections.push(
+    [
+      `## Comparisons (${COMPARISONS.length + ALTERNATIVES.length})`,
+      '',
+      ...COMPARISONS.map(
+        (comparison) =>
+          `- Ringee vs ${comparison.competitor} → ${SITE_URL}/compare/${comparison.slug}`
+      ),
+      ...ALTERNATIVES.map(
+        (page) =>
+          `- ${page.competitor} alternatives → ${SITE_URL}/alternatives/${page.slug}`
       )
     ].join('\n')
   );

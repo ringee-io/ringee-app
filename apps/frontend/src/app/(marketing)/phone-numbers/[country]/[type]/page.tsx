@@ -3,7 +3,11 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ArrowRight, Clock, MapPin } from 'lucide-react';
 
-import { buildMetadata } from '@/features/marketing/seo';
+import {
+  buildMetadata,
+  fitDescription,
+  fitTitle
+} from '@/features/marketing/seo';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
@@ -39,6 +43,7 @@ import {
   numberTypeSlug,
   PHONE_NUMBER_COUNTRIES,
   PRICING_GENERATED_AT,
+  searchName,
   type PhoneNumberTypeSlug
 } from '@/features/marketing/content/phone-numbers';
 import { SITE_URL } from '@/features/marketing/site';
@@ -71,18 +76,30 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const price = formatMonthly(data.offer.monthlyFromUsd);
   const documents = data.offer.requirements.length;
   const setup = data.offer.setupUsd;
+  const name = searchName(data.country);
+  const label = data.meta.label;
+  const terms = isAdvanceOrder(data.offer)
+    ? `${setup ? `plus a ${formatMonthly(setup)} one-time setup fee, ` : ''}ordered on request`
+    : 'no setup fee';
+  // An empty list is not proof there is no paperwork (see `requirementsState`).
+  const paperwork = {
+    documents: `${documents} regulatory requirement${documents === 1 ? '' : 's'} listed in full`,
+    none: 'No documents required',
+    unknown: 'Requirements confirmed when you order'
+  }[requirementsState(data.offer)];
 
   return buildMetadata({
-    title: `${data.country.countryName} ${data.meta.label} Numbers — ${price}/month | Ringee`,
-    description: `${data.meta.label} phone numbers in ${data.country.countryName} for ${price}/month, ${
-      isAdvanceOrder(data.offer)
-        ? `${setup ? `plus a ${formatMonthly(setup)} one-time setup fee, ` : ''}ordered from the carrier on request`
-        : 'no setup fee'
-    }. ${
-      documents
-        ? `${documents} regulatory requirement${documents === 1 ? '' : 's'} listed in full`
-        : 'No documents required'
-    }, plus per-minute call rates and AI voice agent pricing.`,
+    title: fitTitle([
+      `${name} ${label} Phone Numbers — ${price}/mo | Ringee`,
+      `${name} ${label} Numbers — ${price}/mo | Ringee`,
+      `${name} ${label} Numbers — ${price}/mo`,
+      `${name} ${label} Numbers`
+    ]),
+    description: fitDescription([
+      `Get a ${name} ${label.toLowerCase()} phone number for ${price}/month, ${terms}. ${paperwork}, plus call rates and AI voice agent pricing.`,
+      `${name} ${label.toLowerCase()} phone numbers for ${price}/month, ${terms}. ${paperwork}.`,
+      `${name} ${label.toLowerCase()} phone numbers for ${price}/month.`
+    ]),
     path: `/phone-numbers/${data.country.slug}/${type}`
   });
 }

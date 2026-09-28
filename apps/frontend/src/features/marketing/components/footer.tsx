@@ -13,7 +13,7 @@ export function MarketingFooter() {
   return (
     <footer className='border-border/40 mt-8 border-t'>
       <Container className='py-14'>
-        <div className='grid grid-cols-2 gap-10 md:grid-cols-3 lg:grid-cols-6'>
+        <div className='grid grid-cols-2 gap-10 md:grid-cols-3 lg:grid-cols-7 lg:gap-8'>
           <div className='col-span-2 md:col-span-3 lg:col-span-1'>
             <Link
               href='/'

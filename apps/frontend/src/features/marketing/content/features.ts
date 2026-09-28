@@ -306,14 +306,14 @@ export const FEATURES: FeatureContent[] = [
     category: 'Communicate',
     icon: Megaphone,
     tagline:
-      'Group leads into focused calling campaigns and work the queue end to end.',
-    metaTitle: 'Outbound Calling Campaigns | Ringee',
+      'Progressive and preview calling campaigns your whole team works from one queue.',
+    metaTitle: 'Progressive Dialer & Calling Campaigns | Ringee',
     metaDescription:
-      'Organize leads into outbound calling campaigns. Ringee queues contacts, tracks progress, and keeps notes and outcomes attached to every call.',
-    h1: 'Run focused outbound calling campaigns',
+      'Run calling campaigns with a progressive or preview dialer: one queue for the team, with calling windows, retry limits and do-not-call checks built in.',
+    h1: 'Calling campaigns with a progressive dialer',
     intro: [
-      'Campaigns let you group a set of leads into a single, ordered calling queue. Instead of hunting for the next number, your reps press call and keep moving — Ringee serves the next contact automatically.',
-      'Each campaign keeps its own list, notes, outcomes, and progress, so you can see how a push is performing and where calls are landing.'
+      'Campaigns group your leads into one calling queue that the whole team works. In progressive mode Ringee dials the next lead as soon as a rep is free; in preview mode reps see each lead first and start the call themselves.',
+      'Each campaign keeps its own list, notes, outcomes and progress, and applies the rules that keep outbound compliant: calling windows, retry limits and do-not-call checks on every dial.'
     ],
     whoFor: [
       'SDR teams running outbound sequences',
@@ -328,21 +328,21 @@ export const FEATURES: FeatureContent[] = [
           'Import contacts or pull them from a connected lead source, then assign them to a campaign.'
       },
       {
-        title: 'Dial the queue',
+        title: 'Choose the mode',
         description:
-          'Reps work through the campaign one contact at a time, with the lead context in front of them on every call.'
+          'Pick progressive for volume or preview for accounts that need a look first, then set the caller ID, calling hours and attempt limit.'
       },
       {
-        title: 'Track outcomes',
+        title: 'Work the queue together',
         description:
-          'Outcomes and notes roll up to the campaign so you can see connects, callbacks, and conversions in one place.'
+          'Each lead is claimed by one rep at a time. Outcomes and notes roll up to the campaign, so connects, callbacks and conversions sit in one place.'
       }
     ],
     benefits: [
-      'Keep reps dialing instead of searching for numbers',
-      'See progress and outcomes per campaign',
-      'Reuse lists across follow-up rounds',
-      'Attach every note and result to the right campaign'
+      'Keep reps talking instead of dialing',
+      'Progressive or preview mode for each campaign',
+      'Calling windows, retry limits and do-not-call checks built in',
+      'See progress and outcomes per campaign'
     ],
     related: [
       'outbound-calling',
@@ -360,6 +360,22 @@ export const FEATURES: FeatureContent[] = [
         question: 'Can multiple reps work the same campaign?',
         answer:
           'Yes. Because every plan supports unlimited users on the Organization plan, your whole team can work shared campaigns.'
+      },
+      {
+        question:
+          'What is the difference between progressive and preview mode?',
+        answer:
+          'In progressive mode Ringee dials the next lead as soon as the rep finishes the last call. In preview mode the rep sees the lead first and decides when to call. Ringee never dials more leads than there are free reps, so nobody who answers is left waiting.'
+      },
+      {
+        question: 'Can a campaign avoid calling outside business hours?',
+        answer:
+          'Yes. Each campaign only dials inside the hours and days you set, in the time zone you choose — 8:00 to 21:00 every day by default.'
+      },
+      {
+        question: 'Which plan includes campaigns?',
+        answer:
+          'Campaigns are part of the Organization plan: $20/month for the whole organization, with unlimited users.'
       }
     ]
   },
@@ -553,10 +569,10 @@ export const FEATURES: FeatureContent[] = [
     icon: Mic,
     tagline:
       'Record calls automatically and keep a searchable history for coaching and compliance.',
-    metaTitle: 'Call Recording Software | Ringee',
+    metaTitle: 'Sales Call Recording Software | Ringee',
     metaDescription:
-      'Record outbound calls in Ringee with configurable settings. Keep a call history for coaching, quality review, and your own compliance needs.',
-    h1: 'Call recording for outbound teams',
+      'Record sales calls automatically, with each recording attached to its call and contact for coaching and review. Recording rules per organization or user.',
+    h1: 'Sales call recording software for outbound teams',
     intro: [
       'Ringee can record your calls so you keep an accurate record of what was said. Recordings attach to the call and contact, giving managers material for coaching and giving teams a reference when details matter.',
       'Recording behavior is configurable at the organization or user level, so you can apply the policy that fits your workflow and the rules that apply to your region.'
@@ -606,6 +622,11 @@ export const FEATURES: FeatureContent[] = [
         question: 'Is call recording legal?',
         answer:
           'Recording laws vary by country and region. Ringee gives you the controls; you are responsible for following the consent and notification rules that apply to your calls.'
+      },
+      {
+        question: 'Can I get a transcript without recording the call?',
+        answer:
+          'Yes. Recording and transcription are configured independently, so you can transcribe calls in real time without keeping the audio.'
       }
     ]
   },
@@ -615,14 +636,15 @@ export const FEATURES: FeatureContent[] = [
     category: 'Record & Learn',
     icon: Mic,
     tagline:
-      'Transcribe conversations in real time — with or without recording — into searchable text.',
-    metaTitle: 'Real-Time Call Transcription Software | Ringee',
+      'Real-time call transcription, plus AI analysis of objections and next steps across your calls.',
+    metaTitle: 'Call Transcription Software with AI Call Analysis | Ringee',
     metaDescription:
-      'Transcribe outbound calls in Ringee in real time, whether or not you record them. Convert conversations into searchable text so you can review calls faster and capture the details that matter.',
-    h1: 'Real-time call transcription that turns talk into text',
+      'Transcribe calls in real time, with or without recording, and let AI surface objections and next steps across your calls. Searchable text on every call.',
+    h1: 'Call transcription and AI call analysis',
     intro: [
       'Reading is faster than re-listening. Ringee transcribes your calls into searchable text — live as the conversation happens — so you can scan what was said, find the moment that matters, and capture details without replaying anything.',
-      'Transcription does not require recording. Ringee streams call audio to its transcription engine in real time, so you get a transcript even when you choose not to store the recording — ideal for teams that want the text but not the audio. Transcripts pair with outcomes (and recordings, when you keep them) to give every conversation a clear, reviewable record.'
+      'Transcription does not require recording. Ringee streams call audio to its transcription engine in real time, so you get a transcript even when you choose not to store the recording — ideal for teams that want the text but not the audio. Transcripts pair with outcomes (and recordings, when you keep them) to give every conversation a clear, reviewable record.',
+      'On top of the transcripts, Ringee’s AI pipelines analyze your calls. Objection intelligence ranks what most often stops prospects from buying and suggests a response your team can reuse; follow-up recommendations turn every outcome into the next best action, with a priority and a due date.'
     ],
     whoFor: [
       'Managers reviewing many calls quickly',
@@ -650,8 +672,8 @@ export const FEATURES: FeatureContent[] = [
     benefits: [
       'Review calls far faster than re-listening',
       'Real-time transcription, recorded or not',
-      'Searchable text attached to each call',
-      'Capture details you would otherwise miss'
+      'Objections ranked across your calls, with suggested responses',
+      'A prioritized next step for every meaningful call'
     ],
     related: ['call-recording', 'call-outcomes', 'ai-call-automation'],
     faqs: [
@@ -664,6 +686,16 @@ export const FEATURES: FeatureContent[] = [
         question: 'Can I search transcripts?',
         answer:
           'Transcripts are text attached to the call, so you can scan and find the parts of the conversation you need.'
+      },
+      {
+        question: 'What does the AI call analysis do?',
+        answer:
+          'Two AI pipelines work from your calls. Objection intelligence counts the objections across your conversations, ranks them, and suggests a response based on the patterns that win. Follow-up recommendations turn outcomes into a prioritized list of next actions, each with a reason and a suggested message.'
+      },
+      {
+        question: 'How are transcription and AI analysis billed?',
+        answer:
+          'By usage, from workspace credit — the same way as calls. There is no per-user fee for either.'
       }
     ]
   },

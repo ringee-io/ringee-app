@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import {
+  ArrowRight,
   AudioLines,
   BellRing,
   Bot,
@@ -32,11 +33,35 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { SITE_URL } from '@/features/marketing/site';
+import { PRICING, SITE_URL } from '@/features/marketing/site';
+import { CALL_RATE_FROM } from '@/features/marketing/content/phone-numbers';
+import { AI_VOICE_AGENT_SOLUTIONS } from '@/features/marketing/content/solutions';
 
 const PAGE_TITLE = 'AI Voice Agents That Make Real Calls | Ringee';
 const PAGE_DESCRIPTION =
-  'Build AI voice agents that place outbound calls, hold live conversations, book meetings, deliver reminders, and return recordings, transcripts, outcomes, and structured results.';
+  'AI voice agents that place real outbound calls, book meetings, deliver reminders and return the recording, transcript, outcome and structured results.';
+
+/** Where the hub sends readers who arrive with one job in mind. */
+const USE_CASES = AI_VOICE_AGENT_SOLUTIONS.map((solution) => ({
+  name: solution.name,
+  href: solution.path,
+  tagline: solution.tagline
+}));
+
+/** Ringee next to developer voice-AI platforms, stated at category level. */
+const PLATFORM_FIT = {
+  ringee: [
+    'Your human reps also make calls: they get a dialer, campaigns and the same call history as the agents.',
+    'You want the calling operation around the agent — numbers, prospecting, CRM sync, callbacks and meetings — without building it.',
+    'You want to run agents from ChatGPT or Claude through MCP, or from the CLI and API.',
+    'You want to audit the code or self-host the whole stack.'
+  ],
+  platform: [
+    'You are building voice AI into your own product and want low-level control of the voice pipeline.',
+    'Your use case is AI-only, with no human callers.',
+    'You have engineering time to assemble telephony, data and workflows around the agent.'
+  ]
+};
 
 export const metadata: Metadata = buildMetadata({
   title: PAGE_TITLE,
@@ -165,6 +190,15 @@ const FAQS: Faq[] = [
       'AI voice agents require an active organization workspace. A real call uses workspace credit and combines telephony with voice and model usage, so the final cost depends on the destination and the agent configuration. Browser test conversations do not place a phone call.'
   },
   {
+    question: 'How much does an AI voice agent cost?',
+    answer: `There is no per-seat fee for agents: they run on the Organization plan, $${PRICING.organization.price}/month for the whole organization. Each call is billed per minute from workspace credit — the phone call, from ${CALL_RATE_FROM}/min, plus the agent minute. The phone numbers pages list both prices for every country.`
+  },
+  {
+    question: 'How is Ringee different from Vapi, Retell AI or Synthflow?',
+    answer:
+      'Those are platforms for building voice agents. Ringee gives you the agent and the calling operation around it: phone numbers, a dialer and campaigns for your human reps, one shared call history, CRM sync, and control from ChatGPT or Claude through MCP — in an open-source stack you can self-host.'
+  },
+  {
     question: 'Can I use my own model API key?',
     answer:
       'Yes. You can use the Ringee-managed model option or select a supported provider and verify your own API key when configuring the agent.'
@@ -259,6 +293,35 @@ export default async function AiVoiceAgentsPage() {
                   {capability.description}
                 </p>
               </Card>
+            ))}
+          </div>
+        </Container>
+      </Section>
+
+      <Section id='use-cases' className='pt-0'>
+        <Container>
+          <SectionHeading
+            eyebrow='Use cases'
+            title='Where teams put AI voice agents to work'
+            description='Start from the job you want done. Each page covers the calls, guardrails and pricing for that use case.'
+            align='left'
+          />
+          <div className='mt-10 grid gap-5 sm:grid-cols-2'>
+            {USE_CASES.map((useCase) => (
+              <Link key={useCase.href} href={useCase.href}>
+                <Card className='hover:border-foreground/30 h-full transition-colors'>
+                  <div className='flex items-center justify-between gap-2'>
+                    <h3 className='text-lg font-semibold'>{useCase.name}</h3>
+                    <ArrowRight
+                      className='text-muted-foreground h-4 w-4'
+                      aria-hidden
+                    />
+                  </div>
+                  <p className='text-muted-foreground mt-2 text-sm text-pretty'>
+                    {useCase.tagline}
+                  </p>
+                </Card>
+              </Link>
             ))}
           </div>
         </Container>
@@ -448,6 +511,53 @@ export default async function AiVoiceAgentsPage() {
               <p className='mt-6 inline-flex font-semibold text-emerald-700 dark:text-emerald-300'>
                 You are on this page
               </p>
+            </Card>
+          </div>
+        </Container>
+      </Section>
+
+      <Section id='voice-ai-platforms'>
+        <Container>
+          <SectionHeading
+            eyebrow='Compared'
+            title='Ringee or a voice-AI platform?'
+            description='Developer platforms such as Vapi, Retell AI, Bland AI and Synthflow give you the building blocks of a voice agent. Ringee gives you the agent and the calling operation around it.'
+            align='left'
+          />
+          <div className='mt-10 grid gap-5 lg:grid-cols-2'>
+            <Card className='h-full border-emerald-500/25 bg-emerald-500/5 p-7'>
+              <h3 className='text-xl font-semibold'>Ringee fits better when</h3>
+              <ul className='mt-5 flex flex-col gap-3'>
+                {PLATFORM_FIT.ringee.map((item) => (
+                  <li key={item} className='flex items-start gap-3'>
+                    <Check
+                      className='mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400'
+                      aria-hidden
+                    />
+                    <span className='text-muted-foreground text-sm'>
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card className='h-full p-7'>
+              <h3 className='text-xl font-semibold'>
+                A voice-AI platform may fit better when
+              </h3>
+              <ul className='mt-5 flex flex-col gap-3'>
+                {PLATFORM_FIT.platform.map((item) => (
+                  <li key={item} className='flex items-start gap-3'>
+                    <Check
+                      className='text-muted-foreground mt-0.5 h-5 w-5 shrink-0'
+                      aria-hidden
+                    />
+                    <span className='text-muted-foreground text-sm'>
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </Card>
           </div>
         </Container>

@@ -1,22 +1,32 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { Check, X } from 'lucide-react';
+import { ArrowRight, Check, X } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
+  Card,
   CheckList,
   Container,
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { DetailHero } from '@/features/marketing/components/detail';
+import {
+  DetailHero,
+  HowItWorksSteps,
+  RelatedLinks
+} from '@/features/marketing/components/detail';
+import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import {
   COMPARISONS,
-  getComparison
+  getComparison,
+  type ComparisonRow
 } from '@/features/marketing/content/comparisons';
+import { getAlternatives } from '@/features/marketing/content/alternatives';
+import { SOLUTIONS } from '@/features/marketing/content/solutions';
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -35,12 +45,47 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
+/** A cell, marked when the row favors its side. */
+function Cell({
+  value,
+  favored,
+  muted
+}: {
+  value: string;
+  favored: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <td
+      className={
+        muted ? 'text-muted-foreground p-4 align-top' : 'p-4 align-top'
+      }
+    >
+      <span className='flex items-start gap-2'>
+        {favored ? (
+          <Check
+            className='mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400'
+            aria-label='Advantage'
+          />
+        ) : null}
+        <span>{value}</span>
+      </span>
+    </td>
+  );
+}
+
 export default async function ComparePage({ params }: Params) {
   const { slug } = await params;
   const comparison = getComparison(slug);
   if (!comparison) notFound();
 
   const path = `/compare/${comparison.slug}`;
+  const alternatives = getAlternatives(comparison.slug);
+  const related = SOLUTIONS.map((solution) => ({
+    name: solution.name,
+    href: solution.path,
+    tagline: solution.tagline
+  }));
 
   return (
     <DetailLayout
@@ -56,6 +101,17 @@ export default async function ComparePage({ params }: Params) {
         title={comparison.h1}
         intro={comparison.intro}
       />
+
+      {comparison.summary ? (
+        <Section className='pt-0 pb-0'>
+          <Container>
+            <Card className='border-emerald-500/25 bg-emerald-500/5'>
+              <h2 className='text-lg font-semibold'>The short answer</h2>
+              <CheckList items={comparison.summary} className='mt-4' />
+            </Card>
+          </Container>
+        </Section>
+      ) : null}
 
       <Section>
         <Container>
@@ -77,7 +133,7 @@ export default async function ComparePage({ params }: Params) {
                 </tr>
               </thead>
               <tbody>
-                {comparison.rows.map((row) => (
+                {comparison.rows.map((row: ComparisonRow) => (
                   <tr
                     key={row.label}
                     className='border-border/50 border-b last:border-0'
@@ -88,32 +144,43 @@ export default async function ComparePage({ params }: Params) {
                     >
                       {row.label}
                     </th>
-                    <td className='p-4 align-top'>
-                      <span className='flex items-start gap-2'>
-                        <Check
-                          className='mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400'
-                          aria-hidden
-                        />
-                        <span>{row.ringee}</span>
-                      </span>
-                    </td>
-                    <td className='text-muted-foreground p-4 align-top'>
-                      {row.competitor}
-                    </td>
+                    <Cell value={row.ringee} favored={row.edge === 'ringee'} />
+                    <Cell
+                      value={row.competitor}
+                      favored={row.edge === 'competitor'}
+                      muted
+                    />
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className='text-muted-foreground mt-4 text-xs'>
-            Comparison reflects each product&apos;s general positioning. Vendor
-            features and pricing change — verify {comparison.competitor}&apos;s
-            current details on its own website.
+            A check marks the side a row favors. Comparison reflects each
+            product&apos;s general positioning. Vendor features and pricing
+            change — verify {comparison.competitor}&apos;s current details on
+            its own website.
           </p>
         </Container>
       </Section>
 
-      <Section className='bg-muted/20'>
+      {comparison.perSeat ? (
+        <Section id='cost' className='bg-muted/20'>
+          <Container>
+            <SectionHeading
+              title='What your team would pay'
+              description={`${comparison.competitor} is priced per user. Enter the per-user price you pay or were quoted to compare it with Ringee’s flat team plan.`}
+              align='left'
+              as='h2'
+            />
+            <div className='mt-10'>
+              <ScalabilityCalculator />
+            </div>
+          </Container>
+        </Section>
+      ) : null}
+
+      <Section className={comparison.perSeat ? undefined : 'bg-muted/20'}>
         <Container>
           <div className='grid gap-10 md:grid-cols-2'>
             <div>
@@ -139,9 +206,26 @@ export default async function ComparePage({ params }: Params) {
               </ul>
             </div>
           </div>
+          {alternatives ? (
+            <Link
+              href={`/alternatives/${alternatives.slug}`}
+              className='mt-10 inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:underline dark:text-emerald-400'
+            >
+              See the best {comparison.competitor} alternatives
+              <ArrowRight className='h-4 w-4' aria-hidden />
+            </Link>
+          ) : null}
         </Container>
       </Section>
 
+      {comparison.switching ? (
+        <HowItWorksSteps
+          title={`Switching from ${comparison.competitor}`}
+          steps={comparison.switching}
+        />
+      ) : null}
+
+      <RelatedLinks title='Explore Ringee' items={related} />
       <FaqSection faqs={comparison.faqs} />
     </DetailLayout>
   );
