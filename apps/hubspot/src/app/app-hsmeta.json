@@ -1,5 +1,5 @@
 {
-  "uid": "ringee_app",
+  "uid": "Ringee_app",
   "type": "app",
   "config": {
     "name": "Ringee",
@@ -12,6 +12,7 @@
         "https://api.ringee.io/api/crm/hubspot/oauth/callback"
       ],
       "requiredScopes": [
+        "oauth",
         "crm.objects.contacts.read",
         "crm.objects.contacts.write",
         "crm.objects.companies.read",
@@ -22,9 +23,7 @@
       "conditionallyRequiredScopes": []
     },
     "permittedUrls": {
-      "fetch": [
-        "https://api.hubapi.com"
-      ],
+      "fetch": ["https://api.hubapi.com"],
       "iframe": [],
       "img": []
     },
