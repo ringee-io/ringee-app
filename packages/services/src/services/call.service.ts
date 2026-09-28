@@ -374,7 +374,7 @@ export class CallService implements OnModuleDestroy {
         fromNumber,
         { source: INBOUND_CALL_CONTACT_SOURCE },
       );
-      await this.callRepository.attachContact(callId, contact.id);
+      await this.callRepository.attachContact(ctx, callId, contact.id);
     } catch (error) {
       this.logger.warn(
         `Could not save the caller of inbound call ${callId} as a contact: ${(error as Error).message}`,

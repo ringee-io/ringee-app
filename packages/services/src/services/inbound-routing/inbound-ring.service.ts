@@ -126,27 +126,35 @@ export class InboundRingService {
 
   /**
    * Who is calling, as the person being rung should see them: the call's own
-   * contact, read again inside the call's workspace. A failed read is just no
-   * contact — it never keeps a call from ringing.
+   * contact, read again inside the call's workspace. A caller saved after this
+   * copy of the row was read (off the ring path) is linked on the stored row,
+   * so that is read when the copy has none. A failed read is just no contact —
+   * it never keeps a call from ringing.
    */
   private async callerContact(
     call: Call,
   ): Promise<RealtimeInboundCaller | null> {
-    if (!call.contactId || !call.userId) return null;
-    const contact = await this.contacts
-      .findByIdForOwner(
+    if (!call.userId) return null;
+    try {
+      const contactId =
+        call.contactId ??
+        (await this.callRepository.findById(call.id))?.contactId;
+      if (!contactId) return null;
+      const contact = await this.contacts.findByIdForOwner(
         { userId: call.userId, organizationId: call.organizationId },
-        call.contactId,
-      )
-      .catch(() => null);
-    if (!contact) return null;
-    return {
-      id: contact.id,
-      name: contact.name,
-      company: contact.company,
-      jobTitle: contact.jobTitle,
-      email: contact.email,
-    };
+        contactId,
+      );
+      if (!contact) return null;
+      return {
+        id: contact.id,
+        name: contact.name,
+        company: contact.company,
+        jobTitle: contact.jobTitle,
+        email: contact.email,
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**

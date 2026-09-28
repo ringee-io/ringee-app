@@ -819,12 +819,23 @@ export class CallRepository {
   }
 
   /**
-   * Links a contact that became known after the call row was written. Never
-   * replaces one already linked, so a late or repeated write is a no-op.
+   * Links a contact that became known after the call row was written. Both
+   * rows must be in `ctx`'s workspace, and a contact already linked is never
+   * replaced, so a late or repeated write is a no-op.
    */
-  async attachContact(callId: string, contactId: string): Promise<boolean> {
+  async attachContact(
+    ctx: OwnershipContext,
+    callId: string,
+    contactId: string,
+  ): Promise<boolean> {
+    const ownership = buildOwnershipFilter(ctx);
+    const contact = await this.prisma.contact.findFirst({
+      where: { id: contactId, deletedAt: null, ...ownership },
+      select: { id: true },
+    });
+    if (!contact) return false;
     const { count } = await this.prisma.call.updateMany({
-      where: { id: callId, contactId: null },
+      where: { id: callId, contactId: null, ...ownership },
       data: { contactId },
     });
     return count === 1;

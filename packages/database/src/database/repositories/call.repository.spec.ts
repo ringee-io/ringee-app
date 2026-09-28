@@ -260,3 +260,66 @@ describe("CallRepository receptionist transfer concurrency", () => {
     assert.equal(query.data.status, undefined);
   });
 });
+
+describe("CallRepository.attachContact", () => {
+  function build(contactInWorkspace: boolean) {
+    const lookups: Array<Record<string, unknown>> = [];
+    const updates: Array<Record<string, unknown>> = [];
+    const repository = new CallRepository({
+      contact: {
+        findFirst: async (input: { where: Record<string, unknown> }) => {
+          lookups.push(input.where);
+          return contactInWorkspace ? { id: "contact-1" } : null;
+        },
+      },
+      call: {
+        updateMany: async (input: Record<string, unknown>) => {
+          updates.push(input);
+          return { count: 1 };
+        },
+      },
+    } as never);
+    return { repository, lookups, updates };
+  }
+
+  it("links a contact of the call's workspace to a call with none", async () => {
+    for (const [ctx, scope] of [
+      [
+        { userId: "user-1", organizationId: "org-1" },
+        { organizationId: "org-1" },
+      ],
+      [
+        { userId: "user-1", organizationId: null },
+        { userId: "user-1", organizationId: null },
+      ],
+    ] as const) {
+      const { repository, lookups, updates } = build(true);
+      assert.equal(
+        await repository.attachContact(ctx, "call-1", "contact-1"),
+        true,
+      );
+      assert.deepEqual(lookups, [
+        { id: "contact-1", deletedAt: null, ...scope },
+      ]);
+      assert.deepEqual(updates, [
+        {
+          where: { id: "call-1", contactId: null, ...scope },
+          data: { contactId: "contact-1" },
+        },
+      ]);
+    }
+  });
+
+  it("never links a contact from another workspace", async () => {
+    const { repository, updates } = build(false);
+    assert.equal(
+      await repository.attachContact(
+        { userId: "user-1", organizationId: "org-1" },
+        "call-1",
+        "contact-2",
+      ),
+      false,
+    );
+    assert.deepEqual(updates, []);
+  });
+});

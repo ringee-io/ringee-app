@@ -24,7 +24,11 @@ const CALLER = {
   email: "pedro@example.com",
 };
 
-function setup(contact: Row | null | Error = CONTACT) {
+/**
+ * `linkedLater`: the contact was saved after this copy of the call row was
+ * read, so only the stored row names it.
+ */
+function setup(contact: Row | null | Error = CONTACT, linkedLater = false) {
   const call: Row = {
     id: "call",
     callControlId: "caller",
@@ -38,9 +42,14 @@ function setup(contact: Row | null | Error = CONTACT) {
     inboundDestinationType: "ai_receptionist",
     inboundTransferDestinationType: "extension",
   };
+  const stored: Row = { ...call };
+  if (linkedLater) call.contactId = null;
   const lookups: Row[] = [];
   const ringing: Row[] = [];
   const service = Object.assign(Object.create(InboundRingService.prototype), {
+    callRepository: {
+      findById: async (id: string) => (id === stored.id ? stored : null),
+    },
     contacts: {
       findByIdForOwner: async (ctx: Row, id: string) => {
         lookups.push({ ctx, id });
@@ -101,6 +110,20 @@ describe("Inbound caller contact", () => {
         ["member-b", CALLER, "Pedro Pica Piedra"],
       ],
     );
+  });
+
+  it("offers a caller saved after the call row was read", async () => {
+    const s = setup(CONTACT, true);
+    await s.offer(["member-a"]);
+    const leg = await s.service.browserLeg(
+      { userId: "member", organizationId: "org" },
+      "browser-leg",
+    );
+    assert.deepEqual(
+      s.ringing.map((event) => event.contact),
+      [CALLER],
+    );
+    assert.deepEqual(leg.contact, CALLER);
   });
 
   it("still rings, with no contact, when there is none or it cannot be read", async () => {

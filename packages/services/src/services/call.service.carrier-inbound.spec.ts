@@ -55,7 +55,7 @@ function setup() {
   const log: string[] = [];
   const transfers: Array<Record<string, unknown>> = [];
   const saved: Row[] = [];
-  const attached: Array<[string, string]> = [];
+  const attached: Row[] = [];
   const state = {
     carrier: IDENTIFIED as CarrierInboundCall,
     resolution: DESK_PHONE_ROUTE as InboundRouteResolution,
@@ -88,8 +88,8 @@ function setup() {
     updateControlState: async (id: string, data: Row) => {
       Object.assign(byControl(id)!, data);
     },
-    attachContact: async (id: string, contactId: string) => {
-      attached.push([id, contactId]);
+    attachContact: async (ctx: Row, id: string, contactId: string) => {
+      attached.push({ ctx, id, contactId });
       return true;
     },
     // The ordinary lifecycle: a leg with no row of its own is parked.
@@ -374,7 +374,13 @@ describe("CallService carrier inbound calls", () => {
         hint: { source: "inbound-call" },
       },
     ]);
-    assert.deepEqual(s.attached, [[row.id, "contact-new"]]);
+    assert.deepEqual(s.attached, [
+      {
+        ctx: { userId: "user-a", organizationId: "org-1" },
+        id: row.id,
+        contactId: "contact-new",
+      },
+    ]);
   });
 
   it("rings without waiting for the caller to be saved", async () => {
