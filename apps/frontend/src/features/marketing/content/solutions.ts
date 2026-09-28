@@ -879,6 +879,16 @@ export const SOLUTIONS: SolutionContent[] = [
         name: 'Self-hosted',
         href: '/self-hosted',
         tagline: 'Run the whole stack on your own infrastructure.'
+      },
+      {
+        name: 'Security',
+        href: '/security',
+        tagline: 'Encryption, workspace isolation and access controls.'
+      },
+      {
+        name: 'Open source',
+        href: '/open-source',
+        tagline: 'MIT licensed: audit every line that touches your calls.'
       }
     ],
     cta: {

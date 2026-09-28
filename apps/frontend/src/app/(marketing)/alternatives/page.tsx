@@ -19,7 +19,7 @@ import { CALL_RATE_FROM } from '@/features/marketing/content/phone-numbers';
 export const metadata: Metadata = buildMetadata({
   title: 'Ringee vs Aircall, Ringover, JustCall, Dapta & More',
   description:
-    'Compare Ringee with Aircall, Ringover, JustCall, Dapta, Kixie and Orum: flat pricing, AI voice agents, a progressive dialer, bring your own carrier and open source.',
+    'Compare Ringee with Aircall, Ringover, JustCall, Dapta, Kixie and Orum: flat pricing, AI voice agents, a progressive dialer, BYOC and open source.',
   path: '/alternatives'
 });
 

@@ -81,11 +81,23 @@ export default async function ComparePage({ params }: Params) {
 
   const path = `/compare/${comparison.slug}`;
   const alternatives = getAlternatives(comparison.slug);
-  const related = SOLUTIONS.map((solution) => ({
-    name: solution.name,
-    href: solution.path,
-    tagline: solution.tagline
-  }));
+  const related = [
+    ...SOLUTIONS.map((solution) => ({
+      name: solution.name,
+      href: solution.path,
+      tagline: solution.tagline
+    })),
+    {
+      name: 'Pricing',
+      href: '/pricing',
+      tagline: 'Free for one person, one flat price for the whole team.'
+    },
+    {
+      name: 'Phone numbers by country',
+      href: '/phone-numbers',
+      tagline: 'Prices and requirements for numbers in every country.'
+    }
+  ];
 
   return (
     <DetailLayout

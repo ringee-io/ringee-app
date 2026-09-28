@@ -22,7 +22,7 @@ import { PRICING, REQUEST_DEMO_URL, SITE_URL } from '@/features/marketing/site';
 export const metadata: Metadata = buildMetadata({
   title: 'Pricing — Free Freelancer, $20/mo Organization | Ringee',
   description:
-    'Ringee pricing: Freelancer is $0/month for human calling; Organization is $20/month with unlimited users, campaigns, and AI voice agents. Usage is pay as you go.',
+    'Freelancer is $0/month for human calling. Organization is $20/month with unlimited users, campaigns and AI voice agents. Calls are pay as you go.',
   path: '/pricing'
 });
 
