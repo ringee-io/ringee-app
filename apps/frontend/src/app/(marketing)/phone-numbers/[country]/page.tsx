@@ -3,7 +3,11 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ArrowRight, Clock, Info } from 'lucide-react';
 
-import { buildMetadata } from '@/features/marketing/seo';
+import {
+  buildMetadata,
+  fitDescription,
+  fitTitle
+} from '@/features/marketing/seo';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
@@ -34,6 +38,8 @@ import {
   numberTypeSlug,
   PHONE_NUMBER_COUNTRIES,
   PRICING_GENERATED_AT,
+  searchName,
+  typeList,
   type PhoneNumberCountry
 } from '@/features/marketing/content/phone-numbers';
 import { SITE_URL } from '@/features/marketing/site';
@@ -67,14 +73,23 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const from = formatMonthly(country.fromMonthlyUsd);
   const callFrom = cheapestCallRate(country);
+  const name = searchName(country);
+  const rates = callFrom
+    ? ` and call rates from ${formatPerMinute(callFrom)}/min`
+    : ' and per-minute call rates';
 
   return buildMetadata({
-    title: `${country.countryName} Phone Numbers — Pricing & Requirements | Ringee`,
-    description: `Buy a ${typeLabels(country)
-      .join(', ')
-      .toLowerCase()} phone number in ${country.countryName} from ${from}/month. See the regulatory documents required, per-minute call rates${
-      callFrom ? ` from ${formatPerMinute(callFrom)}/min` : ''
-    }, and what an AI voice agent costs per minute.`,
+    title: fitTitle([
+      `${name} Virtual Phone Numbers from ${from}/mo | Ringee`,
+      `${name} Virtual Phone Numbers from ${from}/mo`,
+      `${name} Virtual Phone Numbers | Ringee`,
+      `${name} Virtual Phone Numbers`
+    ]),
+    description: fitDescription([
+      `Get a ${name} virtual phone number for your business from ${from}/month. ${typeList(country)} numbers, the documents required${rates}.`,
+      `${name} virtual phone numbers for business from ${from}/month, with the documents required${rates}.`,
+      `${name} virtual phone numbers for business from ${from}/month.`
+    ]),
     path: `/phone-numbers/${country.slug}`
   });
 }
@@ -219,7 +234,7 @@ export default async function CountryPhoneNumbersPage({ params }: Params) {
             <span className='mr-2' aria-hidden>
               {country.flag}
             </span>
-            {country.countryName} phone numbers from {from}/month
+            {country.countryName} virtual phone numbers from {from}/month
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
             {typeLabels(country).join(', ')} numbers in {country.countryName},
@@ -296,6 +311,26 @@ export default async function CountryPhoneNumbersPage({ params }: Params) {
               </p>
             </Card>
           ) : null}
+          <Card className='mt-6 flex items-start gap-3'>
+            <Info
+              className='text-muted-foreground mt-0.5 h-5 w-5 shrink-0'
+              aria-hidden
+            />
+            <p className='text-muted-foreground text-sm'>
+              <span className='text-foreground font-medium'>
+                Already have {country.countryName} numbers with another carrier?
+              </span>{' '}
+              Keep them.{' '}
+              <Link
+                href='/byoc'
+                className='text-primary font-semibold hover:underline'
+              >
+                Bring your own carrier
+              </Link>{' '}
+              connects your SIP carrier or PBX to Ringee, so your team calls
+              through it without porting a single number.
+            </p>
+          </Card>
         </Container>
       </Section>
 
@@ -348,6 +383,13 @@ export default async function CountryPhoneNumbersPage({ params }: Params) {
                 className='text-primary mt-6 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline'
               >
                 See how AI voice agents work
+                <ArrowRight className='h-4 w-4' aria-hidden />
+              </Link>
+              <Link
+                href='/ai-voice-agents/outbound-calling'
+                className='text-primary mt-3 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline'
+              >
+                AI outbound calling from this number
                 <ArrowRight className='h-4 w-4' aria-hidden />
               </Link>
             </Card>

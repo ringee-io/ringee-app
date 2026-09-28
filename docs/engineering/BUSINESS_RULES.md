@@ -361,6 +361,16 @@ records the margins it ran with.
 - Never re-type a price into marketing copy or compute one in the frontend.
   Regenerate the snapshot instead — a hand-written figure is a figure that
   drifts from the invoice.
+- **One deliberate exception (2026-09-28): the headline calling price.**
+  Marketing copy outside the country pages quotes calls "from $0.012/min", a
+  floor chosen by the product owner. It exists once, as `CALL_RATE_FROM` in
+  `apps/frontend/src/features/marketing/content/phone-numbers.ts`, clamped to
+  never undercut the cheapest minute in the snapshot, so a moving rate deck
+  can only raise it and the "from" claim stays true. New copy imports it.
+  Older copy still writes the figure out — `marketing.json` (every locale),
+  `everywhere-mode.tsx`, the request-demo page, `public/llms.txt` and
+  `public/llms-full.txt` — and must change with it. Country pages and the
+  `/phone-numbers` index keep quoting the snapshot's own rates.
 - **Source of truth:** `packages/services/src/services/number-pricing-catalog.service.ts`
   and `country-rate.util.ts` (+ specs)
 - **Risk if violated:** a published price the product does not honour

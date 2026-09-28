@@ -25,11 +25,11 @@ import {
   softwareAppJsonLd
 } from '@/features/marketing/components/json-ld';
 import { PRICING, REQUEST_DEMO_URL, SITE_URL } from '@/features/marketing/site';
+import { CALL_RATE_FROM } from '@/features/marketing/content/phone-numbers';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Ringee — Calling Infrastructure for Humans & AI Agents',
-  description:
-    'Open calling infrastructure where human teams and AI voice agents place real calls from the same stack. Open source, self-hostable, and pay as you go.',
+  title: 'Ringee — AI Outbound Calling Platform for Humans & AI Agents',
+  description: `One calling stack for your reps and AI voice agents: a sales dialer, AI outbound calling and bring your own carrier. Open source, calls from ${CALL_RATE_FROM}/min.`,
   path: '/'
 });
 

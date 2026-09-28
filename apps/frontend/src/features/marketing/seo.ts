@@ -2,6 +2,31 @@ import type { Metadata } from 'next';
 
 import { SITE_LAST_MODIFIED, SITE_NAME, SITE_URL } from './site';
 
+/** Google truncates titles near 60 characters and descriptions near 155. */
+const TITLE_LIMIT = 60;
+const DESCRIPTION_LIMIT = 155;
+
+/**
+ * The first candidate that fits the limit, or the last one if none does.
+ * Templated pages (one per country, per number type) pass their preferred
+ * wording first and progressively shorter fallbacks after it, so a long
+ * country name drops the brand suffix instead of getting cut mid-word.
+ */
+function firstThatFits(candidates: string[], limit: number): string {
+  return (
+    candidates.find((candidate) => candidate.length <= limit) ??
+    candidates[candidates.length - 1]
+  );
+}
+
+export function fitTitle(candidates: string[]): string {
+  return firstThatFits(candidates, TITLE_LIMIT);
+}
+
+export function fitDescription(candidates: string[]): string {
+  return firstThatFits(candidates, DESCRIPTION_LIMIT);
+}
+
 /**
  * Builds a consistent Metadata object for a public marketing page:
  * unique title + description, canonical URL, and matching Open Graph /

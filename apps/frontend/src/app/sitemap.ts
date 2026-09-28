@@ -5,6 +5,8 @@ import { FEATURES } from '@/features/marketing/content/features';
 import { INTEGRATIONS } from '@/features/marketing/content/integrations';
 import { USE_CASES } from '@/features/marketing/content/use-cases';
 import { COMPARISONS } from '@/features/marketing/content/comparisons';
+import { ALTERNATIVES } from '@/features/marketing/content/alternatives';
+import { SOLUTIONS } from '@/features/marketing/content/solutions';
 import {
   listCountryTypePairs,
   PHONE_NUMBER_COUNTRIES
@@ -58,6 +60,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     path: `/compare/${comparison.slug}`,
     priority: 0.7
   }));
+  // Solution pages answer a buying search each (sales dialer, AI outbound
+  // calling, AI SDR, BYOC), so they rank with the main product pages.
+  const solutionPaths = SOLUTIONS.map((solution) => ({
+    path: solution.path,
+    priority: 0.9
+  }));
+  const alternativesPaths = ALTERNATIVES.map((page) => ({
+    path: `/alternatives/${page.slug}`,
+    priority: 0.7
+  }));
   // One page per country, then one per country/number-type pair. Both are
   // generated from the committed pricing snapshot, so the sitemap can never
   // list a country page that was not built.
@@ -72,10 +84,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     ...staticPaths,
+    ...solutionPaths,
     ...featurePaths,
     ...integrationPaths,
     ...useCasePaths,
     ...comparisonPaths,
+    ...alternativesPaths,
     ...countryPaths,
     ...numberTypePaths
   ].map(({ path, priority }) => ({
