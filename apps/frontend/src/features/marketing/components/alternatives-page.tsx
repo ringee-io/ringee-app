@@ -123,7 +123,9 @@ export function AlternativesPage({
     <DetailLayout
       items={[
         { name: labels.home, href: '/' },
-        { name: labels.alternatives, href: '/alternatives' },
+        ...(locale === 'es'
+          ? []
+          : [{ name: labels.alternatives, href: '/alternatives' }]),
         { name: labels.alternativesName(page.competitor), href: path }
       ]}
       cta={

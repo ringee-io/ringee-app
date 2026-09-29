@@ -136,7 +136,6 @@ export const ES_ALTERNATIVES: (AlternativesContent & { path: string })[] = [
       },
       {
         name: 'Kixie',
-        compareSlug: 'kixie',
         bestFor:
           'Equipos SDR centrados en power dialer y automatización del CRM',
         pricingModel: 'Por usuario al mes',
