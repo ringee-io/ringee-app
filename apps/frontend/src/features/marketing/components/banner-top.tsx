@@ -13,6 +13,8 @@
  * label, just a hairline lift in the glow on hover. It should read as part of
  * the hero's identity until you touch it.
  */
+import { useMarketingLocale } from '../locale.client';
+import { siteText } from '../site';
 import { useState } from 'react';
 
 import { ManualDialerPreview } from './manual-dialer-preview';
@@ -413,6 +415,8 @@ function BannerArt({ p, className }: { p: BannerPalette; className: string }) {
 }
 
 export function MarketingTopBanner() {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   return (
@@ -420,7 +424,7 @@ export function MarketingTopBanner() {
       <button
         type='button'
         onClick={() => setPreviewOpen(true)}
-        aria-label='Preview Ringee Manual Dialer'
+        aria-label={text('Preview Ringee Manual Dialer')}
         aria-haspopup='dialog'
         // The art's own top fade is dropped — nothing sits above the band here.
         // It dissolves downward instead, so it butts against the navbar with no

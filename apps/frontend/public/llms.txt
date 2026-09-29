@@ -126,3 +126,16 @@
 - [Privacy policy](https://www.ringee.io/privacy): How Ringee handles your data.
 - [Terms of service](https://www.ringee.io/terms): Terms governing use of Ringee.
 - [Support](https://www.ringee.io/support): Get help and contact the team.
+
+## En español
+
+- [Marcador de ventas](https://www.ringee.io/es/sales-dialer)
+- [Conecta tu operador (BYOC)](https://www.ringee.io/es/byoc)
+- [Llamadas salientes con IA](https://www.ringee.io/es/ai-voice-agents/outbound-calling)
+- [SDR con IA](https://www.ringee.io/es/ai-voice-agents/ai-sdr)
+- [Ringee vs Aircall](https://www.ringee.io/es/compare/aircall)
+- [Ringee vs Ringover](https://www.ringee.io/es/compare/ringover)
+- [Ringee vs JustCall](https://www.ringee.io/es/compare/justcall)
+- [Ringee vs Dapta](https://www.ringee.io/es/compare/dapta)
+- [Alternativas a Aircall](https://www.ringee.io/es/alternatives/aircall)
+- [Alternativas a Ringover](https://www.ringee.io/es/alternatives/ringover)

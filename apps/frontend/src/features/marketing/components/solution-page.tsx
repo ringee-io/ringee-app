@@ -2,6 +2,13 @@ import type { Metadata } from 'next';
 import { Check } from 'lucide-react';
 
 import { buildMetadata } from '../seo';
+import {
+  languageAlternates,
+  marketingLocaleFromPath,
+  type MarketingLocale
+} from '../locale';
+import { marketingLabels } from '../labels';
+import { LanguageLink } from './language-link';
 import { SITE_URL } from '../site';
 import type { SolutionContent, SolutionSection } from '../content/solutions';
 import { CtaSection } from './cta-section';
@@ -27,7 +34,9 @@ export function solutionMetadata(solution: SolutionContent): Metadata {
   return buildMetadata({
     title: solution.metaTitle,
     description: solution.metaDescription,
-    path: solution.path
+    path: solution.path,
+    locale: marketingLocaleFromPath(solution.path),
+    languages: languageAlternates(solution.path.replace(/^\/es(?=\/)/, ''))
   });
 }
 
@@ -138,9 +147,16 @@ function SolutionSectionBlock({
  * order a buyer reads: what it is, who it is for, what it does, how to start,
  * the comparisons and guardrails, what it costs, then the FAQ.
  */
-export function SolutionPage({ solution }: { solution: SolutionContent }) {
+export function SolutionPage({
+  solution,
+  locale = marketingLocaleFromPath(solution.path)
+}: {
+  solution: SolutionContent;
+  locale?: MarketingLocale;
+}) {
+  const labels = marketingLabels(locale);
   const crumbs = [
-    { name: 'Home', href: '/' },
+    { name: labels.home, href: '/' },
     ...(solution.parent ? [solution.parent] : []),
     { name: solution.name, href: solution.path }
   ];
@@ -153,18 +169,25 @@ export function SolutionPage({ solution }: { solution: SolutionContent }) {
           title={solution.cta.title}
           description={solution.cta.description}
           ai={solution.ai}
+          primaryLabel={labels.primaryLabel}
+          secondaryLabel={labels.secondaryLabel}
         />
       }
     >
+      <LanguageLink path={solution.path} locale={locale} />
       <DetailHero
         eyebrow={solution.eyebrow}
         title={solution.h1}
         intro={solution.intro}
+        primaryLabel={labels.primaryLabel}
+        secondaryLabel={labels.secondaryLabel}
       />
 
       <WhoForAndBenefits
         whoFor={solution.whoFor}
         benefits={solution.benefits}
+        whoForTitle={labels.whoFor}
+        benefitsTitle={labels.benefits}
       />
 
       <NamedSection title={solution.capabilitiesTitle} muted>
@@ -209,23 +232,24 @@ export function SolutionPage({ solution }: { solution: SolutionContent }) {
             </div>
             <div className='flex flex-col gap-3 sm:flex-row lg:flex-col'>
               <ButtonLink href='/pricing' variant='secondary'>
-                See plans
+                {labels.plans}
               </ButtonLink>
               <ButtonLink href='/phone-numbers' variant='secondary'>
-                Rates by country
+                {labels.rates}
               </ButtonLink>
             </div>
           </div>
         </Container>
       </Section>
 
-      <RelatedLinks title='Related' items={solution.related} />
-      <FaqSection faqs={solution.faqs} />
+      <RelatedLinks title={labels.related} items={solution.related} />
+      <FaqSection faqs={solution.faqs} title={labels.faq} />
 
       <JsonLd
         data={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
+          inLanguage: locale,
           '@id': `${SITE_URL}${solution.path}#webpage`,
           url: `${SITE_URL}${solution.path}`,
           name: solution.metaTitle,

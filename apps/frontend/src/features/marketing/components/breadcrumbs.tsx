@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { MarketingLink as Link } from './marketing-link';
 import { ChevronRight } from 'lucide-react';
 
 import { Container } from './primitives';
@@ -13,7 +13,14 @@ export type Crumb = { name: string; href: string };
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
     <Container>
-      <nav aria-label='Breadcrumb' className='pt-8'>
+      <nav
+        aria-label={
+          items.at(-1)?.href.startsWith('/es/')
+            ? 'Ruta de navegación'
+            : 'Breadcrumb'
+        }
+        className='pt-8'
+      >
         <ol className='text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm'>
           {items.map((item, index) => {
             const isLast = index === items.length - 1;

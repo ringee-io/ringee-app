@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
+import { MarketingLink as Link } from './marketing-link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -24,17 +24,25 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 import { Logo } from '@/features/landing/components/navbar/logo';
-import { CTA, DOCS_URL, MAIN_NAV, PRODUCT_MENU } from '../site';
+import { DOCS_URL, siteText } from '../site';
+import { useMarketingLocale } from '../locale.client';
+import { marketingNavigation } from '../navigation';
 
 const GROUP_ICONS: Record<string, LucideIcon> = {
   Communicate: PhoneOutgoing,
   'Record & Learn': Mic,
   Automate: Bot,
   Sync: RefreshCw,
-  Control: Waypoints
+  Control: Waypoints,
+  Comunicar: PhoneOutgoing,
+  'Grabar y aprender': Mic,
+  Automatizar: Bot,
+  Sincronizar: RefreshCw
 };
 
 function ThemeToggle() {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -42,7 +50,7 @@ function ThemeToggle() {
   return (
     <button
       type='button'
-      aria-label='Toggle color theme'
+      aria-label={text('Toggle color theme')}
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       className='border-border/70 text-muted-foreground hover:text-foreground hover:border-foreground/30 hidden h-9 w-9 items-center justify-center rounded-lg border transition-colors sm:inline-flex'
     >
@@ -56,6 +64,9 @@ function ThemeToggle() {
 }
 
 function ProductMenu() {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
+  const { productMenu } = marketingNavigation(locale);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [panelTop, setPanelTop] = useState(64);
@@ -135,7 +146,7 @@ function ProductMenu() {
             : 'text-foreground/80 hover:text-foreground hover:bg-accent/40'
         )}
       >
-        Product
+        {text('Product')}
         <ChevronDown
           className={cn('h-4 w-4 transition-transform', open && 'rotate-180')}
         />
@@ -196,7 +207,7 @@ function ProductMenu() {
 
                 <div className='relative z-10 max-h-[calc(100dvh-4rem)] overflow-y-auto px-6 py-9 sm:px-10 lg:px-12 lg:py-10 xl:px-16'>
                   <div className='grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'>
-                    {PRODUCT_MENU.map((group) => {
+                    {productMenu.map((group) => {
                       const Icon = GROUP_ICONS[group.title] ?? PhoneOutgoing;
                       return (
                         <div key={group.title}>
@@ -240,14 +251,16 @@ function ProductMenu() {
                       onClick={close}
                       className='inline-flex items-center gap-1 text-emerald-600 hover:underline dark:text-emerald-400'
                     >
-                      All features <ArrowRight className='h-3.5 w-3.5' />
+                      {text('All features')}{' '}
+                      <ArrowRight className='h-3.5 w-3.5' />
                     </Link>
                     <Link
                       href='/integrations'
                       onClick={close}
                       className='inline-flex items-center gap-1 text-emerald-600 hover:underline dark:text-emerald-400'
                     >
-                      Integrations <ArrowRight className='h-3.5 w-3.5' />
+                      {text('Integrations')}{' '}
+                      <ArrowRight className='h-3.5 w-3.5' />
                     </Link>
                     <Link
                       href={DOCS_URL}
@@ -256,7 +269,8 @@ function ProductMenu() {
                       onClick={close}
                       className='inline-flex items-center gap-1 text-emerald-600 hover:underline dark:text-emerald-400'
                     >
-                      Developer docs <ArrowRight className='h-3.5 w-3.5' />
+                      {text('Developer docs')}{' '}
+                      <ArrowRight className='h-3.5 w-3.5' />
                     </Link>
                   </div>
                 </div>
@@ -270,6 +284,9 @@ function ProductMenu() {
 }
 
 function MobileMenu() {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
+  const { mainNav, productMenu, cta } = marketingNavigation(locale);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -287,7 +304,7 @@ function MobileMenu() {
     <div className='xl:hidden'>
       <button
         type='button'
-        aria-label='Open menu'
+        aria-label={text('Open menu')}
         onClick={() => setOpen(true)}
         className='border-border/70 inline-flex h-9 w-9 items-center justify-center rounded-lg border'
       >
@@ -305,7 +322,7 @@ function MobileMenu() {
                 </Link>
                 <button
                   type='button'
-                  aria-label='Close menu'
+                  aria-label={text('Close menu')}
                   onClick={() => setOpen(false)}
                   className='border-border/70 inline-flex h-9 w-9 items-center justify-center rounded-lg border'
                 >
@@ -314,7 +331,7 @@ function MobileMenu() {
               </div>
 
               <div className='flex flex-col gap-6 px-6 py-6'>
-                {PRODUCT_MENU.map((group) => {
+                {productMenu.map((group) => {
                   const Icon = GROUP_ICONS[group.title] ?? PhoneOutgoing;
                   return (
                     <div key={group.title}>
@@ -340,7 +357,7 @@ function MobileMenu() {
                 })}
 
                 <div className='border-border/50 flex flex-col gap-3 border-t pt-5'>
-                  {MAIN_NAV.map((link) => (
+                  {mainNav.map((link) => (
                     <Link
                       key={link.href}
                       href={link.href}
@@ -353,14 +370,14 @@ function MobileMenu() {
                 </div>
 
                 <div className='mt-2 flex flex-col gap-3'>
-                  <Link href={CTA.login.href} onClick={() => setOpen(false)}>
+                  <Link href={cta.login.href} onClick={() => setOpen(false)}>
                     <Button variant='outline' className='w-full'>
-                      {CTA.login.label}
+                      {cta.login.label}
                     </Button>
                   </Link>
-                  <Link href={CTA.primary.href} onClick={() => setOpen(false)}>
+                  <Link href={cta.primary.href} onClick={() => setOpen(false)}>
                     <Button className='w-full bg-emerald-700 text-white hover:bg-emerald-700/90'>
-                      {CTA.primary.label}
+                      {cta.primary.label}
                       <ArrowRight className='h-4 w-4' aria-hidden />
                     </Button>
                   </Link>
@@ -375,6 +392,9 @@ function MobileMenu() {
 }
 
 export function MarketingNavbar() {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
+  const { mainNav, cta } = marketingNavigation(locale);
   const pathname = usePathname();
   return (
     <header className='border-border/40 bg-background/80 sticky top-0 z-50 border-b backdrop-blur-md'>
@@ -384,16 +404,16 @@ export function MarketingNavbar() {
         className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent'
       /> */}
       <nav
-        aria-label='Primary'
+        aria-label={text('Primary')}
         className='mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6 lg:px-8'
       >
         <div className='flex items-center gap-2'>
-          <Link href='/' aria-label='Ringee home' className='shrink-0'>
+          <Link href='/' aria-label={text('Ringee home')} className='shrink-0'>
             <Logo priority />
           </Link>
           <div className='ml-2 hidden items-center gap-0.5 xl:flex'>
             <ProductMenu />
-            {MAIN_NAV.map((link) => {
+            {mainNav.map((link) => {
               const active =
                 pathname === link.href || pathname.startsWith(`${link.href}/`);
               return (
@@ -401,7 +421,8 @@ export function MarketingNavbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'rounded-lg py-2 text-sm font-medium whitespace-nowrap transition-colors',
+                    locale === 'es' ? 'px-2' : 'px-3',
                     active
                       ? 'text-foreground bg-accent/60'
                       : 'text-foreground/80 hover:text-foreground hover:bg-accent/40'
@@ -416,14 +437,14 @@ export function MarketingNavbar() {
 
         <div className='flex items-center gap-2 sm:gap-3'>
           <ThemeToggle />
-          <Link href={CTA.login.href} className='hidden sm:inline-flex'>
+          <Link href={cta.login.href} className='hidden sm:inline-flex'>
             <Button variant='ghost' className='font-medium'>
-              {CTA.login.label}
+              {cta.login.label}
             </Button>
           </Link>
-          <Link href={CTA.primary.href} className='hidden sm:inline-flex'>
+          <Link href={cta.primary.href} className='hidden sm:inline-flex'>
             <Button className='bg-emerald-700 text-white shadow-sm hover:bg-emerald-700/90'>
-              {CTA.primary.label}
+              {cta.primary.label}
               <ArrowRight className='h-4 w-4' aria-hidden />
             </Button>
           </Link>

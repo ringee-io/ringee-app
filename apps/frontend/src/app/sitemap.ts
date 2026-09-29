@@ -1,4 +1,8 @@
 import type { MetadataRoute } from 'next';
+import {
+  SPANISH_MARKETING_PATHS,
+  languageAlternates
+} from '@/features/marketing/locale';
 
 import { SITE_LAST_MODIFIED, SITE_URL } from '@/features/marketing/site';
 import { FEATURES } from '@/features/marketing/content/features';
@@ -83,6 +87,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   return [
+    ...Array.from(SPANISH_MARKETING_PATHS, (path) => ({
+      path: `/es${path}`,
+      priority: 0.7
+    })),
     ...staticPaths,
     ...solutionPaths,
     ...featurePaths,
@@ -94,6 +102,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...numberTypePaths
   ].map(({ path, priority }) => ({
     url: path === '/' ? SITE_URL : `${SITE_URL}${path}`,
+    alternates: {
+      languages: languageAlternates(path.replace(/^\/es(?=\/)/, ''))
+    },
     lastModified,
     changeFrequency: 'weekly',
     priority

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { MarketingLink as Link } from './marketing-link';
 import type { ReactNode } from 'react';
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
 

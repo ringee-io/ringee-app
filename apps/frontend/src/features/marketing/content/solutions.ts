@@ -661,7 +661,7 @@ export const SOLUTIONS: SolutionContent[] = [
     pricing: {
       title: 'Sales dialer pricing',
       body: [
-        `Freelancer: $${PRICING.freelancer.price}/month for one person — the browser, app and Chrome extension dialer, recording, transcription, callbacks, meetings and CRM sync.`,
+        `Freelancer: $${PRICING.freelancer.price}/month for one person — manual calling in the browser, apps and Chrome extension, manually worked call sessions, recording, transcription, callbacks, meetings and CRM sync.`,
         `Organization: ${TEAM_PRICE} for the whole organization with unlimited users, adding shared calling campaigns and AI voice agents.`,
         `Calls are pay as you go from workspace credit, from ${CALL_RATE_FROM}/min. The rate for every country is on the phone numbers pages.`
       ]
@@ -723,7 +723,7 @@ export const SOLUTIONS: SolutionContent[] = [
       {
         question: 'Is there a free sales dialer?',
         answer:
-          'Yes. The Freelancer plan is free for one person: manual dialing from the browser, the Chrome extension and the apps, plus call sessions — contact queues you can work in progressive or preview mode, created from ChatGPT, Claude, the CLI or the API. Shared team campaigns need the Organization plan.'
+          'Yes. The Freelancer plan is free for one person: manual dialing from the browser, the Chrome extension and the apps, plus call sessions — contact queues you work manually, created from ChatGPT, Claude, the CLI or the API. Shared team campaigns need the Organization plan.'
       },
       {
         question: 'Does the dialer work with my CRM?',

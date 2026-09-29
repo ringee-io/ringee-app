@@ -408,3 +408,187 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     ]
   }
 ];
+
+/** Spanish text for the canonical navigation; destinations and structure stay shared. */
+const SITE_TEXT_ES: Record<string, string> = {
+  'Ask AI': 'Pregunta a la IA',
+  'Ask AI about this page': 'Pregunta a la IA sobre esta página',
+  'Open it in your assistant, pre-filled and ready.':
+    'Ábrela en tu asistente con la consulta preparada.',
+  'Open in ChatGPT': 'Abrir en ChatGPT',
+  'Read this page in ChatGPT': 'Lee esta página en ChatGPT',
+  'Open in Claude': 'Abrir en Claude',
+  'Read this page in Claude': 'Lee esta página en Claude',
+  'Open in Gemini': 'Abrir en Gemini',
+  'Copy the prompt and open Gemini': 'Copia la consulta y abre Gemini',
+  'View as Markdown': 'Ver como Markdown',
+  'Open a clean plain-text version': 'Abre una versión de texto sin formato',
+  'Copy as Markdown': 'Copiar como Markdown',
+  'Copy the page to your clipboard': 'Copia la página al portapapeles',
+  'Prompt copied \u2014 paste it into Gemini':
+    'Consulta copiada: pégala en Gemini',
+  'Page copied as Markdown': 'Página copiada como Markdown',
+  'Could not copy to clipboard': 'No se pudo copiar al portapapeles',
+  'Preview Ringee Manual Dialer': 'Ver el marcador manual de Ringee',
+  'Manual Dialer': 'Marcador manual',
+  'Call any number instantly from Ringee.':
+    'Llama al instante a cualquier número desde Ringee.',
+  'Close preview': 'Cerrar vista previa',
+  'Screen recording of the Ringee manual dialer placing a call':
+    'Grabación del marcador manual de Ringee haciendo una llamada',
+
+  'Request demo': 'Solicitar demo',
+  'View pricing': 'Ver precios',
+  'Log in': 'Entrar',
+  'AI Voice Agents': 'Agentes de voz con IA',
+  'Sales Dialer': 'Marcador de ventas',
+  Pricing: 'Precios',
+  'Use Cases': 'Casos de uso',
+  Integrations: 'Integraciones',
+  'Open Source': 'Código abierto',
+  Communicate: 'Comunicar',
+  'Calls, campaigns, outcomes, callbacks, and meetings.':
+    'Llamadas, campañas, resultados, devoluciones de llamada y reuniones.',
+  'Sales dialer': 'Marcador de ventas',
+  'Progressive and preview dialing for teams':
+    'Marcación progresiva y preview para equipos',
+  'Outbound calling': 'Llamadas salientes',
+  'Browser-based international dialing':
+    'Llamadas internacionales desde el navegador',
+  Campaigns: 'Campañas',
+  'Progressive dialing campaigns for teams':
+    'Campañas de marcación progresiva para equipos',
+  'Phone numbers': 'Números virtuales',
+  'Local, toll-free and mobile numbers by country':
+    'Números locales, gratuitos y móviles por país',
+  'Caller ID rotation': 'Rotación del identificador',
+  'Local-presence dialing for higher pickup':
+    'Presencia local para recibir más respuestas',
+  'Call outcomes': 'Resultados de llamadas',
+  'Log a result on every call': 'Registra un resultado en cada llamada',
+  Callbacks: 'Devoluciones de llamada',
+  'Never miss a scheduled call-back': 'No pierdas una llamada programada',
+  Meetings: 'Reuniones',
+  'Book and sync demos instantly': 'Agenda y sincroniza demos al instante',
+  'Record & Learn': 'Grabar y aprender',
+  'Record calls, transcribe conversations, review history.':
+    'Graba llamadas, transcribe conversaciones y revisa el historial.',
+  'Call recording': 'Grabación de llamadas',
+  'Capture every conversation': 'Guarda cada conversación',
+  'Call transcription': 'Transcripción de llamadas',
+  'Accurate, searchable transcripts':
+    'Transcripciones precisas que puedes buscar',
+  'Call history': 'Historial de llamadas',
+  'Replay and audit past calls': 'Escucha y revisa llamadas anteriores',
+  'Conversation review': 'Revisión de conversaciones',
+  'Coach reps with real calls':
+    'Forma a tus representantes con llamadas reales',
+  Automate: 'Automatizar',
+  'Orchestrate outbound and run AI-led phone conversations.':
+    'Organiza llamadas salientes y conversaciones telefónicas con IA.',
+  'Agents that place calls and hold conversations':
+    'Agentes que llaman y mantienen conversaciones',
+  'AI outbound calling': 'Llamadas salientes con IA',
+  'Agents that place your outbound calls':
+    'Agentes que hacen tus llamadas salientes',
+  'AI SDR': 'SDR con IA',
+  'Calls leads, qualifies and books meetings':
+    'Llama a prospectos, cualifica y agenda reuniones',
+  'AI call automation': 'Automatización de llamadas con IA',
+  'Automate human-led and AI-led workflows':
+    'Automatiza flujos de llamadas humanas y de IA',
+  'ChatGPT workflows': 'Flujos con ChatGPT',
+  'Dial straight from ChatGPT': 'Llama directamente desde ChatGPT',
+  'Claude workflows': 'Flujos con Claude',
+  'Run Ringee inside Claude': 'Usa Ringee dentro de Claude',
+  'MCP-compatible agents': 'Agentes compatibles con MCP',
+  'Connect any MCP-based agent': 'Conecta cualquier agente basado en MCP',
+  'CLI workflows': 'Flujos con CLI',
+  'Script calls from your terminal': 'Programa llamadas desde tu terminal',
+  Sync: 'Sincronizar',
+  'Connect lead sources, CRMs, and your calendar to your calling.':
+    'Conecta fuentes de prospectos, CRM y calendario con tus llamadas.',
+  'CRM sync': 'Sincronización del CRM',
+  'Keep your CRM in step': 'Mantén tu CRM actualizado',
+  'Dialer SDK': 'SDK del marcador',
+  'Embed the dialer in your own app': 'Integra el marcador en tu propia app',
+  Apollo: 'Apollo',
+  'Pull and enrich Apollo leads': 'Incorpora y enriquece prospectos de Apollo',
+  Prospeo: 'Prospeo',
+  'Enrich contacts with Prospeo': 'Enriquece contactos con Prospeo',
+  Attio: 'Attio',
+  'Two-way Attio sync': 'Sincronización bidireccional con Attio',
+  Odoo: 'Odoo',
+  'Connect your Odoo CRM': 'Conecta tu CRM de Odoo',
+  'Google Calendar': 'Google Calendar',
+  'Sync meetings to your calendar':
+    'Sincroniza las reuniones con tu calendario',
+  Control: 'Control',
+  'Manage workspaces, teams, security, and hosting.':
+    'Gestiona espacios de trabajo, equipos, seguridad y alojamiento.',
+  'Workspace management': 'Gestión de espacios de trabajo',
+  'Personal and team workspaces': 'Espacios personales y de equipo',
+  'Team access': 'Acceso del equipo',
+  'Control who can see what': 'Controla quién puede ver cada recurso',
+  Security: 'Seguridad',
+  'Encryption and access controls': 'Cifrado y controles de acceso',
+  'Bring your own carrier': 'Conecta tu operador (BYOC)',
+  'Keep your carrier and your numbers': 'Conserva tu operador y tus números',
+  'Self-hosted option': 'Alojamiento propio',
+  'Run Ringee on your own infra': 'Ejecuta Ringee en tu infraestructura',
+  Product: 'Producto',
+  'Phone numbers by country': 'Números virtuales por país',
+  'Apps & extensions': 'Apps y extensiones',
+  'All features': 'Todas las funciones',
+  ChatGPT: 'ChatGPT',
+  Claude: 'Claude',
+  'All integrations': 'Todas las integraciones',
+  'Use cases': 'Casos de uso',
+  'SDR teams': 'Equipos SDR',
+  Recruiters: 'Reclutadores',
+  Agencies: 'Agencias',
+  Freelancers: 'Profesionales independientes',
+  Startups: 'Startups',
+  'Outbound sales': 'Ventas por teléfono',
+  Resources: 'Recursos',
+  'Developer docs': 'Documentación para desarrolladores',
+  Blog: 'Blog',
+  Roadmap: 'Hoja de ruta',
+  'CLI on npm': 'CLI en npm',
+  'Dialer SDK on npm': 'SDK del marcador en npm',
+  'Chrome extension': 'Extensión de Chrome',
+  'iOS app': 'App de iOS',
+  'Android app': 'App de Android',
+  GitHub: 'GitHub',
+  Compare: 'Comparar',
+  'vs Aircall': 'vs Aircall',
+  'vs Ringover': 'vs Ringover',
+  'vs JustCall': 'vs JustCall',
+  'vs Dapta': 'vs Dapta',
+  'Aircall alternatives': 'Alternativas a Aircall',
+  'All comparisons': 'Todas las comparativas',
+  Company: 'Empresa',
+  About: 'Quiénes somos',
+  Alternatives: 'Alternativas',
+  'Open source': 'Código abierto',
+  'Self-hosted': 'Alojamiento propio',
+  Privacy: 'Privacidad',
+  Terms: 'Condiciones',
+  Support: 'Soporte',
+  'Toggle color theme': 'Cambiar tema de color',
+  'Open menu': 'Abrir menú',
+  'Close menu': 'Cerrar menú',
+  Primary: 'Navegación principal',
+  'Ringee home': 'Inicio de Ringee',
+  'Ringee on GitHub': 'Ringee en GitHub',
+  'Ringee on X': 'Ringee en X',
+  'Ringee on Reddit': 'Ringee en Reddit',
+  'Open calling infrastructure for human teams and AI voice agents.':
+    'Infraestructura abierta de llamadas para equipos y agentes de voz con IA.',
+  'One calling stack for humans and AI.':
+    'Una plataforma de llamadas para personas e IA.'
+};
+
+export function siteText(text: string, locale: 'en' | 'es'): string {
+  return locale === 'es' ? (SITE_TEXT_ES[text] ?? text) : text;
+}

@@ -191,13 +191,14 @@ export const COMPARISONS: ComparisonContent[] = [
         label: 'AI agents & automation',
         ringee:
           'MCP server for Claude, ChatGPT and any MCP client, plus a CLI and API',
-        competitor: 'API, webhooks and an integration marketplace'
+        competitor:
+          'API, webhooks, integration marketplace and external MCP tools for AI agents'
       },
       {
         label: 'Keep your numbers',
         ringee: 'Bring your own carrier: connect your SIP carrier or PBX',
-        competitor: 'Numbers are bought from or ported to Aircall',
-        edge: 'ringee'
+        competitor:
+          'Buy or port numbers; BYOC is configured through Sales or Account Management'
       },
       {
         label: 'Inbound call center',
@@ -305,7 +306,7 @@ export const COMPARISONS: ComparisonContent[] = [
         label: 'AI agents & automation',
         ringee:
           'MCP server for Claude, ChatGPT and any MCP client, plus a CLI and API',
-        competitor: 'API and integrations'
+        competitor: 'MCP server, API and integrations'
       },
       {
         label: 'Keep your numbers',
@@ -400,13 +401,12 @@ export const COMPARISONS: ComparisonContent[] = [
         label: 'AI agents & automation',
         ringee:
           'MCP server for Claude, ChatGPT and any MCP client, plus a CLI and API',
-        competitor: 'Public API and CRM integrations'
+        competitor: 'Public API, CRM integrations and read-only MCP server'
       },
       {
         label: 'Keep your numbers',
         ringee: 'Bring your own carrier: connect your SIP carrier or PBX',
-        competitor: 'Number porting into Ringover',
-        edge: 'ringee'
+        competitor: 'Number porting and BYOC with a compatible carrier'
       },
       {
         label: 'Inbound call center',

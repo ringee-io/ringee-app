@@ -14,7 +14,8 @@ import {
   DropdownMenuTrigger
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 
-import { SITE_NAME, SITE_URL } from '../site';
+import { SITE_NAME, SITE_URL, siteText } from '../site';
+import { useMarketingLocale } from '../locale.client';
 
 /* -------------------------------------------------------------------------- */
 /*  Brand marks                                                               */
@@ -256,6 +257,8 @@ function MenuRow({
  * ready-made prompt — or exposes the page as plain Markdown.
  */
 export function AskAi() {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
   const pathname = usePathname();
 
   // Canonical, publicly reachable URL (so the assistant can fetch the page even
@@ -264,8 +267,10 @@ export function AskAi() {
 
   const buildPrompt = useCallback(() => {
     const title = document.title || SITE_NAME;
+    if (locale === 'es')
+      return `Estoy leyendo la página de ${SITE_NAME} "${title}". Léela en ${pageUrl}, dame un resumen breve y responde después a mis preguntas sobre ella.`;
     return `I'm reading the ${SITE_NAME} page "${title}". Please read it at ${pageUrl}, give me a concise overview, and then answer my follow-up questions about it.`;
-  }, [pageUrl]);
+  }, [pageUrl, locale]);
 
   const openInChatGpt = useCallback(() => {
     const q = encodeURIComponent(buildPrompt());
@@ -290,7 +295,8 @@ export function AskAi() {
   const openInGemini = useCallback(() => {
     const prompt = buildPrompt();
     void navigator.clipboard?.writeText(prompt).then(
-      () => toast.success('Prompt copied — paste it into Gemini'),
+      () =>
+        toast.success(siteText('Prompt copied — paste it into Gemini', locale)),
       () => undefined
     );
     window.open(
@@ -298,7 +304,7 @@ export function AskAi() {
       '_blank',
       'noopener,noreferrer'
     );
-  }, [buildPrompt]);
+  }, [buildPrompt, locale]);
 
   const viewAsMarkdown = useCallback(() => {
     const markdown = buildPageMarkdown(pageUrl);
@@ -312,23 +318,23 @@ export function AskAi() {
   const copyAsMarkdown = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(buildPageMarkdown(pageUrl));
-      toast.success('Page copied as Markdown');
+      toast.success(siteText('Page copied as Markdown', locale));
     } catch {
-      toast.error('Could not copy to clipboard');
+      toast.error(siteText('Could not copy to clipboard', locale));
     }
-  }, [pageUrl]);
+  }, [pageUrl, locale]);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type='button'
-          aria-label='Ask AI about this page'
-          className='group border-border/70 bg-background/90 focus-visible:ring-offset-background fixed bottom-4 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border py-2.5 pr-3 pl-4 text-sm font-semibold shadow-lg shadow-black/5 backdrop-blur-md transition-all hover:border-emerald-500/50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:bottom-6'
+          aria-label={text('Ask AI about this page')}
+          className='group border-border/70 bg-background/90 focus-visible:ring-offset-background fixed right-4 bottom-4 z-40 inline-flex h-11 w-11 items-center justify-center gap-2 rounded-full border p-0 text-sm font-semibold shadow-lg shadow-black/5 backdrop-blur-md transition-all hover:border-emerald-500/50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 sm:bottom-6 sm:h-auto sm:w-auto sm:py-2.5 sm:pr-3 sm:pl-4'
         >
           <Sparkles className='size-4 text-emerald-600 dark:text-emerald-400' />
-          Ask AI
-          <ChevronDown className='text-muted-foreground size-4 transition-transform group-data-[state=open]:rotate-180' />
+          <span className='hidden sm:inline'>{text('Ask AI')}</span>
+          <ChevronDown className='text-muted-foreground hidden size-4 transition-transform group-data-[state=open]:rotate-180 sm:block' />
         </button>
       </DropdownMenuTrigger>
 
@@ -340,32 +346,32 @@ export function AskAi() {
       >
         <div className='px-2 pt-1 pb-2'>
           <p className='text-foreground text-sm font-semibold'>
-            Ask AI about this page
+            {text('Ask AI about this page')}
           </p>
           <p className='text-muted-foreground text-xs'>
-            Open it in your assistant, pre-filled and ready.
+            {text('Open it in your assistant, pre-filled and ready.')}
           </p>
         </div>
 
         <MenuRow
           icon={<ChatGptIcon />}
           tileClassName='bg-muted/50'
-          title='Open in ChatGPT'
-          subtitle='Read this page in ChatGPT'
+          title={text('Open in ChatGPT')}
+          subtitle={text('Read this page in ChatGPT')}
           onSelect={openInChatGpt}
         />
         <MenuRow
           icon={<ClaudeIcon />}
           tileClassName='bg-[#D97757]/10'
-          title='Open in Claude'
-          subtitle='Read this page in Claude'
+          title={text('Open in Claude')}
+          subtitle={text('Read this page in Claude')}
           onSelect={openInClaude}
         />
         <MenuRow
           icon={<GeminiIcon />}
           tileClassName='bg-blue-500/10'
-          title='Open in Gemini'
-          subtitle='Copy the prompt and open Gemini'
+          title={text('Open in Gemini')}
+          subtitle={text('Copy the prompt and open Gemini')}
           onSelect={openInGemini}
         />
 
@@ -374,15 +380,15 @@ export function AskAi() {
         <MenuRow
           icon={<MarkdownIcon />}
           tileClassName='bg-muted/50'
-          title='View as Markdown'
-          subtitle='Open a clean plain-text version'
+          title={text('View as Markdown')}
+          subtitle={text('Open a clean plain-text version')}
           onSelect={viewAsMarkdown}
         />
         <MenuRow
           icon={<MarkdownIcon />}
           tileClassName='bg-muted/50'
-          title='Copy as Markdown'
-          subtitle='Copy the page to your clipboard'
+          title={text('Copy as Markdown')}
+          subtitle={text('Copy the page to your clipboard')}
           onSelect={() => void copyAsMarkdown()}
           external={false}
         />

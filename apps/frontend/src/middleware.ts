@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
@@ -9,6 +9,16 @@ const isProtectedRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   if (isProtectedRoute(req)) await auth.protect();
+
+  const headers = new Headers(req.headers);
+  headers.delete('x-ringee-locale');
+  if (
+    req.nextUrl.pathname === '/es' ||
+    req.nextUrl.pathname.startsWith('/es/')
+  ) {
+    headers.set('x-ringee-locale', 'es');
+  }
+  return NextResponse.next({ request: { headers } });
 });
 export const config = {
   matcher: [
