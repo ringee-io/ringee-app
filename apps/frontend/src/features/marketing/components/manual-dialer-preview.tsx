@@ -1,5 +1,7 @@
 'use client';
 
+import { useMarketingLocale } from '../locale.client';
+import { siteText } from '../site';
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   useCallback,
@@ -43,6 +45,8 @@ export function ManualDialerPreview({
   open,
   onClose
 }: ManualDialerPreviewProps) {
+  const locale = useMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -159,10 +163,10 @@ export function ManualDialerPreview({
               id={titleId}
               className='text-base font-semibold tracking-tight text-white sm:text-lg'
             >
-              Manual Dialer
+              {text('Manual Dialer')}
             </h2>
             <p id={descriptionId} className='mt-1 text-sm text-white/55'>
-              Call any number instantly from Ringee.
+              {text('Call any number instantly from Ringee.')}
             </p>
           </div>
 
@@ -170,7 +174,7 @@ export function ManualDialerPreview({
             ref={closeRef}
             type='button'
             onClick={onClose}
-            aria-label='Close preview'
+            aria-label={text('Close preview')}
             className='inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-white/60 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:outline-none'
           >
             <X className='h-4 w-4' />
@@ -190,7 +194,9 @@ export function ManualDialerPreview({
               loop
               playsInline
               preload='auto'
-              aria-label='Screen recording of the Ringee manual dialer placing a call'
+              aria-label={text(
+                'Screen recording of the Ringee manual dialer placing a call'
+              )}
               className='h-full w-full object-contain'
             />
           </div>

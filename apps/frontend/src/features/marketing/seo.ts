@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { MarketingLocale } from './locale';
 
 import { SITE_LAST_MODIFIED, SITE_NAME, SITE_URL } from './site';
 
@@ -37,13 +38,17 @@ export function buildMetadata({
   description,
   path,
   ogTitle,
-  ogDescription
+  ogDescription,
+  languages,
+  locale = 'en'
 }: {
   title: string;
   description: string;
   path: string;
   ogTitle?: string;
   ogDescription?: string;
+  languages?: Record<string, string>;
+  locale?: MarketingLocale;
 }): Metadata {
   const canonical = path === '/' ? SITE_URL : `${SITE_URL}${path}`;
   const resolvedOgTitle = ogTitle ?? title;
@@ -52,13 +57,13 @@ export function buildMetadata({
   return {
     title,
     description,
-    alternates: { canonical },
+    alternates: { canonical, languages },
     // Freshness signal for AI engines (Google AI Overviews, Perplexity, Gemini)
     // and search crawlers. Reflects the current build/deploy.
     other: { 'article:modified_time': SITE_LAST_MODIFIED },
     openGraph: {
       type: 'website',
-      locale: 'en_US',
+      locale: locale === 'es' ? 'es_ES' : 'en_US',
       url: canonical,
       siteName: `${SITE_NAME}.io`,
       title: resolvedOgTitle,

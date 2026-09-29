@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { MarketingLink as Link } from './marketing-link';
 import {
   IconBrandGithub,
   IconBrandReddit,
@@ -6,9 +6,14 @@ import {
 } from '@tabler/icons-react';
 
 import { Container } from './primitives';
-import { FOOTER_COLUMNS, GITHUB_URL, SITE_NAME } from '../site';
+import { GITHUB_URL, SITE_NAME, siteText } from '../site';
+import { getMarketingLocale } from '../locale.server';
+import { marketingNavigation } from '../navigation';
 
-export function MarketingFooter() {
+export async function MarketingFooter() {
+  const locale = await getMarketingLocale();
+  const text = (value: string) => siteText(value, locale);
+  const { footerColumns } = marketingNavigation(locale);
   const year = new Date().getFullYear();
   return (
     <footer className='border-border/40 mt-8 border-t'>
@@ -18,16 +23,18 @@ export function MarketingFooter() {
             <Link
               href='/'
               className='text-lg font-bold tracking-tight'
-              aria-label='Ringee home'
+              aria-label={text('Ringee home')}
             >
               Ringee
             </Link>
             <p className='text-muted-foreground mt-3 max-w-xs text-sm text-pretty'>
-              Open calling infrastructure for human teams and AI voice agents.
+              {text(
+                'Open calling infrastructure for human teams and AI voice agents.'
+              )}
             </p>
           </div>
 
-          {FOOTER_COLUMNS.map((column) => (
+          {footerColumns.map((column) => (
             <nav key={column.title} aria-label={column.title}>
               {/* Not a heading: keeps the per-page heading outline focused on
                   page content. The nav's aria-label provides the group name. */}
@@ -56,14 +63,15 @@ export function MarketingFooter() {
 
         <div className='border-border/40 mt-12 flex flex-col-reverse items-center justify-between gap-5 border-t pt-8 sm:flex-row'>
           <p className='text-muted-foreground text-sm'>
-            &copy; {year} {SITE_NAME}. One calling stack for humans and AI.
+            &copy; {year} {SITE_NAME}.{' '}
+            {text('One calling stack for humans and AI.')}
           </p>
           <div className='text-muted-foreground flex items-center gap-5'>
             <Link
               href={GITHUB_URL}
               target='_blank'
               rel='noreferrer noopener'
-              aria-label='Ringee on GitHub'
+              aria-label={text('Ringee on GitHub')}
               className='hover:text-foreground'
             >
               <IconBrandGithub className='h-5 w-5' />
@@ -72,7 +80,7 @@ export function MarketingFooter() {
               href='https://x.com/ringeeio'
               target='_blank'
               rel='noreferrer noopener'
-              aria-label='Ringee on X'
+              aria-label={text('Ringee on X')}
               className='hover:text-foreground'
             >
               <IconBrandX className='h-5 w-5' />
@@ -81,7 +89,7 @@ export function MarketingFooter() {
               href='https://www.reddit.com/r/ringee/'
               target='_blank'
               rel='noreferrer noopener'
-              aria-label='Ringee on Reddit'
+              aria-label={text('Ringee on Reddit')}
               className='hover:text-foreground'
             >
               <IconBrandReddit className='h-5 w-5' />

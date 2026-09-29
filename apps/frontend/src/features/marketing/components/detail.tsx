@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { MarketingLink as Link } from './marketing-link';
 import type { ReactNode } from 'react';
 import { ArrowRight, BookOpen, X } from 'lucide-react';
 
@@ -17,11 +17,15 @@ import {
 export function DetailHero({
   eyebrow,
   title,
-  intro
+  intro,
+  primaryLabel,
+  secondaryLabel
 }: {
   eyebrow: string;
   title: string;
   intro: string[];
+  primaryLabel?: string;
+  secondaryLabel?: string;
 }) {
   return (
     <Section className='pt-10 pb-8 sm:pt-12'>
@@ -40,7 +44,11 @@ export function DetailHero({
             </p>
           ))}
         </div>
-        <CtaButtons className='mt-8' />
+        <CtaButtons
+          className='mt-8'
+          primaryLabel={primaryLabel}
+          secondaryLabel={secondaryLabel}
+        />
       </Container>
     </Section>
   );

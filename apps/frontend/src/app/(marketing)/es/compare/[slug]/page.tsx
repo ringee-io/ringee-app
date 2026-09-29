@@ -2,31 +2,31 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/features/marketing/seo';
 import { languageAlternates } from '@/features/marketing/locale';
-import { AlternativesPage } from '@/features/marketing/components/alternatives-page';
+import { ComparisonPage } from '@/features/marketing/components/comparison-page';
 import {
-  ALTERNATIVES,
-  getAlternatives
-} from '@/features/marketing/content/alternatives';
+  ES_COMPARISONS,
+  getEsComparison
+} from '@/features/marketing/content/es/comparisons';
 
 type Params = { params: Promise<{ slug: string }> };
 export function generateStaticParams() {
-  return ALTERNATIVES.map((page) => ({ slug: page.slug }));
+  return ES_COMPARISONS.map((page) => ({ slug: page.slug }));
 }
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const page = getAlternatives(slug);
+  const page = getEsComparison(slug);
   if (!page) notFound();
   return buildMetadata({
     title: page.metaTitle,
     description: page.metaDescription,
-    path: `/alternatives/${page.slug}`,
-    locale: 'en',
-    languages: languageAlternates(`/alternatives/${page.slug}`)
+    path: `/es/compare/${page.slug}`,
+    locale: 'es',
+    languages: languageAlternates(`/compare/${page.slug}`)
   });
 }
 export default async function Page({ params }: Params) {
   const { slug } = await params;
-  const page = getAlternatives(slug);
+  const page = getEsComparison(slug);
   if (!page) notFound();
-  return <AlternativesPage page={page} locale='en' />;
+  return <ComparisonPage comparison={page} locale='es' />;
 }

@@ -24,6 +24,9 @@ import { COMPARISONS } from './comparisons';
 import { FEATURES } from './features';
 import { INTEGRATION_CATEGORIES, INTEGRATIONS } from './integrations';
 import { SOLUTIONS } from './solutions';
+import { ES_SOLUTIONS } from './es/solutions';
+import { ES_COMPARISONS } from './es/comparisons';
+import { ES_ALTERNATIVES } from './es/alternatives';
 import { USE_CASES } from './use-cases';
 
 /**
@@ -426,5 +429,15 @@ export function buildClaimsDocument(): string {
     ['## Constraints', '', ...CONSTRAINTS.map((c) => `- ${c}`)].join('\n')
   );
 
+  sections.push(
+    [
+      '## En español',
+      '',
+      ...[...ES_SOLUTIONS, ...ES_COMPARISONS, ...ES_ALTERNATIVES].map(
+        (page) =>
+          `- [${page.h1}](${SITE_URL}${page.path}): ${page.metaDescription}`
+      )
+    ].join('\n')
+  );
   return `${sections.join('\n\n')}\n`;
 }

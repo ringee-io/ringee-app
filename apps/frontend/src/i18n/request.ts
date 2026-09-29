@@ -10,21 +10,23 @@ import { loadMessages } from './messages';
 
 /**
  * Resolves the locale for a server-rendered request.
- * Priority: cookie → Accept-Language header → English fallback.
+ * Priority: trusted URL locale → cookie → Accept-Language → English fallback.
  *
  * The `next-intl` plugin wires this into every server component so SSR
  * markup is rendered in the user's language and avoids hydration flicker.
  */
 export default getRequestConfig(async () => {
+  const headerStore = await headers();
   const cookieStore = await cookies();
   const fromCookie = cookieStore.get(COOKIE_NAME)?.value;
 
   let locale = DEFAULT_LOCALE;
 
-  if (fromCookie && isSupportedLocale(fromCookie)) {
+  if (headerStore.get('x-ringee-locale') === 'es') {
+    locale = 'es';
+  } else if (fromCookie && isSupportedLocale(fromCookie)) {
     locale = fromCookie;
   } else {
-    const headerStore = await headers();
     const acceptLanguage = headerStore.get('accept-language');
     if (acceptLanguage) {
       const preferred = acceptLanguage.split(',')[0]?.trim().split(';')[0];

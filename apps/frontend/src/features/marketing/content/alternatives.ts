@@ -251,7 +251,7 @@ export const ALTERNATIVES: AlternativesContent[] = [
       'Per-user pricing, typically with a minimum number of users',
       'An inbound call-center design when the team mostly calls out',
       'AI voice agents and AI automation that need their own add-ons or tools',
-      'Numbers that have to be bought from or ported to the platform'
+      'BYOC setup that requires Sales or Account Management assistance'
     ],
     criteria: [
       {
@@ -377,7 +377,7 @@ export const ALTERNATIVES: AlternativesContent[] = [
     reasons: [
       'Per-user pricing, even for people who call occasionally',
       'Wanting AI voice agents for outbound, not only for answering calls',
-      'Wanting to keep numbers with the current carrier',
+      'Comparing BYOC compatibility and costs to keep the current carrier',
       'A preference for open source or self-hosting'
     ],
     criteria: [

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
+import { useMarketingLocale } from '../locale.client';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 type TocItem = { id: string; text: string };
@@ -61,6 +62,8 @@ function collectHeadings(): TocItem[] {
  */
 export function PageToc() {
   const pathname = usePathname();
+  const label =
+    useMarketingLocale() === 'es' ? 'En esta página' : 'On this page';
   const [items, setItems] = useState<TocItem[]>([]);
   const [activeId, setActiveId] = useState<string>('');
 
@@ -100,9 +103,9 @@ export function PageToc() {
   if (items.length < 2) return null;
 
   return (
-    <nav aria-label='On this page' className='text-sm'>
+    <nav aria-label={label} className='text-sm'>
       <p className='text-muted-foreground mb-3 px-4 text-xs font-semibold tracking-wide uppercase'>
-        On this page
+        {label}
       </p>
       <ul className='border-border/60 border-l'>
         {items.map((item) => {

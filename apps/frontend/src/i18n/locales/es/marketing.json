@@ -747,5 +747,11 @@
     "annual": "{amount} en un año",
     "note": "Comparación ilustrativa de suscripciones, no una cotización. No incluye llamadas, números ni uso de IA.",
     "noSavings": "Sin ahorro de suscripción con este precio."
+  },
+  "conversion": {
+    "teamPlan": "Usuarios ilimitados. Un plan de equipo de ${price}/mes.",
+    "usage": "Cuenta individual gratuita. El uso de llamadas se factura por separado.",
+    "aiUsage": "Los agentes de voz con IA requieren el plan de equipo. Llamadas, voz y modelo se facturan por separado.",
+    "description": "Empieza con una cuenta individual gratuita o incorpora a todo tu equipo. Código abierto, llamadas de pago por uso y sin tarifas por usuario."
   }
 }
