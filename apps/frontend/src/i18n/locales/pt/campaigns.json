@@ -37,9 +37,9 @@
       "description": "Apenas administradores da organização e membros atribuídos podem abri-la. Peça a um administrador para o adicionar."
     },
     "back": "Voltar às campanhas",
-    "activate": "Ativar",
-    "pause": "Pausar",
-    "resume": "Retomar",
+    "activate": "Ativar campanha",
+    "pause": "Pausar campanha",
+    "resume": "Retomar campanha",
     "complete": "Concluir",
     "openDialer": "Abrir marcador",
     "completeDialog": {
@@ -64,7 +64,9 @@
       "members": "Membros",
       "dispositions": "Classificações",
       "analytics": "Análises",
-      "settings": "Definições"
+      "settings": "Definições",
+      "results": "Resultados",
+      "team": "Equipe"
     },
     "toasts": {
       "activated": "Campanha ativada.",
@@ -72,6 +74,80 @@
       "completed": "Campanha concluída.",
       "updated": "Campanha atualizada.",
       "statusError": "Não foi possível atualizar o estado da campanha. Tente novamente."
+    },
+    "backShort": "Campanhas",
+    "startCalling": "Começar a ligar",
+    "viewResults": "Ver resultados",
+    "moreActions": "Mais ações",
+    "completeEllipsis": "Concluir campanha…",
+    "activateBlocked": "Adicione pelo menos um lead e uma classificação para ativá-la.",
+    "config": {
+      "everyDay": "Todos os dias",
+      "attempts": "{count, plural, one {# tentativa} other {# tentativas}}",
+      "edit": "Editar",
+      "editLong": "Editar definições"
+    },
+    "loadError": {
+      "title": "Não foi possível carregar esta campanha",
+      "description": "Verifique sua conexão e tente novamente.",
+      "retry": "Tentar novamente"
+    },
+    "pausedNotice": {
+      "title": "Esta campanha está em pausa",
+      "description": "Nenhuma chamada será feita até que um administrador a retome."
+    },
+    "draftNotice": {
+      "title": "Esta campanha ainda não está ativa",
+      "description": "Um administrador ainda a está preparando. Você poderá começar a ligar assim que ela for ativada."
+    },
+    "kpis": {
+      "error": "Não foi possível carregar os números da campanha.",
+      "retry": "Tentar novamente",
+      "dialed": "Leads discados",
+      "dialedDetail": "de {total} ({percent}%)",
+      "contactRate": "Taxa de contato",
+      "contactRateDetail": "{connected} de {attempts} chamadas atendidas",
+      "conversions": "Conversões",
+      "conversionsDetail": "{rate}% das chamadas · reuniões e vendas",
+      "conversionsHint": "Reuniões agendadas e vendas",
+      "talkTime": "Conversa média",
+      "talkTimeDetail": "por chamada atendida",
+      "progressLabel": "Leads por etapa",
+      "groups": {
+        "toCall": "para ligar",
+        "inProgress": "em andamento",
+        "followUp": "em acompanhamento",
+        "done": "concluídos",
+        "closedOut": "esgotados ou não contactar"
+      }
+    },
+    "readiness": {
+      "title": "Prepare a campanha para o lançamento",
+      "progress": "{done} de {total} etapas obrigatórias concluídas",
+      "leads": {
+        "todo": "Adicione leads para ligar",
+        "done": "{count, plural, one {# lead pronto} other {# leads prontos}}",
+        "hint": "Importe um CSV ou adicione os leads um a um.",
+        "action": "Adicionar leads"
+      },
+      "dispositions": {
+        "todo": "Configure as classificações",
+        "done": "{count, plural, one {# classificação configurada} other {# classificações configuradas}}",
+        "hint": "O agente escolhe uma após cada chamada: Interessado, Não interessado, Ligar de volta…",
+        "action": "Configurar classificações"
+      },
+      "number": {
+        "done": "As chamadas saem do número da campanha",
+        "auto": "As chamadas saem de qualquer número da sua organização",
+        "hint": "Se preferir, escolha um número ou identificador de chamada específico nas definições.",
+        "action": "Escolher número"
+      },
+      "team": {
+        "todo": "Atribua agentes (opcional)",
+        "done": "{count, plural, one {# agente atribuído} other {# agentes atribuídos}}",
+        "hint": "Só os membros atribuídos podem ligar para esta campanha. Os administradores sempre podem.",
+        "action": "Atribuir agentes"
+      }
     }
   },
   "fields": {
@@ -183,7 +259,8 @@
       "status": "Estado",
       "attempts": "Tentativas",
       "lastCall": "Última chamada",
-      "actions": "Ações"
+      "actions": "Ações",
+      "lastOutcome": "Último resultado"
     },
     "removeDialog": {
       "title": "Remover este lead?",
@@ -194,7 +271,15 @@
     "toasts": {
       "removed": "{name} foi removido da campanha.",
       "removeError": "Não foi possível remover o lead. Tente novamente."
-    }
+    },
+    "error": {
+      "title": "Não foi possível carregar os leads",
+      "description": "Verifique sua conexão e tente novamente.",
+      "retry": "Tentar novamente"
+    },
+    "openContact": "Abrir contato",
+    "noOutcome": "Sem resultado",
+    "openCall": "Ver a chamada"
   },
   "addLead": {
     "title": "Adicionar lead manualmente",

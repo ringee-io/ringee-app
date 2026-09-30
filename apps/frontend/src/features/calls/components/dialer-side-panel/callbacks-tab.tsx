@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarClock,
   ExternalLink,
+  Loader2,
   MoreHorizontal,
   Phone,
   User as UserIcon,
@@ -48,6 +49,7 @@ export function CallbacksTab({
   refresh
 }: CallbacksTabProps) {
   const t = useTranslations('dialer.sidePanel.callbacks');
+  const tStatus = useTranslations('calls.callbacks.list.statuses');
   const tRel = useTranslations('dialer.sidePanel.relative');
   const relativeT: RelativeT = (key, vars) => tRel(key, vars);
   const api = useApi();
@@ -110,7 +112,7 @@ export function CallbacksTab({
             <div className='min-w-0 flex-1'>
               <div className='flex items-center gap-2'>
                 <Link
-                  href={`/dashboard/contacts/${cb.contactId}`}
+                  href={`/dashboard/contact/${cb.contactId}`}
                   target='_blank'
                   className='truncate text-sm font-medium hover:underline'
                 >
@@ -119,11 +121,13 @@ export function CallbacksTab({
                 <Badge
                   variant='secondary'
                   className={cn(
-                    'h-4 px-1.5 text-[10px] font-medium capitalize',
+                    'h-4 px-1.5 text-[10px] font-medium',
                     CALLBACK_STATUS_COLORS[cb.status] || ''
                   )}
                 >
-                  {cb.status.replace(/_/g, ' ')}
+                  {tStatus.has(cb.status)
+                    ? tStatus(cb.status)
+                    : cb.status.replace(/_/g, ' ')}
                 </Badge>
               </div>
               <div className='text-muted-foreground mt-0.5 flex items-center gap-2 text-xs'>
@@ -164,8 +168,13 @@ export function CallbacksTab({
                 onClick={() => handleCall(cb)}
                 className='h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-500/20'
                 title={t('actions.call')}
+                aria-label={t('actions.call')}
               >
-                <Phone className='h-4 w-4' />
+                {busyId === cb.id ? (
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                ) : (
+                  <Phone className='h-4 w-4' />
+                )}
               </Button>
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -173,6 +182,8 @@ export function CallbacksTab({
                     size='icon'
                     variant='ghost'
                     className='text-muted-foreground h-8 w-8'
+                    aria-label={t('actions.more')}
+                    title={t('actions.more')}
                   >
                     <MoreHorizontal className='h-4 w-4' />
                   </Button>
@@ -180,7 +191,7 @@ export function CallbacksTab({
                 <DropdownMenuContent align='end'>
                   <DropdownMenuItem asChild>
                     <Link
-                      href={`/dashboard/contacts/${cb.contactId}`}
+                      href={`/dashboard/contact/${cb.contactId}`}
                       target='_blank'
                     >
                       <ExternalLink className='mr-2 h-3.5 w-3.5' />

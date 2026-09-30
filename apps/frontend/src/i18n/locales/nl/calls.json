@@ -320,5 +320,86 @@
       "neutral": "Neutraal",
       "negative": "Negatief"
     }
+  },
+  "dialer": {
+    "call": "Bellen",
+    "starting": "Gesprek wordt gestart…",
+    "deleteDigit": "Cijfer wissen",
+    "enterToCall": "Druk op Enter om te bellen",
+    "noCredit": "Je tegoed is op. Waardeer op om te blijven bellen.",
+    "addCredit": "Opwaarderen",
+    "alreadyOnCall": "Je bent al in gesprek. Hang op om een nieuw gesprek te starten.",
+    "campaignSessionActive": "Je zit in een campagnesessie. Beëindig die om handmatig te bellen.",
+    "lineConnecting": "Je lijn wordt verbonden…",
+    "lineUnavailable": "Je lijn is niet verbonden. Controleer je internetverbinding en probeer het opnieuw.",
+    "dialFailed": "Het gesprek kon niet worden gestart. Probeer het opnieuw.",
+    "line": {
+      "ready": "Lijn gereed",
+      "readyHint": "Je kunt bellen.",
+      "connecting": "Verbinden…",
+      "connectingHint": "Je lijn wordt verbonden. Een gesprek dat je nu start, gaat eruit zodra die klaar is.",
+      "offline": "Offline",
+      "offlineHint": "Je lijn is verbroken. Controleer je internetverbinding."
+    }
+  },
+  "activeCallStatus": {
+    "recording": "Opname…",
+    "connected": "Verbonden",
+    "connecting": "Verbinden…"
+  },
+  "contactSelector": {
+    "singleMatch": "1 contact komt overeen 👆",
+    "multipleMatches": "{count} contacten komen overeen",
+    "notFound": "Geen contacten gevonden",
+    "addContact": "Contact toevoegen"
+  },
+  "inCallScript": {
+    "empty": "Je hebt nog geen script",
+    "emptyDescription": "Maak je script aan via Instellingen → Overzicht → Script, zodat het hier tijdens het gesprek verschijnt.",
+    "configure": "Script instellen",
+    "untitled": "Zonder titel",
+    "noContent": "(Geen inhoud)"
+  },
+  "inCallContact": {
+    "loadFailed": "Contact kon niet worden geladen",
+    "phoneRequired": "Telefoonnummer is verplicht",
+    "updated": "Contact bijgewerkt",
+    "saveFailed": "Opslaan mislukt",
+    "notFound": "Geen contactgegevens gevonden.",
+    "cancel": "Annuleren",
+    "saving": "Opslaan…",
+    "save": "Opslaan",
+    "edit": "Bewerken",
+    "firstName": "Voornaam",
+    "lastName": "Achternaam",
+    "displayName": "Weergavenaam",
+    "displayNamePlaceholder": "Gemaakt uit voor- en achternaam",
+    "email": "E-mail",
+    "phone": "Telefoon",
+    "company": "Bedrijf",
+    "jobTitle": "Functie",
+    "state": "Staat / Provincie",
+    "website": "Website",
+    "revenue": "Omzet",
+    "companySize": "Bedrijfsgrootte"
+  },
+  "numberSelector": {
+    "callFrom": "Bellen vanaf:",
+    "publicNumber": "Openbaar nummer",
+    "whyBuy": "Waarom een nummer kopen?",
+    "whyBuyDescription": "Met een eigen nummer kun je echte gesprekken voeren en ontvangen. Prijzen vanaf 1,00 USD per maand, afhankelijk van land en type nummer.",
+    "selectNumber": "Selecteer een nummer",
+    "notRequired": "Je hebt geen nummer nodig om te bellen",
+    "buy": "Nummer kopen",
+    "externalCarrier": "Je provider"
+  },
+  "publicNumberPrompt": {
+    "title": "Je belt vanaf het openbare nummer",
+    "description": "Dit is een gedeeld Ringee-nummer, niet dat van jou: wie je belt herkent je niet, en als diegene terugbelt, bereikt dat jou niet.",
+    "descriptionOwnNumbers": "Je hebt eigen nummers, maar dit gesprek gaat via het gedeelde Ringee-nummer. Kies in de dialer bij ‘Bellen vanaf’ je eigen nummer om herkend en teruggebeld te worden.",
+    "cancel": "Annuleren",
+    "call": "Bellen",
+    "callAndDontWarn": "Bellen en niet meer waarschuwen",
+    "buyNumber": "Nummer kopen"
   }
 }

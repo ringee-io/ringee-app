@@ -26,6 +26,22 @@ export interface CampaignLeadWithContact extends CampaignLead {
 }
 
 /**
+ * How the lead's most recent attempt ended — what the lead table shows as
+ * "last outcome", with the call it came from so the row can open it.
+ */
+export interface CampaignLeadLastAttempt {
+  attemptNumber: number;
+  dispositionCode: string | null;
+  callId: string | null;
+  initiatedAt: Date;
+  endedAt: Date | null;
+}
+
+export interface CampaignLeadListItem extends CampaignLeadWithContact {
+  lastAttempt: CampaignLeadLastAttempt | null;
+}
+
+/**
  * The whole briefing an agent gets with the lead they are about to call.
  *
  * Deliberately more than "enough to place the call": whoever picks up expects
@@ -167,7 +183,7 @@ export class CampaignLeadRepository {
       dispositionCode?: string;
     },
   ): Promise<{
-    data: CampaignLeadWithContact[];
+    data: CampaignLeadListItem[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
     const {
@@ -216,18 +232,34 @@ export class CampaignLeadRepository {
 
     const total = await this.prisma.campaignLead.count({ where });
 
-    const data = await this.prisma.campaignLead.findMany({
+    const rows = await this.prisma.campaignLead.findMany({
       where,
       include: {
         contact: { select: LEAD_CONTACT_SUMMARY_SELECT },
+        callAttempts: {
+          select: {
+            attemptNumber: true,
+            dispositionCode: true,
+            callId: true,
+            initiatedAt: true,
+            endedAt: true,
+          },
+          orderBy: { attemptNumber: "desc" },
+          take: 1,
+        },
       },
       orderBy: [{ nextCallAt: "asc" }, { createdAt: "asc" }],
       skip: (page - 1) * limit,
       take: limit,
     });
 
+    const data = rows.map(({ callAttempts, ...lead }) => ({
+      ...lead,
+      lastAttempt: callAttempts[0] ?? null,
+    }));
+
     return {
-      data: data as CampaignLeadWithContact[],
+      data: data as CampaignLeadListItem[],
       meta: {
         total,
         page,

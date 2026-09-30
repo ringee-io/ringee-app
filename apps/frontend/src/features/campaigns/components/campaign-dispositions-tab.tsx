@@ -70,11 +70,14 @@ interface Props {
   campaignId: string;
   /** Org admins (and freelancers) can add/delete dispositions; members are read-only. */
   canManage?: boolean;
+  /** Told how many dispositions the campaign has after every load. */
+  onCountChange?: (count: number) => void;
 }
 
 export function CampaignDispositionsTab({
   campaignId,
-  canManage = false
+  canManage = false,
+  onCountChange
 }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns');
@@ -107,6 +110,7 @@ export function CampaignDispositionsTab({
         `/campaigns/${campaignId}/dispositions`
       );
       setDispositions(data);
+      onCountChange?.(data.length);
     } catch {
       // handled by api client
     } finally {

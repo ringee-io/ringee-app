@@ -49,7 +49,8 @@
       "actions": {
         "call": "Nu bellen",
         "viewContact": "Contact bekijken",
-        "cancel": "Terugbelactie annuleren"
+        "cancel": "Terugbelactie annuleren",
+        "more": "Meer acties"
       }
     },
     "today": {
@@ -65,8 +66,11 @@
       "emptyTitle": "Geen recente gesprekken",
       "emptyDescription": "Uitgaande gesprekken die je voert verschijnen hier om snel opnieuw te bellen.",
       "actions": {
-        "redial": "Opnieuw bellen"
-      }
+        "redial": "Opnieuw bellen",
+        "openDetail": "Gespreksdetails openen"
+      },
+      "inbound": "Inkomend gesprek",
+      "outbound": "Uitgaand gesprek"
     },
     "relative": {
       "now": "nu",
@@ -75,6 +79,137 @@
       "inHours": "over {count}h",
       "hoursAgo": "{count}h geleden",
       "tomorrowAt": "morgen {time}"
+    },
+    "callNext": "Volgende bellen",
+    "callNextHint": "Bel {name}, je langst achterstallige terugbelactie"
+  },
+  "workspace": {
+    "title": "Belsessie",
+    "metaTitle": "Dialer — Belsessie | Ringee",
+    "metaDescription": "Voer uitgaande gesprekken met de progressive dialer.",
+    "ready": "Klaar om te beginnen met bellen?",
+    "description": "Start een sessie om de leads van deze campagne te bellen. De dialer wijst je automatisch de volgende lead toe volgens de campagne-instellingen.",
+    "notAssigned": "Je bent niet aan deze campagne toegewezen. Vraag een beheerder om je als lid toe te voegen.",
+    "startFailed": "De sessie kon niet worden gestart. Probeer het opnieuw.",
+    "starting": "Starten…",
+    "start": "Beginnen met bellen",
+    "closedAfterLead": "Sessie gesloten — dat was de laatste lead die je vroeg.",
+    "sessionEnded": "Je belsessie is beëindigd.",
+    "back": "Terug naar de campagne",
+    "dialogTitle": "Belsessie — {name}",
+    "dialogDescription": "Bel de leads van deze campagne na elkaar en leg het resultaat van elk gesprek vast.",
+    "exitDialog": {
+      "title": "Deze belsessie beëindigen?",
+      "description": "Je ontvangt geen leads meer van deze campagne. Je kunt altijd een nieuwe sessie starten.",
+      "stay": "Blijven bellen",
+      "confirm": "Sessie beëindigen"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Script",
+      "transcript": "Transcriptie",
+      "outcome": "Resultaat"
     }
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Gereed",
+      "reserved": "Lead wordt toegewezen…",
+      "dialing": "Aan het bellen",
+      "in_call": "In gesprek",
+      "wrap_up": "Afronding",
+      "paused": "Gepauzeerd",
+      "offline": "Offline"
+    },
+    "calls": "Gesprekken: {count}",
+    "connected": "Beantwoord: {count}",
+    "rate": "Contact: {rate}%",
+    "talk": "Gesproken: {time}",
+    "resume": "Hervatten",
+    "pause": "Pauzeren",
+    "endSession": "Sessie beëindigen",
+    "closeAfterLead": "Sessie sluiten na deze lead",
+    "back": "Terug naar de campagne",
+    "backDisabled": "Hang op voordat je de sessie verlaat",
+    "endDisabled": "Hang op voordat je de sessie beëindigt"
+  },
+  "disposition": {
+    "title": "Gespreksresultaat",
+    "select": "Gespreksresultaat",
+    "pickWhileTalking": "Kies het resultaat tijdens het gesprek — het wordt opgeslagen als je ophangt.",
+    "pickToContinue": "Sla een resultaat op om door te gaan naar de volgende lead.",
+    "availableOnDial": "De resultaten verschijnen zodra het gesprek begint.",
+    "selectAfterCall": "Kies na elk gesprek een resultaat.",
+    "callbackRequired": "Kies een datum en tijd om terug te bellen.",
+    "saved": "Resultaat opgeslagen.",
+    "saveFailed": "Het resultaat kon niet worden opgeslagen. Probeer het opnieuw.",
+    "notes": "Notities (optioneel)",
+    "notesPlaceholder": "Gespreksnotities…",
+    "scheduleCallback": "Terugbelafspraak plannen",
+    "dateTime": "Datum en tijd",
+    "callbackNote": "Notitie voor terugbellen",
+    "callbackPlaceholder": "Reden om terug te bellen…",
+    "submit": "Resultaat opslaan",
+    "submitOnHangup": "Wordt opgeslagen als je ophangt",
+    "presets": {
+      "inOneHour": "Over 1 uur",
+      "tomorrowMorning": "Morgen 9:00",
+      "nextMonday": "Maandag 9:00"
+    },
+    "shortcutsHint": "Tip: druk op 1–9 om een resultaat te kiezen en op Enter om het op te slaan."
+  },
+  "lead": {
+    "waiting": "Wachten op lead",
+    "waitingDescription": "De dialer wijst je automatisch de volgende lead toe.",
+    "unknown": "Onbekend",
+    "attempt": "Poging #{number}",
+    "previousAttempts": "Eerdere pogingen",
+    "noAttempts": "Geen eerdere pogingen",
+    "noDisposition": "Geen resultaat",
+    "linkedin": "LinkedIn-profiel",
+    "localTime": "Lokale tijd",
+    "score": "Score {score}",
+    "lastCall": "Laatste gesprek {date}",
+    "sections": {
+      "company": "Bedrijf",
+      "location": "Locatie",
+      "pipeline": "Pipeline",
+      "about": "Over",
+      "custom": "Overige gegevens"
+    },
+    "localTimeShort": "{time} lokale tijd",
+    "lastOutcome": "Laatste: {outcome}",
+    "callStatus": {
+      "created": "Gereed",
+      "dialing": "Aan het bellen",
+      "ringing": "Gaat over",
+      "answered": "Opgenomen",
+      "in_call": "In gesprek",
+      "ended": "Gesprek beëindigd",
+      "dispositioned": "Opgeslagen"
+    }
+  },
+  "softphone": {
+    "dialFailed": "Het gesprek kon niet worden gestart.",
+    "skipFailed": "Deze lead kon niet worden overgeslagen.",
+    "paused": "Sessie gepauzeerd",
+    "waiting": "Wachten op de volgende lead…",
+    "dial": "Bellen",
+    "skip": "Overslaan",
+    "dialing": "Aan het bellen…",
+    "ended": "Gesprek beëindigd",
+    "recording": "Opname",
+    "onHold": "In de wacht",
+    "unmute": "Microfoon aan",
+    "mute": "Dempen",
+    "resume": "Hervatten",
+    "hold": "In de wacht zetten",
+    "autoRecording": "Automatisch opnemen staat aan voor alle gesprekken",
+    "stopRecording": "Opname stoppen",
+    "startRecording": "Opname starten",
+    "sendDtmf": "Tonen verzenden (DTMF)",
+    "hideSubtitles": "Ondertiteling verbergen",
+    "showSubtitles": "Ondertiteling tonen",
+    "hangup": "Ophangen"
   }
 }

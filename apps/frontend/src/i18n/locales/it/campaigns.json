@@ -37,9 +37,9 @@
       "description": "Solo gli amministratori dell'organizzazione e i membri assegnati possono aprirla. Chiedi a un amministratore di aggiungerti."
     },
     "back": "Torna alle campagne",
-    "activate": "Attiva",
+    "activate": "Attiva campagna",
     "pause": "Metti in pausa",
-    "resume": "Riprendi",
+    "resume": "Riprendi campagna",
     "complete": "Completa",
     "openDialer": "Apri dialer",
     "completeDialog": {
@@ -64,7 +64,9 @@
       "members": "Membri",
       "dispositions": "Classificazioni",
       "analytics": "Analisi",
-      "settings": "Impostazioni"
+      "settings": "Impostazioni",
+      "results": "Risultati",
+      "team": "Team"
     },
     "toasts": {
       "activated": "Campagna attivata.",
@@ -72,6 +74,80 @@
       "completed": "Campagna completata.",
       "updated": "Campagna aggiornata.",
       "statusError": "Impossibile aggiornare lo stato della campagna. Riprova."
+    },
+    "backShort": "Campagne",
+    "startCalling": "Inizia a chiamare",
+    "viewResults": "Vedi risultati",
+    "moreActions": "Altre azioni",
+    "completeEllipsis": "Completa campagna…",
+    "activateBlocked": "Aggiungi almeno un lead e una classificazione per attivarla.",
+    "config": {
+      "everyDay": "Tutti i giorni",
+      "attempts": "{count, plural, one {# tentativo} other {# tentativi}}",
+      "edit": "Modifica",
+      "editLong": "Modifica impostazioni"
+    },
+    "loadError": {
+      "title": "Impossibile caricare questa campagna",
+      "description": "Controlla la connessione e riprova.",
+      "retry": "Riprova"
+    },
+    "pausedNotice": {
+      "title": "Questa campagna è in pausa",
+      "description": "Non partiranno chiamate finché un amministratore non la riprende."
+    },
+    "draftNotice": {
+      "title": "Questa campagna non è ancora attiva",
+      "description": "Un amministratore la sta ancora preparando. Potrai iniziare a chiamare appena sarà attivata."
+    },
+    "kpis": {
+      "error": "Impossibile caricare i numeri della campagna.",
+      "retry": "Riprova",
+      "dialed": "Lead chiamati",
+      "dialedDetail": "su {total} ({percent}%)",
+      "contactRate": "Tasso di contatto",
+      "contactRateDetail": "{connected} chiamate risposte su {attempts}",
+      "conversions": "Conversioni",
+      "conversionsDetail": "{rate}% delle chiamate · appuntamenti e vendite",
+      "conversionsHint": "Appuntamenti fissati e vendite",
+      "talkTime": "Conversazione media",
+      "talkTimeDetail": "per chiamata risposta",
+      "progressLabel": "Lead per fase",
+      "groups": {
+        "toCall": "da chiamare",
+        "inProgress": "in corso",
+        "followUp": "in follow-up",
+        "done": "completati",
+        "closedOut": "esauriti o da non chiamare"
+      }
+    },
+    "readiness": {
+      "title": "Prepara la campagna per il lancio",
+      "progress": "{done} di {total} passaggi obbligatori completati",
+      "leads": {
+        "todo": "Aggiungi lead da chiamare",
+        "done": "{count, plural, one {# lead pronto} other {# lead pronti}}",
+        "hint": "Importa un CSV o aggiungi i lead uno alla volta.",
+        "action": "Aggiungi lead"
+      },
+      "dispositions": {
+        "todo": "Configura le classificazioni",
+        "done": "{count, plural, one {# classificazione configurata} other {# classificazioni configurate}}",
+        "hint": "L'agente ne sceglie una dopo ogni chiamata: Interessato, Non interessato, Da richiamare…",
+        "action": "Configura classificazioni"
+      },
+      "number": {
+        "done": "Le chiamate partono dal numero della campagna",
+        "auto": "Le chiamate partono da un qualsiasi numero della tua organizzazione",
+        "hint": "Se preferisci, scegli un numero o un ID chiamante specifico nelle impostazioni.",
+        "action": "Scegli numero"
+      },
+      "team": {
+        "todo": "Assegna agenti (facoltativo)",
+        "done": "{count, plural, one {# agente assegnato} other {# agenti assegnati}}",
+        "hint": "Solo i membri assegnati possono chiamare questa campagna. Gli amministratori possono sempre farlo.",
+        "action": "Assegna agenti"
+      }
     }
   },
   "fields": {
@@ -183,7 +259,8 @@
       "status": "Stato",
       "attempts": "Tentativi",
       "lastCall": "Ultima chiamata",
-      "actions": "Azioni"
+      "actions": "Azioni",
+      "lastOutcome": "Ultimo esito"
     },
     "removeDialog": {
       "title": "Rimuovere questo lead?",
@@ -194,7 +271,15 @@
     "toasts": {
       "removed": "{name} è stato rimosso dalla campagna.",
       "removeError": "Impossibile rimuovere il lead. Riprova."
-    }
+    },
+    "error": {
+      "title": "Impossibile caricare i lead",
+      "description": "Controlla la connessione e riprova.",
+      "retry": "Riprova"
+    },
+    "openContact": "Apri contatto",
+    "noOutcome": "Nessun esito",
+    "openCall": "Apri la chiamata"
   },
   "addLead": {
     "title": "Aggiungi lead manualmente",

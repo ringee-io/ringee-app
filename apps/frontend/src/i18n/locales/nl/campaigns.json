@@ -37,9 +37,9 @@
       "description": "Alleen organisatiebeheerders en toegewezen leden kunnen deze campagne openen. Vraag een beheerder om je toe te voegen."
     },
     "back": "Terug naar campagnes",
-    "activate": "Activeren",
-    "pause": "Pauzeren",
-    "resume": "Hervatten",
+    "activate": "Campagne activeren",
+    "pause": "Campagne pauzeren",
+    "resume": "Campagne hervatten",
     "complete": "Afronden",
     "openDialer": "Dialer openen",
     "completeDialog": {
@@ -64,7 +64,9 @@
       "members": "Leden",
       "dispositions": "Classificaties",
       "analytics": "Analyses",
-      "settings": "Instellingen"
+      "settings": "Instellingen",
+      "results": "Resultaten",
+      "team": "Team"
     },
     "toasts": {
       "activated": "Campagne geactiveerd.",
@@ -72,6 +74,80 @@
       "completed": "Campagne afgerond.",
       "updated": "Campagne bijgewerkt.",
       "statusError": "Kan de campagnestatus niet bijwerken. Probeer het opnieuw."
+    },
+    "backShort": "Campagnes",
+    "startCalling": "Beginnen met bellen",
+    "viewResults": "Resultaten bekijken",
+    "moreActions": "Meer acties",
+    "completeEllipsis": "Campagne afronden…",
+    "activateBlocked": "Voeg minstens één lead en één classificatie toe om te activeren.",
+    "config": {
+      "everyDay": "Elke dag",
+      "attempts": "{count, plural, one {# poging} other {# pogingen}}",
+      "edit": "Bewerken",
+      "editLong": "Instellingen bewerken"
+    },
+    "loadError": {
+      "title": "Deze campagne kon niet worden geladen",
+      "description": "Controleer je verbinding en probeer het opnieuw.",
+      "retry": "Opnieuw proberen"
+    },
+    "pausedNotice": {
+      "title": "Deze campagne is gepauzeerd",
+      "description": "Er gaan geen gesprekken uit tot een beheerder haar hervat."
+    },
+    "draftNotice": {
+      "title": "Deze campagne is nog niet actief",
+      "description": "Een beheerder is haar nog aan het voorbereiden. Je kunt beginnen met bellen zodra ze is geactiveerd."
+    },
+    "kpis": {
+      "error": "De cijfers van de campagne konden niet worden geladen.",
+      "retry": "Opnieuw proberen",
+      "dialed": "Gebelde leads",
+      "dialedDetail": "van {total} ({percent}%)",
+      "contactRate": "Contactratio",
+      "contactRateDetail": "{connected} van {attempts} gesprekken beantwoord",
+      "conversions": "Conversies",
+      "conversionsDetail": "{rate}% van de gesprekken · afspraken en verkopen",
+      "conversionsHint": "Geboekte afspraken en verkopen",
+      "talkTime": "Gem. gespreksduur",
+      "talkTimeDetail": "per beantwoord gesprek",
+      "progressLabel": "Leads per fase",
+      "groups": {
+        "toCall": "te bellen",
+        "inProgress": "bezig",
+        "followUp": "opvolging",
+        "done": "afgerond",
+        "closedOut": "uitgeput of niet bellen"
+      }
+    },
+    "readiness": {
+      "title": "Maak de campagne klaar voor lancering",
+      "progress": "{done} van {total} verplichte stappen klaar",
+      "leads": {
+        "todo": "Voeg leads toe om te bellen",
+        "done": "{count, plural, one {# lead klaar} other {# leads klaar}}",
+        "hint": "Importeer een CSV of voeg leads één voor één toe.",
+        "action": "Leads toevoegen"
+      },
+      "dispositions": {
+        "todo": "Stel classificaties in",
+        "done": "{count, plural, one {# classificatie ingesteld} other {# classificaties ingesteld}}",
+        "hint": "Na elk gesprek kiest de agent er één: Geïnteresseerd, Niet geïnteresseerd, Terugbellen…",
+        "action": "Classificaties instellen"
+      },
+      "number": {
+        "done": "Gesprekken gaan uit via het nummer van de campagne",
+        "auto": "Gesprekken gaan uit via een willekeurig nummer van je organisatie",
+        "hint": "Kies desgewenst een specifiek nummer of beller-ID in de instellingen.",
+        "action": "Nummer kiezen"
+      },
+      "team": {
+        "todo": "Wijs agenten toe (optioneel)",
+        "done": "{count, plural, one {# agent toegewezen} other {# agenten toegewezen}}",
+        "hint": "Alleen toegewezen leden kunnen voor deze campagne bellen. Beheerders kunnen dat altijd.",
+        "action": "Agenten toewijzen"
+      }
     }
   },
   "fields": {
@@ -183,7 +259,8 @@
       "status": "Status",
       "attempts": "Pogingen",
       "lastCall": "Laatste gesprek",
-      "actions": "Acties"
+      "actions": "Acties",
+      "lastOutcome": "Laatste resultaat"
     },
     "removeDialog": {
       "title": "Deze lead verwijderen?",
@@ -194,7 +271,15 @@
     "toasts": {
       "removed": "{name} is uit de campagne verwijderd.",
       "removeError": "Kan de lead niet verwijderen. Probeer het opnieuw."
-    }
+    },
+    "error": {
+      "title": "De leads konden niet worden geladen",
+      "description": "Controleer je verbinding en probeer het opnieuw.",
+      "retry": "Opnieuw proberen"
+    },
+    "openContact": "Contact openen",
+    "noOutcome": "Geen resultaat",
+    "openCall": "Gesprek openen"
   },
   "addLead": {
     "title": "Lead handmatig toevoegen",

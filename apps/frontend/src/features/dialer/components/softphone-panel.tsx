@@ -6,12 +6,21 @@ import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerCall } from '../hooks/use-dialer-call';
+import { shortcutAllowed } from '../lib/shortcuts';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@ringee/frontend-shared/components/ui/popover';
+import { cn } from '@ringee/frontend-shared/lib/utils';
 import { DtmfKeypad } from '@ringee/dialer-ui';
 import {
   Phone,
+  PhoneCall,
   PhoneOff,
+  PhoneOutgoing,
   Mic,
   MicOff,
   Pause,
@@ -19,18 +28,16 @@ import {
   Circle,
   SkipForward,
   Grid3X3,
-  X,
   Captions,
-  CaptionsOff
+  CaptionsOff,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   CallSubtitles,
-  LiveTranscriptPanel,
   TranscriptDialog,
   TranscribeCallButton,
   useCallTranscription,
-  useCallIdBySession,
   useRecordingSettings
 } from '@/features/transcription';
 import { useTranslations } from 'next-intl';
@@ -41,12 +48,43 @@ function formatDuration(sec: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+type BarState = 'waiting' | 'preview' | 'dialing' | 'live' | 'ended' | 'idle';
+
+const STATE_ICON: Record<BarState, { icon: typeof Phone; className: string }> =
+  {
+    waiting: { icon: Phone, className: 'bg-muted text-muted-foreground' },
+    preview: { icon: Phone, className: 'bg-primary/10 text-primary' },
+    dialing: {
+      icon: PhoneOutgoing,
+      className:
+        'animate-pulse bg-amber-500/15 text-amber-600 dark:text-amber-400'
+    },
+    live: {
+      icon: PhoneCall,
+      className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+    },
+    ended: { icon: PhoneOff, className: 'bg-muted text-muted-foreground' },
+    idle: { icon: Phone, className: 'bg-muted text-muted-foreground' }
+  };
+
 interface Props {
   campaignId: string;
   sessionId: string;
+  /** The Ringee call behind the live leg, once the server has created it. */
+  transcriptionCallId: string | null;
 }
 
-export function SoftphonePanel({ campaignId, sessionId }: Props) {
+/**
+ * The call bar across the top of the workspace: who is on the line, for how
+ * long, and every control for the call — dial and skip before it; mute, hold,
+ * record, keypad and hang-up during it. A bar rather than a column, so the
+ * script gets the middle of the screen.
+ */
+export function SoftphonePanel({
+  campaignId,
+  sessionId,
+  transcriptionCallId
+}: Props) {
   const api = useApi();
   const t = useTranslations('dialer.softphone');
   const status = useDialerSessionStore((s) => s.status);
@@ -116,11 +154,6 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   const isDialing =
     isDialingWebRTC || callStatus === 'dialing' || callStatus === 'ringing';
 
-  // Resolve the Ringee callId from the Telnyx session for the Live Transcript.
-  const telnyxSessionId = (activeCall as any)?.telnyxIDs?.telnyxSessionId as
-    | string
-    | undefined;
-  const transcriptionCallId = useCallIdBySession(telnyxSessionId);
   const { data: transcriptionData } = useCallTranscription(
     transcriptionCallId,
     {
@@ -144,6 +177,11 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
       audioRef.current.play().catch(() => {});
     }
   }, [activeCall, callState]);
+
+  // The keypad belongs to the call it was opened on.
+  useEffect(() => {
+    if (!isInCall) setShowDTMF(false);
+  }, [isInCall]);
 
   // One Dial / Skip request at a time: a double click used to race two dials
   // for the same lead.
@@ -175,61 +213,54 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     await hangup();
   }
 
-  // Hidden audio element for remote stream
-  const remoteAudio = (
-    <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
-  );
+  // Preview mode: Enter dials the lead on screen, S skips it.
+  const previewing = !!currentLead && !activeCall && status === 'reserved';
+  const shortcutActions = useRef({ handleDial, handleSkip });
+  shortcutActions.current = { handleDial, handleSkip };
+  useEffect(() => {
+    if (!previewing) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (key !== 'enter' && key !== 's') return;
+      if (!shortcutAllowed(event, 'activation')) return;
+      event.preventDefault();
+      if (key === 'enter') {
+        if (lineReady) void shortcutActions.current.handleDial();
+      } else {
+        void shortcutActions.current.handleSkip();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [previewing, lineReady]);
 
-  // Waiting state (no lead, session ready)
-  if (!currentLead && (status === 'ready' || status === 'paused')) {
-    return (
-      <div className='flex flex-col items-center justify-center p-8 text-center'>
-        {remoteAudio}
-        <Phone className='text-muted-foreground/40 mb-3 h-16 w-16' />
-        <p className='text-muted-foreground text-sm'>
-          {status === 'paused' ? t('paused') : t('waiting')}
-        </p>
-      </div>
-    );
-  }
+  // The controls stay up for as long as a call is under way, lead or no lead:
+  // a live call must never lose its hang-up button. A lead still in preview
+  // has no leg yet — it gets Dial and Skip instead.
+  const showControls = !previewing && (isInCall || isDialing);
+  const state: BarState = previewing
+    ? 'preview'
+    : isInCall
+      ? 'live'
+      : isDialing
+        ? 'dialing'
+        : !currentLead
+          ? 'waiting'
+          : callStatus === 'ended'
+            ? 'ended'
+            : 'idle';
+  const { icon: StateIcon, className: stateIconClass } = STATE_ICON[state];
 
-  // Preview mode — lead assigned but not dialing yet
-  if (currentLead && !activeCall && status === 'reserved') {
-    return (
-      <div className='flex flex-col items-center justify-center gap-4 p-8'>
-        {remoteAudio}
-        <div className='text-center'>
-          <p className='text-lg font-semibold'>{currentLead.contact.name}</p>
-          <p className='text-muted-foreground text-sm'>
-            {currentLead.contact.phoneNumber}
-          </p>
-        </div>
-        <div className='flex gap-3'>
-          <Button
-            size='lg'
-            onClick={handleDial}
-            disabled={dialRequested || !lineReady}
-          >
-            <Phone className='mr-2 h-5 w-5' />
-            {t('dial')}
-          </Button>
-          <Button
-            variant='outline'
-            size='lg'
-            onClick={handleSkip}
-            disabled={dialRequested}
-          >
-            <SkipForward className='mr-2 h-5 w-5' />
-            {t('skip')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const contact = currentLead?.contact;
+  const leadName = contact
+    ? contact.name ||
+      [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
+      null
+    : null;
 
   return (
-    <div className='flex flex-col items-center justify-center gap-6 p-8'>
-      {remoteAudio}
+    <div className='bg-background flex min-h-16 shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-b px-4 py-2'>
+      <audio ref={audioRef} autoPlay playsInline className='hidden' />
       <TranscriptDialog
         open={transcriptDialogOpen}
         onOpenChange={setTranscriptDialogOpen}
@@ -240,172 +271,203 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
         show={isInCall && showSubtitles}
       />
 
-      {/* Call duration / status */}
-      <div className='text-center'>
-        {isDialing && !isInCall && (
-          <div className='text-muted-foreground animate-pulse text-lg'>
-            {t('dialing')}
+      {/* Who is on the line — or what the session is waiting for */}
+      <div className='flex min-w-0 items-center gap-3'>
+        <span
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+            stateIconClass
+          )}
+        >
+          {state === 'waiting' && status === 'paused' ? (
+            <Pause className='h-4 w-4' />
+          ) : (
+            <StateIcon className='h-4 w-4' />
+          )}
+        </span>
+        {contact ? (
+          <div className='min-w-0'>
+            <p className='truncate text-sm font-semibold'>
+              {leadName ?? contact.phoneNumber}
+            </p>
+            {leadName ? (
+              <p className='text-muted-foreground truncate text-xs tabular-nums'>
+                {contact.phoneNumber}
+              </p>
+            ) : null}
           </div>
-        )}
-        {isInCall && (
-          <div className='font-mono text-4xl font-bold tabular-nums'>
-            {formatDuration(displayDuration)}
-          </div>
-        )}
-        {!isInCall && !isDialing && callStatus === 'ended' && (
-          <div className='text-muted-foreground text-lg'>{t('ended')}</div>
-        )}
-        {currentLead && (
-          <p className='text-muted-foreground mt-1 text-sm'>
-            {currentLead.contact.name} &middot;{' '}
-            {currentLead.contact.phoneNumber}
+        ) : (
+          <p className='text-muted-foreground text-sm'>
+            {status === 'paused' ? t('paused') : t('waiting')}
           </p>
-        )}
-        {isRecording && (
-          <div className='mt-1 flex items-center justify-center gap-1 text-xs text-red-500'>
-            <Circle className='h-2 w-2 fill-red-500' />
-            {t('recording')}
-          </div>
-        )}
-        {isOnHold && (
-          <div className='mt-1 text-xs text-yellow-500'>{t('onHold')}</div>
         )}
       </div>
 
-      {/* Call controls */}
-      {(isInCall || isDialing) && (
-        <>
-          <div className='flex items-center gap-3'>
-            {/* Mute */}
-            <Button
-              variant={isMuted ? 'destructive' : 'outline'}
-              size='icon'
-              className='h-12 w-12 rounded-full'
-              onClick={toggleMute}
-              disabled={!isInCall}
-              title={isMuted ? t('unmute') : t('mute')}
-            >
-              {isMuted ? (
-                <MicOff className='h-5 w-5' />
-              ) : (
-                <Mic className='h-5 w-5' />
-              )}
-            </Button>
+      {/* Where the call is */}
+      {state === 'live' || state === 'dialing' || state === 'ended' ? (
+        <div className='flex flex-wrap items-center gap-2'>
+          {state === 'live' ? (
+            <span className='font-mono text-xl font-semibold tabular-nums'>
+              {formatDuration(displayDuration)}
+            </span>
+          ) : state === 'dialing' ? (
+            <span className='text-muted-foreground animate-pulse text-sm'>
+              {t('dialing')}
+            </span>
+          ) : (
+            <span className='text-muted-foreground text-sm'>{t('ended')}</span>
+          )}
+          {isRecording ? (
+            <span className='inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400'>
+              <Circle className='h-2 w-2 fill-current' />
+              {t('recording')}
+            </span>
+          ) : null}
+          {isOnHold ? (
+            <span className='rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400'>
+              {t('onHold')}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
-            {/* Hold */}
-            <Button
-              variant={isOnHold ? 'secondary' : 'outline'}
-              size='icon'
-              className='h-12 w-12 rounded-full'
-              onClick={toggleHold}
-              disabled={!isInCall}
-              title={isOnHold ? t('resume') : t('hold')}
-            >
-              {isOnHold ? (
-                <Play className='h-5 w-5' />
-              ) : (
-                <Pause className='h-5 w-5' />
-              )}
-            </Button>
-
-            {/* Record */}
-            <Button
-              variant={isRecording ? 'destructive' : 'outline'}
-              size='icon'
-              className='h-12 w-12 rounded-full'
-              onClick={toggleRecord}
-              disabled={
-                !isInCall ||
-                isRecordingLoading ||
-                recordingSettings.recordAllCalls
-              }
-              title={
-                recordingSettings.recordAllCalls
-                  ? t('autoRecording')
-                  : isRecording
-                    ? t('stopRecording')
-                    : t('startRecording')
-              }
-            >
-              <Circle
-                className={`h-5 w-5 ${isRecording ? 'fill-white' : ''}`}
-              />
-            </Button>
-
-            {/* DTMF */}
-            <Button
-              variant={showDTMF ? 'secondary' : 'outline'}
-              size='icon'
-              className='h-12 w-12 rounded-full'
-              onClick={() => setShowDTMF(!showDTMF)}
-              disabled={!isInCall}
-              title={t('sendDtmf')}
-            >
-              <Grid3X3 className='h-5 w-5' />
-            </Button>
-
-            {/* Voicemail drop is not implemented yet — hidden until the
-                backend supports playbackStart. */}
-          </div>
-
-          <div className='flex flex-wrap items-center justify-center gap-2'>
-            <TranscribeCallButton
-              callId={transcriptionCallId}
-              mode='active'
-              autoTranscribeEnabled={recordingSettings.transcribeRealtime}
-              className='h-10 rounded-full px-4'
-              onView={() => setTranscriptDialogOpen(true)}
-            />
-            <Button
-              variant={showSubtitles ? 'secondary' : 'outline'}
-              size='icon'
-              className='h-10 w-10 rounded-full'
-              onClick={() => setShowSubtitles((prev) => !prev)}
-              title={showSubtitles ? t('hideSubtitles') : t('showSubtitles')}
-            >
-              {showSubtitles ? (
-                <Captions className='h-4 w-4' />
-              ) : (
-                <CaptionsOff className='h-4 w-4' />
-              )}
-            </Button>
-          </div>
-
-          {/* Hangup button */}
+      {/* Before the call: dial or skip the lead on screen */}
+      {previewing ? (
+        <div className='ml-auto flex items-center gap-2'>
           <Button
-            variant='destructive'
-            size='lg'
-            className='h-14 w-14 rounded-full'
-            onClick={handleHangup}
-            title={t('hangup')}
+            onClick={handleDial}
+            disabled={dialRequested || !lineReady}
+            aria-keyshortcuts='Enter'
+            className='h-10 bg-emerald-600 px-4 text-white hover:bg-emerald-700'
           >
-            <PhoneOff className='h-6 w-6' />
+            {dialRequested ? <Loader2 className='animate-spin' /> : <Phone />}
+            {t('dial')}
+            <kbd className='rounded border border-white/30 px-1 font-mono text-[10px] opacity-80'>
+              Enter
+            </kbd>
+          </Button>
+          <Button
+            variant='outline'
+            onClick={handleSkip}
+            disabled={dialRequested}
+            aria-keyshortcuts='S'
+            className='h-10 px-4'
+          >
+            <SkipForward />
+            {t('skip')}
+            <kbd className='bg-muted text-muted-foreground rounded border px-1 font-mono text-[10px]'>
+              S
+            </kbd>
+          </Button>
+        </div>
+      ) : null}
+
+      {/* During the call */}
+      {showControls ? (
+        <div className='ml-auto flex flex-wrap items-center gap-2'>
+          <Button
+            variant={isMuted ? 'destructive' : 'outline'}
+            size='icon'
+            className='h-10 w-10 rounded-full'
+            onClick={toggleMute}
+            disabled={!isInCall}
+            title={isMuted ? t('unmute') : t('mute')}
+            aria-label={isMuted ? t('unmute') : t('mute')}
+            aria-pressed={isMuted}
+          >
+            {isMuted ? <MicOff /> : <Mic />}
+          </Button>
+          <Button
+            variant={isOnHold ? 'secondary' : 'outline'}
+            size='icon'
+            className='h-10 w-10 rounded-full'
+            onClick={toggleHold}
+            disabled={!isInCall}
+            title={isOnHold ? t('resume') : t('hold')}
+            aria-label={isOnHold ? t('resume') : t('hold')}
+            aria-pressed={isOnHold}
+          >
+            {isOnHold ? <Play /> : <Pause />}
+          </Button>
+          <Button
+            variant={isRecording ? 'destructive' : 'outline'}
+            size='icon'
+            className='h-10 w-10 rounded-full'
+            onClick={toggleRecord}
+            disabled={
+              !isInCall ||
+              isRecordingLoading ||
+              recordingSettings.recordAllCalls
+            }
+            title={
+              recordingSettings.recordAllCalls
+                ? t('autoRecording')
+                : isRecording
+                  ? t('stopRecording')
+                  : t('startRecording')
+            }
+            aria-label={isRecording ? t('stopRecording') : t('startRecording')}
+            aria-pressed={isRecording}
+          >
+            <Circle className={cn(isRecording && 'fill-white')} />
+          </Button>
+          <Popover open={showDTMF} onOpenChange={setShowDTMF}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={showDTMF ? 'secondary' : 'outline'}
+                size='icon'
+                className='h-10 w-10 rounded-full'
+                disabled={!isInCall}
+                title={t('sendDtmf')}
+                aria-label={t('sendDtmf')}
+              >
+                <Grid3X3 />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align='end' className='w-auto p-3'>
+              <DtmfKeypad onSendDTMF={sendDTMF} />
+            </PopoverContent>
+          </Popover>
+
+          <span
+            aria-hidden
+            className='bg-border mx-1 hidden h-6 w-px sm:block'
+          />
+
+          <TranscribeCallButton
+            callId={transcriptionCallId}
+            mode='active'
+            autoTranscribeEnabled={recordingSettings.transcribeRealtime}
+            className='h-10 rounded-full px-4'
+            onView={() => setTranscriptDialogOpen(true)}
+          />
+          <Button
+            variant={showSubtitles ? 'secondary' : 'outline'}
+            size='icon'
+            className='h-10 w-10 rounded-full'
+            onClick={() => setShowSubtitles((prev) => !prev)}
+            title={showSubtitles ? t('hideSubtitles') : t('showSubtitles')}
+            aria-label={showSubtitles ? t('hideSubtitles') : t('showSubtitles')}
+            aria-pressed={showSubtitles}
+          >
+            {showSubtitles ? <Captions /> : <CaptionsOff />}
           </Button>
 
-          {/* DTMF Pad */}
-          {showDTMF && (
-            <div className='bg-card relative rounded-lg border p-3'>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='absolute top-1 right-1 h-6 w-6'
-                onClick={() => setShowDTMF(false)}
-              >
-                <X className='h-3 w-3' />
-              </Button>
-              <DtmfKeypad className='pt-4' onSendDTMF={sendDTMF} />
-            </div>
-          )}
-        </>
-      )}
+          <span
+            aria-hidden
+            className='bg-border mx-1 hidden h-6 w-px sm:block'
+          />
 
-      {/* Live Transcript */}
-      {isInCall && transcriptionCallId && (
-        <LiveTranscriptPanel
-          callId={transcriptionCallId}
-          className='w-full max-w-md'
-        />
-      )}
+          <Button
+            variant='destructive'
+            className='h-10 rounded-full px-5'
+            onClick={handleHangup}
+          >
+            <PhoneOff />
+            {t('hangup')}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

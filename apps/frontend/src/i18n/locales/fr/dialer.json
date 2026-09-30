@@ -49,7 +49,8 @@
       "actions": {
         "call": "Appeler maintenant",
         "viewContact": "Voir le contact",
-        "cancel": "Annuler le rappel"
+        "cancel": "Annuler le rappel",
+        "more": "Plus d'actions"
       }
     },
     "today": {
@@ -65,8 +66,11 @@
       "emptyTitle": "Aucun appel récent",
       "emptyDescription": "Les appels sortants que vous passez apparaîtront ici pour les recomposer rapidement.",
       "actions": {
-        "redial": "Recomposer"
-      }
+        "redial": "Recomposer",
+        "openDetail": "Voir le détail de l'appel"
+      },
+      "inbound": "Appel entrant",
+      "outbound": "Appel sortant"
     },
     "relative": {
       "now": "maintenant",
@@ -75,6 +79,137 @@
       "inHours": "dans {count}h",
       "hoursAgo": "il y a {count}h",
       "tomorrowAt": "demain {time}"
+    },
+    "callNext": "Appeler le suivant",
+    "callNextHint": "Appeler {name}, votre rappel le plus en retard"
+  },
+  "workspace": {
+    "title": "Session d'appels",
+    "metaTitle": "Composeur — Session d'appels | Ringee",
+    "metaDescription": "Passez des appels sortants avec le composeur progressif.",
+    "ready": "Prêt à commencer à appeler ?",
+    "description": "Lancez une session pour appeler les leads de cette campagne. Le composeur vous attribue automatiquement le lead suivant selon la configuration de la campagne.",
+    "notAssigned": "Vous n'êtes pas assigné à cette campagne. Demandez à un administrateur de vous ajouter comme membre.",
+    "startFailed": "Impossible de démarrer la session. Veuillez réessayer.",
+    "starting": "Démarrage…",
+    "start": "Commencer à appeler",
+    "closedAfterLead": "Session fermée : c'était le dernier lead demandé.",
+    "sessionEnded": "Votre session d'appels est terminée.",
+    "back": "Retour à la campagne",
+    "dialogTitle": "Session d'appels — {name}",
+    "dialogDescription": "Appelez les leads de cette campagne les uns après les autres et enregistrez le résultat de chaque appel.",
+    "exitDialog": {
+      "title": "Terminer cette session d'appels ?",
+      "description": "Vous ne recevrez plus de leads de cette campagne. Vous pouvez relancer une session à tout moment.",
+      "stay": "Continuer à appeler",
+      "confirm": "Terminer la session"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Script",
+      "transcript": "Transcription",
+      "outcome": "Résultat"
     }
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Prêt",
+      "reserved": "Attribution du lead…",
+      "dialing": "Composition",
+      "in_call": "En appel",
+      "wrap_up": "Clôture de l'appel",
+      "paused": "En pause",
+      "offline": "Hors ligne"
+    },
+    "calls": "Appels : {count}",
+    "connected": "Répondus : {count}",
+    "rate": "Contact : {rate} %",
+    "talk": "Conversation : {time}",
+    "resume": "Reprendre",
+    "pause": "Pause",
+    "endSession": "Terminer la session",
+    "closeAfterLead": "Fermer la session après ce lead",
+    "back": "Retour à la campagne",
+    "backDisabled": "Raccrochez avant de quitter la session",
+    "endDisabled": "Raccrochez avant de terminer la session"
+  },
+  "disposition": {
+    "title": "Résultat de l'appel",
+    "select": "Résultat de l'appel",
+    "pickWhileTalking": "Choisissez le résultat pendant l'appel : il est enregistré au raccrochage.",
+    "pickToContinue": "Enregistrez un résultat pour passer au lead suivant.",
+    "availableOnDial": "Les résultats apparaissent dès que l'appel commence.",
+    "selectAfterCall": "Choisissez le résultat après chaque appel.",
+    "callbackRequired": "Choisissez une date et une heure pour le rappel.",
+    "saved": "Résultat enregistré.",
+    "saveFailed": "Impossible d'enregistrer le résultat. Veuillez réessayer.",
+    "notes": "Notes (facultatif)",
+    "notesPlaceholder": "Notes d'appel…",
+    "scheduleCallback": "Planifier un rappel",
+    "dateTime": "Date et heure",
+    "callbackNote": "Note de rappel",
+    "callbackPlaceholder": "Motif du rappel…",
+    "submit": "Enregistrer le résultat",
+    "submitOnHangup": "Enregistré au raccrochage",
+    "presets": {
+      "inOneHour": "Dans 1 heure",
+      "tomorrowMorning": "Demain 9:00",
+      "nextMonday": "Lundi 9:00"
+    },
+    "shortcutsHint": "Astuce : appuyez sur 1–9 pour choisir un résultat et sur Entrée pour l'enregistrer."
+  },
+  "lead": {
+    "waiting": "En attente d'un lead",
+    "waitingDescription": "Le composeur vous attribuera automatiquement le lead suivant.",
+    "unknown": "Inconnu",
+    "attempt": "Tentative n°{number}",
+    "previousAttempts": "Tentatives précédentes",
+    "noAttempts": "Aucune tentative précédente",
+    "noDisposition": "Aucun résultat",
+    "linkedin": "Profil LinkedIn",
+    "localTime": "Heure locale",
+    "score": "Score {score}",
+    "lastCall": "Dernier appel {date}",
+    "sections": {
+      "company": "Entreprise",
+      "location": "Localisation",
+      "pipeline": "Pipeline",
+      "about": "À propos",
+      "custom": "Autres informations"
+    },
+    "localTimeShort": "{time} heure locale",
+    "lastOutcome": "Dernier : {outcome}",
+    "callStatus": {
+      "created": "Prêt",
+      "dialing": "Composition",
+      "ringing": "Sonnerie",
+      "answered": "Décroché",
+      "in_call": "En appel",
+      "ended": "Appel terminé",
+      "dispositioned": "Enregistré"
+    }
+  },
+  "softphone": {
+    "dialFailed": "Impossible de lancer l'appel.",
+    "skipFailed": "Impossible de passer ce lead.",
+    "paused": "Session en pause",
+    "waiting": "En attente du lead suivant…",
+    "dial": "Appeler",
+    "skip": "Passer",
+    "dialing": "Composition…",
+    "ended": "Appel terminé",
+    "recording": "Enregistrement",
+    "onHold": "En attente",
+    "unmute": "Réactiver le micro",
+    "mute": "Couper le micro",
+    "resume": "Reprendre",
+    "hold": "Mettre en attente",
+    "autoRecording": "L'enregistrement automatique est activé pour tous les appels",
+    "stopRecording": "Arrêter l'enregistrement",
+    "startRecording": "Démarrer l'enregistrement",
+    "sendDtmf": "Envoyer des tonalités (DTMF)",
+    "hideSubtitles": "Masquer les sous-titres",
+    "showSubtitles": "Afficher les sous-titres",
+    "hangup": "Raccrocher"
   }
 }

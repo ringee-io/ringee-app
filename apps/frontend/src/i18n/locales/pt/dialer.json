@@ -49,7 +49,8 @@
       "actions": {
         "call": "Ligar agora",
         "viewContact": "Ver contato",
-        "cancel": "Cancelar retorno"
+        "cancel": "Cancelar retorno",
+        "more": "Mais ações"
       }
     },
     "today": {
@@ -65,8 +66,11 @@
       "emptyTitle": "Sem chamadas recentes",
       "emptyDescription": "Chamadas que você fizer aparecerão aqui para rediscagem rápida.",
       "actions": {
-        "redial": "Rediscar"
-      }
+        "redial": "Rediscar",
+        "openDetail": "Ver detalhes da chamada"
+      },
+      "inbound": "Chamada recebida",
+      "outbound": "Chamada efetuada"
     },
     "relative": {
       "now": "agora",
@@ -75,6 +79,137 @@
       "inHours": "em {count}h",
       "hoursAgo": "há {count}h",
       "tomorrowAt": "amanhã {time}"
+    },
+    "callNext": "Ligar para o próximo",
+    "callNextHint": "Ligar para {name}, seu retorno mais atrasado"
+  },
+  "workspace": {
+    "title": "Sessão de chamadas",
+    "metaTitle": "Marcador — Sessão de chamadas | Ringee",
+    "metaDescription": "Faça chamadas de saída com o marcador progressivo.",
+    "ready": "Pronto para começar a ligar?",
+    "description": "Inicie uma sessão para ligar para os leads desta campanha. O marcador atribui o próximo lead automaticamente conforme a configuração da campanha.",
+    "notAssigned": "Você não está atribuído a esta campanha. Peça a um administrador para adicioná-lo como membro.",
+    "startFailed": "Não foi possível iniciar a sessão. Tente novamente.",
+    "starting": "Iniciando…",
+    "start": "Começar a ligar",
+    "closedAfterLead": "Sessão encerrada: esse era o último lead que você pediu.",
+    "sessionEnded": "Sua sessão de chamadas foi encerrada.",
+    "back": "Voltar à campanha",
+    "dialogTitle": "Sessão de chamadas — {name}",
+    "dialogDescription": "Ligue para os leads desta campanha um após o outro e registre o resultado de cada chamada.",
+    "exitDialog": {
+      "title": "Encerrar esta sessão de chamadas?",
+      "description": "Você deixará de receber leads desta campanha. Pode iniciar uma nova sessão quando quiser.",
+      "stay": "Continuar ligando",
+      "confirm": "Encerrar sessão"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Roteiro",
+      "transcript": "Transcrição",
+      "outcome": "Resultado"
     }
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Pronto",
+      "reserved": "Atribuindo lead…",
+      "dialing": "Discando",
+      "in_call": "Em chamada",
+      "wrap_up": "Encerramento",
+      "paused": "Em pausa",
+      "offline": "Offline"
+    },
+    "calls": "Chamadas: {count}",
+    "connected": "Atendidas: {count}",
+    "rate": "Contato: {rate}%",
+    "talk": "Conversa: {time}",
+    "resume": "Retomar",
+    "pause": "Pausar",
+    "endSession": "Encerrar sessão",
+    "closeAfterLead": "Encerrar a sessão após este lead",
+    "back": "Voltar à campanha",
+    "backDisabled": "Desligue antes de sair da sessão",
+    "endDisabled": "Desligue antes de encerrar a sessão"
+  },
+  "disposition": {
+    "title": "Resultado da chamada",
+    "select": "Resultado da chamada",
+    "pickWhileTalking": "Escolha o resultado enquanto fala: ele é salvo ao desligar.",
+    "pickToContinue": "Salve um resultado para passar ao próximo lead.",
+    "availableOnDial": "Os resultados aparecem assim que a chamada começa.",
+    "selectAfterCall": "Escolha o resultado após cada chamada.",
+    "callbackRequired": "Escolha uma data e hora para o retorno.",
+    "saved": "Resultado salvo.",
+    "saveFailed": "Não foi possível salvar o resultado. Tente novamente.",
+    "notes": "Notas (opcional)",
+    "notesPlaceholder": "Notas da chamada…",
+    "scheduleCallback": "Agendar retorno",
+    "dateTime": "Data e hora",
+    "callbackNote": "Nota do retorno",
+    "callbackPlaceholder": "Motivo do retorno…",
+    "submit": "Salvar resultado",
+    "submitOnHangup": "Salvo ao desligar",
+    "presets": {
+      "inOneHour": "Em 1 hora",
+      "tomorrowMorning": "Amanhã 9:00",
+      "nextMonday": "Segunda 9:00"
+    },
+    "shortcutsHint": "Dica: pressione 1–9 para escolher o resultado e Enter para salvar."
+  },
+  "lead": {
+    "waiting": "Aguardando lead",
+    "waitingDescription": "O marcador atribuirá o próximo lead automaticamente.",
+    "unknown": "Desconhecido",
+    "attempt": "Tentativa nº {number}",
+    "previousAttempts": "Tentativas anteriores",
+    "noAttempts": "Nenhuma tentativa anterior",
+    "noDisposition": "Sem resultado",
+    "linkedin": "Perfil do LinkedIn",
+    "localTime": "Hora local",
+    "score": "Pontuação {score}",
+    "lastCall": "Última chamada {date}",
+    "sections": {
+      "company": "Empresa",
+      "location": "Localização",
+      "pipeline": "Pipeline",
+      "about": "Sobre",
+      "custom": "Outros dados"
+    },
+    "localTimeShort": "{time} hora local",
+    "lastOutcome": "Último: {outcome}",
+    "callStatus": {
+      "created": "Pronto",
+      "dialing": "Discando",
+      "ringing": "Tocando",
+      "answered": "Atendeu",
+      "in_call": "Em chamada",
+      "ended": "Chamada encerrada",
+      "dispositioned": "Salvo"
+    }
+  },
+  "softphone": {
+    "dialFailed": "Não foi possível iniciar a chamada.",
+    "skipFailed": "Não foi possível pular este lead.",
+    "paused": "Sessão em pausa",
+    "waiting": "Aguardando o próximo lead…",
+    "dial": "Ligar",
+    "skip": "Pular",
+    "dialing": "Discando…",
+    "ended": "Chamada encerrada",
+    "recording": "Gravando",
+    "onHold": "Em espera",
+    "unmute": "Ativar microfone",
+    "mute": "Silenciar",
+    "resume": "Retomar",
+    "hold": "Colocar em espera",
+    "autoRecording": "A gravação automática está ativa para todas as chamadas",
+    "stopRecording": "Parar gravação",
+    "startRecording": "Iniciar gravação",
+    "sendDtmf": "Enviar tons (DTMF)",
+    "hideSubtitles": "Ocultar legendas",
+    "showSubtitles": "Mostrar legendas",
+    "hangup": "Desligar"
   }
 }

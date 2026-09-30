@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useDebounce } from '@ringee/frontend-shared/hooks/use-debounce';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -53,9 +54,21 @@ import {
   TableActionCell,
   TableActionHead
 } from '@ringee/frontend-shared/components/ui/table/table-action-column';
-import { Upload, UserPlus, Plus, Trash2, Loader2, Search } from 'lucide-react';
+import {
+  Upload,
+  UserPlus,
+  Plus,
+  Trash2,
+  Loader2,
+  Search,
+  AlertTriangle,
+  RotateCw,
+  PlayCircle
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
+import { cn } from '@ringee/frontend-shared/lib/utils';
+import { CallDetailDialog, ToneBadge, humanize } from '@/features/call-detail';
 import type {
   CampaignLead,
   CampaignLeadListResponse,
@@ -63,6 +76,7 @@ import type {
   CampaignStatus,
   Disposition
 } from '../types/campaign.types';
+import { DISPOSITION_TONE, LEAD_STATUS_CLASSES } from '../lib/lead-status';
 import { ImportLeadsModal } from './import-leads-modal';
 import { AddLeadModal } from './add-lead-modal';
 
@@ -74,20 +88,6 @@ const IN_FLIGHT_STATUSES: CampaignLeadStatus[] = [
   'in_call',
   'wrap_up'
 ];
-
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  queued: 'bg-blue-100 text-blue-700',
-  locked: 'bg-purple-100 text-purple-700',
-  dialing: 'bg-orange-100 text-orange-700',
-  in_call: 'bg-orange-100 text-orange-700',
-  wrap_up: 'bg-yellow-100 text-yellow-700',
-  dispositioned: 'bg-cyan-100 text-cyan-700',
-  scheduled: 'bg-indigo-100 text-indigo-700',
-  completed: 'bg-green-100 text-green-700',
-  exhausted: 'bg-red-100 text-red-700',
-  dnc: 'bg-red-100 text-red-700'
-};
 
 function leadProfileUrls(lead: CampaignLead) {
   return {
@@ -117,6 +117,8 @@ interface Props {
   campaignStatus: CampaignStatus;
   /** Org admins (and freelancers) can import/add/delete leads; members are read-only. */
   canManage?: boolean;
+  /** Leads per status (from the campaign summary), shown on the filter chips. */
+  statusCounts?: { status: CampaignLeadStatus; count: number }[];
   onLeadsChanged?: () => void;
 }
 
@@ -124,14 +126,18 @@ export function CampaignLeadsTab({
   campaignId,
   campaignStatus,
   canManage = false,
+  statusCounts,
   onLeadsChanged
 }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns');
   const tContactActions = useTranslations('contacts.rowActions');
   const tCommon = useTranslations('common');
+  const format = useFormatter();
   const [leads, setLeads] = useState<CampaignLead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [openCallId, setOpenCallId] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -191,8 +197,9 @@ export function CampaignLeadsTab({
       if (seq !== requestSeq.current) return;
       setLeads(res.data);
       setTotal(res.meta.total);
+      setLoadFailed(false);
     } catch {
-      // surfaced by api client / toast at call sites
+      if (seq === requestSeq.current) setLoadFailed(true);
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
@@ -230,6 +237,13 @@ export function CampaignLeadsTab({
   }
 
   const totalPages = Math.ceil(total / limit);
+  const countByStatus = statusCounts
+    ? new Map(statusCounts.map((row) => [row.status as string, row.count]))
+    : null;
+  const totalLeads = statusCounts
+    ? statusCounts.reduce((sum, row) => sum + row.count, 0)
+    : null;
+  const dispositionByCode = new Map(dispositions.map((d) => [d.code, d]));
   const canImport =
     canManage &&
     (campaignStatus === 'draft' ||
@@ -275,7 +289,47 @@ export function CampaignLeadsTab({
               </div>
             )}
           </div>
-          <div className='mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap'>
+          {/* One click per status, with how many leads are in it. */}
+          <div className='mt-4 flex flex-wrap gap-1.5'>
+            {STATUS_FILTERS.filter(
+              (s) =>
+                s === 'all' ||
+                s === statusFilter ||
+                !countByStatus ||
+                (countByStatus.get(s) ?? 0) > 0
+            ).map((s) => {
+              const count =
+                s === 'all' ? totalLeads : (countByStatus?.get(s) ?? null);
+              const selected = statusFilter === s;
+              return (
+                <Button
+                  key={s}
+                  type='button'
+                  size='sm'
+                  variant={selected ? 'default' : 'outline'}
+                  aria-pressed={selected}
+                  className='h-7 gap-1.5 rounded-full px-3 text-xs'
+                  onClick={() => {
+                    setStatusFilter(s);
+                    setPage(1);
+                  }}
+                >
+                  {s === 'all' ? t('list.allStatuses') : t(`leadStatus.${s}`)}
+                  {count !== null ? (
+                    <span
+                      className={cn(
+                        'tabular-nums',
+                        selected ? 'opacity-80' : 'text-muted-foreground'
+                      )}
+                    >
+                      {format.number(count)}
+                    </span>
+                  ) : null}
+                </Button>
+              );
+            })}
+          </div>
+          <div className='mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap'>
             <div className='relative min-w-[200px] flex-1'>
               <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
               <Input
@@ -289,27 +343,6 @@ export function CampaignLeadsTab({
                 className='pl-9'
               />
             </div>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger
-                className='w-full sm:w-[160px]'
-                aria-label={t('list.allStatuses')}
-              >
-                <SelectValue placeholder={t('list.allStatuses')} />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_FILTERS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s === 'all' ? t('list.allStatuses') : t(`leadStatus.${s}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             {dispositions.length > 0 && (
               <Select
                 value={dispositionFilter}
@@ -341,11 +374,29 @@ export function CampaignLeadsTab({
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading && leads.length === 0 ? (
             <div className='space-y-2'>
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className='h-12 w-full' />
               ))}
+            </div>
+          ) : loadFailed && leads.length === 0 ? (
+            <div className='flex flex-col items-center py-12 text-center'>
+              <AlertTriangle className='mb-4 h-10 w-10 text-amber-500' />
+              <h3 className='text-lg font-semibold'>
+                {t('leads.error.title')}
+              </h3>
+              <p className='text-muted-foreground mt-1 text-sm'>
+                {t('leads.error.description')}
+              </p>
+              <Button
+                variant='outline'
+                className='mt-4'
+                onClick={() => void loadLeads()}
+              >
+                <RotateCw className='mr-2 h-4 w-4' />
+                {t('leads.error.retry')}
+              </Button>
             </div>
           ) : leads.length === 0 ? (
             <div className='flex flex-col items-center py-12 text-center'>
@@ -380,7 +431,13 @@ export function CampaignLeadsTab({
                   enough: a wide table stretches the whole page instead of
                   scrolling. As a grid item the table gets an automatic minimum
                   size of 0, which keeps the overflow inside the table. */}
-              <div className='grid'>
+              <div
+                className={cn(
+                  'grid transition-opacity',
+                  loading && 'pointer-events-none opacity-60'
+                )}
+                aria-busy={loading}
+              >
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -393,6 +450,9 @@ export function CampaignLeadsTab({
                         {t('leads.table.company')}
                       </TableHead>
                       <TableHead>{t('leads.table.status')}</TableHead>
+                      <TableHead className='hidden sm:table-cell'>
+                        {t('leads.table.lastOutcome')}
+                      </TableHead>
                       <TableHead className='hidden sm:table-cell'>
                         {t('leads.table.attempts')}
                       </TableHead>
@@ -412,7 +472,14 @@ export function CampaignLeadsTab({
                     {leads.map((lead) => (
                       <TableRow key={lead.id}>
                         <TableCell className='font-medium'>
-                          <div>{lead.contact.name || '—'}</div>
+                          <Link
+                            href={`/dashboard/contact/${lead.contactId}`}
+                            target='_blank'
+                            className='underline-offset-2 hover:underline'
+                            title={t('leads.openContact')}
+                          >
+                            {lead.contact.name || '—'}
+                          </Link>
                           <div className='text-muted-foreground text-xs'>
                             {[
                               lead.contact.jobTitle,
@@ -440,11 +507,26 @@ export function CampaignLeadsTab({
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant='secondary'
-                            className={LEAD_STATUS_COLORS[lead.status] || ''}
+                            variant='outline'
+                            className={LEAD_STATUS_CLASSES[lead.status] || ''}
                           >
                             {t(`leadStatus.${lead.status}`)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className='hidden sm:table-cell'>
+                          <LastOutcome
+                            lead={lead}
+                            disposition={
+                              lead.lastAttempt?.dispositionCode
+                                ? dispositionByCode.get(
+                                    lead.lastAttempt.dispositionCode
+                                  )
+                                : undefined
+                            }
+                            noOutcomeLabel={t('leads.noOutcome')}
+                            openLabel={t('leads.openCall')}
+                            onOpenCall={setOpenCallId}
+                          />
                         </TableCell>
                         <TableCell className='hidden sm:table-cell'>
                           {lead.attempts}
@@ -580,6 +662,59 @@ export function CampaignLeadsTab({
         onOpenChange={setAddOpen}
         onAdded={handleImported}
       />
+
+      <CallDetailDialog
+        callId={openCallId}
+        onClose={() => setOpenCallId(null)}
+      />
     </>
+  );
+}
+
+/**
+ * How the lead's latest attempt ended, as the campaign labelled it. With a
+ * recorded call behind it, the badge opens that call — recording, transcript
+ * and all — without leaving the campaign.
+ */
+function LastOutcome({
+  lead,
+  disposition,
+  noOutcomeLabel,
+  openLabel,
+  onOpenCall
+}: {
+  lead: CampaignLead;
+  disposition?: Disposition;
+  noOutcomeLabel: string;
+  openLabel: string;
+  onOpenCall: (callId: string) => void;
+}) {
+  const attempt = lead.lastAttempt;
+  if (!attempt) return <span className='text-muted-foreground'>—</span>;
+
+  const label = attempt.dispositionCode
+    ? (disposition?.label ?? humanize(attempt.dispositionCode))
+    : noOutcomeLabel;
+  const badge = (
+    <ToneBadge
+      tone={disposition ? DISPOSITION_TONE[disposition.category] : 'neutral'}
+      icon={attempt.callId ? PlayCircle : undefined}
+    >
+      {label}
+    </ToneBadge>
+  );
+
+  if (!attempt.callId) return badge;
+  const callId = attempt.callId;
+  return (
+    <button
+      type='button'
+      onClick={() => onOpenCall(callId)}
+      title={openLabel}
+      aria-label={`${label} — ${openLabel}`}
+      className='rounded-lg transition-opacity hover:opacity-80'
+    >
+      {badge}
+    </button>
   );
 }

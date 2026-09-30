@@ -37,9 +37,9 @@
       "description": "Nur Administratoren der Organisation und zugewiesene Mitglieder können sie öffnen. Bitten Sie einen Administrator, Sie hinzuzufügen."
     },
     "back": "Zurück zu den Kampagnen",
-    "activate": "Aktivieren",
-    "pause": "Pausieren",
-    "resume": "Fortsetzen",
+    "activate": "Kampagne aktivieren",
+    "pause": "Kampagne pausieren",
+    "resume": "Kampagne fortsetzen",
     "complete": "Abschließen",
     "openDialer": "Dialer öffnen",
     "completeDialog": {
@@ -64,7 +64,9 @@
       "members": "Mitglieder",
       "dispositions": "Klassifizierungen",
       "analytics": "Analysen",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "results": "Ergebnisse",
+      "team": "Team"
     },
     "toasts": {
       "activated": "Kampagne aktiviert.",
@@ -72,6 +74,80 @@
       "completed": "Kampagne abgeschlossen.",
       "updated": "Kampagne aktualisiert.",
       "statusError": "Der Kampagnenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+    },
+    "backShort": "Kampagnen",
+    "startCalling": "Anrufe starten",
+    "viewResults": "Ergebnisse ansehen",
+    "moreActions": "Weitere Aktionen",
+    "completeEllipsis": "Kampagne abschließen…",
+    "activateBlocked": "Füge mindestens einen Lead und eine Klassifizierung hinzu, um sie zu aktivieren.",
+    "config": {
+      "everyDay": "Jeden Tag",
+      "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+      "edit": "Bearbeiten",
+      "editLong": "Einstellungen bearbeiten"
+    },
+    "loadError": {
+      "title": "Diese Kampagne konnte nicht geladen werden",
+      "description": "Prüfe deine Verbindung und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    },
+    "pausedNotice": {
+      "title": "Diese Kampagne ist pausiert",
+      "description": "Es gehen keine Anrufe raus, bis ein Admin sie fortsetzt."
+    },
+    "draftNotice": {
+      "title": "Diese Kampagne ist noch nicht aktiv",
+      "description": "Ein Admin richtet sie noch ein. Du kannst anrufen, sobald sie aktiviert ist."
+    },
+    "kpis": {
+      "error": "Die Kennzahlen der Kampagne konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "dialed": "Angerufene Leads",
+      "dialedDetail": "von {total} ({percent} %)",
+      "contactRate": "Kontaktquote",
+      "contactRateDetail": "{connected} von {attempts} Anrufen angenommen",
+      "conversions": "Conversions",
+      "conversionsDetail": "{rate} % der Anrufe · Termine und Verkäufe",
+      "conversionsHint": "Gebuchte Termine und Verkäufe",
+      "talkTime": "Ø Gesprächsdauer",
+      "talkTimeDetail": "pro angenommenem Anruf",
+      "progressLabel": "Leads nach Phase",
+      "groups": {
+        "toCall": "anzurufen",
+        "inProgress": "in Bearbeitung",
+        "followUp": "Nachfassen",
+        "done": "abgeschlossen",
+        "closedOut": "ausgeschöpft oder nicht anrufen"
+      }
+    },
+    "readiness": {
+      "title": "Kampagne startklar machen",
+      "progress": "{done} von {total} Pflichtschritten erledigt",
+      "leads": {
+        "todo": "Leads zum Anrufen hinzufügen",
+        "done": "{count, plural, one {# Lead bereit} other {# Leads bereit}}",
+        "hint": "Importiere eine CSV-Datei oder füge Leads einzeln hinzu.",
+        "action": "Leads hinzufügen"
+      },
+      "dispositions": {
+        "todo": "Klassifizierungen einrichten",
+        "done": "{count, plural, one {# Klassifizierung eingerichtet} other {# Klassifizierungen eingerichtet}}",
+        "hint": "Nach jedem Anruf wählt der Agent eine aus: Interessiert, Kein Interesse, Rückruf…",
+        "action": "Klassifizierungen einrichten"
+      },
+      "number": {
+        "done": "Anrufe gehen von der Nummer der Kampagne raus",
+        "auto": "Anrufe gehen von einer beliebigen Nummer deiner Organisation raus",
+        "hint": "Wähle in den Einstellungen eine bestimmte Nummer oder Anrufer-ID, wenn du möchtest.",
+        "action": "Nummer wählen"
+      },
+      "team": {
+        "todo": "Agenten zuweisen (optional)",
+        "done": "{count, plural, one {# Agent zugewiesen} other {# Agenten zugewiesen}}",
+        "hint": "Nur zugewiesene Mitglieder können diese Kampagne anrufen. Admins können es immer.",
+        "action": "Agenten zuweisen"
+      }
     }
   },
   "fields": {
@@ -183,7 +259,8 @@
       "status": "Status",
       "attempts": "Versuche",
       "lastCall": "Letzter Anruf",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "lastOutcome": "Letztes Ergebnis"
     },
     "removeDialog": {
       "title": "Diesen Lead entfernen?",
@@ -194,7 +271,15 @@
     "toasts": {
       "removed": "{name} wurde aus der Kampagne entfernt.",
       "removeError": "Der Lead konnte nicht entfernt werden. Bitte versuchen Sie es erneut."
-    }
+    },
+    "error": {
+      "title": "Die Leads konnten nicht geladen werden",
+      "description": "Prüfe deine Verbindung und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    },
+    "openContact": "Kontakt öffnen",
+    "noOutcome": "Kein Ergebnis",
+    "openCall": "Anruf öffnen"
   },
   "addLead": {
     "title": "Lead manuell hinzufügen",

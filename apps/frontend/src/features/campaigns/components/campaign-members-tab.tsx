@@ -63,12 +63,15 @@ interface Props {
   campaignStatus: CampaignStatus;
   /** Org admins (and freelancers) can add/remove members; members are read-only. */
   canManage?: boolean;
+  /** Told how many members the campaign has after every load. */
+  onCountChange?: (count: number) => void;
 }
 
 export function CampaignMembersTab({
   campaignId,
   campaignStatus,
-  canManage = false
+  canManage = false,
+  onCountChange
 }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns.members');
@@ -100,6 +103,7 @@ export function CampaignMembersTab({
         `/campaigns/${campaignId}/members`
       );
       setMembers(data);
+      onCountChange?.(data.length);
     } catch {
       // handled
     } finally {

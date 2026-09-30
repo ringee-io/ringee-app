@@ -37,9 +37,9 @@
       "description": "Only organization admins and assigned members can open this campaign. Ask an admin to add you to it."
     },
     "back": "Back to Campaigns",
-    "activate": "Activate",
-    "pause": "Pause",
-    "resume": "Resume",
+    "activate": "Activate campaign",
+    "pause": "Pause campaign",
+    "resume": "Resume campaign",
     "complete": "Complete",
     "openDialer": "Open Dialer",
     "completeDialog": {
@@ -64,7 +64,9 @@
       "members": "Members",
       "dispositions": "Dispositions",
       "analytics": "Analytics",
-      "settings": "Settings"
+      "settings": "Settings",
+      "results": "Results",
+      "team": "Team"
     },
     "toasts": {
       "activated": "Campaign activated.",
@@ -72,6 +74,80 @@
       "completed": "Campaign completed.",
       "updated": "Campaign updated.",
       "statusError": "Could not update the campaign status. Please try again."
+    },
+    "backShort": "Campaigns",
+    "startCalling": "Start calling",
+    "viewResults": "View results",
+    "moreActions": "More actions",
+    "completeEllipsis": "Complete campaign…",
+    "activateBlocked": "Add at least one lead and one call outcome to activate.",
+    "config": {
+      "everyDay": "Every day",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "edit": "Edit",
+      "editLong": "Edit settings"
+    },
+    "loadError": {
+      "title": "We couldn't load this campaign",
+      "description": "Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "pausedNotice": {
+      "title": "This campaign is paused",
+      "description": "No calls go out until an admin resumes it."
+    },
+    "draftNotice": {
+      "title": "This campaign isn't live yet",
+      "description": "An admin is still setting it up. You'll be able to start calling once it's activated."
+    },
+    "kpis": {
+      "error": "We couldn't load this campaign's numbers.",
+      "retry": "Try again",
+      "dialed": "Leads dialed",
+      "dialedDetail": "of {total} ({percent}%)",
+      "contactRate": "Contact rate",
+      "contactRateDetail": "{connected} of {attempts} calls answered",
+      "conversions": "Conversions",
+      "conversionsDetail": "{rate}% of calls · meetings and sales",
+      "conversionsHint": "Meetings booked and sales",
+      "talkTime": "Avg. conversation",
+      "talkTimeDetail": "per answered call",
+      "progressLabel": "Leads by stage",
+      "groups": {
+        "toCall": "to call",
+        "inProgress": "in progress",
+        "followUp": "follow-up",
+        "done": "completed",
+        "closedOut": "exhausted or do not call"
+      }
+    },
+    "readiness": {
+      "title": "Get this campaign ready to launch",
+      "progress": "{done} of {total} required steps done",
+      "leads": {
+        "todo": "Add leads to call",
+        "done": "{count, plural, one {# lead ready} other {# leads ready}}",
+        "hint": "Import a CSV or add leads one by one.",
+        "action": "Add leads"
+      },
+      "dispositions": {
+        "todo": "Set up call outcomes",
+        "done": "{count, plural, one {# call outcome set up} other {# call outcomes set up}}",
+        "hint": "Agents pick one after every call — Interested, Not interested, Call back…",
+        "action": "Set up outcomes"
+      },
+      "number": {
+        "done": "Calls go out from the campaign's number",
+        "auto": "Calls go out from any of your organization's numbers",
+        "hint": "Pick a specific number or caller ID in the settings if you prefer.",
+        "action": "Choose number"
+      },
+      "team": {
+        "todo": "Assign agents (optional)",
+        "done": "{count, plural, one {# agent assigned} other {# agents assigned}}",
+        "hint": "Only assigned members can call this campaign. Admins always can.",
+        "action": "Assign agents"
+      }
     }
   },
   "fields": {
@@ -183,7 +259,8 @@
       "status": "Status",
       "attempts": "Attempts",
       "lastCall": "Last Call",
-      "actions": "Actions"
+      "actions": "Actions",
+      "lastOutcome": "Last outcome"
     },
     "removeDialog": {
       "title": "Remove this lead?",
@@ -194,7 +271,15 @@
     "toasts": {
       "removed": "{name} removed from the campaign.",
       "removeError": "Could not remove the lead. Please try again."
-    }
+    },
+    "error": {
+      "title": "We couldn't load the leads",
+      "description": "Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "openContact": "Open contact",
+    "noOutcome": "No outcome",
+    "openCall": "Open the call"
   },
   "addLead": {
     "title": "Add Lead Manually",

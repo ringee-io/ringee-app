@@ -333,9 +333,85 @@
       "destinationRejected": "Tu operador no pudo enrutar este número.",
       "timeout": "Tu operador no respondió a tiempo.",
       "failed": "No se pudo completar la llamada a través de tu operador."
+    },
+    "call": "Llamar",
+    "starting": "Iniciando llamada…",
+    "deleteDigit": "Borrar dígito",
+    "enterToCall": "Pulsa Enter para llamar",
+    "noCredit": "No tienes saldo. Recarga para seguir llamando.",
+    "addCredit": "Recargar",
+    "alreadyOnCall": "Ya estás en una llamada. Cuelga para iniciar otra.",
+    "campaignSessionActive": "Estás en una sesión de campaña. Termínala para hacer una llamada manual.",
+    "lineConnecting": "Conectando tu línea…",
+    "lineUnavailable": "Tu línea no está conectada. Revisa tu conexión a internet e inténtalo de nuevo.",
+    "dialFailed": "No se pudo iniciar la llamada. Inténtalo de nuevo.",
+    "line": {
+      "ready": "Línea lista",
+      "readyHint": "Ya puedes hacer llamadas.",
+      "connecting": "Conectando…",
+      "connectingHint": "Tu línea se está conectando. Si llamas ahora, la llamada saldrá en cuanto esté lista.",
+      "offline": "Sin conexión",
+      "offlineHint": "Tu línea está desconectada. Revisa tu conexión a internet."
     }
   },
   "numberSelector": {
-    "externalCarrier": "Tu operador"
+    "externalCarrier": "Tu operador",
+    "callFrom": "Llamar desde:",
+    "publicNumber": "Número público",
+    "whyBuy": "¿Por qué comprar un número?",
+    "whyBuyDescription": "Comprar un número te permite hacer y recibir llamadas reales. Los precios empiezan en 1,00 USD al mes según el país y el tipo de número.",
+    "selectNumber": "Selecciona un número",
+    "notRequired": "No necesitas un número para llamar",
+    "buy": "Comprar número"
+  },
+  "activeCallStatus": {
+    "recording": "Grabando…",
+    "connected": "Conectado",
+    "connecting": "Conectando…"
+  },
+  "contactSelector": {
+    "singleMatch": "1 contacto coincide 👆",
+    "multipleMatches": "{count} contactos coinciden",
+    "notFound": "No se encontraron contactos",
+    "addContact": "Agregar contacto"
+  },
+  "inCallScript": {
+    "empty": "Aún no tienes un guion",
+    "emptyDescription": "Crea tu guion en Ajustes → Resumen → Guion para verlo aquí durante la llamada.",
+    "configure": "Configurar guion",
+    "untitled": "Sin título",
+    "noContent": "(Sin contenido)"
+  },
+  "inCallContact": {
+    "loadFailed": "No se pudo cargar el contacto",
+    "phoneRequired": "El teléfono es obligatorio",
+    "updated": "Contacto actualizado",
+    "saveFailed": "No se pudo guardar",
+    "notFound": "No se encontró información del contacto.",
+    "cancel": "Cancelar",
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "edit": "Editar",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "displayName": "Nombre visible",
+    "displayNamePlaceholder": "Se genera a partir del nombre y el apellido",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "company": "Empresa",
+    "jobTitle": "Cargo",
+    "state": "Estado / Provincia",
+    "website": "Sitio web",
+    "revenue": "Ingresos",
+    "companySize": "Tamaño de la empresa"
+  },
+  "publicNumberPrompt": {
+    "title": "Vas a llamar desde el número público",
+    "description": "Es un número compartido de Ringee, no uno tuyo: quien reciba la llamada no te reconocerá y, si devuelve la llamada, no te llegará a ti.",
+    "descriptionOwnNumbers": "Tienes números propios, pero esta llamada saldrá desde el número compartido de Ringee. Para que te reconozcan y te puedan devolver la llamada, elige tu número en «Llamar desde» del marcador.",
+    "cancel": "Cancelar",
+    "call": "Llamar",
+    "callAndDontWarn": "Llamar y no volver a avisar",
+    "buyNumber": "Comprar un número"
   }
 }

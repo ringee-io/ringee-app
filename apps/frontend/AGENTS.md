@@ -82,8 +82,26 @@ session. On answer, `IncomingCall` writes the offer's `callId`, caller number
 and contact into the call store; the call screen and the post-call outcome read
 them from there.
 
+**A manual call starts through `useDial`** (`features/calls/hooks/use.dial.ts`),
+wherever it is started from — keypad, contact, callback, recent call, call
+detail. It dials in place (the active-call modal opens over the current page),
+refuses a second dial while one is starting or live, and asks the one shared
+DNC confirmation (`confirmDncCall`). Do not call `useCall().handleCall` from a
+new surface, and do not route a "call" button through the call page.
+
+The caller ID is the user's choice in the numbers store, which only the
+dialer's number selector used to load — so a call from any other surface went
+out from the shared public number. `useDial` loads the numbers
+(`ensureNumbersLoaded`) before it dials, `handleCall` reads the selection at
+dial time, and a call that will go out from the public number is announced
+first (`confirmPublicNumberCall`, which the user can silence per browser). The
+campaign dialer never uses the public number: its caller ID is resolved
+server-side.
+
 **A live call is ended by the hang-up button or by the person on the other end,
-and by nothing else.** No other control may call `hangup()` — not a disposition,
+and by nothing else.** That includes a dialog's corner close: the active-call
+modal's `onClose` is the host's hang-up, so its dialogs render
+`showCloseButton={false}`. No other control may call `hangup()` — not a disposition,
 not a shortcut, not a timer. In the campaign dialer the outcome buttons are live
 during the call so the agent can choose while they talk; the choice is saved
 when the call ends, and saving it is what advances the session to the next lead.

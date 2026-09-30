@@ -320,5 +320,86 @@
       "neutral": "Neutral",
       "negative": "Negativ"
     }
+  },
+  "dialer": {
+    "call": "Anrufen",
+    "starting": "Anruf wird gestartet…",
+    "deleteDigit": "Ziffer löschen",
+    "enterToCall": "Drücke Enter zum Anrufen",
+    "noCredit": "Dein Guthaben ist aufgebraucht. Lade es auf, um weiter zu telefonieren.",
+    "addCredit": "Guthaben aufladen",
+    "alreadyOnCall": "Du bist bereits in einem Gespräch. Lege auf, um ein neues zu starten.",
+    "campaignSessionActive": "Du bist in einer Kampagnensitzung. Beende sie, um manuell anzurufen.",
+    "lineConnecting": "Deine Leitung wird verbunden…",
+    "lineUnavailable": "Deine Leitung ist nicht verbunden. Prüfe deine Internetverbindung und versuche es erneut.",
+    "dialFailed": "Der Anruf konnte nicht gestartet werden. Bitte versuche es erneut.",
+    "line": {
+      "ready": "Leitung bereit",
+      "readyHint": "Du kannst Anrufe tätigen.",
+      "connecting": "Verbinde…",
+      "connectingHint": "Deine Leitung wird verbunden. Ein jetzt gestarteter Anruf geht raus, sobald sie bereit ist.",
+      "offline": "Offline",
+      "offlineHint": "Deine Leitung ist getrennt. Prüfe deine Internetverbindung."
+    }
+  },
+  "activeCallStatus": {
+    "recording": "Aufnahme…",
+    "connected": "Verbunden",
+    "connecting": "Verbinde…"
+  },
+  "contactSelector": {
+    "singleMatch": "1 Kontakt passt 👆",
+    "multipleMatches": "{count} Kontakte passen",
+    "notFound": "Keine Kontakte gefunden",
+    "addContact": "Kontakt hinzufügen"
+  },
+  "inCallScript": {
+    "empty": "Du hast noch kein Skript",
+    "emptyDescription": "Erstelle dein Skript unter Einstellungen → Übersicht → Skript, damit es hier während des Anrufs erscheint.",
+    "configure": "Skript einrichten",
+    "untitled": "Ohne Titel",
+    "noContent": "(Kein Inhalt)"
+  },
+  "inCallContact": {
+    "loadFailed": "Kontakt konnte nicht geladen werden",
+    "phoneRequired": "Telefonnummer ist erforderlich",
+    "updated": "Kontakt aktualisiert",
+    "saveFailed": "Speichern fehlgeschlagen",
+    "notFound": "Keine Kontaktinformationen gefunden.",
+    "cancel": "Abbrechen",
+    "saving": "Wird gespeichert…",
+    "save": "Speichern",
+    "edit": "Bearbeiten",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "displayName": "Anzeigename",
+    "displayNamePlaceholder": "Wird aus Vor- und Nachname erzeugt",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "company": "Unternehmen",
+    "jobTitle": "Position",
+    "state": "Bundesland / Provinz",
+    "website": "Website",
+    "revenue": "Umsatz",
+    "companySize": "Unternehmensgröße"
+  },
+  "numberSelector": {
+    "callFrom": "Anrufen von:",
+    "publicNumber": "Öffentliche Nummer",
+    "whyBuy": "Warum eine Nummer kaufen?",
+    "whyBuyDescription": "Mit einer eigenen Nummer kannst du echte Anrufe tätigen und empfangen. Preise ab 1,00 USD pro Monat, je nach Land und Nummerntyp.",
+    "selectNumber": "Nummer auswählen",
+    "notRequired": "Zum Anrufen brauchst du keine Nummer",
+    "buy": "Nummer kaufen",
+    "externalCarrier": "Dein Anbieter"
+  },
+  "publicNumberPrompt": {
+    "title": "Du rufst von der öffentlichen Nummer an",
+    "description": "Das ist eine gemeinsam genutzte Ringee-Nummer, nicht deine: Die angerufene Person erkennt dich nicht, und ein Rückruf erreicht dich nicht.",
+    "descriptionOwnNumbers": "Du hast eigene Nummern, aber dieser Anruf geht über die gemeinsam genutzte Ringee-Nummer raus. Damit man dich erkennt und zurückrufen kann, wähle im Dialer unter „Anrufen von“ deine Nummer.",
+    "cancel": "Abbrechen",
+    "call": "Anrufen",
+    "callAndDontWarn": "Anrufen und nicht mehr warnen",
+    "buyNumber": "Nummer kaufen"
   }
 }

@@ -320,5 +320,86 @@
       "neutral": "Neutro",
       "negative": "Negativo"
     }
+  },
+  "dialer": {
+    "call": "Ligar",
+    "starting": "Iniciando chamada…",
+    "deleteDigit": "Apagar dígito",
+    "enterToCall": "Pressione Enter para ligar",
+    "noCredit": "Você está sem crédito. Recarregue para continuar ligando.",
+    "addCredit": "Recarregar",
+    "alreadyOnCall": "Você já está em uma chamada. Desligue para iniciar outra.",
+    "campaignSessionActive": "Você está em uma sessão de campanha. Encerre-a para fazer uma chamada manual.",
+    "lineConnecting": "Conectando sua linha…",
+    "lineUnavailable": "Sua linha não está conectada. Verifique sua conexão com a internet e tente novamente.",
+    "dialFailed": "Não foi possível iniciar a chamada. Tente novamente.",
+    "line": {
+      "ready": "Linha pronta",
+      "readyHint": "Você já pode fazer chamadas.",
+      "connecting": "Conectando…",
+      "connectingHint": "Sua linha está conectando. Uma chamada iniciada agora sai assim que ela estiver pronta.",
+      "offline": "Sem conexão",
+      "offlineHint": "Sua linha está desconectada. Verifique sua conexão com a internet."
+    }
+  },
+  "activeCallStatus": {
+    "recording": "Gravando…",
+    "connected": "Conectado",
+    "connecting": "Conectando…"
+  },
+  "contactSelector": {
+    "singleMatch": "1 contato corresponde 👆",
+    "multipleMatches": "{count} contatos correspondem",
+    "notFound": "Nenhum contato encontrado",
+    "addContact": "Adicionar contato"
+  },
+  "inCallScript": {
+    "empty": "Você ainda não tem um roteiro",
+    "emptyDescription": "Crie seu roteiro em Definições → Resumo → Roteiro para vê-lo aqui durante a chamada.",
+    "configure": "Configurar roteiro",
+    "untitled": "Sem título",
+    "noContent": "(Sem conteúdo)"
+  },
+  "inCallContact": {
+    "loadFailed": "Não foi possível carregar o contato",
+    "phoneRequired": "O telefone é obrigatório",
+    "updated": "Contato atualizado",
+    "saveFailed": "Não foi possível salvar",
+    "notFound": "Nenhuma informação de contato encontrada.",
+    "cancel": "Cancelar",
+    "saving": "Salvando…",
+    "save": "Salvar",
+    "edit": "Editar",
+    "firstName": "Nome",
+    "lastName": "Sobrenome",
+    "displayName": "Nome de exibição",
+    "displayNamePlaceholder": "Gerado a partir do nome e do sobrenome",
+    "email": "E-mail",
+    "phone": "Telefone",
+    "company": "Empresa",
+    "jobTitle": "Cargo",
+    "state": "Estado / Província",
+    "website": "Site",
+    "revenue": "Faturamento",
+    "companySize": "Tamanho da empresa"
+  },
+  "numberSelector": {
+    "callFrom": "Ligar de:",
+    "publicNumber": "Número público",
+    "whyBuy": "Por que comprar um número?",
+    "whyBuyDescription": "Comprar um número permite fazer e receber chamadas reais. Os preços começam em 1,00 USD por mês, conforme o país e o tipo de número.",
+    "selectNumber": "Selecione um número",
+    "notRequired": "Você não precisa de um número para ligar",
+    "buy": "Comprar número",
+    "externalCarrier": "Sua operadora"
+  },
+  "publicNumberPrompt": {
+    "title": "Você vai ligar do número público",
+    "description": "É um número compartilhado da Ringee, não um dos seus: quem receber a chamada não vai reconhecer você e, se retornar a ligação, ela não vai chegar até você.",
+    "descriptionOwnNumbers": "Você tem números próprios, mas esta chamada vai sair do número compartilhado da Ringee. Para ser reconhecido e receber retornos, escolha o seu número em “Ligar de” no marcador.",
+    "cancel": "Cancelar",
+    "call": "Ligar",
+    "callAndDontWarn": "Ligar e não avisar mais",
+    "buyNumber": "Comprar um número"
   }
 }

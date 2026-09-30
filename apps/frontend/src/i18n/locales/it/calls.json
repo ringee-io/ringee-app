@@ -313,5 +313,86 @@
       "neutral": "Neutro",
       "negative": "Negativo"
     }
+  },
+  "dialer": {
+    "call": "Chiama",
+    "starting": "Avvio della chiamata…",
+    "deleteDigit": "Cancella cifra",
+    "enterToCall": "Premi Invio per chiamare",
+    "noCredit": "Hai esaurito il credito. Ricarica per continuare a chiamare.",
+    "addCredit": "Ricarica",
+    "alreadyOnCall": "Sei già in una chiamata. Riaggancia per avviarne un'altra.",
+    "campaignSessionActive": "Sei in una sessione di campagna. Terminala per effettuare una chiamata manuale.",
+    "lineConnecting": "Connessione della linea…",
+    "lineUnavailable": "La tua linea non è connessa. Controlla la connessione a internet e riprova.",
+    "dialFailed": "Impossibile avviare la chiamata. Riprova.",
+    "line": {
+      "ready": "Linea pronta",
+      "readyHint": "Puoi effettuare chiamate.",
+      "connecting": "Connessione…",
+      "connectingHint": "La linea si sta connettendo. Una chiamata avviata ora partirà appena sarà pronta.",
+      "offline": "Offline",
+      "offlineHint": "La tua linea è disconnessa. Controlla la connessione a internet."
+    }
+  },
+  "activeCallStatus": {
+    "recording": "Registrazione…",
+    "connected": "Connesso",
+    "connecting": "Connessione…"
+  },
+  "contactSelector": {
+    "singleMatch": "1 contatto corrisponde 👆",
+    "multipleMatches": "{count} contatti corrispondono",
+    "notFound": "Nessun contatto trovato",
+    "addContact": "Aggiungi contatto"
+  },
+  "inCallScript": {
+    "empty": "Non hai ancora uno script",
+    "emptyDescription": "Crea il tuo script in Impostazioni → Panoramica → Script per vederlo qui durante la chiamata.",
+    "configure": "Configura script",
+    "untitled": "Senza titolo",
+    "noContent": "(Nessun contenuto)"
+  },
+  "inCallContact": {
+    "loadFailed": "Impossibile caricare il contatto",
+    "phoneRequired": "Il numero di telefono è obbligatorio",
+    "updated": "Contatto aggiornato",
+    "saveFailed": "Impossibile salvare",
+    "notFound": "Nessuna informazione di contatto trovata.",
+    "cancel": "Annulla",
+    "saving": "Salvataggio…",
+    "save": "Salva",
+    "edit": "Modifica",
+    "firstName": "Nome",
+    "lastName": "Cognome",
+    "displayName": "Nome visualizzato",
+    "displayNamePlaceholder": "Generato da nome e cognome",
+    "email": "Email",
+    "phone": "Telefono",
+    "company": "Azienda",
+    "jobTitle": "Ruolo",
+    "state": "Stato / Provincia",
+    "website": "Sito web",
+    "revenue": "Fatturato",
+    "companySize": "Dimensione aziendale"
+  },
+  "numberSelector": {
+    "callFrom": "Chiama da:",
+    "publicNumber": "Numero pubblico",
+    "whyBuy": "Perché acquistare un numero?",
+    "whyBuyDescription": "Acquistare un numero ti permette di fare e ricevere chiamate reali. I prezzi partono da 1,00 USD al mese in base al paese e al tipo di numero.",
+    "selectNumber": "Seleziona un numero",
+    "notRequired": "Non ti serve un numero per chiamare",
+    "buy": "Acquista numero",
+    "externalCarrier": "Il tuo operatore"
+  },
+  "publicNumberPrompt": {
+    "title": "Stai chiamando dal numero pubblico",
+    "description": "È un numero Ringee condiviso, non tuo: chi riceve la chiamata non ti riconoscerà e, se richiama, la chiamata non arriverà a te.",
+    "descriptionOwnNumbers": "Hai dei numeri tuoi, ma questa chiamata partirà dal numero Ringee condiviso. Per farti riconoscere e ricevere le richiamate, scegli il tuo numero in «Chiama da» nel dialer.",
+    "cancel": "Annulla",
+    "call": "Chiama",
+    "callAndDontWarn": "Chiama e non avvisarmi più",
+    "buyNumber": "Acquista un numero"
   }
 }
