@@ -21,14 +21,28 @@ import {
   Layers,
   Tag,
   CalendarClock,
-  Network
+  Network,
+  History
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+/** `not_interested` → `Not interested`, for a code with no configured label. */
+function humanize(code: string): string {
+  const spaced = code.replace(/[_-]+/g, ' ').trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Who the agent is calling: the facts that decide how to open, the company,
+ * and every earlier attempt. The script has the middle column to itself.
+ */
 export function LeadPanel() {
   const t = useTranslations('dialer.lead');
   const currentLead = useDialerLeadStore((s) => s.currentLead);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
+  const dispositions = useDialerAttemptStore((s) => s.availableDispositions);
+  const outcomeLabel = (code: string) =>
+    dispositions.find((d) => d.code === code)?.label ?? humanize(code);
 
   if (!currentLead) {
     return (
@@ -61,6 +75,11 @@ export function LeadPanel() {
     .join(' · ');
 
   const custom = { ...toRecord(contact.customFields), ...toRecord(metadata) };
+  const lastAttempt = history.reduce<(typeof history)[number] | null>(
+    (latest, h) =>
+      !latest || h.attemptNumber > latest.attemptNumber ? h : latest,
+    null
+  );
 
   return (
     <div className='flex h-full flex-col overflow-y-auto p-4'>
@@ -74,8 +93,10 @@ export function LeadPanel() {
             <h2 className='truncate text-lg font-semibold'>{displayName}</h2>
             <div className='mt-0.5 flex flex-wrap items-center gap-1.5'>
               {callStatus && (
-                <Badge variant='secondary' className='text-xs capitalize'>
-                  {callStatus.replace(/_/g, ' ')}
+                <Badge variant='secondary' className='text-xs'>
+                  {t.has(`callStatus.${callStatus}`)
+                    ? t(`callStatus.${callStatus}`)
+                    : humanize(callStatus)}
                 </Badge>
               )}
               {contact.status && (
@@ -85,6 +106,25 @@ export function LeadPanel() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* The three facts that decide how to open the call. */}
+        <div className='flex flex-wrap gap-1.5'>
+          <LocalTimeChip timezone={contact.timezone} />
+          <span className='bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'>
+            <Clock className='h-3 w-3' />
+            {t('attempt', { number: attempts + 1 })}
+          </span>
+          {lastAttempt ? (
+            <span className='bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'>
+              <History className='h-3 w-3' />
+              {t('lastOutcome', {
+                outcome: lastAttempt.dispositionCode
+                  ? outcomeLabel(lastAttempt.dispositionCode)
+                  : t('noDisposition')
+              })}
+            </span>
+          ) : null}
         </div>
 
         {contact.headline && (
@@ -208,7 +248,7 @@ export function LeadPanel() {
                 </div>
                 <div className='text-muted-foreground mt-1 text-xs'>
                   {h.dispositionCode
-                    ? h.dispositionCode.replace(/_/g, ' ')
+                    ? outcomeLabel(h.dispositionCode)
                     : t('noDisposition')}
                   {h.endedAt && (
                     <> &middot; {new Date(h.endedAt).toLocaleDateString()}</>
@@ -317,6 +357,41 @@ function LocalTime({
 
   return (
     <LeadProperty icon={Clock} value={`${label}: ${time} (${timezone})`} />
+  );
+}
+
+/** The lead's local time as a compact chip for the header row. */
+function LocalTimeChip({ timezone }: { timezone: string | null }) {
+  const t = useTranslations('dialer.lead');
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!timezone) return;
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [timezone]);
+
+  if (!timezone) return null;
+
+  let time: string;
+  try {
+    time = new Intl.DateTimeFormat(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: timezone
+    }).format(now);
+  } catch {
+    return null;
+  }
+
+  return (
+    <span
+      className='inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300'
+      title={timezone}
+    >
+      <Clock className='h-3 w-3' />
+      {t('localTimeShort', { time })}
+    </span>
   );
 }
 

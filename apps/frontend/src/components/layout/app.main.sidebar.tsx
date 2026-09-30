@@ -9,6 +9,8 @@ import { CallQueuePanel } from '@/features/calls/components/call.queue.panel';
 import { useTelnyxClient } from '@/features/calls/hooks/use.telnyx';
 import { useIncomingCallToasts } from '@/features/calls/hooks/use.incoming.calls';
 import { ShowActiveCall } from '@/features/calls/components/show.active.call';
+import { DncPromptDialog } from '@/features/calls/components/dnc-prompt-dialog';
+import { PublicNumberPromptDialog } from '@/features/calls/components/public-number-prompt-dialog';
 import { useNotifications } from '@/features/calls/hooks/use.notifications';
 import { useListeners } from '@/features/calls/hooks/use.listeners';
 import { SettingsDialog } from '@/features/settings';
@@ -38,6 +40,10 @@ export default function AppMainSidebar({ useMock }: any) {
     <>
       {!useMock ? <CallQueuePanel /> : null}
       {!useMock ? <ShowActiveCall /> : null}
+      {/* The Do Not Call confirmation every dial surface shares (`useDial`). */}
+      {!useMock ? <DncPromptDialog /> : null}
+      {/* Likewise the warning before a call from the shared public number. */}
+      {!useMock ? <PublicNumberPromptDialog /> : null}
       {/* One instance for the whole dashboard — the sidebar user menu and the
           ⇧⌘, shortcut both drive it through the settings dialog store. */}
       {!useMock ? <SettingsDialog /> : null}

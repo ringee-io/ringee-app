@@ -1,31 +1,25 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useDialerStore } from '../store/dialer.store';
+import { useDial } from './use.dial';
 
 /**
- * Hook to handle re-call logic based on quick dialer state.
- * If the quick dialer is open, updates the dialer store with the phone number.
- * If the quick dialer is closed, redirects to the call page.
+ * "Call" / "Call again" from anywhere in the dashboard — a contact, a history
+ * row, a call's detail. It places the call right where the user is: no trip to
+ * the call page, no second click on the keypad. The active-call modal opens on
+ * top of the current screen.
  */
 export function useQuickDialerCall() {
-  const router = useRouter();
-  const { quickDialState, setNumber } = useDialerStore();
+  const quickDialState = useDialerStore((s) => s.quickDialState);
+  const { dial, dialingNumber, busy } = useDial();
 
-  const isQuickDialerOpen = quickDialState === 'open';
-
-  const handleRecall = (phoneNumber: string) => {
-    if (isQuickDialerOpen) {
-      // Quick dialer is open, just update the store
-      setNumber(phoneNumber);
-    } else {
-      // Redirect to call page
-      router.push(`/dashboard/call?tab=dialer&phoneNumber=${phoneNumber}`);
-    }
-  };
+  const handleRecall = (phoneNumber: string) => dial(phoneNumber);
 
   return {
-    isQuickDialerOpen,
-    handleRecall
+    isQuickDialerOpen: quickDialState === 'open',
+    handleRecall,
+    /** The number currently being dialed, for a spinner on its button. */
+    dialingNumber,
+    busy
   };
 }

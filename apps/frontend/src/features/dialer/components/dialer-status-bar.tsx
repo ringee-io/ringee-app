@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import {
   useDialerSessionStore,
   type AgentSessionStatus
@@ -35,21 +34,23 @@ function formatTalkTime(sec: number): string {
 }
 
 interface Props {
-  campaignId: string;
+  campaignName?: string;
   status: AgentSessionStatus;
+  /** Leave the workspace; the workspace confirms and refuses over a live call. */
+  onBack: () => void;
   onPause: () => void;
   onResume: () => void;
   onEnd: () => void;
 }
 
 export function DialerStatusBar({
-  campaignId,
+  campaignName,
   status,
+  onBack,
   onPause,
   onResume,
   onEnd
 }: Props) {
-  const router = useRouter();
   const t = useTranslations('dialer.statusBar');
   const stats = useDialerSessionStore((s) => s.stats);
   const dialerMode = useDialerSessionStore((s) => s.dialerMode);
@@ -67,21 +68,28 @@ export function DialerStatusBar({
 
   return (
     <div className='bg-muted/30 flex flex-wrap items-center justify-between gap-y-2 border-b px-4 py-2'>
-      <div className='flex items-center gap-4'>
+      <div className='flex min-w-0 items-center gap-4'>
         <Button
           variant='ghost'
           size='icon'
           disabled={callLive}
-          onClick={() => router.push(`/dashboard/campaigns/${campaignId}`)}
+          onClick={onBack}
+          aria-label={callLive ? t('backDisabled') : t('back')}
+          title={callLive ? t('backDisabled') : t('back')}
         >
           <ArrowLeft className='h-4 w-4' />
         </Button>
 
-        <div className='flex items-center gap-2'>
+        <div className='flex min-w-0 items-center gap-2'>
           <div
-            className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[status]}`}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_COLORS[status]}`}
           />
           <span className='text-sm font-medium'>{t(`statuses.${status}`)}</span>
+          {campaignName ? (
+            <span className='text-muted-foreground hidden truncate text-sm md:inline'>
+              · {campaignName}
+            </span>
+          ) : null}
         </div>
 
         <div className='text-muted-foreground hidden items-center gap-4 text-sm sm:flex'>
@@ -136,6 +144,7 @@ export function DialerStatusBar({
           size='sm'
           onClick={onEnd}
           disabled={onCall}
+          title={onCall ? t('endDisabled') : undefined}
         >
           <Square className='mr-1 h-3.5 w-3.5' />
           {t('endSession')}

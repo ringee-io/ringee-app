@@ -6,6 +6,9 @@ import { devtools } from 'zustand/middleware';
 interface DialerState {
   number: string;
   setNumber: (num: string) => void;
+  /** The number a dial is being started for (DNC check, pre-flight), if any. */
+  dialingNumber: string | null;
+  setDialingNumber: (num: string | null) => void;
   quickDial: boolean;
   quickDialState: 'idle' | 'open' | 'closed';
   setQuickDial: (quick: boolean) => void;
@@ -15,6 +18,8 @@ export const useDialerStore = create<DialerState>()(
   devtools((set, get) => ({
     number: '',
     setNumber: (num: string) => set({ number: num }),
+    dialingNumber: null,
+    setDialingNumber: (num: string | null) => set({ dialingNumber: num }),
     quickDial: false,
     quickDialState: 'idle',
     setQuickDial: (quick: boolean) => {

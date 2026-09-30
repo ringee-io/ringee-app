@@ -36,8 +36,6 @@ export function useCall(call?: Call | null) {
     setRecordingId
   } = useCallStore();
   const { userId, orgId } = useAuth();
-  const { client } = useTelnyxStore();
-  const { selectedNumber } = useNumbersStore();
   const api = useApi();
   const { completeStep: completeOnboardingStep } = useOnboardingComplete();
 
@@ -153,9 +151,17 @@ export function useCall(call?: Call | null) {
     return t('externalCarrier.unavailable');
   };
 
-  const handleCall = async (number: string) => {
-    if (!client) return console.warn('⚠️ Telnyx client not ready');
-
+  /** Resolves `true` once a leg was handed to the provider, `false` otherwise. */
+  const handleCall = async (number: string): Promise<boolean> => {
+    // Both read when the call is placed, not when this hook last rendered:
+    // `useDial` gets here after waiting on the line, the workspace's numbers
+    // (which restore the user's caller ID) and the user's own confirmations.
+    const { client } = useTelnyxStore.getState();
+    const { selectedNumber } = useNumbersStore.getState();
+    if (!client) {
+      console.warn('⚠️ Telnyx client not ready');
+      return false;
+    }
     const external = selectedNumber?.source === 'external_carrier';
     let carrierRoute: CarrierRoute | undefined;
     const abandonDial = () =>
@@ -192,7 +198,7 @@ export function useCall(call?: Call | null) {
         if (!res?.destinationUri || !res.callToken) {
           toast.error(t('externalCarrier.unavailable'));
           void abandonDial();
-          return;
+          return false;
         }
         carrierRoute = {
           destinationUri: res.destinationUri,
@@ -210,13 +216,17 @@ export function useCall(call?: Call | null) {
         err.data?.code === 'CONCURRENT_CALL'
       ) {
         notifyConcurrentCall(err.data?.message ?? err.message);
-        return;
+        return false;
       }
       void abandonDial();
       toast.error(
-        external ? externalCarrierError(err) : t('callerIdUnavailable')
+        external
+          ? externalCarrierError(err)
+          : err instanceof ApiError && err.status === 402
+            ? t('noCredit')
+            : t('callerIdUnavailable')
       );
-      return;
+      return false;
     }
 
     // The pre-flight above already reserved this user's single call slot. From
@@ -229,7 +239,7 @@ export function useCall(call?: Call | null) {
       );
       toast.error(t('callerIdUnavailable'));
       void abandonDial();
-      return;
+      return false;
     }
 
     try {
@@ -250,6 +260,7 @@ export function useCall(call?: Call | null) {
 
     analytics.trackNewCall(`${callerId}-${number}`);
     completeOnboardingStep('first_call');
+    return true;
   };
 
   return {

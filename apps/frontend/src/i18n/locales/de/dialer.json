@@ -49,7 +49,8 @@
       "actions": {
         "call": "Jetzt anrufen",
         "viewContact": "Kontakt anzeigen",
-        "cancel": "Rückruf abbrechen"
+        "cancel": "Rückruf abbrechen",
+        "more": "Weitere Aktionen"
       }
     },
     "today": {
@@ -65,8 +66,11 @@
       "emptyTitle": "Keine letzten Anrufe",
       "emptyDescription": "Deine ausgehenden Anrufe erscheinen hier für schnelle Wahlwiederholung.",
       "actions": {
-        "redial": "Erneut wählen"
-      }
+        "redial": "Erneut wählen",
+        "openDetail": "Anrufdetails öffnen"
+      },
+      "inbound": "Eingehender Anruf",
+      "outbound": "Ausgehender Anruf"
     },
     "relative": {
       "now": "jetzt",
@@ -75,6 +79,137 @@
       "inHours": "in {count}h",
       "hoursAgo": "vor {count}h",
       "tomorrowAt": "morgen {time}"
+    },
+    "callNext": "Nächsten anrufen",
+    "callNextHint": "{name} anrufen, dein am längsten überfälliger Rückruf"
+  },
+  "workspace": {
+    "title": "Anrufsitzung",
+    "metaTitle": "Dialer — Anrufsitzung | Ringee",
+    "metaDescription": "Tätige ausgehende Anrufe mit dem Progressive Dialer.",
+    "ready": "Bereit zum Telefonieren?",
+    "description": "Starte eine Sitzung, um die Leads dieser Kampagne anzurufen. Der Dialer weist dir den nächsten Lead automatisch nach der Kampagnenkonfiguration zu.",
+    "notAssigned": "Du bist dieser Kampagne nicht zugewiesen. Bitte einen Admin, dich als Mitglied hinzuzufügen.",
+    "startFailed": "Die Sitzung konnte nicht gestartet werden. Bitte versuche es erneut.",
+    "starting": "Wird gestartet…",
+    "start": "Anrufe starten",
+    "closedAfterLead": "Sitzung beendet – das war der letzte gewünschte Lead.",
+    "sessionEnded": "Deine Anrufsitzung wurde beendet.",
+    "back": "Zurück zur Kampagne",
+    "dialogTitle": "Anrufsitzung — {name}",
+    "dialogDescription": "Rufe die Leads dieser Kampagne nacheinander an und erfasse das Ergebnis jedes Anrufs.",
+    "exitDialog": {
+      "title": "Diese Anrufsitzung beenden?",
+      "description": "Du erhältst keine Leads mehr aus dieser Kampagne. Du kannst jederzeit eine neue Sitzung starten.",
+      "stay": "Weiter telefonieren",
+      "confirm": "Sitzung beenden"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Skript",
+      "transcript": "Transkript",
+      "outcome": "Ergebnis"
     }
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Bereit",
+      "reserved": "Lead wird zugewiesen…",
+      "dialing": "Wählt",
+      "in_call": "Im Gespräch",
+      "wrap_up": "Nachbearbeitung",
+      "paused": "Pausiert",
+      "offline": "Offline"
+    },
+    "calls": "Anrufe: {count}",
+    "connected": "Angenommen: {count}",
+    "rate": "Kontakt: {rate} %",
+    "talk": "Gespräch: {time}",
+    "resume": "Fortsetzen",
+    "pause": "Pausieren",
+    "endSession": "Sitzung beenden",
+    "closeAfterLead": "Sitzung nach diesem Lead beenden",
+    "back": "Zurück zur Kampagne",
+    "backDisabled": "Lege auf, bevor du die Sitzung verlässt",
+    "endDisabled": "Lege auf, bevor du die Sitzung beendest"
+  },
+  "disposition": {
+    "title": "Anrufergebnis",
+    "select": "Anrufergebnis",
+    "pickWhileTalking": "Wähle das Ergebnis schon während des Gesprächs – es wird beim Auflegen gespeichert.",
+    "pickToContinue": "Speichere ein Ergebnis, um zum nächsten Lead zu wechseln.",
+    "availableOnDial": "Die Ergebnisse erscheinen, sobald der Anruf beginnt.",
+    "selectAfterCall": "Wähle nach jedem Anruf ein Ergebnis.",
+    "callbackRequired": "Wähle Datum und Uhrzeit für den Rückruf.",
+    "saved": "Ergebnis gespeichert.",
+    "saveFailed": "Das Ergebnis konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "notes": "Notizen (optional)",
+    "notesPlaceholder": "Gesprächsnotizen…",
+    "scheduleCallback": "Rückruf planen",
+    "dateTime": "Datum und Uhrzeit",
+    "callbackNote": "Notiz zum Rückruf",
+    "callbackPlaceholder": "Grund für den Rückruf…",
+    "submit": "Ergebnis speichern",
+    "submitOnHangup": "Wird beim Auflegen gespeichert",
+    "presets": {
+      "inOneHour": "In 1 Stunde",
+      "tomorrowMorning": "Morgen 9:00",
+      "nextMonday": "Montag 9:00"
+    },
+    "shortcutsHint": "Tipp: Drücke 1–9, um ein Ergebnis zu wählen, und Enter zum Speichern."
+  },
+  "lead": {
+    "waiting": "Warte auf Lead",
+    "waitingDescription": "Der Dialer weist dir den nächsten Lead automatisch zu.",
+    "unknown": "Unbekannt",
+    "attempt": "Versuch #{number}",
+    "previousAttempts": "Frühere Versuche",
+    "noAttempts": "Keine früheren Versuche",
+    "noDisposition": "Kein Ergebnis",
+    "linkedin": "LinkedIn-Profil",
+    "localTime": "Ortszeit",
+    "score": "Score {score}",
+    "lastCall": "Letzter Anruf {date}",
+    "sections": {
+      "company": "Unternehmen",
+      "location": "Standort",
+      "pipeline": "Pipeline",
+      "about": "Über",
+      "custom": "Weitere Angaben"
+    },
+    "localTimeShort": "{time} Ortszeit",
+    "lastOutcome": "Zuletzt: {outcome}",
+    "callStatus": {
+      "created": "Bereit",
+      "dialing": "Wählt",
+      "ringing": "Klingelt",
+      "answered": "Angenommen",
+      "in_call": "Im Gespräch",
+      "ended": "Anruf beendet",
+      "dispositioned": "Gespeichert"
+    }
+  },
+  "softphone": {
+    "dialFailed": "Der Anruf konnte nicht gestartet werden.",
+    "skipFailed": "Dieser Lead konnte nicht übersprungen werden.",
+    "paused": "Sitzung pausiert",
+    "waiting": "Warte auf den nächsten Lead…",
+    "dial": "Anrufen",
+    "skip": "Überspringen",
+    "dialing": "Wählt…",
+    "ended": "Anruf beendet",
+    "recording": "Aufnahme",
+    "onHold": "Gehalten",
+    "unmute": "Stummschaltung aufheben",
+    "mute": "Stummschalten",
+    "resume": "Fortsetzen",
+    "hold": "Halten",
+    "autoRecording": "Die automatische Aufnahme ist für alle Anrufe aktiv",
+    "stopRecording": "Aufnahme stoppen",
+    "startRecording": "Aufnahme starten",
+    "sendDtmf": "Töne senden (DTMF)",
+    "hideSubtitles": "Untertitel ausblenden",
+    "showSubtitles": "Untertitel einblenden",
+    "hangup": "Auflegen"
   }
 }

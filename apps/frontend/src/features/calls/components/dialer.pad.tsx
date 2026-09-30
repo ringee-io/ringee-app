@@ -1,7 +1,7 @@
 'use client';
 
 import { CreditPopover } from '@/features/credit/components/credit.popover';
-import { Phone, Delete } from 'lucide-react';
+import { Phone, Delete, Loader2 } from 'lucide-react';
 import { useRef } from 'react';
 import {
   countryCallingCode,
@@ -17,6 +17,7 @@ export function DialPad({
   onCall,
   isCalling,
   callingDisabled = false,
+  disabledReason,
   showCreditPopover = false,
   country = DEFAULT_REGION
 }: {
@@ -24,8 +25,11 @@ export function DialPad({
   setNumber: (v: string) => void;
   onDelete: () => void;
   onCall: () => Promise<void>;
+  /** A dial is starting: the button spins and takes no second press. */
   isCalling: boolean;
   callingDisabled?: boolean;
+  /** Why calling is unavailable right now (e.g. already on a call). */
+  disabledReason?: string;
   showCreditPopover?: boolean;
   /** Currently selected dialing country — seeds the calling code for taps. */
   country?: CountryCode;
@@ -131,11 +135,9 @@ export function DialPad({
         {showCreditPopover ? (
           <CreditPopover fetch={false}>
             <button
-              className={`flex h-20 w-20 items-center justify-center rounded-xl transition-all active:scale-95 ${
-                isCalling
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
+              aria-label={t('call')}
+              title={t('call')}
+              className='flex h-20 w-20 items-center justify-center rounded-xl bg-green-600 transition-all hover:bg-green-700 active:scale-95'
             >
               <Phone className='h-6 w-6 text-white' />
             </button>
@@ -143,20 +145,33 @@ export function DialPad({
         ) : (
           <button
             onClick={onCall}
-            disabled={!number || callingDisabled}
-            title={callingDisabled ? t('outboundDisabled') : undefined}
-            className={`flex h-20 w-20 items-center justify-center rounded-xl transition-all active:scale-95 ${
-              isCalling
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-green-600 hover:bg-green-700'
-            } ${callingDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+            disabled={
+              !number || callingDisabled || isCalling || !!disabledReason
+            }
+            aria-label={isCalling ? t('starting') : t('call')}
+            title={
+              callingDisabled
+                ? t('outboundDisabled')
+                : isCalling
+                  ? t('starting')
+                  : (disabledReason ?? t('call'))
+            }
+            className={`flex h-20 w-20 items-center justify-center rounded-xl bg-green-600 transition-all hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed ${
+              callingDisabled || disabledReason || !number ? 'opacity-50' : ''
+            }`}
           >
-            <Phone className='h-6 w-6 text-white' />
+            {isCalling ? (
+              <Loader2 className='h-6 w-6 animate-spin text-white' />
+            ) : (
+              <Phone className='h-6 w-6 text-white' />
+            )}
           </button>
         )}
 
         <button
           onClick={onDelete}
+          aria-label={t('deleteDigit')}
+          title={t('deleteDigit')}
           className='bg-muted hover:bg-accent flex h-20 w-20 items-center justify-center rounded-xl transition-all active:scale-95'
         >
           <Delete className='text-foreground h-5 w-5' />

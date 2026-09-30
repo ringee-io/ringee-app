@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   Card,
@@ -27,18 +26,8 @@ import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-me
 import { Eye, Plus, Search, Target, Users, Phone, Clock } from 'lucide-react';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useTranslations } from 'next-intl';
-import type {
-  Campaign,
-  CampaignListResponse,
-  CampaignStatus
-} from '../types/campaign.types';
-
-const STATUS_COLORS: Record<CampaignStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700 border-gray-300',
-  active: 'bg-green-100 text-green-700 border-green-300',
-  paused: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-  completed: 'bg-blue-100 text-blue-700 border-blue-300'
-};
+import type { Campaign, CampaignListResponse } from '../types/campaign.types';
+import { CampaignStatusBadge } from './campaign-status-badge';
 
 function CampaignCard({
   campaign,
@@ -71,9 +60,7 @@ function CampaignCard({
             className='flex items-center gap-1'
             onClick={(event) => event.stopPropagation()}
           >
-            <Badge variant='outline' className={STATUS_COLORS[campaign.status]}>
-              {t(`status.${campaign.status}`)}
-            </Badge>
+            <CampaignStatusBadge status={campaign.status} />
             <TableRowActions
               label={tCommon('openActions')}
               menuLabel={tCommon('actions')}

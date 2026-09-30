@@ -33,7 +33,7 @@
     "callAnyway": "Call anyway"
   },
   "workspace": {
-    "title": "Agent Workspace",
+    "title": "Calling session",
     "metaTitle": "Dialer — Agent Workspace | Ringee",
     "metaDescription": "Make outbound calls with the progressive dialer.",
     "ready": "Ready to start dialing?",
@@ -41,9 +41,24 @@
     "notAssigned": "You're not assigned to this campaign. Ask an admin to add you as a member.",
     "startFailed": "Could not start the session. Please try again.",
     "starting": "Starting…",
-    "start": "Start Session",
+    "start": "Start calling",
     "closedAfterLead": "Session closed — that was the last lead you asked for.",
-    "sessionEnded": "Your dialer session was ended."
+    "sessionEnded": "Your dialer session was ended.",
+    "back": "Back to campaign",
+    "dialogTitle": "Calling session — {name}",
+    "dialogDescription": "Call this campaign's leads one after another and record each outcome.",
+    "exitDialog": {
+      "title": "End this calling session?",
+      "description": "You'll stop receiving leads from this campaign. You can start a new session any time.",
+      "stay": "Keep calling",
+      "confirm": "End session"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Script",
+      "transcript": "Transcript",
+      "outcome": "Outcome"
+    }
   },
   "statusBar": {
     "statuses": {
@@ -61,27 +76,36 @@
     "talk": "Talk: {time}",
     "resume": "Resume",
     "pause": "Pause",
-    "endSession": "End Session",
-    "closeAfterLead": "Close session after this lead"
+    "endSession": "End session",
+    "closeAfterLead": "Close session after this lead",
+    "back": "Back to campaign",
+    "backDisabled": "Hang up before leaving the session",
+    "endDisabled": "Hang up before ending the session"
   },
   "disposition": {
-    "title": "Disposition",
-    "select": "Select Disposition",
+    "title": "Call outcome",
+    "select": "Call outcome",
     "pickWhileTalking": "Pick the outcome while you talk — it is saved when the call ends.",
     "pickToContinue": "Save an outcome to move on to the next lead.",
     "availableOnDial": "Outcomes appear as soon as the call starts.",
     "selectAfterCall": "Select a call outcome after each call.",
     "callbackRequired": "Please choose a date and time for the callback.",
-    "saved": "Disposition saved.",
-    "saveFailed": "Could not save disposition. Please try again.",
+    "saved": "Outcome saved.",
+    "saveFailed": "Could not save the outcome. Please try again.",
     "notes": "Notes (optional)",
     "notesPlaceholder": "Call notes...",
     "scheduleCallback": "Schedule Callback",
     "dateTime": "Date & Time",
     "callbackNote": "Callback Note",
     "callbackPlaceholder": "Reason for callback...",
-    "submit": "Submit Disposition",
-    "submitOnHangup": "Saved when the call ends"
+    "submit": "Save outcome",
+    "submitOnHangup": "Saved when the call ends",
+    "presets": {
+      "inOneHour": "In 1 hour",
+      "tomorrowMorning": "Tomorrow 9:00",
+      "nextMonday": "Monday 9:00"
+    },
+    "shortcutsHint": "Tip: press 1–9 to pick an outcome and Enter to save it."
   },
   "lead": {
     "waiting": "Waiting for lead",
@@ -101,6 +125,17 @@
       "pipeline": "Pipeline",
       "about": "About",
       "custom": "Other details"
+    },
+    "localTimeShort": "{time} local",
+    "lastOutcome": "Last: {outcome}",
+    "callStatus": {
+      "created": "Ready",
+      "dialing": "Dialing",
+      "ringing": "Ringing",
+      "answered": "Answered",
+      "in_call": "On call",
+      "ended": "Call ended",
+      "dispositioned": "Saved"
     }
   },
   "softphone": {
@@ -297,7 +332,8 @@
       "actions": {
         "call": "Call now",
         "viewContact": "View contact",
-        "cancel": "Cancel callback"
+        "cancel": "Cancel callback",
+        "more": "More actions"
       }
     },
     "today": {
@@ -313,8 +349,11 @@
       "emptyTitle": "No recent calls",
       "emptyDescription": "Outbound calls you make will show up here for quick redial.",
       "actions": {
-        "redial": "Redial"
-      }
+        "redial": "Redial",
+        "openDetail": "Open call details"
+      },
+      "inbound": "Inbound call",
+      "outbound": "Outbound call"
     },
     "relative": {
       "now": "now",
@@ -323,6 +362,8 @@
       "inHours": "in {count}h",
       "hoursAgo": "{count}h ago",
       "tomorrowAt": "tomorrow {time}"
-    }
+    },
+    "callNext": "Call next",
+    "callNextHint": "Call {name}, your most overdue callback"
   }
 }

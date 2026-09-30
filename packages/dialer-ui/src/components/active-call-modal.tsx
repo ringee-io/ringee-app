@@ -195,7 +195,9 @@ export function ActiveCallModal({
   if (isPostCall) {
     return (
       <Dialog modal={false} open={open} onOpenChange={() => {}}>
+        {/* No corner X: it did nothing here. Skip and Save are the way out. */}
         <DialogContent
+          showCloseButton={false}
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
           className={cn(
@@ -230,7 +232,10 @@ export function ActiveCallModal({
         callId,
         show: open && !isPostCall && showSubtitles,
       })}
+      {/* No corner X on a live call: `onClose` is the host's hang-up, and a
+          call ends by the hang-up button or the other party — nothing else. */}
       <DialogContent
+        showCloseButton={false}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         className={cn(

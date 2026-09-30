@@ -124,3 +124,31 @@ export const useNumbersStore = create<NumbersState>()(
     }
   }))
 );
+
+/** How long a dial waits for the workspace's numbers before going ahead. */
+const NUMBERS_WAIT_MS = 5_000;
+
+/**
+ * Resolves once the workspace's numbers — and with them the caller ID the user
+ * chose — are loaded, fetching them if nobody has yet. Only the dialer's
+ * number selector loads them, so a call placed from anywhere else used to go
+ * out from the public number whatever number the user had picked.
+ */
+export function ensureNumbersLoaded(api: ApiClient): Promise<void> {
+  const { status, fetchNumbers } = useNumbersStore.getState();
+  if (status === 'idle') void fetchNumbers(api);
+  if (useNumbersStore.getState().status !== 'loading') return Promise.resolve();
+
+  return new Promise((resolve) => {
+    let unsubscribe = () => {};
+    const done = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const timer = setTimeout(done, NUMBERS_WAIT_MS);
+    unsubscribe = useNumbersStore.subscribe((state) => {
+      if (state.status !== 'loading') done();
+    });
+  });
+}

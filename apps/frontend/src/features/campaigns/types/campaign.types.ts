@@ -59,6 +59,8 @@ export interface CampaignLead {
   nextCallAt: string | null;
   deadAt: string | null;
   createdAt: string;
+  /** How the most recent attempt ended; null until the lead is first dialed. */
+  lastAttempt?: CampaignLeadLastAttempt | null;
   contact: {
     id: string;
     name: string;
@@ -127,6 +129,26 @@ export interface CreateCampaignDto {
   workDays?: number[];
   wrapUpTimeSec?: number;
   retryDelayMin?: number;
+}
+
+export interface CampaignLeadLastAttempt {
+  attemptNumber: number;
+  dispositionCode: string | null;
+  callId: string | null;
+  initiatedAt: string;
+  endedAt: string | null;
+}
+
+/** `GET /campaigns/:id/analytics/summary`. Rates are already percentages. */
+export interface CampaignSummary {
+  totalAttempts: number;
+  connected: number;
+  conversions: number;
+  avgHandleTimeSec: number | null;
+  uniqueLeadsDialed: number;
+  contactRate: number;
+  conversionRate: number;
+  leadsByStatus?: { status: CampaignLeadStatus; count: number }[];
 }
 
 export interface CampaignListResponse {

@@ -49,7 +49,8 @@
       "actions": {
         "call": "Llamar ahora",
         "viewContact": "Ver contacto",
-        "cancel": "Cancelar devolución"
+        "cancel": "Cancelar devolución",
+        "more": "Más acciones"
       }
     },
     "today": {
@@ -65,8 +66,11 @@
       "emptyTitle": "Sin llamadas recientes",
       "emptyDescription": "Las llamadas salientes que hagas aparecerán aquí para volver a marcar rápidamente.",
       "actions": {
-        "redial": "Volver a marcar"
-      }
+        "redial": "Volver a marcar",
+        "openDetail": "Ver el detalle de la llamada"
+      },
+      "inbound": "Llamada entrante",
+      "outbound": "Llamada saliente"
     },
     "relative": {
       "now": "ahora",
@@ -75,6 +79,137 @@
       "inHours": "en {count}h",
       "hoursAgo": "hace {count}h",
       "tomorrowAt": "mañana {time}"
+    },
+    "callNext": "Llamar al siguiente",
+    "callNextHint": "Llamar a {name}, tu devolución más atrasada"
+  },
+  "workspace": {
+    "title": "Sesión de llamadas",
+    "metaTitle": "Marcador — Sesión de llamadas | Ringee",
+    "metaDescription": "Haz llamadas salientes con el marcador progresivo.",
+    "ready": "¿Listo para empezar a llamar?",
+    "description": "Inicia una sesión para llamar a los leads de esta campaña. El marcador te asigna el siguiente lead automáticamente según la configuración de la campaña.",
+    "notAssigned": "No estás asignado a esta campaña. Pide a un administrador que te agregue como miembro.",
+    "startFailed": "No se pudo iniciar la sesión. Inténtalo de nuevo.",
+    "starting": "Iniciando…",
+    "start": "Empezar a llamar",
+    "closedAfterLead": "Sesión cerrada: ese era el último lead que pediste.",
+    "sessionEnded": "Tu sesión de llamadas terminó.",
+    "back": "Volver a la campaña",
+    "dialogTitle": "Sesión de llamadas — {name}",
+    "dialogDescription": "Llama a los leads de esta campaña uno tras otro y registra el resultado de cada llamada.",
+    "exitDialog": {
+      "title": "¿Terminar esta sesión de llamadas?",
+      "description": "Dejarás de recibir leads de esta campaña. Puedes iniciar otra sesión cuando quieras.",
+      "stay": "Seguir llamando",
+      "confirm": "Terminar sesión"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Guion",
+      "transcript": "Transcripción",
+      "outcome": "Resultado"
     }
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Listo",
+      "reserved": "Asignando lead…",
+      "dialing": "Marcando",
+      "in_call": "En llamada",
+      "wrap_up": "Cierre de llamada",
+      "paused": "En pausa",
+      "offline": "Desconectado"
+    },
+    "calls": "Llamadas: {count}",
+    "connected": "Contestadas: {count}",
+    "rate": "Contacto: {rate}%",
+    "talk": "Hablado: {time}",
+    "resume": "Reanudar",
+    "pause": "Pausar",
+    "endSession": "Terminar sesión",
+    "closeAfterLead": "Cerrar la sesión después de este lead",
+    "back": "Volver a la campaña",
+    "backDisabled": "Cuelga antes de salir de la sesión",
+    "endDisabled": "Cuelga antes de terminar la sesión"
+  },
+  "disposition": {
+    "title": "Resultado de la llamada",
+    "select": "Resultado de la llamada",
+    "pickWhileTalking": "Elige el resultado mientras hablas: se guarda al colgar.",
+    "pickToContinue": "Guarda un resultado para pasar al siguiente lead.",
+    "availableOnDial": "Los resultados aparecen en cuanto empieza la llamada.",
+    "selectAfterCall": "Elige el resultado después de cada llamada.",
+    "callbackRequired": "Elige una fecha y hora para volver a llamar.",
+    "saved": "Resultado guardado.",
+    "saveFailed": "No se pudo guardar el resultado. Inténtalo de nuevo.",
+    "notes": "Notas (opcional)",
+    "notesPlaceholder": "Notas de la llamada…",
+    "scheduleCallback": "Agendar devolución de llamada",
+    "dateTime": "Fecha y hora",
+    "callbackNote": "Nota para la devolución",
+    "callbackPlaceholder": "Motivo de la devolución…",
+    "submit": "Guardar resultado",
+    "submitOnHangup": "Se guarda al colgar",
+    "presets": {
+      "inOneHour": "En 1 hora",
+      "tomorrowMorning": "Mañana 9:00",
+      "nextMonday": "Lunes 9:00"
+    },
+    "shortcutsHint": "Tip: pulsa 1–9 para elegir el resultado y Enter para guardarlo."
+  },
+  "lead": {
+    "waiting": "Esperando lead",
+    "waitingDescription": "El marcador te asignará el siguiente lead automáticamente.",
+    "unknown": "Desconocido",
+    "attempt": "Intento #{number}",
+    "previousAttempts": "Intentos anteriores",
+    "noAttempts": "Sin intentos anteriores",
+    "noDisposition": "Sin resultado",
+    "linkedin": "Perfil de LinkedIn",
+    "localTime": "Hora local",
+    "score": "Puntuación {score}",
+    "lastCall": "Última llamada {date}",
+    "sections": {
+      "company": "Empresa",
+      "location": "Ubicación",
+      "pipeline": "Pipeline",
+      "about": "Acerca de",
+      "custom": "Otros datos"
+    },
+    "localTimeShort": "{time} hora local",
+    "lastOutcome": "Último: {outcome}",
+    "callStatus": {
+      "created": "Listo",
+      "dialing": "Marcando",
+      "ringing": "Sonando",
+      "answered": "Contestó",
+      "in_call": "En llamada",
+      "ended": "Llamada terminada",
+      "dispositioned": "Guardado"
+    }
+  },
+  "softphone": {
+    "dialFailed": "No se pudo iniciar la llamada.",
+    "skipFailed": "No se pudo saltar este lead.",
+    "paused": "Sesión en pausa",
+    "waiting": "Esperando el siguiente lead…",
+    "dial": "Llamar",
+    "skip": "Saltar",
+    "dialing": "Marcando…",
+    "ended": "Llamada terminada",
+    "recording": "Grabando",
+    "onHold": "En espera",
+    "unmute": "Activar micrófono",
+    "mute": "Silenciar",
+    "resume": "Reanudar",
+    "hold": "Poner en espera",
+    "autoRecording": "La grabación automática está activa para todas las llamadas",
+    "stopRecording": "Detener grabación",
+    "startRecording": "Iniciar grabación",
+    "sendDtmf": "Enviar tonos (DTMF)",
+    "hideSubtitles": "Ocultar subtítulos",
+    "showSubtitles": "Mostrar subtítulos",
+    "hangup": "Colgar"
   }
 }

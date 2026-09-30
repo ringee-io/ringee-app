@@ -1,8 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { CalendarClock, CalendarDays, History } from 'lucide-react';
+import {
+  CalendarClock,
+  CalendarDays,
+  History,
+  Loader2,
+  PhoneForwarded
+} from 'lucide-react';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card } from '@ringee/frontend-shared/components/ui/card';
 import {
   Tabs,
@@ -10,6 +18,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
+import { useCallbackDial } from '../../hooks/use.callback.dial';
 import { useDialerCallbacks } from '../../hooks/use.dialer.callbacks';
 import { CallbacksTab } from './callbacks-tab';
 import { RecentCallsTab } from './recent-calls-tab';
@@ -18,9 +27,24 @@ import { TodayTab } from './today-tab';
 export function DialerSidePanel() {
   const t = useTranslations('dialer.sidePanel');
   const { callbacks, loading, refresh } = useDialerCallbacks();
+  const { dialCallback, isBusy } = useCallbackDial();
+  const [dialingNext, setDialingNext] = useState(false);
 
   const dueCount = callbacks.filter((cb) => cb.status === 'due').length;
   const totalPending = callbacks.length;
+  // Callbacks come sorted oldest first, so the first due one is the most
+  // overdue: working the queue is one click per call.
+  const nextDue = callbacks.find((cb) => cb.status === 'due') ?? null;
+
+  async function callNext() {
+    if (!nextDue || dialingNext || isBusy) return;
+    setDialingNext(true);
+    try {
+      if (await dialCallback(nextDue)) await refresh();
+    } finally {
+      setDialingNext(false);
+    }
+  }
 
   return (
     <Card className='@container/sidepanel flex h-full flex-col overflow-hidden p-0'>
@@ -38,6 +62,24 @@ export function DialerSidePanel() {
           ) : (
             <span>{t('pendingCount', { count: totalPending })}</span>
           )}
+          {nextDue ? (
+            <Button
+              size='sm'
+              onClick={callNext}
+              disabled={dialingNext || isBusy}
+              title={t('callNextHint', {
+                name: nextDue.contact.name || nextDue.contact.phoneNumber
+              })}
+              className='h-7 gap-1.5 bg-green-600 px-2.5 text-xs text-white hover:bg-green-700'
+            >
+              {dialingNext ? (
+                <Loader2 className='h-3.5 w-3.5 animate-spin' />
+              ) : (
+                <PhoneForwarded className='h-3.5 w-3.5' />
+              )}
+              {t('callNext')}
+            </Button>
+          ) : null}
         </div>
       </div>
 

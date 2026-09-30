@@ -388,6 +388,25 @@
       "destinationRejected": "Your carrier couldn't route this number.",
       "timeout": "Your carrier didn't respond in time.",
       "failed": "The call couldn't be completed through your carrier."
+    },
+    "call": "Call",
+    "starting": "Starting call…",
+    "deleteDigit": "Delete digit",
+    "enterToCall": "Press Enter to call",
+    "noCredit": "You're out of credit. Add credit to keep calling.",
+    "addCredit": "Add credit",
+    "alreadyOnCall": "You're already on a call. Hang up to start another one.",
+    "campaignSessionActive": "You're in a campaign session. End it to place a manual call.",
+    "lineConnecting": "Connecting your phone line…",
+    "lineUnavailable": "Your phone line isn't connected. Check your internet connection and try again.",
+    "dialFailed": "The call couldn't be started. Please try again.",
+    "line": {
+      "ready": "Line ready",
+      "readyHint": "You can place calls.",
+      "connecting": "Connecting…",
+      "connectingHint": "Your line is connecting. A call you start now goes out as soon as it's ready.",
+      "offline": "Offline",
+      "offlineHint": "Your line is disconnected. Check your internet connection."
     }
   },
   "activeCallStatus": {
@@ -600,5 +619,14 @@
       "neutral": "Neutral",
       "negative": "Negative"
     }
+  },
+  "publicNumberPrompt": {
+    "title": "You're calling from the public number",
+    "description": "It's a shared Ringee number, not one of yours: the person you call won't recognize it, and if they call back, it won't reach you.",
+    "descriptionOwnNumbers": "You have your own numbers, but this call goes out from the shared Ringee number. To be recognized and get call-backs, pick your number under “Call from” in the dialer.",
+    "cancel": "Cancel",
+    "call": "Call",
+    "callAndDontWarn": "Call and don't warn me again",
+    "buyNumber": "Buy a number"
   }
 }

@@ -49,7 +49,8 @@
       "actions": {
         "call": "Chiama ora",
         "viewContact": "Vedi contatto",
-        "cancel": "Annulla richiamo"
+        "cancel": "Annulla richiamo",
+        "more": "Altre azioni"
       }
     },
     "today": {
@@ -65,8 +66,11 @@
       "emptyTitle": "Nessuna chiamata recente",
       "emptyDescription": "Le chiamate in uscita che effettui appariranno qui per richiamare rapidamente.",
       "actions": {
-        "redial": "Richiama"
-      }
+        "redial": "Richiama",
+        "openDetail": "Apri i dettagli della chiamata"
+      },
+      "inbound": "Chiamata in entrata",
+      "outbound": "Chiamata in uscita"
     },
     "relative": {
       "now": "ora",
@@ -75,6 +79,137 @@
       "inHours": "tra {count}h",
       "hoursAgo": "{count}h fa",
       "tomorrowAt": "domani {time}"
+    },
+    "callNext": "Chiama il prossimo",
+    "callNextHint": "Chiama {name}, il tuo richiamo più in ritardo"
+  },
+  "workspace": {
+    "title": "Sessione di chiamate",
+    "metaTitle": "Dialer — Sessione di chiamate | Ringee",
+    "metaDescription": "Effettua chiamate in uscita con il dialer progressivo.",
+    "ready": "Pronto a iniziare a chiamare?",
+    "description": "Avvia una sessione per chiamare i lead di questa campagna. Il dialer ti assegna automaticamente il lead successivo secondo la configurazione della campagna.",
+    "notAssigned": "Non sei assegnato a questa campagna. Chiedi a un amministratore di aggiungerti come membro.",
+    "startFailed": "Impossibile avviare la sessione. Riprova.",
+    "starting": "Avvio…",
+    "start": "Inizia a chiamare",
+    "closedAfterLead": "Sessione chiusa: era l'ultimo lead richiesto.",
+    "sessionEnded": "La tua sessione di chiamate è terminata.",
+    "back": "Torna alla campagna",
+    "dialogTitle": "Sessione di chiamate — {name}",
+    "dialogDescription": "Chiama i lead di questa campagna uno dopo l'altro e registra l'esito di ogni chiamata.",
+    "exitDialog": {
+      "title": "Terminare questa sessione di chiamate?",
+      "description": "Smetterai di ricevere lead da questa campagna. Puoi avviare una nuova sessione quando vuoi.",
+      "stay": "Continua a chiamare",
+      "confirm": "Termina sessione"
+    },
+    "columns": {
+      "lead": "Lead",
+      "script": "Script",
+      "transcript": "Trascrizione",
+      "outcome": "Esito"
     }
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Pronto",
+      "reserved": "Assegnazione lead…",
+      "dialing": "In composizione",
+      "in_call": "In chiamata",
+      "wrap_up": "Chiusura chiamata",
+      "paused": "In pausa",
+      "offline": "Offline"
+    },
+    "calls": "Chiamate: {count}",
+    "connected": "Risposte: {count}",
+    "rate": "Contatto: {rate}%",
+    "talk": "Conversazione: {time}",
+    "resume": "Riprendi",
+    "pause": "Pausa",
+    "endSession": "Termina sessione",
+    "closeAfterLead": "Chiudi la sessione dopo questo lead",
+    "back": "Torna alla campagna",
+    "backDisabled": "Riaggancia prima di uscire dalla sessione",
+    "endDisabled": "Riaggancia prima di terminare la sessione"
+  },
+  "disposition": {
+    "title": "Esito della chiamata",
+    "select": "Esito della chiamata",
+    "pickWhileTalking": "Scegli l'esito mentre parli: viene salvato quando riagganci.",
+    "pickToContinue": "Salva un esito per passare al lead successivo.",
+    "availableOnDial": "Gli esiti compaiono appena inizia la chiamata.",
+    "selectAfterCall": "Scegli l'esito dopo ogni chiamata.",
+    "callbackRequired": "Scegli data e ora per il richiamo.",
+    "saved": "Esito salvato.",
+    "saveFailed": "Impossibile salvare l'esito. Riprova.",
+    "notes": "Note (facoltative)",
+    "notesPlaceholder": "Note della chiamata…",
+    "scheduleCallback": "Programma richiamo",
+    "dateTime": "Data e ora",
+    "callbackNote": "Nota del richiamo",
+    "callbackPlaceholder": "Motivo del richiamo…",
+    "submit": "Salva esito",
+    "submitOnHangup": "Salvato quando riagganci",
+    "presets": {
+      "inOneHour": "Tra 1 ora",
+      "tomorrowMorning": "Domani 9:00",
+      "nextMonday": "Lunedì 9:00"
+    },
+    "shortcutsHint": "Suggerimento: premi 1–9 per scegliere l'esito e Invio per salvarlo."
+  },
+  "lead": {
+    "waiting": "In attesa di un lead",
+    "waitingDescription": "Il dialer ti assegnerà automaticamente il lead successivo.",
+    "unknown": "Sconosciuto",
+    "attempt": "Tentativo n. {number}",
+    "previousAttempts": "Tentativi precedenti",
+    "noAttempts": "Nessun tentativo precedente",
+    "noDisposition": "Nessun esito",
+    "linkedin": "Profilo LinkedIn",
+    "localTime": "Ora locale",
+    "score": "Punteggio {score}",
+    "lastCall": "Ultima chiamata {date}",
+    "sections": {
+      "company": "Azienda",
+      "location": "Posizione",
+      "pipeline": "Pipeline",
+      "about": "Informazioni",
+      "custom": "Altri dati"
+    },
+    "localTimeShort": "{time} ora locale",
+    "lastOutcome": "Ultimo: {outcome}",
+    "callStatus": {
+      "created": "Pronto",
+      "dialing": "In composizione",
+      "ringing": "Squilla",
+      "answered": "Ha risposto",
+      "in_call": "In chiamata",
+      "ended": "Chiamata terminata",
+      "dispositioned": "Salvato"
+    }
+  },
+  "softphone": {
+    "dialFailed": "Impossibile avviare la chiamata.",
+    "skipFailed": "Impossibile saltare questo lead.",
+    "paused": "Sessione in pausa",
+    "waiting": "In attesa del lead successivo…",
+    "dial": "Chiama",
+    "skip": "Salta",
+    "dialing": "In composizione…",
+    "ended": "Chiamata terminata",
+    "recording": "Registrazione",
+    "onHold": "In attesa",
+    "unmute": "Riattiva microfono",
+    "mute": "Disattiva microfono",
+    "resume": "Riprendi",
+    "hold": "Metti in attesa",
+    "autoRecording": "La registrazione automatica è attiva per tutte le chiamate",
+    "stopRecording": "Interrompi registrazione",
+    "startRecording": "Avvia registrazione",
+    "sendDtmf": "Invia toni (DTMF)",
+    "hideSubtitles": "Nascondi sottotitoli",
+    "showSubtitles": "Mostra sottotitoli",
+    "hangup": "Riaggancia"
   }
 }

@@ -320,5 +320,86 @@
       "neutral": "Neutre",
       "negative": "Négatif"
     }
+  },
+  "dialer": {
+    "call": "Appeler",
+    "starting": "Lancement de l'appel…",
+    "deleteDigit": "Effacer le chiffre",
+    "enterToCall": "Appuyez sur Entrée pour appeler",
+    "noCredit": "Vous n'avez plus de crédit. Rechargez pour continuer à appeler.",
+    "addCredit": "Recharger",
+    "alreadyOnCall": "Vous êtes déjà en communication. Raccrochez pour en lancer un autre.",
+    "campaignSessionActive": "Vous êtes dans une session de campagne. Terminez-la pour passer un appel manuel.",
+    "lineConnecting": "Connexion de votre ligne…",
+    "lineUnavailable": "Votre ligne n'est pas connectée. Vérifiez votre connexion internet et réessayez.",
+    "dialFailed": "L'appel n'a pas pu être lancé. Veuillez réessayer.",
+    "line": {
+      "ready": "Ligne prête",
+      "readyHint": "Vous pouvez passer des appels.",
+      "connecting": "Connexion…",
+      "connectingHint": "Votre ligne se connecte. Un appel lancé maintenant partira dès qu'elle sera prête.",
+      "offline": "Hors ligne",
+      "offlineHint": "Votre ligne est déconnectée. Vérifiez votre connexion internet."
+    }
+  },
+  "activeCallStatus": {
+    "recording": "Enregistrement…",
+    "connected": "Connecté",
+    "connecting": "Connexion…"
+  },
+  "contactSelector": {
+    "singleMatch": "1 contact correspond 👆",
+    "multipleMatches": "{count} contacts correspondent",
+    "notFound": "Aucun contact trouvé",
+    "addContact": "Ajouter un contact"
+  },
+  "inCallScript": {
+    "empty": "Vous n'avez pas encore de script",
+    "emptyDescription": "Créez votre script dans Paramètres → Aperçu → Script pour le voir ici pendant l'appel.",
+    "configure": "Configurer le script",
+    "untitled": "Sans titre",
+    "noContent": "(Aucun contenu)"
+  },
+  "inCallContact": {
+    "loadFailed": "Impossible de charger le contact",
+    "phoneRequired": "Le numéro de téléphone est obligatoire",
+    "updated": "Contact mis à jour",
+    "saveFailed": "Impossible d'enregistrer",
+    "notFound": "Aucune information de contact trouvée.",
+    "cancel": "Annuler",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer",
+    "edit": "Modifier",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "displayName": "Nom d'affichage",
+    "displayNamePlaceholder": "Généré à partir du prénom et du nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "company": "Entreprise",
+    "jobTitle": "Poste",
+    "state": "État / Province",
+    "website": "Site web",
+    "revenue": "Chiffre d'affaires",
+    "companySize": "Taille de l'entreprise"
+  },
+  "numberSelector": {
+    "callFrom": "Appeler depuis :",
+    "publicNumber": "Numéro public",
+    "whyBuy": "Pourquoi acheter un numéro ?",
+    "whyBuyDescription": "Acheter un numéro vous permet de passer et de recevoir de vrais appels. Les prix commencent à 1,00 USD par mois selon le pays et le type de numéro.",
+    "selectNumber": "Sélectionnez un numéro",
+    "notRequired": "Vous n'avez pas besoin d'un numéro pour appeler",
+    "buy": "Acheter un numéro",
+    "externalCarrier": "Votre opérateur"
+  },
+  "publicNumberPrompt": {
+    "title": "Vous appelez depuis le numéro public",
+    "description": "C'est un numéro Ringee partagé, pas le vôtre : votre interlocuteur ne vous reconnaîtra pas et, s'il rappelle, l'appel ne vous parviendra pas.",
+    "descriptionOwnNumbers": "Vous avez vos propres numéros, mais cet appel partira du numéro Ringee partagé. Pour être reconnu et pouvoir être rappelé, choisissez votre numéro dans « Appeler depuis » du composeur.",
+    "cancel": "Annuler",
+    "call": "Appeler",
+    "callAndDontWarn": "Appeler et ne plus m'avertir",
+    "buyNumber": "Acheter un numéro"
   }
 }

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Clock,
   ExternalLink,
+  Loader2,
   MapPin,
   Phone,
   Video
@@ -18,10 +19,8 @@ import {
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { useDialerStore } from '../../store/dialer.store';
-import { useTelnyxStore } from '../../store/telnyx.store';
-import { useCall } from '../../hooks/use.call';
-import { getInitials, isToday as isTodayDate } from './shared';
+import { useDial } from '../../hooks/use.dial';
+import { getInitials } from './shared';
 
 interface Meeting {
   id: string;
@@ -45,19 +44,10 @@ function isUrl(value: string): boolean {
 export function TodayTab() {
   const t = useTranslations('dialer.sidePanel.today');
   const api = useApi();
-  const { setNumber } = useDialerStore();
-  const { activeCall } = useTelnyxStore();
-  const { handleCall } = useCall();
+  const { dial, busy, dialingNumber } = useDial();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyNumber, setBusyNumber] = useState<string | null>(null);
   const mountedRef = useRef(true);
-
-  const isBusy =
-    !!activeCall &&
-    ['pending', 'ringing', 'answered', 'recording'].includes(
-      activeCall.state || ''
-    );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -82,14 +72,8 @@ export function TodayTab() {
 
   async function handleDial(meeting: Meeting) {
     const phone = meeting.contact.phoneNumber;
-    if (!phone || busyNumber || isBusy) return;
-    setBusyNumber(phone);
-    setNumber(phone);
-    try {
-      await handleCall(phone);
-    } finally {
-      setBusyNumber(null);
-    }
+    if (!phone || busy) return;
+    await dial(phone);
   }
 
   if (loading) {
@@ -189,6 +173,7 @@ export function TodayTab() {
                   asChild
                   className='h-8 w-8'
                   title={t('actions.join')}
+                  aria-label={t('actions.join')}
                 >
                   <a
                     href={meeting.location}
@@ -202,12 +187,17 @@ export function TodayTab() {
               <Button
                 size='icon'
                 variant='ghost'
-                disabled={busyNumber === meeting.contact.phoneNumber || isBusy}
+                disabled={busy}
                 onClick={() => handleDial(meeting)}
                 className='h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-500/20'
                 title={t('actions.callContact')}
+                aria-label={t('actions.callContact')}
               >
-                <Phone className='h-3.5 w-3.5' />
+                {dialingNumber === meeting.contact.phoneNumber ? (
+                  <Loader2 className='h-3.5 w-3.5 animate-spin' />
+                ) : (
+                  <Phone className='h-3.5 w-3.5' />
+                )}
               </Button>
             </div>
           </li>

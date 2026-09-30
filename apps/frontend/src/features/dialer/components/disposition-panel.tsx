@@ -5,6 +5,7 @@ import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDisposeLead } from '../hooks/use-dispose-lead';
+import { shortcutAllowed } from '../lib/shortcuts';
 import { DispositionGrid } from './disposition-grid';
 import { VoicemailDropSlot } from '@/features/voicemail';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -21,6 +22,37 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+
+/** A `Date` as the value a `datetime-local` input holds, in local time. */
+function toLocalInput(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+const CALLBACK_PRESETS = [
+  'inOneHour',
+  'tomorrowMorning',
+  'nextMonday'
+] as const;
+type CallbackPreset = (typeof CALLBACK_PRESETS)[number];
+
+/** The usual "call me back …" answers, one click each, in the agent's time. */
+function presetDate(preset: CallbackPreset, now = new Date()): Date {
+  const date = new Date(now);
+  if (preset === 'inOneHour') {
+    date.setMinutes(date.getMinutes() + 60);
+    // Round up to the next five minutes: nobody books 14:37.
+    date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5, 0, 0);
+    return date;
+  }
+  const daysAhead =
+    preset === 'tomorrowMorning' ? 1 : (8 - date.getDay()) % 7 || 7;
+  date.setDate(date.getDate() + daysAhead);
+  date.setHours(9, 0, 0, 0);
+  return date;
+}
 
 export function DispositionPanel() {
   const t = useTranslations('dialer.disposition');
@@ -140,12 +172,37 @@ export function DispositionPanel() {
       status === 'wrap_up' ||
       (callStatus !== null && callStatus !== 'created'));
 
+  // 1–9 picks an outcome (during the call too — it is saved at hang-up), and
+  // Enter saves it once the call is over. Neither ever ends the call.
+  useEffect(() => {
+    if (!showPanel) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (/^[1-9]$/.test(event.key)) {
+        if (!shortcutAllowed(event, 'digit')) return;
+        const option = availableDispositions[Number(event.key) - 1];
+        if (!option) return;
+        event.preventDefault();
+        setSelectedCode(option.code);
+        return;
+      }
+      if (event.key === 'Enter') {
+        if (!shortcutAllowed(event, 'activation')) return;
+        if (!latest.current.selectedCode || callLive || submitting) return;
+        event.preventDefault();
+        void latest.current.handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showPanel, availableDispositions, callLive, submitting]);
+
+  // The column is already titled by the workspace; the panel only says what to
+  // do with it right now.
   if (!showPanel) {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <ClipboardList className='text-muted-foreground mb-3 h-10 w-10' />
-        <h3 className='font-semibold'>{t('title')}</h3>
-        <p className='text-muted-foreground mt-1 text-sm'>
+        <p className='text-muted-foreground max-w-xs text-sm'>
           {attemptId ? t('availableOnDial') : t('selectAfterCall')}
         </p>
       </div>
@@ -154,8 +211,7 @@ export function DispositionPanel() {
 
   return (
     <div className='flex h-full flex-col p-4'>
-      <h3 className='text-sm font-semibold'>{t('select')}</h3>
-      <p className='text-muted-foreground mt-1 mb-3 text-xs'>
+      <p className='text-muted-foreground mb-3 text-xs'>
         {callLive ? t('pickWhileTalking') : t('pickToContinue')}
       </p>
 
@@ -163,6 +219,7 @@ export function DispositionPanel() {
         dispositions={availableDispositions}
         selectedCode={selectedCode}
         onSelect={(d) => setSelectedCode(d.code)}
+        showShortcuts
       />
 
       <Separator className='my-4' />
@@ -191,6 +248,22 @@ export function DispositionPanel() {
                 <Calendar className='h-4 w-4' />
                 {t('scheduleCallback')}
               </div>
+              <div className='flex flex-wrap gap-1.5'>
+                {CALLBACK_PRESETS.map((preset) => (
+                  <Button
+                    key={preset}
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='h-7 px-2.5 text-xs'
+                    onClick={() =>
+                      setCallbackDate(toLocalInput(presetDate(preset)))
+                    }
+                  >
+                    {t(`presets.${preset}`)}
+                  </Button>
+                ))}
+              </div>
               <div className='space-y-1'>
                 <Label htmlFor='callback-date' className='text-xs'>
                   {t('dateTime')}
@@ -198,6 +271,7 @@ export function DispositionPanel() {
                 <Input
                   id='callback-date'
                   type='datetime-local'
+                  min={toLocalInput(new Date())}
                   value={callbackDate}
                   onChange={(e) => setCallbackDate(e.target.value)}
                 />
@@ -267,10 +341,19 @@ export function DispositionPanel() {
           className='w-full'
           disabled={!selectedCode || submitting || callLive}
           onClick={handleSubmit}
+          aria-keyshortcuts='Enter'
         >
           {submitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
           {callLive && selectedCode ? t('submitOnHangup') : t('submit')}
+          {!callLive && selectedCode && !submitting ? (
+            <kbd className='ml-2 rounded border border-current/30 px-1 font-mono text-[10px] opacity-70'>
+              Enter
+            </kbd>
+          ) : null}
         </Button>
+        <p className='text-muted-foreground mt-2 text-center text-[11px]'>
+          {t('shortcutsHint')}
+        </p>
       </div>
     </div>
   );
