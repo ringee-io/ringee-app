@@ -137,7 +137,6 @@ export function useDial() {
         }
       }
 
-      dialer.setNumber(phoneNumber);
       dialer.setDialingNumber(phoneNumber);
       const lineToast = isLineReady()
         ? null
@@ -183,6 +182,9 @@ export function useDial() {
           console.warn('DNC check failed, proceeding with call', err);
         }
 
+        // Only now, past both confirmations: a dial cancelled at either one
+        // leaves the keypad holding whatever the user had typed.
+        dialer.setNumber(phoneNumber);
         return await handleCall(phoneNumber);
       } catch (err) {
         console.error('❌ Could not start the call:', err);

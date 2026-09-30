@@ -18,19 +18,25 @@ export function useCampaignSummary(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const mountedRef = useRef(true);
+  // Refreshes overlap — the interval, a manual refresh, a switch of campaign —
+  // and only the latest may land: an older answer, possibly for the campaign
+  // before, would overwrite a newer one.
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const request = ++requestRef.current;
+    const current = () => mountedRef.current && request === requestRef.current;
     try {
       const data = await api.get<CampaignSummary>(
         `/campaigns/${campaignId}/analytics/summary`
       );
-      if (!mountedRef.current) return;
+      if (!current()) return;
       setSummary(data);
       setError(false);
     } catch {
-      if (mountedRef.current) setError(true);
+      if (current()) setError(true);
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [api, campaignId]);
 
