@@ -3,6 +3,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogPortal,
 } from "@ringee/frontend-shared/components/ui/dialog";
 import { Button } from "@ringee/frontend-shared/components/ui/button";
 import {
@@ -195,6 +196,15 @@ export function ActiveCallModal({
   if (isPostCall) {
     return (
       <Dialog modal={false} open={open} onOpenChange={() => {}}>
+        {/* Radix renders no overlay for a non-modal dialog, so dim the page
+            here with the same scrim as every other Ringee modal. */}
+        <DialogPortal>
+          <div
+            aria-hidden
+            data-state={open ? "open" : "closed"}
+            className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50"
+          />
+        </DialogPortal>
         {/* No corner X: it did nothing here. Skip and Save are the way out. */}
         <DialogContent
           showCloseButton={false}
