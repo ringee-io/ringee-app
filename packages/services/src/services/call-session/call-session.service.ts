@@ -858,11 +858,8 @@ export class CallSessionService {
     // Persist outcome on the underlying Call (where calls store their
     // disposition) and on the CallSessionItem for fast session render.
     if (callId) {
-      const previous = dto.outcomeNote?.trim()
-        ? await this.callRepo.findById(callId).catch(() => null)
-        : null;
-      const updated = await this.callRepo
-        .updateOutcome(callId, dto.outcome, dto.outcomeNote ?? undefined)
+      const recorded = await this.callRepo
+        .recordOutcome(callId, dto.outcome, dto.outcomeNote ?? undefined)
         .catch((err) => {
           this.logger.warn(
             `Failed to persist outcome on Call ${callId}: ${(err as Error).message}`,
@@ -870,16 +867,15 @@ export class CallSessionService {
           return null;
         });
       // Custom Integrations: the same outcome and note the dashboard dialer
-      // publishes. The note is added in the session owner's name.
-      if (updated) {
-        void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(updated);
+      // publishes, once per change. The note is added in the session owner's
+      // name.
+      if (recorded) {
+        if (recorded.changed)
+          void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(
+            recorded.call,
+          );
         void this.contactService
-          .addCallNote(
-            ctx.userId,
-            updated,
-            dto.outcomeNote,
-            previous?.outcomeNote,
-          )
+          .addCallNote(ctx.userId, recorded.call, dto.outcomeNote)
           .catch((err: Error) =>
             this.logger.warn(
               `could not add the note of call ${callId} to its contact: ${err.message}`,

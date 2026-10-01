@@ -813,18 +813,56 @@ export class CallRepository {
     });
   }
 
-  async updateOutcome(
+  /**
+   * Records a disposition and says whether it changed anything. An unchanged
+   * outcome and note are not written again: `updatedAt` is the revision an
+   * outcome event is keyed on, and a retried save must not publish the same
+   * outcome twice. The match is the write itself, so two identical saves
+   * racing each other change the row once.
+   */
+  async recordOutcome(
     callId: string,
     outcome: CallOutcome,
     outcomeNote?: string,
-  ): Promise<Call> {
-    return this.prisma.call.update({
-      where: { id: callId },
+  ): Promise<{ call: Call; changed: boolean }> {
+    const { count } = await this.prisma.call.updateMany({
+      where: {
+        id: callId,
+        OR: [
+          { outcome: null },
+          { outcome: { not: outcome } },
+          ...(outcomeNote !== undefined
+            ? [{ outcomeNote: null }, { outcomeNote: { not: outcomeNote } }]
+            : []),
+        ],
+      },
       data: {
         outcome,
         ...(outcomeNote !== undefined ? { outcomeNote } : {}),
+        updatedAt: new Date(),
       },
     });
+    const call = await this.prisma.call.findUniqueOrThrow({
+      where: { id: callId },
+    });
+    return { call, changed: count === 1 };
+  }
+
+  /**
+   * Writes an AI voice agent's outcome onto its call, unless a member took the
+   * call over — the disposition is theirs then. Conditional on the row, so an
+   * analysis can never overwrite a takeover it raced. Null when nothing was
+   * written.
+   */
+  async updateOutcomeUnlessTakenOver(
+    callId: string,
+    outcome: CallOutcome,
+  ): Promise<Call | null> {
+    const { count } = await this.prisma.call.updateMany({
+      where: { id: callId, answeredByUserId: null },
+      data: { outcome },
+    });
+    return count === 1 ? this.findById(callId) : null;
   }
 
   /**

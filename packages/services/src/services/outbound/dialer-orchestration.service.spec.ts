@@ -502,7 +502,7 @@ function createWorld(
     complianceService as never,
     sseBridge as never,
     {
-      updateOutcome: async () => undefined,
+      recordOutcome: async () => ({ call: null, changed: false }),
       updateOutcomeNote: async () => undefined,
       findActiveByUserId: async () => liveCalls,
     } as never,

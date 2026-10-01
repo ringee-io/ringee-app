@@ -145,7 +145,9 @@ function build(
         attached.push({ id, ...data });
         return { id };
       },
-      updateOutcome: async (id: string, outcome: string) => {
+      // The repository's condition: never over a member's takeover.
+      updateOutcomeUnlessTakenOver: async (id: string, outcome: string) => {
+        if (over.call?.answeredByUserId) return null;
         callOutcomes.push({ id, outcome });
         return { ...TELEPHONY_CALL, outcome };
       },

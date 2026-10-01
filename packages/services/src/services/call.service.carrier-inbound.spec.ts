@@ -481,16 +481,20 @@ describe("CallService carrier inbound calls", () => {
     );
   });
 
-  it("hands a controlled call to the member who won it once its caller is answered", async () => {
+  /**
+   * A ring group's member already won the endpoint election; the caller's own
+   * leg is answered right after, by command. `failures` hand-offs fail before
+   * one goes through, the way the ring service writes it: onto the row.
+   */
+  function wonByMember(failures = 0) {
     const s = setup();
-    const assigned: Row[] = [];
     Object.assign((s.service as unknown as Row).inboundRing, {
       assignToAnswerer: async (callId: string, userId: string | null) => {
-        assigned.push({ callId, userId });
+        if (failures-- > 0) throw new Error("database is down");
+        const row = s.rows.get(callId);
+        if (row && userId) row.userId = userId;
       },
     });
-    // A ring group's member already won the endpoint election; the caller's
-    // own leg is answered right after, by command.
     s.rows.set("call-9", {
       id: "call-9",
       callControlId: "caller-leg",
@@ -503,10 +507,32 @@ describe("CallService carrier inbound calls", () => {
       answeredAt: null,
       endedAt: null,
     });
-    await s.service.handleTelephonyEvent(
-      s.event({ type: "call.answered", callControlId: "caller-leg" }),
+    return {
+      ...s,
+      row: s.rows.get("call-9")!,
+      answered: s.event({ type: "call.answered", callControlId: "caller-leg" }),
+    };
+  }
+
+  it("hands a controlled call to the member who won it once its caller is answered", async () => {
+    const s = wonByMember();
+    await s.service.handleTelephonyEvent(s.answered);
+    assert.equal(s.row.userId, "user-b");
+  });
+
+  it("finishes a failed hand-off on the redelivered answer, starting recording once", async () => {
+    const s = wonByMember(1);
+    await assert.rejects(s.service.handleTelephonyEvent(s.answered));
+    assert.ok(s.row.answeredAt);
+    assert.equal(s.row.userId, "number-owner");
+
+    await s.service.handleTelephonyEvent(s.answered);
+    assert.equal(s.row.userId, "user-b");
+    // Answer automation belongs to the first answer only.
+    assert.deepEqual(
+      s.log.filter((entry) => entry.startsWith("record:")),
+      ["record:caller-leg"],
     );
-    assert.deepEqual(assigned, [{ callId: "call-9", userId: "user-b" }]);
   });
 
   it("ends the caller's leg when the phone does not answer, noting why", async () => {

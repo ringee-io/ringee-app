@@ -688,14 +688,15 @@ export class CallAttemptService {
       : null;
 
     let outcomePersisted = false;
-    let previousNote: string | null = null;
+    let outcomeChanged = false;
     let call: Call | null = null;
     try {
-      if (note?.trim())
-        previousNote =
-          (await this.callRepo.findById(callId))?.outcomeNote ?? null;
       if (mappedOutcome) {
-        call = await this.callRepo.updateOutcome(callId, mappedOutcome, note);
+        ({ call, changed: outcomeChanged } = await this.callRepo.recordOutcome(
+          callId,
+          mappedOutcome,
+          note,
+        ));
         outcomePersisted = true;
       } else if (note) {
         call = await this.callRepo.updateOutcomeNote(callId, note);
@@ -713,10 +714,10 @@ export class CallAttemptService {
     }
 
     if (call) {
-      if (outcomePersisted)
+      if (outcomeChanged)
         void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(call);
       void this.contactService
-        .addCallNote(agentUserId, call, note, previousNote)
+        .addCallNote(agentUserId, call, note)
         .catch((err: Error) =>
           this.logger.warn(
             `could not add the note of call ${callId} to its contact: ${err.message}`,

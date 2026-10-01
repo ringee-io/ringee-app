@@ -333,7 +333,7 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
         "2026-09-30T14:16:00.000Z",
       ),
     );
-    // A retried request for the same write is the same event.
+    // A replay of the same write is the same event.
     await service.enqueueCallOutcomeUpdated(
       recorded(
         "meeting_booked",

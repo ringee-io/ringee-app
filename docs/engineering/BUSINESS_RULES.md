@@ -1113,7 +1113,10 @@ For the same reason a person outranks the analysis: on a receptionist call a
 member took over (`Call.answeredByUserId`), the disposition is that member's.
 The analysis, which lands minutes after the conversation, updates the agent's
 own row and never rewrites `Call.outcome` or publishes `call.outcome.updated`
-for it.
+for it. The condition is on the write itself, so a takeover cannot lose a race.
+
+- **Source of truth:** `VoiceAgentResultService.applyKnownOutcome`,
+  `CallRepository.updateOutcomeUnlessTakenOver`
 
 ### AGENT-007 — Company context belongs to the agent, and falls back to the workspace
 

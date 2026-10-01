@@ -933,18 +933,17 @@ export class CallService implements OnModuleDestroy {
       userId?: string;
     } = {},
   ): Promise<Call | null> {
-    const previous =
-      opts.outcome != null && opts.outcomeNote?.trim()
-        ? await this.callRepository.findById(callId)
-        : null;
-    const call =
+    const recorded =
       opts.outcome != null
-        ? await this.callRepository.updateOutcome(
+        ? await this.callRepository.recordOutcome(
             callId,
             opts.outcome,
             opts.outcomeNote ?? undefined,
           )
-        : await this.callRepository.findById(callId);
+        : null;
+    const call = recorded
+      ? recorded.call
+      : await this.callRepository.findById(callId);
 
     // AI Pipeline: mobile and any other callers that centralize outcome writes
     // here must feed the same idempotent fan-out as the web/meeting flow.
@@ -953,17 +952,16 @@ export class CallService implements OnModuleDestroy {
     }
 
     // Custom Integrations: an outcome recorded here is the same fact the web
-    // dialer publishes, so it reaches subscribers the same way.
-    if (call && opts.outcome != null) {
-      void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(call);
+    // dialer publishes, so it reaches subscribers the same way — once per
+    // change, however often the same disposition is saved.
+    if (recorded) {
+      if (recorded.changed)
+        void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(
+          recorded.call,
+        );
       if (opts.userId)
         void this.contactService
-          .addCallNote(
-            opts.userId,
-            call,
-            opts.outcomeNote,
-            previous?.outcomeNote,
-          )
+          .addCallNote(opts.userId, recorded.call, opts.outcomeNote)
           .catch((err: Error) =>
             this.logger.warn(
               `could not add the note of call ${callId} to its contact: ${err.message}`,
@@ -1990,19 +1988,23 @@ export class CallService implements OnModuleDestroy {
         ) {
           const answered =
             await this.callRepository.markAnsweredOnce(callControlId);
-          // The endpoint that won the election was recorded before this
-          // caller leg was answered; now that it is, the call is theirs.
-          if (answered)
-            await this.inboundRing.assignToAnswerer(
-              answered.id,
-              answered.answeredByUserId,
-            );
           if (
             answered &&
             (await this.enforceAnsweredCreditPolicy(answered)) &&
             answered.inboundDestinationType !== "ai_receptionist"
           )
             await this.applyAnswerAutomation(answered);
+          // The endpoint that won the election was recorded before this
+          // caller leg was answered; now that it is, the call is theirs. It
+          // runs on every delivery, not only the one that recorded the
+          // answer — the hand-off is idempotent — so a redelivery finishes
+          // one that failed after the answer was written. Automation above
+          // stays with the first answer.
+          const current = answered ?? ringingCall;
+          await this.inboundRing.assignToAnswerer(
+            current.id,
+            current.answeredByUserId,
+          );
           break;
         }
         if (
