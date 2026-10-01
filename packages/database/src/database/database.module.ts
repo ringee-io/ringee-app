@@ -75,6 +75,9 @@ import {
 } from "./repositories/custom-integration-link.repository";
 import { CustomIntegrationInboundRepository } from "./repositories/custom-integration-inbound.repository";
 import { CustomIntegrationDeliveryRepository } from "./repositories/custom-integration-delivery.repository";
+import { PersonalApiKeyRepository } from "./repositories/personal-api-key.repository";
+import { CliAuthRequestRepository } from "./repositories/cli-auth-request.repository";
+import { McpUsageRepository } from "./repositories/mcp-usage.repository";
 import { CallSessionRepository } from "./repositories/call-session.repository";
 import { RegulatoryDocumentRepository } from "./repositories/regulatory-document.repository";
 import { NumberRequirementValueRepository } from "./repositories/number-requirement-value.repository";
@@ -171,6 +174,9 @@ const databaseProviders = [
   CustomIntegrationCompanyLinkRepository,
   CustomIntegrationInboundRepository,
   CustomIntegrationDeliveryRepository,
+  PersonalApiKeyRepository,
+  CliAuthRequestRepository,
+  McpUsageRepository,
   CallSessionRepository,
   RegulatoryDocumentRepository,
   NumberRequirementValueRepository,

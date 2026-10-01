@@ -67,6 +67,9 @@ import {
   type SearchLeadsInput,
   type UpdateCallSessionInput,
   type UpdateContactInput,
+  ListWorkspacesSchema,
+  SwitchWorkspaceSchema,
+  type SwitchWorkspaceInput,
   ListAiVoiceAgentsSchema,
   StartAiVoiceAgentCallSchema,
   GetAiVoiceAgentCallSchema,
@@ -109,6 +112,8 @@ import type {
   ListAiVoiceAgentsResult,
   StartAiVoiceAgentCallResult,
   AiVoiceAgentCallResult,
+  ListWorkspacesResult,
+  SwitchWorkspaceResult,
 } from "../types/index.js";
 
 /**
@@ -132,9 +137,21 @@ export class RingeeClient {
     this.mcp = arg instanceof RingeeMcpClient ? arg : new RingeeMcpClient(arg);
   }
 
-  /** Build a client from a resolved config object. */
-  static fromConfig(config: RingeeAgentConfig): RingeeClient {
-    return new RingeeClient({ url: config.mcpUrl, apiKey: config.apiKey });
+  /**
+   * Build a client from a resolved config object. `identity` is the MCP
+   * `clientInfo` the server sees — Ringee uses it to tell the CLI from other
+   * MCP clients in its usage metrics.
+   */
+  static fromConfig(
+    config: RingeeAgentConfig,
+    identity?: Pick<RingeeMcpClientOptions, "clientName" | "clientVersion">,
+  ): RingeeClient {
+    return new RingeeClient({
+      url: config.mcpUrl,
+      transport: config.transport,
+      apiKey: config.apiKey,
+      ...identity,
+    });
   }
 
   /** Build a client from environment variables (see config.resolveConfig). */
@@ -165,6 +182,18 @@ export class RingeeClient {
       throw new RingeeMcpError(message, tool, res.data);
     }
     return res.data as T;
+  }
+
+  // ── Workspaces ──────────────────────────────────────────────────────
+
+  /** The user's Personal account plus every organization, active flagged. */
+  listWorkspaces(): Promise<ListWorkspacesResult> {
+    return this.call("list_workspaces", ListWorkspacesSchema.parse({}));
+  }
+
+  /** Change the workspace every later action is scoped to. */
+  switchWorkspace(input: SwitchWorkspaceInput): Promise<SwitchWorkspaceResult> {
+    return this.call("switch_workspace", SwitchWorkspaceSchema.parse(input));
   }
 
   // ── Contacts ────────────────────────────────────────────────────────

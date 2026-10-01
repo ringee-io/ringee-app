@@ -8,17 +8,18 @@ Rules: `AUTH-*`, `HOOK-*`, `WRK-*`, `SESS-*` in
 
 ## Trust boundaries
 
-| Boundary           | Enforced by                                                 |
-| ------------------ | ----------------------------------------------------------- |
-| Dashboard user     | Clerk session → `ClerkAuthGuard` (global)                   |
-| Org role           | `OrgAdminGuard` server-side; the UI mirror is cosmetic      |
-| Ringee staff       | `SuperAdminGuard`, verified-email allowlist                 |
-| Provider callback  | request signature over the raw body, fail closed            |
-| Embedded SDK       | publishable key + `Origin` + OTP + live membership re-check |
-| Magic link         | hashed opaque token, uniform failures                       |
-| Custom Integration | hashed API key, constant-time compare                       |
-| Public API         | Custom Integration API key → stored ownership context       |
-| MCP connector      | the workspace UUID in the URL — a capability URL            |
+| Boundary            | Enforced by                                                 |
+| ------------------- | ----------------------------------------------------------- |
+| Dashboard user      | Clerk session → `ClerkAuthGuard` (global)                   |
+| Org role            | `OrgAdminGuard` server-side; the UI mirror is cosmetic      |
+| Ringee staff        | `SuperAdminGuard`, verified-email allowlist                 |
+| Provider callback   | request signature over the raw body, fail closed            |
+| Embedded SDK        | publishable key + `Origin` + OTP + live membership re-check |
+| Magic link          | hashed opaque token, uniform failures                       |
+| Custom Integration  | hashed API key, constant-time compare                       |
+| Public API          | Custom Integration API key → stored ownership context       |
+| MCP / CLI           | personal API key → its user + their active MCP workspace    |
+| MCP connector (old) | the workspace UUID in the URL — a capability URL            |
 
 ## `@Public()` is the highest-risk decorator in the codebase
 
@@ -32,7 +33,12 @@ legitimately, in six groups:
 3. **Public API endpoints** (`/api/v1/ai-voice-agents/*`) — authorization =
    `CustomIntegrationApiKeyGuard` over a hashed, active integration key.
 4. **Magic-link session endpoints** — authorization = hashed token.
-5. **MCP / ChatGPT app transports** — authorization = the URL itself.
+5. **MCP transports** — `/api/mcp` and `/api/mcp/sse` = `PersonalApiKeyGuard`
+   over a hashed, unrevoked personal key; `/api/mcp/chatgpt/*` = a verified Clerk
+   OAuth token; the legacy `/api/mcp/:id/sse` = the URL itself.
+   `ringee login` (`/api/cli/auth/device`, `/token`) is public too: starting a
+   login grants nothing, and collecting the key requires the device code only
+   the terminal holds (see below).
 6. **Genuinely public reads** — rates, available numbers, country requirements,
    `.well-known` challenges, the demo-request form.
 
@@ -59,6 +65,8 @@ bytes (`HOOK-002`).
 | Secret                 | Shape                                       | At rest                                                 |
 | ---------------------- | ------------------------------------------- | ------------------------------------------------------- |
 | Integration API key    | `cik_live_<64 hex>`                         | SHA-256 hash; only a `cik_live_<8 hex>` prefix is shown |
+| Personal API key       | `ringee_sk_<64 hex>`                        | SHA-256 hash; only a `ringee_sk_<8 hex>` prefix shown   |
+| CLI device code        | 32 random bytes, base64url                  | SHA-256 hash only; single use, 10 minutes               |
 | Webhook signing secret | `whsec_<64 hex>`                            | encrypted                                               |
 | Publishable key        | `pk_live_<payload>.<hmac>`                  | not stored — self-describing and signed                 |
 | Magic-link token       | 32 random bytes, base64url                  | SHA-256 hash only                                       |
@@ -111,14 +119,52 @@ full register.
 
 **Accepted, by decision:**
 
-- **MCP transport authorization is a capability URL.** `/api/mcp/:id/sse` is
-  `@Public()` and resolves the workspace from the UUID in the path — knowing a
-  workspace UUID is sufficient to drive the tool surface. This is intentional:
-  the connector URL is the credential, as with a Slack or Stripe webhook URL.
-  The consequence to hold onto is that **workspace UUIDs are secrets** — do not
-  log them, put them in error messages, or leak them to third parties. A signed,
-  revocable connector token is the upgrade path if MCP links are ever shared
-  beyond one operator per workspace.
+- **The legacy MCP transport authorization is a capability URL.**
+  `/api/mcp/:id/sse` is `@Public()` and resolves the workspace from the UUID in
+  the path — knowing a workspace UUID is sufficient to drive the tool surface.
+  It stays for clients that cannot send a header (claude.ai custom connectors,
+  the Claude Code plugin's URL field, CLI < 0.3). The consequence to hold onto is
+  that **workspace UUIDs are secrets** — do not log them, put them in error
+  messages, or leak them to third parties. The revocable replacement is the
+  personal API key below; `McpUsageEvent.authMethod = 'url'` measures how much
+  traffic still depends on the old URLs.
+
+## Agent API keys and CLI login
+
+**Personal API keys** (`PersonalApiKeyService`) authenticate the MCP endpoint
+(`POST /api/mcp`, Streamable HTTP, stateless; `GET /api/mcp/sse` for SSE-only
+clients) and the CLI. A key identifies a **user**, not a workspace: every request
+re-resolves the user's active MCP workspace (`getActiveWorkspaceOrgId`, which
+re-checks membership) — the same rule as the ChatGPT OAuth connector, so
+`switch_workspace` works and a removed member falls back to personal. A key is
+rejected when unknown, revoked, or when the user is blocked (`WRK-007`).
+
+**`ringee login`** (`CliAuthService`) follows the OAuth 2.0 device authorization
+grant (RFC 8628) rather than a localhost redirect, so it also works over SSH and
+in containers:
+
+1. `POST /api/cli/auth/device` (public, rate limited per IP) creates a request
+   and returns a secret device code (stored hashed) and an 8-letter user code
+   from a vowel-free alphabet.
+2. The browser page `/cli/authorize?code=…` (Clerk session) shows the terminal's
+   hostname, OS, CLI version, IP and age next to the code, and requires an
+   explicit **Authorize** — RFC 8628 §5.4's defence against a phished code. The
+   CLI prints the code before opening the browser so the user can compare.
+3. `POST /api/cli/auth/token` with the device code mints the key **once**: the
+   `approved → consumed` transition and the key insert share one transaction,
+   so concurrent polls cannot mint two keys. No plaintext key is ever stored.
+
+Every status change is a compare-and-set on `CliAuthRequest.status`, codes
+expire after 10 minutes, and an approved request must be collected within 10
+minutes of approval. The CLI stores the key in `~/.config/ringee/credentials.json`
+(mode `0600`) and `ringee logout` revokes it server-side.
+
+**Usage telemetry.** `McpUsageService` appends one `McpUsageEvent` per MCP
+`initialize` and per tool call (surface `cli`/`mcp`, auth method, client name
+from `clientInfo`, tool, success, duration) — never arguments or results.
+Recording is fire-and-forget and can never fail a tool call. Events are kept
+for a year (daily `ringee.mcp-usage-prune` schedule). The backoffice reads them
+at `/backoffice/agents`.
 
 ## Automated security analysis
 

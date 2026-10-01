@@ -311,31 +311,66 @@
   },
   "connectors": {
     "title": "Connecteurs",
-    "description": "Connectez des assistants IA externes et des outils d'automatisation directement à votre compte Ringee. Les connecteurs exposent vos données et actions Ringee (appels, contacts, rappels, réunions) via un protocole standardisé afin que tout client compatible puisse les utiliser.",
+    "description": "Connectez des assistants IA (Claude, ChatGPT, Cursor…) et la CLI Ringee à votre compte. Ils lisent et agissent sur vos données Ringee — contacts, appels, campagnes, rappels et réunions — en votre nom.",
+    "copy": "Copier",
+    "copied": "Copié",
+    "copyError": "Impossible de copier dans le presse-papiers",
     "mcp": {
+      "title": "Serveur MCP",
       "badge": "Connecteur IA",
-      "description": "Le Model Context Protocol (MCP) permet à des clients IA comme Claude Desktop, ChatGPT et d'autres agents de lire et d'agir sur vos données Ringee. Collez l'URL ci-dessous dans votre client pour vous connecter.",
-      "refresh": "Actualiser",
-      "loadError": "Impossible de charger les informations de connexion MCP",
+      "description": "Le Model Context Protocol permet à des clients IA comme Claude, Cursor et d'autres agents d'utiliser Ringee. Pointez votre client vers cet endpoint et authentifiez-vous avec une clé API.",
+      "endpointLabel": "Endpoint",
+      "endpointHint": "Streamable HTTP. Envoyez votre clé sous la forme <code>Authorization: Bearer ringee_sk_…</code>. Les clients qui ne parlent que SSE peuvent utiliser <code>/api/mcp/sse</code>.",
+      "loadError": "Impossible de charger les informations de connexion MCP"
+    },
+    "apiKeys": {
+      "title": "Clés API",
+      "description": "Chaque clé agit en votre nom, dans votre espace de travail actif. Créez-en une par application ou appareil pour pouvoir la révoquer séparément.",
+      "create": "Créer une clé API",
+      "nameLabel": "Nom de la clé",
+      "namePlaceholder": "ex. Claude Code sur mon portable",
+      "createSubmit": "Créer",
+      "cancel": "Annuler",
+      "createError": "Impossible de créer la clé API",
+      "loadError": "Impossible de charger vos clés API",
+      "retry": "Réessayer",
+      "empty": "Aucune clé API pour l'instant. Créez-en une pour connecter Claude, Cursor ou tout client MCP — ou lancez <code>ringee login</code> dans votre terminal.",
+      "createdTitle": "« {name} » est prête",
+      "createdDescription": "Copiez-la maintenant : pour votre sécurité, elle ne sera plus affichée.",
+      "keyLabel": "Clé API",
+      "done": "Terminé",
+      "created": "créée le {date}",
+      "lastUsed": "dernière utilisation {time}",
+      "lastUsedWith": "dernière utilisation {time} via {client}",
+      "neverUsed": "jamais utilisée",
+      "revoke": "Révoquer",
+      "revokeAria": "Révoquer {name}",
+      "revokeTitle": "Révoquer « {name} » ?",
+      "revokeDescription": "Toute application ou tout terminal utilisant cette clé perd l'accès immédiatement. Action irréversible.",
+      "revokeConfirm": "Révoquer la clé",
+      "revoked": "« {name} » révoquée",
+      "revokeError": "Impossible de révoquer la clé API"
+    },
+    "snippets": {
+      "jsonTab": "Cursor et autres",
+      "jsonHint": "Collez-le dans les paramètres MCP de votre client (Cursor, Windsurf, VS Code…).",
+      "envTab": "CLI et CI",
+      "envHint": "Pour les jobs de CI et les agents. Sur votre propre ordinateur, <code>ringee login</code> est plus simple."
+    },
+    "cli": {
+      "title": "CLI Ringee",
+      "description": "Pilotez Ringee depuis le terminal ou depuis tout agent qui exécute des commandes. <code>ringee login</code> ouvre votre navigateur pour autoriser le terminal, sans clé à copier.",
+      "hint": "Chaque connexion crée une clé nommée « CLI · votre-ordinateur » dans la liste ci-dessus, pour révoquer un terminal à tout moment."
+    },
+    "legacy": {
+      "toggle": "URL de connexion historique (sans clé API)",
+      "description": "Pour les clients qui ne peuvent pas envoyer d'en-têtes. L'URL elle-même est l'identifiant et ne peut pas être révoquée : préférez une clé API dès que possible.",
       "scopeOrganization": "Cette URL donne accès à l'organisation active.",
-      "scopeFreelancer": "Cette URL donne accès à votre espace de travail personnel (freelance).",
-      "modeOrganization": "Mode organisation",
-      "modeFreelancer": "Mode freelance",
-      "urlCopied": "URL MCP copiée",
-      "copyError": "Impossible de copier dans le presse-papiers",
-      "copied": "Copié",
-      "copy": "Copier"
-    },
-    "security": {
-      "title": "Traitez cette URL comme un secret",
-      "description": "Toute personne disposant de cette URL peut lire et agir sur vos données Ringee via MCP. Ne la partagez qu'avec des clients IA de confiance. En cas de fuite, contactez le support pour faire pivoter votre compte."
-    },
-    "howTo": {
-      "title": "Comment se connecter",
-      "step1": "Copiez l'URL ci-dessus.",
-      "step2": "Ouvrez votre client compatible MCP (Claude Desktop, ChatGPT, Cursor, etc.) et ajoutez un nouveau serveur MCP distant.",
-      "step3": "Collez l'URL comme point de terminaison SSE. Aucune clé d'API supplémentaire n'est requise — l'URL fait office d'identifiant.",
-      "step4": "Une fois connecté, le client verra les outils Ringee pour rechercher des contacts, lancer des appels, planifier des rappels et réunions, et consigner les résultats."
+      "scopeFreelancer": "Cette URL donne accès à votre espace de travail personnel.",
+      "modeOrganization": "Organisation",
+      "modeFreelancer": "Personnel",
+      "warningTitle": "Traitez cette URL comme un secret",
+      "warningDescription": "Toute personne disposant de cette URL peut lire et agir sur vos données Ringee. En cas de fuite, contactez le support."
     }
   },
   "crm": {

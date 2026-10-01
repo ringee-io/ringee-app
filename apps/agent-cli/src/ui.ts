@@ -89,3 +89,27 @@ export function json(value: unknown): void {
 export function wantsJson(): boolean {
   return process.argv.includes("--json");
 }
+
+const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/**
+ * A one-line spinner on stderr while waiting on something slow. Degrades to a
+ * single static line when stderr is not a terminal (CI, pipes, agents).
+ */
+export function spinner(text: string): { stop(): void } {
+  if (!process.stderr.isTTY || process.env.NO_COLOR) {
+    process.stderr.write(`${icon.info} ${text}\n`);
+    return { stop: () => undefined };
+  }
+  let i = 0;
+  const render = () =>
+    process.stderr.write(`\r${c.cyan(FRAMES[i++ % FRAMES.length])} ${text}`);
+  render();
+  const timer = setInterval(render, 80);
+  return {
+    stop() {
+      clearInterval(timer);
+      process.stderr.write("\r\x1b[2K");
+    },
+  };
+}

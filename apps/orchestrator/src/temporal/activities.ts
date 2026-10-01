@@ -7,6 +7,7 @@ import {
   CrmSyncService,
   CustomIntegrationDeliveryService,
   EnrichmentDrainService,
+  McpUsageService,
   NumberPurchasedService,
   PipelineRunService,
   RecordingProcessingService,
@@ -56,6 +57,7 @@ export function createActivities(app: INestApplicationContext) {
   const voiceAgents = app.get(VoiceAgentService);
   const voiceAgentBilling = app.get(VoiceAgentBillingService);
   const voiceAgentTestSessions = app.get(VoiceAgentTestSessionService);
+  const mcpUsage = app.get(McpUsageService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -184,6 +186,13 @@ export function createActivities(app: INestApplicationContext) {
       }
 
       await voiceAgents.sweepCustomVoices();
+    },
+
+    /** Retention for the MCP / CLI usage log (MCP-008). */
+    async pruneMcpUsage() {
+      const deleted = await mcpUsage.pruneExpired();
+      if (deleted > 0)
+        logger.log(`McpUsagePrune: deleted ${deleted} expired usage events`);
     },
 
     async recomputeCallerIdHealth() {

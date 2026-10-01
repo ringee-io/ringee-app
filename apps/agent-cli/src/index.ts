@@ -10,6 +10,7 @@ import { registerDnc } from "./commands/dnc.js";
 import { registerPipelines } from "./commands/pipelines.js";
 import { registerVoiceAgents } from "./commands/voice-agents.js";
 import { registerConfig } from "./commands/config.js";
+import { registerAuth } from "./commands/auth.js";
 import { c } from "./ui.js";
 
 const program = new Command();
@@ -25,6 +26,7 @@ program
   .addHelpText(
     "after",
     `\nExamples:\n` +
+      `  ${c.dim("ringee login")}\n` +
       `  ${c.dim("ringee contacts search acme")}\n` +
       `  ${c.dim('ringee leads search --title "VP Sales" --country US')}\n` +
       `  ${c.dim('ringee sessions create --contact <id> --title "Tue outbound" --yes')}\n` +
@@ -38,9 +40,11 @@ program
       `  ${c.dim('ringee dnc add +14155552671 --reason "asked not to be called"')}\n` +
       `  ${c.dim("ringee pipelines results objection_intelligence --org")}\n` +
       `  ${c.dim("ringee config check")}\n\n` +
-      `Configure with RINGEE_MCP_URL (or RINGEE_BACKEND_URL + RINGEE_USER_ID).`,
+      `Log in with \`ringee login\`. For CI or agents set RINGEE_API_KEY instead\n` +
+      `(RINGEE_MCP_URL and RINGEE_BACKEND_URL + RINGEE_USER_ID still work).`,
   );
 
+registerAuth(program);
 registerContacts(program);
 registerLeads(program);
 registerSessions(program);

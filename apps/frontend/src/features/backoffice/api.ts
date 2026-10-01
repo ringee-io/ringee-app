@@ -37,6 +37,72 @@ export interface BackofficeDashboard {
   organizations: CallerActivityRow[];
 }
 
+export type AgentSurface = 'cli' | 'mcp';
+export type AgentAuthMethod = 'api_key' | 'url' | 'oauth';
+
+/** Usage of the MCP endpoint and the `ringee` CLI (GET /backoffice/agents). */
+export interface AgentUsageStats {
+  range: { start: string; end: string };
+  totals: {
+    users: number;
+    cliUsers: number;
+    mcpUsers: number;
+    toolCalls: number;
+    toolErrors: number;
+    connects: number;
+    activeApiKeys: number;
+    apiKeysCreated: { dashboard: number; cli: number };
+    cliLogins: {
+      started: number;
+      completed: number;
+      denied: number;
+      abandoned: number;
+    };
+  };
+  surfaces: {
+    surface: AgentSurface;
+    users: number;
+    connects: number;
+    toolCalls: number;
+    errors: number;
+  }[];
+  clients: {
+    surface: AgentSurface;
+    clientName: string | null;
+    users: number;
+    toolCalls: number;
+    lastSeenAt: string;
+  }[];
+  authMethods: {
+    authMethod: AgentAuthMethod;
+    users: number;
+    toolCalls: number;
+  }[];
+  tools: {
+    toolName: string;
+    calls: number;
+    users: number;
+    errors: number;
+    avgDurationMs: number | null;
+  }[];
+  daily: {
+    day: string;
+    surface: AgentSurface;
+    users: number;
+    toolCalls: number;
+  }[];
+  users: {
+    userId: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    surfaces: AgentSurface[];
+    clients: string[];
+    toolCalls: number;
+    lastSeenAt: string;
+  }[];
+}
+
 export interface AccountListItem {
   id: string;
   type: AccountType;
@@ -440,6 +506,11 @@ export function useBackofficeApi() {
 
   return useMemo(
     () => ({
+      getAgentUsage: (start: Date, end: Date) =>
+        api.get<AgentUsageStats>(`${BASE}/agents`, {
+          start: start.toISOString(),
+          end: end.toISOString()
+        }),
       getDashboard: (start: Date, end: Date) =>
         api.get<BackofficeDashboard>(`${BASE}/dashboard`, {
           start: start.toISOString(),

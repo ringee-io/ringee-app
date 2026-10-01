@@ -1,9 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { inferTransport, type RingeeTransport } from "../config.js";
 
 export interface RingeeMcpClientOptions {
-  /** Full MCP SSE URL (see config.buildMcpUrl). */
+  /** Full MCP endpoint URL (see config.buildApiKeyMcpUrl / buildMcpUrl). */
   url: string;
+  /** Defaults to what the URL looks like: `/sse` → SSE, else Streamable HTTP. */
+  transport?: RingeeTransport;
   /** Optional bearer token sent on every request. */
   apiKey?: string;
   clientName?: string;
@@ -64,20 +68,30 @@ export class RingeeMcpClient {
 
     this.connecting = (async () => {
       const headers = this.buildHeaders();
-      const transport = new SSEClientTransport(new URL(this.opts.url), {
-        // Auth header on the SSE GET stream.
-        eventSourceInit: headers
-          ? {
-              fetch: (input: string | URL | Request, init?: RequestInit) =>
-                fetch(input, {
-                  ...init,
-                  headers: { ...init?.headers, ...headers },
-                }),
-            }
-          : undefined,
-        // Auth header on the POST /messages calls.
-        requestInit: headers ? { headers } : undefined,
-      });
+      const transportKind =
+        this.opts.transport ?? inferTransport(this.opts.url);
+      const transport =
+        transportKind === "streamable-http"
+          ? new StreamableHTTPClientTransport(new URL(this.opts.url), {
+              requestInit: headers ? { headers } : undefined,
+            })
+          : new SSEClientTransport(new URL(this.opts.url), {
+              // Auth header on the SSE GET stream.
+              eventSourceInit: headers
+                ? {
+                    fetch: (
+                      input: string | URL | Request,
+                      init?: RequestInit,
+                    ) =>
+                      fetch(input, {
+                        ...init,
+                        headers: { ...init?.headers, ...headers },
+                      }),
+                  }
+                : undefined,
+              // Auth header on the POST /messages calls.
+              requestInit: headers ? { headers } : undefined,
+            });
 
       const client = new Client({
         name: this.opts.clientName ?? "ringee-agent",

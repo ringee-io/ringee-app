@@ -41,6 +41,7 @@ export * from "./inbox";
 export * from "./reminders";
 export * from "./ai-agents";
 export * from "./custom-integrations";
+export * from "./mcp-access";
 export * from "./call-session";
 export * from "./transcription";
 export * from "./ai-pipeline";

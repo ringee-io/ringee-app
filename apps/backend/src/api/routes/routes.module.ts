@@ -56,6 +56,8 @@ import { CustomIntegrationsController } from "./custom-integrations.controller";
 import { CustomIntegrationsWebhookController } from "./custom-integrations.webhook.controller";
 import { McpController } from "./mcp.controller";
 import { McpChatgptController } from "./mcp.chatgpt.controller";
+import { CliAuthController } from "./cli-auth.controller";
+import { PersonalApiKeyController } from "./personal-api-key.controller";
 import { CallSessionController } from "./call-session.controller";
 import { WellKnownController } from "./well-known.controller";
 import { CallRecordingSettingsController } from "./call-recording-settings.controller";
@@ -83,6 +85,7 @@ import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service"
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 import { PublicAiVoiceAgentController } from "./public-api.controller";
 import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-key.guard";
+import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
 
 @Module({
   controllers: [
@@ -128,6 +131,8 @@ import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-k
     // /mcp/:id/* param routes, or "chatgpt" would be captured as an :id.
     McpChatgptController,
     McpController,
+    CliAuthController,
+    PersonalApiKeyController,
     CallSessionController,
     WellKnownController,
     CallRecordingSettingsController,
@@ -165,6 +170,7 @@ import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-k
     StripeAbuseProtectionService,
     UserAccessEnforcementService,
     CustomIntegrationApiKeyGuard,
+    PersonalApiKeyGuard,
   ],
   imports: [
     McpModule,

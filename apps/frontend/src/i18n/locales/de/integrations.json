@@ -311,31 +311,66 @@
   },
   "connectors": {
     "title": "Connectors",
-    "description": "Verbinden Sie externe KI-Assistenten und Automatisierungstools direkt mit Ihrem Ringee-Konto. Connectors machen Ihre Ringee-Daten und -Aktionen (Anrufe, Kontakte, Rückrufe, Meetings) über ein standardisiertes Protokoll zugänglich, sodass jeder kompatible Client sie nutzen kann.",
+    "description": "Verbinden Sie KI-Assistenten (Claude, ChatGPT, Cursor…) und die Ringee CLI mit Ihrem Konto. Sie lesen Ihre Ringee-Daten — Kontakte, Anrufe, Kampagnen, Rückrufe und Meetings — und handeln in Ihrem Namen.",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "copyError": "Kopieren in die Zwischenablage fehlgeschlagen",
     "mcp": {
+      "title": "MCP-Server",
       "badge": "KI-Connector",
-      "description": "Das Model Context Protocol (MCP) ermöglicht es KI-Clients wie Claude Desktop, ChatGPT und anderen Agenten, Ihre Ringee-Daten zu lesen und darauf zu reagieren. Fügen Sie die untenstehende URL in Ihren Client ein, um sich zu verbinden.",
-      "refresh": "Aktualisieren",
-      "loadError": "MCP-Verbindungsinformationen konnten nicht geladen werden",
+      "description": "Mit dem Model Context Protocol können KI-Clients wie Claude, Cursor und andere Agenten Ringee nutzen. Richten Sie Ihren Client auf diesen Endpoint aus und authentifizieren Sie sich mit einem API-Schlüssel.",
+      "endpointLabel": "Endpoint",
+      "endpointHint": "Streamable HTTP. Senden Sie Ihren Schlüssel als <code>Authorization: Bearer ringee_sk_…</code>. Clients, die nur SSE unterstützen, können <code>/api/mcp/sse</code> verwenden.",
+      "loadError": "MCP-Verbindungsdaten konnten nicht geladen werden"
+    },
+    "apiKeys": {
+      "title": "API-Schlüssel",
+      "description": "Jeder Schlüssel handelt in Ihrem Namen, im aktiven Workspace. Erstellen Sie einen pro App oder Gerät, damit Sie ihn einzeln widerrufen können.",
+      "create": "API-Schlüssel erstellen",
+      "nameLabel": "Name des Schlüssels",
+      "namePlaceholder": "z. B. Claude Code auf meinem Laptop",
+      "createSubmit": "Erstellen",
+      "cancel": "Abbrechen",
+      "createError": "Der API-Schlüssel konnte nicht erstellt werden",
+      "loadError": "Ihre API-Schlüssel konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "empty": "Noch keine API-Schlüssel. Erstellen Sie einen, um Claude, Cursor oder einen anderen MCP-Client zu verbinden — oder führen Sie <code>ringee login</code> im Terminal aus.",
+      "createdTitle": "„{name}“ ist bereit",
+      "createdDescription": "Kopieren Sie ihn jetzt – aus Sicherheitsgründen wird er nicht erneut angezeigt.",
+      "keyLabel": "API-Schlüssel",
+      "done": "Fertig",
+      "created": "erstellt am {date}",
+      "lastUsed": "zuletzt verwendet {time}",
+      "lastUsedWith": "zuletzt verwendet {time} über {client}",
+      "neverUsed": "nie verwendet",
+      "revoke": "Widerrufen",
+      "revokeAria": "{name} widerrufen",
+      "revokeTitle": "„{name}“ widerrufen?",
+      "revokeDescription": "Jede App und jedes Terminal mit diesem Schlüssel verliert sofort den Zugriff. Dies kann nicht rückgängig gemacht werden.",
+      "revokeConfirm": "Schlüssel widerrufen",
+      "revoked": "„{name}“ widerrufen",
+      "revokeError": "Der API-Schlüssel konnte nicht widerrufen werden"
+    },
+    "snippets": {
+      "jsonTab": "Cursor & andere",
+      "jsonHint": "In die MCP-Einstellungen Ihres Clients einfügen (Cursor, Windsurf, VS Code…).",
+      "envTab": "CLI & CI",
+      "envHint": "Für CI-Jobs und Agenten. Auf Ihrem eigenen Rechner ist <code>ringee login</code> einfacher."
+    },
+    "cli": {
+      "title": "Ringee CLI",
+      "description": "Bedienen Sie Ringee im Terminal oder über jeden Agenten, der Shell-Befehle ausführt. <code>ringee login</code> öffnet Ihren Browser, um das Terminal zu autorisieren – ohne Schlüssel zu kopieren.",
+      "hint": "Jede Anmeldung erstellt oben in der Liste einen Schlüssel namens „CLI · Ihr-Rechner“, damit Sie ein Terminal jederzeit widerrufen können."
+    },
+    "legacy": {
+      "toggle": "Alte Verbindungs-URL (ohne API-Schlüssel)",
+      "description": "Für Clients, die keine Header senden können. Die URL selbst ist die Zugangsberechtigung und kann nicht widerrufen werden – verwenden Sie daher wann immer möglich einen API-Schlüssel.",
       "scopeOrganization": "Diese URL gewährt Zugriff auf die aktive Organisation.",
-      "scopeFreelancer": "Diese URL gewährt Zugriff auf Ihren persönlichen (freiberuflichen) Workspace.",
-      "modeOrganization": "Organisationsmodus",
-      "modeFreelancer": "Freiberufler-Modus",
-      "urlCopied": "MCP-URL kopiert",
-      "copyError": "Konnte nicht in die Zwischenablage kopiert werden",
-      "copied": "Kopiert",
-      "copy": "Kopieren"
-    },
-    "security": {
-      "title": "Behandeln Sie diese URL wie ein Geheimnis",
-      "description": "Jeder mit dieser URL kann über MCP Ihre Ringee-Daten lesen und darauf zugreifen. Teilen Sie sie nur mit vertrauenswürdigen KI-Clients. Sollte sie durchsickern, wenden Sie sich an den Support, um Ihr Konto zu rotieren."
-    },
-    "howTo": {
-      "title": "So verbinden Sie sich",
-      "step1": "Kopieren Sie die obige URL.",
-      "step2": "Öffnen Sie Ihren MCP-kompatiblen Client (Claude Desktop, ChatGPT, Cursor usw.) und fügen Sie einen neuen Remote-MCP-Server hinzu.",
-      "step3": "Fügen Sie die URL als SSE-Endpunkt ein. Es ist kein zusätzlicher API-Schlüssel erforderlich — die URL ist die Anmeldeinformation.",
-      "step4": "Nach der Verbindung sieht der Client Ringee-Tools zum Suchen von Kontakten, Starten von Anrufen, Planen von Rückrufen und Meetings sowie zum Protokollieren von Ergebnissen."
+      "scopeFreelancer": "Diese URL gewährt Zugriff auf Ihren persönlichen Workspace.",
+      "modeOrganization": "Organisation",
+      "modeFreelancer": "Persönlich",
+      "warningTitle": "Behandeln Sie diese URL wie ein Geheimnis",
+      "warningDescription": "Jeder mit dieser URL kann Ihre Ringee-Daten lesen und in Ihrem Namen handeln. Wenden Sie sich an den Support, falls sie bekannt wird."
     }
   },
   "crm": {

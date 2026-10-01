@@ -1,36 +1,81 @@
 /**
  * Connection configuration for the Ringee agent layer.
  *
- * The agent never talks to the database — it speaks to the existing Ringee
- * backend MCP over SSE. The connection is identified the same way the backend
- * `McpController` expects: the user (and optionally organization) UUID embedded
- * in the URL path.
+ * The agent never talks to the database — it speaks to the Ringee backend MCP.
+ * Two ways to authenticate, both supported:
+ *
+ *  - **API key** (recommended): `Authorization: Bearer ringee_sk_…` against the
+ *    single endpoint `<backend>/api/mcp` (Streamable HTTP). The key comes from
+ *    `RINGEE_API_KEY` or from `ringee login`.
+ *  - **Legacy capability URL**: the user (and optionally organization) UUID
+ *    embedded in the SSE URL path, as `McpController` serves it.
  */
+
+/** How the MCP client talks to the server. */
+export type RingeeTransport = "streamable-http" | "sse";
+
+/** Where a resolved connection came from — shown by `ringee config show`. */
+export type RingeeConfigSource =
+  | "env:RINGEE_MCP_URL"
+  | "env:RINGEE_USER_ID"
+  | "env:RINGEE_API_KEY"
+  | "login";
+
 export interface RingeeAgentConfig {
-  /** Full MCP SSE URL, e.g. https://api.ringee.io/api/mcp/<userId>/sse */
+  /** Full MCP endpoint URL. */
   mcpUrl: string;
-  /** Optional bearer token / API key sent as Authorization header. */
+  transport: RingeeTransport;
+  /** Bearer token sent as the Authorization header (a personal API key). */
   apiKey?: string;
-  /** Identity used to build the URL (kept for display/debugging). */
+  /** Identity used to build a legacy URL (kept for display/debugging). */
   userId?: string;
   organizationId?: string;
   backendUrl?: string;
+  source: RingeeConfigSource;
 }
+
+/** Credentials persisted by `ringee login`. */
+export interface StoredRingeeCredentials {
+  apiKey: string;
+  backendUrl?: string;
+}
+
+export const DEFAULT_BACKEND_URL = "https://api.ringee.io";
 
 const GLOBAL_PREFIX = "/api";
 
-/** Build the MCP SSE URL the backend `McpController` serves. */
+/** Backend origin without a trailing slash or `/api` suffix. */
+export function normalizeBackendUrl(backendUrl: string): string {
+  return backendUrl.replace(/\/+$/, "").replace(/\/api$/, "");
+}
+
+/** Build the legacy MCP SSE URL the backend `McpController` serves. */
 export function buildMcpUrl(
   backendUrl: string,
   userId: string,
   organizationId?: string | null,
 ): string {
-  // Tolerate a backendUrl that already includes the /api prefix.
-  const base = backendUrl.replace(/\/+$/, "").replace(/\/api$/, "");
+  const base = normalizeBackendUrl(backendUrl);
   const path = organizationId
     ? `${GLOBAL_PREFIX}/mcp/${userId}/${organizationId}/sse`
     : `${GLOBAL_PREFIX}/mcp/${userId}/sse`;
   return `${base}${path}`;
+}
+
+/** The API-key MCP endpoint (Streamable HTTP). */
+export function buildApiKeyMcpUrl(backendUrl: string): string {
+  return `${normalizeBackendUrl(backendUrl)}${GLOBAL_PREFIX}/mcp`;
+}
+
+/** SSE endpoints end in `/sse`; anything else is Streamable HTTP. */
+export function inferTransport(mcpUrl: string): RingeeTransport {
+  try {
+    return new URL(mcpUrl).pathname.replace(/\/+$/, "").endsWith("/sse")
+      ? "sse"
+      : "streamable-http";
+  } catch {
+    return "sse";
+  }
 }
 
 export class RingeeConfigError extends Error {
@@ -41,54 +86,87 @@ export class RingeeConfigError extends Error {
 }
 
 /**
- * Resolve config from the environment. Precedence:
- *   1. RINGEE_MCP_URL                          (full SSE URL — preferred)
- *   2. RINGEE_BACKEND_URL + RINGEE_USER_ID     (+ optional RINGEE_ORG_ID)
+ * Resolve the connection. Environment variables win over a saved login, so a
+ * CI job or an agent harness is never silently redirected. Precedence:
  *
- * Optional: RINGEE_API_KEY for an Authorization header.
+ *   1. RINGEE_MCP_URL                        (explicit URL, + RINGEE_API_KEY if set)
+ *   2. RINGEE_BACKEND_URL + RINGEE_USER_ID   (+ RINGEE_ORG_ID) — legacy URL
+ *   3. RINGEE_API_KEY                        (+ RINGEE_BACKEND_URL)
+ *   4. `stored` — the credentials saved by `ringee login`
  */
 export function resolveConfig(
   env: Record<string, string | undefined> = process.env,
+  stored?: StoredRingeeCredentials | null,
 ): RingeeAgentConfig {
-  const apiKey = env.RINGEE_API_KEY;
+  const apiKey = env.RINGEE_API_KEY || undefined;
 
   if (env.RINGEE_MCP_URL) {
     return {
       mcpUrl: env.RINGEE_MCP_URL,
+      transport: inferTransport(env.RINGEE_MCP_URL),
       apiKey,
       userId: env.RINGEE_USER_ID,
       organizationId: env.RINGEE_ORG_ID,
       backendUrl: env.RINGEE_BACKEND_URL,
+      source: "env:RINGEE_MCP_URL",
     };
   }
 
-  const backendUrl = env.RINGEE_BACKEND_URL;
-  const userId = env.RINGEE_USER_ID;
-  const organizationId = env.RINGEE_ORG_ID;
-
-  if (!backendUrl || !userId) {
-    throw new RingeeConfigError(
-      "Missing Ringee connection config. Set RINGEE_MCP_URL, or " +
-        "RINGEE_BACKEND_URL together with RINGEE_USER_ID (and optionally " +
-        "RINGEE_ORG_ID). Get these from the dashboard: Settings → MCP / " +
-        "Integrations (GET /api/mcp/connection-info).",
-    );
+  if (env.RINGEE_BACKEND_URL && env.RINGEE_USER_ID) {
+    return {
+      mcpUrl: buildMcpUrl(
+        env.RINGEE_BACKEND_URL,
+        env.RINGEE_USER_ID,
+        env.RINGEE_ORG_ID,
+      ),
+      transport: "sse",
+      apiKey,
+      userId: env.RINGEE_USER_ID,
+      organizationId: env.RINGEE_ORG_ID,
+      backendUrl: env.RINGEE_BACKEND_URL,
+      source: "env:RINGEE_USER_ID",
+    };
   }
 
-  return {
-    mcpUrl: buildMcpUrl(backendUrl, userId, organizationId),
-    apiKey,
-    userId,
-    organizationId,
-    backendUrl,
-  };
+  if (apiKey) {
+    const backendUrl = env.RINGEE_BACKEND_URL || DEFAULT_BACKEND_URL;
+    return {
+      mcpUrl: buildApiKeyMcpUrl(backendUrl),
+      transport: "streamable-http",
+      apiKey,
+      backendUrl,
+      source: "env:RINGEE_API_KEY",
+    };
+  }
+
+  if (stored?.apiKey) {
+    const backendUrl =
+      stored.backendUrl || env.RINGEE_BACKEND_URL || DEFAULT_BACKEND_URL;
+    return {
+      mcpUrl: buildApiKeyMcpUrl(backendUrl),
+      transport: "streamable-http",
+      apiKey: stored.apiKey,
+      backendUrl,
+      source: "login",
+    };
+  }
+
+  throw new RingeeConfigError(
+    "Not logged in to Ringee. Run `ringee login`, or set RINGEE_API_KEY " +
+      "(create one in the dashboard: Settings → Connectors). The legacy " +
+      "RINGEE_MCP_URL / RINGEE_BACKEND_URL + RINGEE_USER_ID still work.",
+  );
 }
 
-/** Whether the environment has enough to connect (no throw). */
+/** Whether there is enough to connect (no throw). */
 export function hasConfig(
   env: Record<string, string | undefined> = process.env,
+  stored?: StoredRingeeCredentials | null,
 ): boolean {
   return Boolean(
-    env.RINGEE_MCP_URL || (env.RINGEE_BACKEND_URL && env.RINGEE_USER_ID),
+    env.RINGEE_MCP_URL ||
+      (env.RINGEE_BACKEND_URL && env.RINGEE_USER_ID) ||
+      env.RINGEE_API_KEY ||
+      stored?.apiKey,
   );
 }

@@ -4,7 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
   '/backoffice(.*)',
-  '/infra(.*)'
+  '/infra(.*)',
+  // `ringee login` sends the user here to approve a terminal.
+  '/cli(.*)'
 ]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {

@@ -18,15 +18,42 @@ Runtime requires Node ≥ 20. The published binary is self-contained except for
 its npm dependencies (`@modelcontextprotocol/sdk`, `zod`, `commander`), which
 the installer pulls in automatically.
 
+## Log in
+
+```bash
+ringee login
+```
+
+`ringee login` prints a one-time code (e.g. `WDJB-MJHT`) and opens the Ringee
+dashboard's `/cli/authorize` page in your browser. Check that the browser shows the
+same code, pick the workspace to start in, and click **Authorize** — the
+terminal is logged in a second later. It saves a personal API key to
+`~/.config/ringee/credentials.json` (owner-only, `0600`; `$XDG_CONFIG_HOME`,
+`%APPDATA%` on Windows, or `$RINGEE_CONFIG_DIR` are honored).
+
+- **Over SSH / no browser:** `ringee login --no-browser` prints the URL to open
+  on any device; `/cli/authorize` without a code lets you type it in.
+- **CI or scripts:** `echo "$RINGEE_KEY" | ringee login --with-token`, or skip
+  the file entirely and export `RINGEE_API_KEY`.
+- Each login shows up as **CLI · \<your computer\>** under Settings →
+  Connectors → API keys, where it can be revoked.
+
+```bash
+ringee whoami                 # account, workspace and key this terminal uses
+ringee workspace              # list workspaces (active one marked)
+ringee workspace use personal # or an organization id / exact name
+ringee logout                 # revoke this terminal's key and delete it locally
+```
+
 ## Use from an agent harness (Claude Code, OpenClaw, Hermes…)
 
 Any agent that can run shell commands can drive Ringee through this CLI: install
-it (globally or via `npx`), export the connection env, and have the agent call
+it (globally or via `npx`), give it an API key, and have the agent call
 `ringee … --json` so it can parse structured output.
 
 ```bash
 npm i -g ringee
-export RINGEE_MCP_URL="https://api.ringee.io/api/mcp/<userId>/sse"
+export RINGEE_API_KEY="ringee_sk_…"      # Settings → Connectors → API keys
 ringee config check                       # confirm connectivity
 ringee contacts search acme --json        # machine-readable for the agent
 ```
@@ -37,13 +64,17 @@ credits, mint magic links, or delete data without an intentional flag.
 
 ## Configure
 
-```bash
-export RINGEE_MCP_URL="https://api.ringee.io/api/mcp/<userId>/sse"
-# or:  RINGEE_BACKEND_URL + RINGEE_USER_ID [+ RINGEE_ORG_ID]
-```
+The connection is resolved in this order — environment first, so CI and agent
+harnesses are never silently redirected by a saved login:
 
-Get these from the dashboard (Settings → MCP / Integrations →
-`GET /api/mcp/connection-info`). Verify with `ringee config check`.
+1. `RINGEE_MCP_URL` — an explicit MCP URL (plus `RINGEE_API_KEY` if set)
+2. `RINGEE_BACKEND_URL` + `RINGEE_USER_ID` (+ `RINGEE_ORG_ID`) — legacy URL
+3. `RINGEE_API_KEY` (+ `RINGEE_BACKEND_URL`, default `https://api.ringee.io`)
+4. the credentials saved by `ringee login`
+
+The legacy connector URL (`https://api.ringee.io/api/mcp/<userId>/sse`, the URL
+itself is the credential) keeps working. `ringee config show` prints which
+source is in use; `ringee config check` connects and lists the tools.
 
 ## Run
 
@@ -64,6 +95,11 @@ node apps/agent-cli/dist/index.js --help  # or `ringee` once linked on PATH
 ## Commands
 
 ```
+ringee login [--no-browser | --with-token]
+ringee logout
+ringee whoami
+ringee workspace [list] | workspace use <personal|orgId|name>
+
 ringee contacts search <query>
 ringee contacts get <contactId>
 ringee contacts create --phone +E164 [--name ... --email ...]

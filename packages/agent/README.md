@@ -19,25 +19,26 @@ Ringee backend / MCP   (source of truth — lives in apps/backend)
 
 ## What's inside
 
-| Path                           | Purpose                                                                                             |
-| ------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `src/config.ts`                | Resolve the MCP connection from env (`RINGEE_MCP_URL`, or `RINGEE_BACKEND_URL` + `RINGEE_USER_ID`). |
-| `src/clients/mcp-client.ts`    | `RingeeMcpClient` — transport wrapper around the MCP SDK SSE client.                                |
-| `src/clients/ringee-client.ts` | `RingeeClient` — typed facade: one method per capability.                                           |
-| `src/schemas/*`                | Shared zod input schemas mirroring the MCP tools.                                                   |
-| `src/types/*`                  | Typed result shapes the MCP returns.                                                                |
-| `src/tools/catalog.ts`         | Canonical action → MCP tool map + sensitivity (read/write/sensitive/destructive).                   |
-| `src/flows/*`                  | The outbound flow (prospect → contact → session → outcome → follow-up).                             |
-| `src/rules/*`                  | Operating guardrails for sensitive/destructive actions.                                             |
-| `src/prompts/*`                | `buildSystemPrompt()` composed from catalog + flow + rules.                                         |
-| `skills/*`                     | Distributable Claude Skills (`/ringee…`) — work in Claude Code AND claude.ai.                       |
+| Path                           | Purpose                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `src/config.ts`                | Resolve the MCP connection: `RINGEE_API_KEY`, a saved `ringee login`, or the legacy URL env vars. |
+| `src/clients/mcp-client.ts`    | `RingeeMcpClient` — wrapper around the MCP SDK client (Streamable HTTP or SSE).                   |
+| `src/clients/auth-client.ts`   | `RingeeAuthClient` — `ringee login` device flow, `whoami`, `logout`.                              |
+| `src/clients/ringee-client.ts` | `RingeeClient` — typed facade: one method per capability.                                         |
+| `src/schemas/*`                | Shared zod input schemas mirroring the MCP tools.                                                 |
+| `src/types/*`                  | Typed result shapes the MCP returns.                                                              |
+| `src/tools/catalog.ts`         | Canonical action → MCP tool map + sensitivity (read/write/sensitive/destructive).                 |
+| `src/flows/*`                  | The outbound flow (prospect → contact → session → outcome → follow-up).                           |
+| `src/rules/*`                  | Operating guardrails for sensitive/destructive actions.                                           |
+| `src/prompts/*`                | `buildSystemPrompt()` composed from catalog + flow + rules.                                       |
+| `skills/*`                     | Distributable Claude Skills (`/ringee…`) — work in Claude Code AND claude.ai.                     |
 
 ## Usage
 
 ```ts
 import { RingeeClient } from "@ringee-io/agent";
 
-// Reads RINGEE_MCP_URL (or RINGEE_BACKEND_URL + RINGEE_USER_ID [+ RINGEE_ORG_ID])
+// Reads RINGEE_API_KEY (or the legacy RINGEE_MCP_URL / RINGEE_BACKEND_URL + RINGEE_USER_ID)
 const ringee = RingeeClient.fromEnv();
 
 const { contacts } = await ringee.searchContacts({ query: "acme" });
@@ -87,11 +88,24 @@ import {
 
 ## Connection config
 
-Get the values from the dashboard (**Settings → MCP / Integrations**, which calls
-`GET /api/mcp/connection-info`) or build them yourself:
+**Recommended — an API key.** Create one in the dashboard (**Settings →
+Connectors → API keys**) and send it as a bearer token to the single endpoint
+`https://api.ringee.io/api/mcp` (Streamable HTTP; `/api/mcp/sse` for SSE-only
+clients):
 
 ```bash
-# Preferred: the full SSE URL
+export RINGEE_API_KEY="ringee_sk_…"
+export RINGEE_BACKEND_URL="https://api.ringee.io"   # optional, this is the default
+```
+
+The key identifies the user; requests run in the user's active workspace
+(`switch_workspace` changes it). On a developer machine `ringee login` saves a
+key for you instead.
+
+**Legacy — the connector URL** (no key, the URL is the credential). Still
+supported for clients that cannot send headers:
+
+```bash
 export RINGEE_MCP_URL="https://api.ringee.io/api/mcp/<userId>/sse"
 # Org-scoped: .../api/mcp/<userId>/<organizationId>/sse
 
@@ -100,6 +114,9 @@ export RINGEE_BACKEND_URL="https://api.ringee.io"
 export RINGEE_USER_ID="<userId>"
 export RINGEE_ORG_ID="<organizationId>"   # optional
 ```
+
+`resolveConfig()` prefers, in order: `RINGEE_MCP_URL`, `RINGEE_BACKEND_URL` +
+`RINGEE_USER_ID`, `RINGEE_API_KEY`, then a saved `ringee login`.
 
 ## Installing the Claude Skills
 

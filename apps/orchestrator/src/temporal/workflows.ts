@@ -133,3 +133,7 @@ export async function staleCallSweepWorkflow(): Promise<void> {
 export async function voiceAgentSweepWorkflow(): Promise<void> {
   await periodicJobs.sweepVoiceAgents();
 }
+
+export async function mcpUsagePruneWorkflow(): Promise<void> {
+  await periodicJobs.pruneMcpUsage();
+}
