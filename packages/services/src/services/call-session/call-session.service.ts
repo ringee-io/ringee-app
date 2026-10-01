@@ -42,6 +42,8 @@ import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotatio
 import { UserService } from "../user.service";
 import { ConcurrentCallGuardService } from "../security";
 import { VoicemailDropService } from "../outbound/voicemail-drop.service";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { ContactService } from "../contact.service";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -119,6 +121,8 @@ export class CallSessionService {
     private readonly userService: UserService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly voicemailDropService: VoicemailDropService,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly contactService: ContactService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -854,13 +858,34 @@ export class CallSessionService {
     // Persist outcome on the underlying Call (where calls store their
     // disposition) and on the CallSessionItem for fast session render.
     if (callId) {
-      await this.callRepo
+      const previous = dto.outcomeNote?.trim()
+        ? await this.callRepo.findById(callId).catch(() => null)
+        : null;
+      const updated = await this.callRepo
         .updateOutcome(callId, dto.outcome, dto.outcomeNote ?? undefined)
-        .catch((err) =>
+        .catch((err) => {
           this.logger.warn(
             `Failed to persist outcome on Call ${callId}: ${(err as Error).message}`,
-          ),
-        );
+          );
+          return null;
+        });
+      // Custom Integrations: the same outcome and note the dashboard dialer
+      // publishes. The note is added in the session owner's name.
+      if (updated) {
+        void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(updated);
+        void this.contactService
+          .addCallNote(
+            ctx.userId,
+            updated,
+            dto.outcomeNote,
+            previous?.outcomeNote,
+          )
+          .catch((err: Error) =>
+            this.logger.warn(
+              `could not add the note of call ${callId} to its contact: ${err.message}`,
+            ),
+          );
+      }
       // AI Pipeline: fan out the finalized outcome (magic-link path).
       this.pipelineFanout.handleCallFinalized(callId);
       // CRM: fold outcome + notes + duration into the held call-log note and

@@ -245,6 +245,19 @@ The generic, customer-facing integration surface.
   producer attached. Cost, provider ids and the encrypted `Recording.url` are
   never sent. It is a snapshot at queue time, so an early event can precede the
   transcript and recording.
+- `call.outcome.updated` has one producer for outcomes a person records,
+  `CustomIntegrationOutboundService.enqueueCallOutcomeUpdated`, called by every
+  surface that writes one: the web and extension dialers and the MCP
+  (`MeetingService.updateCallOutcome`, also on a booking), the mobile/extension
+  call screen (`CallService.setOutcome`), magic-link sessions and campaign
+  dispositions that map to a `CallOutcome`. Its dedupe key is the write's
+  revision (`<callId>:outcome:<outcome>:<Call.updatedAt>`): a replay is one
+  event, a later change — another outcome, or a note on the same one — is a new
+  one. Keyed on the call alone, every change after the first was dropped.
+- A note written with an outcome (post-call view, campaign wrap-up, session) is
+  also saved on the call's contact (`ContactService.addCallNote`, as the mobile
+  app always did) and so publishes `note.created`, named after its author. Only
+  a note the write changed is added.
 - AI voice-agent calls use the same fan-out: terminal status publishes
   `call.completed`/`call.failed`, post-call analysis publishes
   `call.outcome.updated`, confirmed callbacks and bookings publish

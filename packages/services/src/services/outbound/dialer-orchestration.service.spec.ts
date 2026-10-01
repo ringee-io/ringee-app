@@ -509,6 +509,8 @@ function createWorld(
     { enqueueOutcomeUpdate: async () => undefined } as never,
     { handleCallFinalized: () => undefined } as never,
     guard as never,
+    { enqueueCallOutcomeUpdated: async () => undefined } as never,
+    { addCallNote: async () => null } as never,
   );
   const orchestrator = new DialerOrchestrationService(
     {

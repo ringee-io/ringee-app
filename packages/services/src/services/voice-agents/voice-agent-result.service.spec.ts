@@ -278,6 +278,33 @@ describe("VoiceAgentResultService analysis callback", () => {
     ]);
   });
 
+  it("leaves the disposition of a call a member took over to that member", async () => {
+    const { service, updates, outcomeEvents, callOutcomes } = build({
+      call: {
+        id: "telephony-1",
+        userId: "member-1",
+        callControlId: "cc-1",
+        answeredAt: new Date("2026-09-07T14:01:00.000Z"),
+        // A receptionist handed the caller to a person, who answered.
+        answeredByUserId: "member-1",
+      },
+    });
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    // The assistant's own record still learns what it concluded…
+    assert.deepEqual(updates, [
+      { summary: "Booked a demo." },
+      { outcome: "not_interested" },
+    ]);
+    // …but the call keeps the outcome its member recorded, and nothing claims
+    // otherwise to Custom Integrations.
+    assert.deepEqual(callOutcomes, []);
+    assert.deepEqual(outcomeEvents, []);
+  });
+
   it("does not publish an unchanged outcome when the callback is replayed", async () => {
     const { service, updates, outcomeEvents } = build({
       insightOutcome: "no_conversation",

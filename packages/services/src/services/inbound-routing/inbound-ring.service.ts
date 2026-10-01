@@ -613,6 +613,10 @@ export class InboundRingService {
         reason: "answered_elsewhere",
         answeredByUserId: attempt.userId,
       });
+      // A handoff joins a caller the assistant already answered. A direct
+      // route's caller is answered just above, and moves when that answer is
+      // reported (CallService), since only an answered call can move.
+      await this.assignToAnswerer(call.id, attempt.userId);
     } else if (event.type === "call.hangup") {
       if (!attempt.endedAt)
         await this.attempts.update(attempt.id, {
@@ -935,6 +939,23 @@ export class InboundRingService {
       exceptUserId: userId,
       answeredByUserId: userId,
     });
+    await this.assignToAnswerer(call.id, userId);
+  }
+
+  /**
+   * An organization inbound call belongs to the member who took it: it is in
+   * their history, dashboard and CRM activity, and its events name them —
+   * however it reached them (directly, through a ring group, or handed over
+   * by an AI receptionist). Only an answered call moves, so a redelivered
+   * `call.initiated` still finds the row its route wrote; a personal call
+   * never needs to, its only member already owns it.
+   */
+  async assignToAnswerer(callId: string, userId: string | null): Promise<void> {
+    if (!userId) return;
+    if (await this.callRepository.assignInboundToAnswerer(callId, userId))
+      this.logger.log(
+        `📞 Inbound call ${callId} now belongs to ${userId}, who took it`,
+      );
   }
 
   /**

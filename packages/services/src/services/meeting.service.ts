@@ -29,12 +29,9 @@ import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 import { ReminderService } from "./reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
-import {
-  buildCallOutcomeData,
-  buildMeetingEventData,
-  callOwnershipFromCall,
-} from "./custom-integrations/custom-integration-event-builders";
+import { buildMeetingEventData } from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
+import { ContactService } from "./contact.service";
 
 @Injectable()
 export class MeetingService {
@@ -51,6 +48,7 @@ export class MeetingService {
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly crmCallLog: CrmCallLogService,
+    private readonly contactService: ContactService,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -85,14 +83,7 @@ export class MeetingService {
         ),
       );
 
-    const ctx = callOwnershipFromCall(call);
-    if (!ctx) return;
-    void this.customIntegrationOutbound.enqueue({
-      ctx,
-      eventEnum: "call_outcome_updated",
-      subjectId: call.id,
-      data: buildCallOutcomeData(call),
-    });
+    void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(call);
   }
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -484,6 +475,13 @@ export class MeetingService {
       dto.outcomeNote,
     );
     await this.enqueueOutcomeUpdated(updated);
+    void this.contactService
+      .addCallNote(ctx.userId, updated, dto.outcomeNote, call.outcomeNote)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `could not add the note of call ${call.id} to its contact: ${err.message}`,
+        ),
+      );
     return updated;
   }
 

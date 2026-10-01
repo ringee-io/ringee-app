@@ -921,11 +921,22 @@ export class CallService implements OnModuleDestroy {
    *
    * `outcome` is optional — a bare "close"/"skip" with no outcome still
    * finalizes the note with whatever metadata the call already carries.
+   *
+   * `userId` is who recorded it: a note it carries is also added to the
+   * call's contact in their name (`ContactService.addCallNote`).
    */
   async setOutcome(
     callId: string,
-    opts: { outcome?: CallOutcome | null; outcomeNote?: string | null } = {},
+    opts: {
+      outcome?: CallOutcome | null;
+      outcomeNote?: string | null;
+      userId?: string;
+    } = {},
   ): Promise<Call | null> {
+    const previous =
+      opts.outcome != null && opts.outcomeNote?.trim()
+        ? await this.callRepository.findById(callId)
+        : null;
     const call =
       opts.outcome != null
         ? await this.callRepository.updateOutcome(
@@ -939,6 +950,25 @@ export class CallService implements OnModuleDestroy {
     // here must feed the same idempotent fan-out as the web/meeting flow.
     if (call?.outcome) {
       this.pipelineFanout.handleCallFinalized(call.id);
+    }
+
+    // Custom Integrations: an outcome recorded here is the same fact the web
+    // dialer publishes, so it reaches subscribers the same way.
+    if (call && opts.outcome != null) {
+      void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(call);
+      if (opts.userId)
+        void this.contactService
+          .addCallNote(
+            opts.userId,
+            call,
+            opts.outcomeNote,
+            previous?.outcomeNote,
+          )
+          .catch((err: Error) =>
+            this.logger.warn(
+              `could not add the note of call ${callId} to its contact: ${err.message}`,
+            ),
+          );
     }
 
     // Best-effort: fold the finalized disposition into the held call-log note
@@ -1960,6 +1990,13 @@ export class CallService implements OnModuleDestroy {
         ) {
           const answered =
             await this.callRepository.markAnsweredOnce(callControlId);
+          // The endpoint that won the election was recorded before this
+          // caller leg was answered; now that it is, the call is theirs.
+          if (answered)
+            await this.inboundRing.assignToAnswerer(
+              answered.id,
+              answered.answeredByUserId,
+            );
           if (
             answered &&
             (await this.enforceAnsweredCreditPolicy(answered)) &&

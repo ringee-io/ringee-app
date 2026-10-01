@@ -581,6 +581,10 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       ACTOR_NOTE,
       "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
+      "Every outcome written is its own event, whichever surface wrote it (dialer, mobile app, extension, call session, " +
+        "campaign disposition, MCP): changing the outcome, or adding a note to the same one, sends a new event. " +
+        "A retried delivery of the same write is the same event.",
+      "On a call an AI receptionist handed to a person, the outcome is that person's: the receptionist's analysis does not send this event.",
       CALL_DETAIL_NOTE,
       "`data.call` carries the full call so consumers do not have to correlate with call.completed; it is omitted only when the call row can no longer be resolved.",
       "When the outcome is meeting_booked, a separate meeting.created event is also fired.",
@@ -591,7 +595,9 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     name: "note.created",
     direction: "outbound",
     description: "A note was added to a contact.",
-    whenItFires: "Fired when a Ringee user creates a new note on a contact.",
+    whenItFires:
+      "Fired when a Ringee user creates a new note on a contact — including a note written with a call's outcome " +
+      "(the post-call view, a campaign wrap-up, a call session), which is saved on the call's contact.",
     requiredFields: [
       { name: "data.noteId", type: "string", description: "Ringee note UUID." },
       ENTITY_CONTACT,
@@ -607,8 +613,9 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_VOICE_AGENT,
       {
         name: "data.createdBy",
-        type: "object",
-        description: "User reference.",
+        type: "string",
+        description:
+          "Ringee user id of the note's author; data.user carries their name and email.",
       },
     ],
     examplePayload: {

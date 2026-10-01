@@ -22,6 +22,7 @@ import {
 import {
   buildCallDetailData,
   buildCallEventData,
+  buildCallOutcomeData,
   callOwnershipFromCall,
   pickCallTerminalEvent,
   primaryEmailOf,
@@ -70,6 +71,29 @@ export class CustomIntegrationOutboundService {
       subjectId: call.id,
       data: buildCallEventData(call),
       occurredAt: call.endedAt ?? undefined,
+    });
+  }
+
+  /**
+   * Publish an outcome a person just recorded on a call — from any surface:
+   * the web and extension dialers, the mobile app, a magic-link session, a
+   * campaign disposition or the MCP. `call` is the row the outcome write
+   * returned, and its `updatedAt` is that write's revision: a replay of the
+   * same write is deduplicated, while a later change — another outcome, or a
+   * note added to the same one — is a new event. Keyed on the call alone, every
+   * change after the first was silently dropped.
+   */
+  async enqueueCallOutcomeUpdated(call: Call): Promise<void> {
+    const ctx = callOwnershipFromCall(call);
+    if (!ctx || !call.outcome) return;
+
+    await this.enqueue({
+      ctx,
+      eventEnum: "call_outcome_updated",
+      subjectId: call.id,
+      dedupeKey: `${call.id}:outcome:${call.outcome}:${call.updatedAt.toISOString()}`,
+      data: buildCallOutcomeData(call),
+      occurredAt: call.updatedAt,
     });
   }
 

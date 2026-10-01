@@ -362,14 +362,21 @@ export class VoiceAgentResultService {
   ): Promise<AiVoiceAgentCall | null> {
     const callOutcome = this.toCallOutcome(outcome);
     let call: Call | null = null;
+    // A receptionist call a member took over is that member's to disposition.
+    // The analysis lands minutes after the conversation — usually after the
+    // member saved theirs — so it stays on the agent's own row.
+    let takenOver = false;
     if (agentCall.callId && callOutcome) {
+      takenOver = !!(await this.callRepository.findById(agentCall.callId))
+        ?.answeredByUserId;
       // The base Call row owns the public disposition used everywhere outside
       // the voice-agent detail. Write it first so a retry can repair the agent
       // row and event if the second write ever fails.
-      call = await this.callRepository.updateOutcome(
-        agentCall.callId,
-        callOutcome,
-      );
+      if (!takenOver)
+        call = await this.callRepository.updateOutcome(
+          agentCall.callId,
+          callOutcome,
+        );
     }
 
     const updated = await this.agentCalls.updateOutcomeIfChanged(
@@ -383,7 +390,7 @@ export class VoiceAgentResultService {
     // on AiVoiceAgentCall and cannot leak into the public call event contract.
     // `updatedAt` is this persisted transition's revision. It keeps an outbox
     // replay idempotent without collapsing a later, genuine outcome change.
-    if (updated.callId && updated.outcome && callOutcome) {
+    if (updated.callId && updated.outcome && callOutcome && !takenOver) {
       // Consumers get the telephony detail inline instead of calling back for
       // it; the write above already returned the row in the common path.
       const callRow =

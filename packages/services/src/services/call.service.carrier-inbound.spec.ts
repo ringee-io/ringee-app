@@ -481,6 +481,34 @@ describe("CallService carrier inbound calls", () => {
     );
   });
 
+  it("hands a controlled call to the member who won it once its caller is answered", async () => {
+    const s = setup();
+    const assigned: Row[] = [];
+    Object.assign((s.service as unknown as Row).inboundRing, {
+      assignToAnswerer: async (callId: string, userId: string | null) => {
+        assigned.push({ callId, userId });
+      },
+    });
+    // A ring group's member already won the endpoint election; the caller's
+    // own leg is answered right after, by command.
+    s.rows.set("call-9", {
+      id: "call-9",
+      callControlId: "caller-leg",
+      connectionId: "cc-app",
+      direction: "inbound",
+      userId: "number-owner",
+      organizationId: "org-1",
+      inboundDestinationType: "ring_group",
+      answeredByUserId: "user-b",
+      answeredAt: null,
+      endedAt: null,
+    });
+    await s.service.handleTelephonyEvent(
+      s.event({ type: "call.answered", callControlId: "caller-leg" }),
+    );
+    assert.deepEqual(assigned, [{ callId: "call-9", userId: "user-b" }]);
+  });
+
   it("ends the caller's leg when the phone does not answer, noting why", async () => {
     const s = setup();
     await s.service.handleTelephonyEvent(s.event());

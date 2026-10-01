@@ -101,6 +101,18 @@ function setup(sameUser = false) {
       },
       updateControlState: async (_id: string, data: Row) =>
         Object.assign(call, data),
+      // The repository's guards: answered, in an organization, by this member.
+      assignInboundToAnswerer: async (_id: string, userId: string) => {
+        if (
+          !call.answeredAt ||
+          !call.organizationId ||
+          call.answeredByUserId !== userId ||
+          call.userId === userId
+        )
+          return false;
+        call.userId = userId;
+        return true;
+      },
     },
     organizations: { isMember: async () => member },
     telephony: {
@@ -188,6 +200,35 @@ describe("Controlled inbound routing", () => {
       // call was cancelled.
       assert.deepEqual(s.cancelled, sameUser ? [] : ["user-b"]);
     });
+  it("hands a call the assistant answered to the member who took the handoff", async () => {
+    const s = setup();
+    await s.service.handleControlledEvent(s.event("browser-leg"));
+    // In their history, not in the history of whoever owns the number.
+    assert.equal(s.call.userId, "user-a");
+    assert.equal(s.call.answeredByUserId, "user-a");
+    // A redelivered answer changes nothing more.
+    await s.service.handleControlledEvent(s.event("browser-leg"));
+    assert.equal(s.call.userId, "user-a");
+  });
+  it("leaves an unanswered caller where its route put it until the answer is reported", async () => {
+    const s = setup();
+    Object.assign(s.call, {
+      answeredAt: null,
+      inboundDestinationType: "ring_group",
+      inboundTransferState: null,
+    });
+    const answered: string[] = [];
+    (s.service as any).telephony.answerInboundCall = async (id: string) => {
+      answered.push(id);
+    };
+    await s.service.handleControlledEvent(s.event("browser-leg"));
+    assert.deepEqual(answered, ["caller"]);
+    assert.equal(s.call.answeredByUserId, "user-a");
+    // The caller leg is answered by command; CallService moves the call when
+    // that answer is reported, so a redelivered `call.initiated` before it
+    // still finds the row its route wrote.
+    assert.equal(s.call.userId, "owner");
+  });
   it("replays the winner safely without creating or billing another call", async () => {
     const s = setup();
     await s.service.handleControlledEvent(s.event("browser-leg"));

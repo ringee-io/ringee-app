@@ -124,6 +124,7 @@ function build(
     { enqueue: async () => undefined } as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   return {

@@ -36,6 +36,23 @@ const IMPLEMENTED: ReadonlySet<InboundDestinationType> = new Set([
   InboundDestinationType.extension,
 ]);
 
+/**
+ * The one person a destination rings, when it names one. A ring group or an
+ * AI receptionist names nobody until a member takes the call.
+ */
+function destinationPerson(destination: InboundDestination): string | null {
+  switch (destination.type) {
+    case "user":
+    case "extension":
+      return destination.userId;
+    case "desk_phone":
+      return destination.ownerUserId;
+    case "ring_group":
+    case "ai_receptionist":
+      return null;
+  }
+}
+
 /** Which member a call row is attributed to, when the number names none. */
 function destinationOwner(destination: InboundDestination): string {
   switch (destination.type) {
@@ -143,7 +160,15 @@ export class InboundRouteResolverService {
     return {
       kind: "routed",
       ctx: {
-        userId: number.ownerUserId ?? destinationOwner(destination),
+        // A destination that names one person owns the call it rings, so it
+        // is in their history whether or not they pick up. A group or a
+        // receptionist leaves it with the number's owner until a member takes
+        // it (`InboundRingService.assignToAnswerer`). In a personal workspace
+        // every destination is its owner.
+        userId:
+          destinationPerson(destination) ??
+          number.ownerUserId ??
+          destinationOwner(destination),
         organizationId: number.organizationId,
       },
       number: number.ref,

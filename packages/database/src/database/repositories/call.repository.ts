@@ -286,6 +286,27 @@ export class CallRepository {
     return { won: count === 1 || call?.answeredByUserId === userId, call };
   }
 
+  /**
+   * Hands an answered organization inbound call to the member who took it, so
+   * it is in their history. Guarded so it can only follow a recorded answer:
+   * the row must already be answered, by exactly this member, in an
+   * organization. Idempotent.
+   */
+  async assignInboundToAnswerer(id: string, userId: string): Promise<boolean> {
+    const { count } = await this.prisma.call.updateMany({
+      where: {
+        id,
+        direction: "inbound",
+        organizationId: { not: null },
+        answeredAt: { not: null },
+        answeredByUserId: userId,
+        NOT: { userId },
+      },
+      data: { userId },
+    });
+    return count === 1;
+  }
+
   async beginInboundTransfer(
     ctx: OwnershipContext,
     id: string,
