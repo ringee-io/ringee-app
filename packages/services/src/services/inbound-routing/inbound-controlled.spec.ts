@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HttpException } from "@nestjs/common";
+import { HttpException, NotFoundException } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { signCallCorrelation, type TelephonyEvent } from "@ringee/platform";
 import { InboundRingService } from "./inbound-ring.service";
@@ -500,5 +500,126 @@ describe("Controlled inbound routing", () => {
     const s = setup();
     s.call.inboundTransferState = null;
     assert.equal((await s.service.claim("caller", "owner")).status, "gone");
+  });
+});
+
+describe("Ending the caller's leg", () => {
+  const commands = (s: ReturnType<typeof setup>) => {
+    const sent: string[] = [];
+    (s.service as any).telephony.hangupCall = async (
+      id: string,
+      commandId: string,
+    ) => {
+      sent.push(`${id}:${commandId}`);
+    };
+    return sent;
+  };
+  const member = { userId: "user-a", organizationId: "org" };
+
+  it("ends a caller the receptionist finished with when nobody took them over", async () => {
+    const s = setup();
+    s.call.inboundTransferState = null;
+    const sent = commands(s);
+    await s.service.endAfterAssistant("caller");
+    assert.deepEqual(sent, ["caller:receptionist-end-call"]);
+  });
+  it("leaves a caller a handoff is offering or a person took", async () => {
+    for (const state of ["preparing", "ringing", "connected", "failed"]) {
+      const s = setup();
+      s.call.inboundTransferState = state;
+      await s.service.endAfterAssistant("caller");
+      assert.deepEqual(s.ended, [], state);
+    }
+    const s = setup();
+    Object.assign(s.call, {
+      inboundTransferState: null,
+      answeredByRingAttemptId: "browser",
+    });
+    await s.service.endAfterAssistant("caller");
+    assert.deepEqual(s.ended, []);
+  });
+  it("leaves every call that is not a live receptionist call alone", async () => {
+    for (const change of [
+      { endedAt: new Date() },
+      { direction: "outbound" },
+      { inboundDestinationType: "user" },
+      { callControlId: null },
+    ]) {
+      const s = setup();
+      Object.assign(s.call, { inboundTransferState: null }, change);
+      await s.service.endAfterAssistant("caller");
+      assert.deepEqual(s.ended, [], JSON.stringify(change));
+    }
+  });
+  for (const [status, redelivered] of [
+    [422, false],
+    [502, true],
+  ] as const)
+    it(`ends the receptionist's caller once the provider is sure (provider ${status})`, async () => {
+      const s = setup();
+      s.call.inboundTransferState = null;
+      (s.service as any).telephony.hangupCall = async () => {
+        throw new HttpException("provider", status);
+      };
+      const ending = s.service.endAfterAssistant("caller");
+      // 422: the caller already hung up. 502: unknown, so the webhook must be
+      // redelivered and the same command replayed.
+      if (redelivered) await assert.rejects(ending, HttpException);
+      else await ending;
+    });
+
+  it("ends the caller when the member who took the call hangs up", async () => {
+    const s = setup();
+    await s.service.handleControlledEvent(
+      s.event("receiving-leg", "call.initiated", {
+        connectionId: "browser-connection",
+        inboundRingAttempt: signCallCorrelation("browser"),
+      }),
+    );
+    await s.service.handleControlledEvent(s.event("browser-leg"));
+    const sent = commands(s);
+    // The client may know its leg by either handle. Both send the command the
+    // provider's own hangup report sends, so the provider ends the caller once.
+    for (const leg of ["receiving-leg", "browser-leg"])
+      assert.deepEqual(await s.service.endAnsweredLeg(member, leg), {
+        ended: true,
+      });
+    assert.deepEqual(sent, [
+      "caller:inbound-end-call",
+      "caller:inbound-end-call",
+    ]);
+  });
+  it("ends nothing for a leg that did not take the call, or a caller already gone", async () => {
+    const s = setup();
+    await s.service.handleControlledEvent(s.event("browser-leg"));
+    const sent = commands(s);
+    assert.deepEqual(
+      await s.service.endAnsweredLeg(
+        { userId: "user-b", organizationId: "org" },
+        "desk-leg",
+      ),
+      { ended: false },
+    );
+    s.call.endedAt = new Date();
+    assert.deepEqual(await s.service.endAnsweredLeg(member, "browser-leg"), {
+      ended: false,
+    });
+    assert.deepEqual(sent, []);
+  });
+  it("refuses a leg that was not offered to the member", async () => {
+    const s = setup();
+    await s.service.handleControlledEvent(s.event("browser-leg"));
+    const sent = commands(s);
+    for (const [ctx, leg] of [
+      [{ userId: "user-b", organizationId: "org" }, "browser-leg"],
+      [{ userId: "user-a", organizationId: "other-org" }, "browser-leg"],
+      [{ userId: "user-a", organizationId: null }, "browser-leg"],
+      [member, "unknown-leg"],
+    ] as const)
+      await assert.rejects(
+        s.service.endAnsweredLeg(ctx, leg),
+        NotFoundException,
+      );
+    assert.deepEqual(sent, []);
   });
 });

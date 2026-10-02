@@ -108,7 +108,11 @@ server-side.
 and by nothing else.** That includes a dialog's corner close: the active-call
 modal's `onClose` is the host's hang-up, so its dialogs render
 `showCloseButton={false}`. No other control may call `hangup()` — not a disposition,
-not a shortcut, not a timer. In the campaign dialer the outcome buttons are live
+not a shortcut, not a timer. On a leg the server dialed
+(`controlledInboundLegs`), the hang-up button also asks the server to end the
+caller (`POST /api/inbound-calls/legs/:callControlId/hangup`): the caller is on
+another leg the server bridged, which the browser's own hangup reaches only
+through the provider. In the campaign dialer the outcome buttons are live
 during the call so the agent can choose while they talk; the choice is saved
 when the call ends, and saving it is what advances the session to the next lead.
 An outcome that still needs input (a callback without its date) leaves the

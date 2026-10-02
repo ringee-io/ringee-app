@@ -654,6 +654,57 @@ export class InboundRingService {
     return true;
   }
 
+  /**
+   * The receptionist's conversation is over. That ends the conversation, not
+   * the call: the caller's leg stays up on the Call Control application, and
+   * nothing else ended it — a caller the assistant had said goodbye to sat on
+   * a silent line until they hung up themselves. So the leg is ended here,
+   * unless a person took the caller over or is being offered them: a handoff
+   * stops the assistant on purpose, and its legs decide what happens next.
+   */
+  async endAfterAssistant(callControlId: string): Promise<void> {
+    const call = await this.callRepository.findByControlId(callControlId);
+    if (
+      !call?.callControlId ||
+      call.endedAt ||
+      call.direction !== "inbound" ||
+      call.inboundDestinationType !== "ai_receptionist" ||
+      call.inboundTransferState ||
+      call.answeredByRingAttemptId
+    )
+      return;
+    await this.endLeg(call.callControlId, `receptionist-end-${call.id}`);
+  }
+
+  /**
+   * The member hung up the call they took on a server-dialed leg. The caller
+   * is on another leg, bridged to theirs on the provider, and nothing here
+   * ended it until the provider reported the member's leg gone — callers were
+   * left on a silent line after the member hung up. So the member's client
+   * asks for it too, and the caller is ended with the same command the
+   * provider's report sends, so the two can only end it once.
+   */
+  async endAnsweredLeg(ctx: OwnershipContext, controlId: string) {
+    const attempt = await this.attempts.findByControlId(controlId);
+    if (
+      !attempt ||
+      attempt.userId !== ctx.userId ||
+      attempt.call.organizationId !== (ctx.organizationId ?? null)
+    )
+      throw new NotFoundException("This call was not offered to you.");
+    const call = attempt.call;
+    // Only the member who took the call ends it for the caller. A leg that is
+    // still ringing, or lost the election, ends nothing but itself.
+    if (
+      !call.callControlId ||
+      call.endedAt ||
+      call.answeredByRingAttemptId !== attempt.id
+    )
+      return { ended: false };
+    await this.endLeg(call.callControlId, `inbound-end-${call.id}`);
+    return { ended: true };
+  }
+
   /** Reuses the periodic call sweep to bound a handoff interrupted by a crash or lost webhook. */
   async expireStalledTransfers(before: Date, limit: number): Promise<void> {
     const calls = await this.callRepository.findStalledInboundTransfers(

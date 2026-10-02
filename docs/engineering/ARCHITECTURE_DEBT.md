@@ -47,6 +47,14 @@ credentials and server-side endpoint arbitration for User/Group/Extension
 handoffs. The shared legacy client and unmigrated DID delivery remain in place,
 so this debt remains open for those numbers.
 
+**Two clients per tab:** a dashboard in a workspace with such routes therefore
+runs two `TelnyxRTC` instances, the shared one and the per-user one. Telnyx's
+guidance is one per tab, and the SDK keeps its gateway affinity
+(`voice_sdk_id`, sent on connect, login and keepalives) in one tab-wide
+`sessionStorage` key that both clients overwrite. Until one per-user client replaces both, the server
+does not rely on the browser's hangup alone: the dashboard also asks it to end
+the caller of a leg it dialed.
+
 **Since inbound routing shipped:** the server now names the recipient of every
 inbound call and says so on the per-user realtime channel
 (`call.inbound.ringing` / `call.inbound.cancelled`), an answer is claimed

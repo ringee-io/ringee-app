@@ -320,6 +320,14 @@ Pedro claims  ──► Call.answeredByUserId = Pedro   (one conditional UPDATE)
   offered the call; the provider's answer elects the actual endpoint atomically
   with `claimInboundEndpoint`. This includes competing devices of the same user.
   The router bridges the winner and hangs up all other physical legs.
+- When the winner hangs up, the caller is hung up with them
+  (`inbound-end-<call id>`). The provider's report of the winning leg ending
+  sends that command, and so does the dashboard: its hang-up button also calls
+  `POST /api/inbound-calls/legs/:callControlId/hangup` for a leg the server
+  dialed, so a hangup that never reaches the provider, or a report that never
+  arrives, cannot leave the caller on a silent line. Only the member whose
+  attempt won can end the caller this way; anyone else's leg ends nothing but
+  itself.
 - A member who leaves the workspace stops being a target on the next call,
   without anyone editing the group.
 - The winner owns the call. Once it is answered, `Call.userId` moves to
@@ -368,6 +376,14 @@ with a stable command id. Questions can be resolved without a transfer.
 `VoiceAgentResultService` continues to store the AI transcript and summary on
 the existing relationship when the AI conversation finishes. Finishing the AI
 conversation does not finish a transferred human call.
+
+Finishing it does finish everything else: the provider ends the conversation,
+not the caller's leg, which stays up on the Call Control application. On
+`call.conversation.ended`, once the result is recorded,
+`InboundRingService.endAfterAssistant` hangs the caller up
+(`receptionist-end-<call id>`) unless a handoff is preparing, ringing,
+connected or failed, or a person answered. Without it, a caller the assistant
+said goodbye to sat on a silent line until they hung up.
 
 `search_directory` reads current organization members, groups and internal user
 extensions. The model sees names and logical identifiers only. No matches or

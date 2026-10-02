@@ -70,6 +70,20 @@ export class InboundCallController {
     return this.ring.browserLeg(createOwnershipContext(user), id);
   }
 
+  /**
+   * The member hung up the call they took on this leg. The caller is ended
+   * server-side too, rather than only once the provider reports the leg gone.
+   */
+  @Post("legs/:callControlId/hangup")
+  hangUpLeg(
+    @CurrentUser() user: CurrentUserData,
+    @Param("callControlId") id: string,
+  ) {
+    if (!CALL_CONTROL_ID.test(id))
+      throw new BadRequestException("Unknown call.");
+    return this.ring.endAnsweredLeg(createOwnershipContext(user), id);
+  }
+
   @Post(":callControlId/claim")
   async claim(
     @CurrentUser() user: CurrentUserData,

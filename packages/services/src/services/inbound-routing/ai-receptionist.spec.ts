@@ -5,7 +5,8 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { hashApiKey } from "@ringee/platform";
+import { hashApiKey, type TelephonyEvent } from "@ringee/platform";
+import { CallService } from "../call.service";
 import { VoiceAgentToolService } from "../voice-agents/voice-agent-tool.service";
 import { VoiceAgentCallService } from "../voice-agents/voice-agent-call.service";
 import { AiReceptionistDestinationHandler } from "./destinations/ai-receptionist.destination";
@@ -344,6 +345,45 @@ describe("AI receptionist that cannot answer", () => {
       handler.execute(request as never),
       ServiceUnavailableException,
     );
+  });
+});
+
+describe("AI receptionist conversation end", () => {
+  it("ends the caller once the finished conversation is recorded", async () => {
+    const order: string[] = [];
+    const service = Object.assign(Object.create(CallService.prototype), {
+      logger: { debug: () => {}, log: () => {}, warn: () => {} },
+      inboundRing: {
+        handleControlledEvent: async () => false,
+        endAfterAssistant: async (id: string) => {
+          order.push(`end:${id}`);
+        },
+      },
+      voiceAgentResults: {
+        handleTelephonyEvent: async (event: TelephonyEvent) => {
+          order.push(`result:${event.type}`);
+          return true;
+        },
+      },
+    }) as CallService;
+    const event = (type: TelephonyEvent["type"]) =>
+      ({
+        type,
+        provider: "telnyx",
+        providerEventType: type,
+        callControlId: "original-leg",
+        connectionId: "receptionist-app",
+        clientState: null,
+        conversation: { conversationId: "conversation" },
+        payload: {},
+      }) as unknown as TelephonyEvent;
+    await service.handleTelephonyEvent(event("call.conversation.insights"));
+    await service.handleTelephonyEvent(event("call.conversation.ended"));
+    assert.deepEqual(order, [
+      "result:call.conversation.insights",
+      "result:call.conversation.ended",
+      "end:original-leg",
+    ]);
   });
 });
 

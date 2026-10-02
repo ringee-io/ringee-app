@@ -1719,6 +1719,10 @@ export class CallService implements OnModuleDestroy {
     // owns those events end to end, so the WebRTC-shaped logic below never
     // sees them.
     if (await this.voiceAgentResults.handleTelephonyEvent(event)) {
+      // An inbound receptionist's caller is still on the line when its
+      // conversation ends; once the result is recorded, end the call for them.
+      if (eventType === "call.conversation.ended")
+        await this.inboundRing.endAfterAssistant(callControlId);
       return;
     }
 

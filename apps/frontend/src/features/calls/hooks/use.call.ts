@@ -21,6 +21,7 @@ import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboardin
 import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { controlledInboundLegs } from './use.telnyx';
 
 export function useCall(call?: Call | null) {
   const t = useTranslations('calls.dialer');
@@ -126,7 +127,15 @@ export function useCall(call?: Call | null) {
     } catch (err) {
       console.error('❌ Hangup error:', err);
     }
-  }, [call]);
+    // A leg the server dialed reaches the caller through a bridge on the
+    // server's side, so the caller is ended there as well — not only once the
+    // provider reports this leg gone.
+    const controlId = call?.telnyxIDs?.telnyxCallControlId;
+    if (call && controlId && controlledInboundLegs.has(call.id))
+      void api
+        .post(`/inbound-calls/legs/${encodeURIComponent(controlId)}/hangup`, {})
+        .catch(() => undefined);
+  }, [api, call]);
 
   const handleSendDTMF = useCallback(
     (digit: string) => {
