@@ -1,7 +1,9 @@
+import { randomBytes } from "node:crypto";
 import {
-  chmodSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -52,17 +54,52 @@ export function readSavedLogin(): SavedLogin | null {
   }
 }
 
-/** Written owner-only (0600 file in a 0700 dir): the key is a secret. */
-export function writeSavedLogin(login: SavedLogin): string {
+/**
+ * Create the config dir owner-only (0700), or check that an existing one can
+ * hold a secret: not a symlink and, on POSIX, owned by this user and writable
+ * by no one else. An unsafe dir is refused, never re-permissioned.
+ */
+export function ensureConfigDir(): void {
   const dir = configDir();
   mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const unsafe = unsafeDirReason(dir);
+  if (unsafe) {
+    throw new Error(
+      `Refusing to save credentials in ${displayPath(dir)}: ${unsafe}. Fix that, or point RINGEE_CONFIG_DIR at a private directory.`,
+    );
+  }
+}
+
+function unsafeDirReason(dir: string): string | null {
+  const st = lstatSync(dir);
+  if (st.isSymbolicLink()) return "it is a symlink";
+  // POSIX only: Windows has no uid, and its mode bits do not reflect ACLs.
+  const uid = process.getuid?.();
+  if (uid === undefined) return null;
+  if (st.uid !== uid) return "it belongs to another user";
+  if (st.mode & 0o022) return "other users can write to it";
+  return null;
+}
+
+/**
+ * The key is a secret: it goes into a fresh 0600 file that is then renamed
+ * over credentials.json, so it is never written through a symlink or into an
+ * existing file, and a crash cannot leave half a file behind.
+ */
+export function writeSavedLogin(login: SavedLogin): string {
+  ensureConfigDir();
   const path = credentialsPath();
-  writeFileSync(path, `${JSON.stringify(login, null, 2)}\n`, { mode: 0o600 });
-  // `mode` only applies when the file is created; tighten an existing one.
+  const tmp = `${path}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
   try {
-    chmodSync(path, 0o600);
-  } catch {
-    /* not supported on this filesystem */
+    // "wx" adds O_EXCL: fails instead of opening anything that already exists.
+    writeFileSync(tmp, `${JSON.stringify(login, null, 2)}\n`, {
+      mode: 0o600,
+      flag: "wx",
+    });
+    renameSync(tmp, path);
+  } catch (err) {
+    rmSync(tmp, { force: true });
+    throw err;
   }
   return path;
 }

@@ -970,7 +970,9 @@ The browser must show the terminal's details and its user code and require an
 explicit approval (RFC 8628 §5.4). Codes live 10 minutes; approval, denial and
 collection are compare-and-set transitions on `CliAuthRequest.status`, and the
 key is minted in the same transaction that marks the request consumed. Approving
-also sets the user's active MCP workspace to the one they picked.
+also sets the user's active MCP workspace to the one they picked — before the
+approval is recorded, so a code is never collectable without it — and collecting
+does its reads before consuming, so a failure leaves the code collectable.
 
 - **Source of truth:** `packages/services/src/services/mcp-access/cli-auth.service.ts`,
   `CliAuthRequestRepository.consumeWithKey`

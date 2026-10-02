@@ -14,6 +14,7 @@ import {
   credentialsPath,
   deleteSavedLogin,
   displayPath,
+  ensureConfigDir,
   readSavedLogin,
   writeSavedLogin,
 } from "../credentials.js";
@@ -103,6 +104,8 @@ export function registerAuth(program: Command): void {
         const base = backendUrl(opts);
         const auth = new RingeeAuthClient(base, CLI_USER_AGENT);
         const previous = readSavedLogin();
+        // Refuse an unsafe config dir now, before a key is minted for it.
+        ensureConfigDir();
 
         let apiKey: string;
         let account: RingeeAccount;
@@ -139,13 +142,19 @@ export function registerAuth(program: Command): void {
         });
 
         // A re-login replaces the old key; revoke it so it does not linger.
+        let lingeringKey: string | null = null;
         if (previous && previous.apiKey !== apiKey) {
-          await new RingeeAuthClient(
-            previous.backendUrl || base,
-            CLI_USER_AGENT,
-          )
-            .logout(previous.apiKey)
-            .catch(() => undefined);
+          try {
+            await new RingeeAuthClient(
+              previous.backendUrl || base,
+              CLI_USER_AGENT,
+            ).logout(previous.apiKey);
+          } catch (err) {
+            // Already revoked elsewhere is what we wanted.
+            if (!(err instanceof RingeeAuthError && err.status === 401)) {
+              lingeringKey = maskKey(previous.apiKey);
+            }
+          }
         }
 
         if (wantsJson()) {
@@ -163,6 +172,13 @@ export function registerAuth(program: Command): void {
           line("");
           line(
             `${c.dim("Next:")} ringee contacts search acme   ${c.dim("·")}   ringee workspace list`,
+          );
+        }
+
+        if (lingeringKey) {
+          say("");
+          say(
+            `${icon.warn} ${c.yellow(`Could not revoke your previous API key (${lingeringKey}). Revoke it in Settings → Connectors → API keys.`)}`,
           );
         }
 

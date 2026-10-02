@@ -157,7 +157,10 @@ in containers:
 Every status change is a compare-and-set on `CliAuthRequest.status`, codes
 expire after 10 minutes, and an approved request must be collected within 10
 minutes of approval. The CLI stores the key in `~/.config/ringee/credentials.json`
-(mode `0600`) and `ringee logout` revokes it server-side.
+(mode `0600`), written as a fresh file renamed into place so it never follows a
+symlink, and refuses a config directory that is a symlink, another user's, or
+writable by others. `ringee logout` revokes the key server-side, and a re-login
+revokes the one it replaces.
 
 **Usage telemetry.** `McpUsageService` appends one `McpUsageEvent` per MCP
 `initialize` and per tool call (surface `cli`/`mcp`, auth method, client name

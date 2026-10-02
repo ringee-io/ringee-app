@@ -5,6 +5,7 @@ import {
   RingeeConfigError,
   hasConfig,
   inferTransport,
+  normalizeBackendUrl,
   resolveConfig,
 } from "./config.js";
 
@@ -54,6 +55,34 @@ describe("resolveConfig", () => {
     assert.equal(hasConfig({}, null), false);
     assert.throws(() => resolveConfig({}), RingeeConfigError);
     assert.throws(() => resolveConfig({}), /ringee login/);
+  });
+});
+
+describe("normalizeBackendUrl", () => {
+  it("drops trailing slashes and the /api suffix", () => {
+    assert.equal(
+      normalizeBackendUrl("https://api.ringee.io"),
+      DEFAULT_BACKEND_URL,
+    );
+    assert.equal(
+      normalizeBackendUrl("https://api.ringee.io///"),
+      DEFAULT_BACKEND_URL,
+    );
+    assert.equal(
+      normalizeBackendUrl("https://api.ringee.io/api/"),
+      DEFAULT_BACKEND_URL,
+    );
+    assert.equal(
+      normalizeBackendUrl("https://x.io/api/v1"),
+      "https://x.io/api/v1",
+    );
+  });
+
+  it("stays linear on a long run of slashes", () => {
+    const started = Date.now();
+    normalizeBackendUrl(`x${"/".repeat(100_000)}x`);
+    // The old /\/+$/ took seconds here.
+    assert.ok(Date.now() - started < 1000);
   });
 });
 

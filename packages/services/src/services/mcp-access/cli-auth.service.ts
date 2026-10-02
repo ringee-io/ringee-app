@@ -202,6 +202,10 @@ export class CliAuthService {
   /**
    * Approve the terminal and make `workspaceId` the user's active MCP
    * workspace, so the CLI starts where the user said it should.
+   *
+   * The workspace lives in Redis and cannot share a transaction with the
+   * approval, so it is set first: the CLI can only collect an approval whose
+   * workspace is already in place, and a failure leaves the code pending.
    */
   async approve(
     userId: string,
@@ -209,15 +213,12 @@ export class CliAuthService {
     workspaceId: string,
   ): Promise<void> {
     const request = await this.findByUserCode(rawUserCode);
+    if (stateOf(request) !== "pending") throw alreadyDecided();
     const organizationId = await this.resolveWorkspace(userId, workspaceId);
+    await this.organizationService.setActiveWorkspace(userId, organizationId);
 
     const decided = await this.repo.decide(request.id, "approved", userId);
-    if (!decided) {
-      throw new BadRequestException(
-        "This code has expired or was already used. Run `ringee login` again.",
-      );
-    }
-    await this.organizationService.setActiveWorkspace(userId, organizationId);
+    if (!decided) throw alreadyDecided();
   }
 
   async deny(userId: string, rawUserCode: string): Promise<void> {
@@ -271,6 +272,12 @@ export class CliAuthService {
       return { status: "error", error: "expired_token" };
     }
 
+    // Read before consuming: a failure here leaves the request approved for
+    // the CLI's next poll instead of burning it on a key nobody receives.
+    const activeOrgId =
+      await this.organizationService.getActiveWorkspaceOrgId(userId);
+    const account = await this.apiKeys.describeAccount(userId, activeOrgId);
+
     // A prefix collision rolls the whole transaction back, request included,
     // so drawing a new key and consuming again is safe.
     const { generated, result: key } = await this.apiKeys.mint((draw) =>
@@ -285,13 +292,11 @@ export class CliAuthService {
       return { status: "error", error: "expired_token" };
     }
 
-    const activeOrgId =
-      await this.organizationService.getActiveWorkspaceOrgId(userId);
     return {
       status: "authorized",
       apiKey: generated.plaintext,
       keyPrefix: key.prefix,
-      ...(await this.apiKeys.describeAccount(userId, activeOrgId)),
+      ...account,
     };
   }
 
@@ -318,9 +323,9 @@ export class CliAuthService {
   }
 
   private async enforceRateLimit(ip?: string | null): Promise<void> {
-    if (!ip) return;
+    // Requests without an IP share one bucket rather than skipping the limit.
     const count = await this.redis.incrementWithExpiry(
-      `ringee:cli-auth:rl:ip:${ip}`,
+      `ringee:cli-auth:rl:ip:${ip || "unknown"}`,
       RATE_LIMIT_WINDOW_SECONDS,
     );
     if (count > RATE_LIMIT_MAX_PER_IP) {
@@ -331,13 +336,20 @@ export class CliAuthService {
     }
   }
 
-  /** RFC 8628 §3.5 `slow_down`: more than one poll per interval. */
+  /**
+   * RFC 8628 §3.5 `slow_down`: more than one poll per interval. Pacing only —
+   * the 256-bit device code is the security — so it fails open without Redis.
+   */
   private async isPollingTooFast(requestId: string): Promise<boolean> {
-    const polls = await this.redis.incrementWithExpiry(
-      `ringee:cli-auth:poll:${requestId}`,
-      POLL_INTERVAL_SECONDS,
-    );
-    return polls > 2;
+    try {
+      const polls = await this.redis.incrementWithExpiry(
+        `ringee:cli-auth:poll:${requestId}`,
+        POLL_INTERVAL_SECONDS,
+      );
+      return polls > 2;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -357,6 +369,12 @@ function stateOf(request: CliAuthRequest): CliAuthRequestState {
 function notFound(): NotFoundException {
   return new NotFoundException(
     "This code is invalid or has expired. Run `ringee login` again.",
+  );
+}
+
+function alreadyDecided(): BadRequestException {
+  return new BadRequestException(
+    "This code has expired or was already used. Run `ringee login` again.",
   );
 }
 

@@ -46,7 +46,10 @@ const GLOBAL_PREFIX = "/api";
 
 /** Backend origin without a trailing slash or `/api` suffix. */
 export function normalizeBackendUrl(backendUrl: string): string {
-  return backendUrl.replace(/\/+$/, "").replace(/\/api$/, "");
+  // Trimmed by hand: /\/+$/ backtracks quadratically on a long run of "/".
+  let end = backendUrl.length;
+  while (end > 0 && backendUrl[end - 1] === "/") end--;
+  return backendUrl.slice(0, end).replace(/\/api$/, "");
 }
 
 /** Build the legacy MCP SSE URL the backend `McpController` serves. */

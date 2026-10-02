@@ -15,14 +15,33 @@ export function canOpenBrowser(): boolean {
   return true;
 }
 
+/**
+ * The URL comes from the backend. Only http(s) reaches the OS opener, which
+ * would just as readily launch a `file:` URL, an app or an option-like value.
+ */
+function webUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+      ? parsed.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Best effort: resolves false instead of throwing when nothing opened. */
 export function openBrowser(url: string): Promise<boolean> {
+  const target = webUrl(url);
+  if (!target) return Promise.resolve(false);
+  // No shell on any platform: on Windows, rundll32 opens the URL without
+  // cmd.exe re-parsing `&`, `|` or `^` inside it.
   const [command, args] =
     process.platform === "darwin"
-      ? ["open", [url]]
+      ? ["open", [target]]
       : process.platform === "win32"
-        ? ["cmd", ["/c", "start", '""', url.replace(/&/g, "^&")]]
-        : [process.env.BROWSER || "xdg-open", [url]];
+        ? ["rundll32", ["url.dll,FileProtocolHandler", target]]
+        : [process.env.BROWSER || "xdg-open", [target]];
 
   return new Promise((resolve) => {
     try {

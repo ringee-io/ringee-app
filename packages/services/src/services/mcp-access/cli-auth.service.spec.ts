@@ -72,7 +72,12 @@ class FakeCliAuthRepo {
 
 class FakeRedis {
   counters = new Map<string, number>();
+  down = false;
+  assertUp() {
+    if (this.down) throw new Error("Redis unavailable");
+  }
   async incrementWithExpiry(key: string) {
+    this.assertUp();
     const next = (this.counters.get(key) ?? 0) + 1;
     this.counters.set(key, next);
     return next;
@@ -104,8 +109,13 @@ describe("CliAuthService — `ringee login`", () => {
           role: "org:member",
         },
       ],
-      getActiveWorkspaceOrgId: async () => activeWorkspace,
+      // The active workspace lives in Redis.
+      getActiveWorkspaceOrgId: async () => {
+        redis.assertUp();
+        return activeWorkspace;
+      },
       setActiveWorkspace: async (_: string, orgId: string | null) => {
+        redis.assertUp();
         activeWorkspace = orgId;
       },
     } as unknown as OrganizationService;
@@ -218,6 +228,40 @@ describe("CliAuthService — `ringee login`", () => {
     });
   });
 
+  it("records no approval when the workspace could not be set", async () => {
+    const started = await startAndPoll();
+    redis.down = true;
+    await assert.rejects(
+      service.approve(USER, started.userCode, ORG),
+      /Redis unavailable/,
+    );
+    assert.equal(repo.rows[0].status, "pending");
+    assert.deepEqual(await service.poll(started.deviceCode), {
+      status: "error",
+      error: "authorization_pending",
+    });
+
+    redis.down = false;
+    await service.approve(USER, started.userCode, ORG);
+    assert.equal(activeWorkspace, ORG);
+  });
+
+  it("does not burn an approved code when collecting fails", async () => {
+    const started = await startAndPoll();
+    await service.approve(USER, started.userCode, ORG);
+
+    redis.down = true;
+    await assert.rejects(service.poll(started.deviceCode), /Redis unavailable/);
+    assert.equal(repo.rows[0].status, "approved");
+    assert.equal(repo.keys.length, 0);
+
+    // The CLI retries a 5xx; the next poll collects the key.
+    redis.down = false;
+    const collected = await service.poll(started.deviceCode);
+    assert.equal(collected.status, "authorized");
+    assert.equal(repo.keys.length, 1);
+  });
+
   it("asks a terminal that polls too fast to slow down", async () => {
     const started = await startAndPoll();
     await service.poll(started.deviceCode);
@@ -226,6 +270,11 @@ describe("CliAuthService — `ringee login`", () => {
       status: "error",
       error: "slow_down",
     });
+  });
+
+  it("rate limits logins that arrive without an IP", async () => {
+    for (let i = 0; i < 20; i++) await service.start({ ip: null });
+    await assert.rejects(service.start({ ip: null }), /Too many login/);
   });
 
   it("treats an unknown device code as expired", async () => {
