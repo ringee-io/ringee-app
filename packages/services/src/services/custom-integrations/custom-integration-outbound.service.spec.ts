@@ -283,6 +283,83 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
     );
   });
 
+  it("publishes every outcome a person records on a call, once per write", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      { findByCallId: async () => null } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
+      NO_CALLS_STUB,
+    );
+    const recorded = (outcome: string | null, note: string, at: string) =>
+      ({
+        id: "call-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        fromNumber: "+14155550100",
+        toNumber: "+14155550123",
+        status: CallStatus.completed,
+        direction: "inbound",
+        outcome,
+        outcomeNote: note,
+        updatedAt: new Date(at),
+      }) as never;
+
+    // A meeting booked during the call, then the wrap-up with its note: the
+    // second used to share the first one's key and was dropped as a replay.
+    await service.enqueueCallOutcomeUpdated(
+      recorded("meeting_booked", "", "2026-09-30T14:15:00.000Z"),
+    );
+    await service.enqueueCallOutcomeUpdated(
+      recorded(
+        "meeting_booked",
+        "Reunion agendada!",
+        "2026-09-30T14:16:00.000Z",
+      ),
+    );
+    // A replay of the same write is the same event.
+    await service.enqueueCallOutcomeUpdated(
+      recorded(
+        "meeting_booked",
+        "Reunion agendada!",
+        "2026-09-30T14:16:00.000Z",
+      ),
+    );
+    // No outcome, no event.
+    await service.enqueueCallOutcomeUpdated(
+      recorded(null, "", "2026-09-30T14:17:00.000Z"),
+    );
+
+    assert.deepEqual(
+      deliveries.map((delivery) => delivery.dedupeKey),
+      [
+        "integration-1:call_outcome_updated:call-1:outcome:meeting_booked:2026-09-30T14:15:00.000Z:v1",
+        "integration-1:call_outcome_updated:call-1:outcome:meeting_booked:2026-09-30T14:16:00.000Z:v1",
+        "integration-1:call_outcome_updated:call-1:outcome:meeting_booked:2026-09-30T14:16:00.000Z:v1",
+      ],
+    );
+    assert.equal(deliveries[1]!.subjectId, "call-1");
+    assert.equal(deliveries[1]!.payload.event, "call.outcome.updated");
+    assert.equal(deliveries[1]!.payload.occurredAt, "2026-09-30T14:16:00.000Z");
+    assert.equal(deliveries[1]!.payload.data.outcomeNote, "Reunion agendada!");
+  });
+
   it("adds the AI call external id to every call-linked event", async () => {
     const deliveries: Array<Record<string, any>> = [];
     const service = new CustomIntegrationOutboundService(

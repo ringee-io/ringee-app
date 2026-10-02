@@ -4,10 +4,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  Call,
   CallOutcome,
   CompanyRepository,
   Contact,
   ContactAffiliationRepository,
+  ContactNote,
   ContactRepository,
   CrmConnection,
   Prisma,
@@ -201,12 +203,50 @@ export class ContactService {
     const contact = await this.ensureExists(contactId);
     const note = await this.repo.addNote(contactId, userId, dto.content);
     void this.customIntegrationOutbound.enqueue({
-      ctx: { userId: contact.userId, organizationId: contact.organizationId },
+      // The contact's workspace receives it; in an organization the event
+      // names the member who wrote the note, not whoever created the contact.
+      ctx: contact.organizationId
+        ? { userId, organizationId: contact.organizationId }
+        : { userId: contact.userId, organizationId: null },
       eventEnum: "note_created",
       subjectId: note.id,
       data: buildNoteEventData(note, contact),
     });
     return note;
+  }
+
+  /**
+   * A note an agent wrote with a call's outcome — the post-call view, a
+   * campaign wrap-up, a magic-link session — is also a note on the call's
+   * contact, the way the mobile app has always saved its call notes. That puts
+   * it in front of whoever calls the contact next and publishes it as
+   * `note.created`.
+   *
+   * Idempotent on the note actually stored, not on the call's own copy of it:
+   * the call's `outcomeNote` is written first, so a save whose note failed
+   * here would otherwise look done to its retry. A note this author already
+   * left on the contact since the call began is not added again.
+   *
+   * `call.contactId` is read off a call its caller already scoped to the
+   * workspace, never taken from a client.
+   */
+  async addCallNote(
+    userId: string,
+    call: Pick<Call, "contactId" | "createdAt">,
+    note: string | null | undefined,
+  ): Promise<ContactNote | null> {
+    const content = note?.trim();
+    if (!content || !call.contactId) return null;
+    if (
+      await this.repo.hasNoteSince(
+        call.contactId,
+        userId,
+        content,
+        call.createdAt,
+      )
+    )
+      return null;
+    return this.addNoteToContact(userId, call.contactId, { content });
   }
 
   async updateLastCall(contactId: string, date: Date): Promise<Contact> {

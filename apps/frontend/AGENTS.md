@@ -73,6 +73,12 @@ a ring group, and answering is claimed server-side
 touched. The socket is mounted **once**, in `AccountLockdownProvider`; a second
 `useUserEvents` is a second socket and a duplicate device in the backoffice.
 
+**Only the call on screen has a wrap-up.** For the same reason most legs that
+end in a browser are not its call: somebody else's leg on the shared
+credential, one answered on another tab or device, one declined or missed.
+`useHangupListener` opens the post-call phase only for the leg that is
+`activeCall` (placed or answered here); any other ending only leaves the queue.
+
 **An answered inbound call is identified by its offer, not by its leg.** On an
 inbound leg the SDK's `destinationNumber`, `callerNumber` and `callerName` are
 the side that was called — our number, or the per-user credential a transfer

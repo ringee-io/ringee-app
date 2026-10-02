@@ -288,9 +288,10 @@ describe("InboundRouteResolverService — explicit routes", () => {
     });
     assert.equal(resolution.source, "explicit");
     assert.equal(resolution.routeId, "route-1");
-    // The call is still attributed to the number's own workspace and owner.
+    // In the number's workspace, and in the history of the member it rings —
+    // answered or missed — rather than of whoever owns the number.
     assert.deepEqual(resolution.ctx, {
-      userId: "user-a",
+      userId: "user-b",
       organizationId: "org-1",
     });
   });
@@ -305,6 +306,11 @@ describe("InboundRouteResolverService — explicit routes", () => {
         resolution.destination.memberUserIds,
       ["user-a", "user-b"],
     );
+    // A group names nobody until a member answers: the number's owner keeps it.
+    assert.deepEqual(resolution.ctx, {
+      userId: "user-a",
+      organizationId: "org-1",
+    });
   });
 
   it("routes a phone number to a desk phone", () =>
@@ -317,6 +323,18 @@ describe("InboundRouteResolverService — explicit routes", () => {
         sipDeviceId: "device-1",
         sipUsername: "rgdesk201",
         ownerUserId: "user-a",
+      });
+    }));
+
+  it("gives a desk phone's call to the member whose phone it is", () =>
+    withDeskPhones(async () => {
+      const s = setup();
+      s.state.device!.userId = "user-b";
+      s.route(InboundDestinationType.desk_phone, "device-1");
+      const resolution = routed(await s.service.resolve(s.ringee()));
+      assert.deepEqual(resolution.ctx, {
+        userId: "user-b",
+        organizationId: "org-1",
       });
     }));
 

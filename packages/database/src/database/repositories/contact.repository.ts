@@ -303,6 +303,23 @@ export class ContactRepository {
     });
   }
 
+  /**
+   * Whether this author already left this exact note on the contact since
+   * `since`. A note deleted afterwards still counts: it was added.
+   */
+  async hasNoteSince(
+    contactId: string,
+    userId: string,
+    content: string,
+    since: Date,
+  ): Promise<boolean> {
+    const note = await this.prisma.contactNote.findFirst({
+      where: { contactId, userId, content, createdAt: { gte: since } },
+      select: { id: true },
+    });
+    return !!note;
+  }
+
   async addNote(contactId: string, userId: string, content: string) {
     return this.prisma.contactNote.create({
       data: {

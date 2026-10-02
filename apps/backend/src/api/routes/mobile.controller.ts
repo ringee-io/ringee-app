@@ -184,6 +184,7 @@ export class MobileController {
     await this.callService.setOutcome(id, {
       outcome: body.outcome,
       outcomeNote: body.outcomeNote ?? null,
+      userId: ctx.userId,
     });
     return { ok: true };
   }

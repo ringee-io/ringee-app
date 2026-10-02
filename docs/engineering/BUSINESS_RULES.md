@@ -405,7 +405,8 @@ A dial is never refused because of another person's call.
 
 A ringing inbound leg has not been picked up. No organization call occupies the
 personal slot (CALL-001) — which also covers organization inbound rows, attributed
-to the number's _owner_ rather than the member who answers. Server-originated
+to the member they ring or who answers them (NUM-010) rather than to a dial that
+member placed. Server-originated
 voicemail drops likewise occupy nobody,
 and so do AI voice agent calls: the agent is the one talking, and counting its
 call would lock the owner out of their own dialer for its whole duration.
@@ -587,7 +588,20 @@ Only a member the call was actually offered to may claim it.
 
 A group with no member online fails explicitly rather than ringing nobody.
 
-- **Source of truth:** `InboundRingService`, `RingGroupDestinationHandler`
+An organization inbound call belongs to the member who takes it — directly,
+through a ring group, or handed over by an AI receptionist: once it is answered,
+`Call.userId` becomes `answeredByUserId`, so it is in that member's history,
+dashboard and CRM activity and its events name them. A route that names one
+person (a user, an extension, a desk phone's owner) attributes the call to them
+from the moment it rings, so a missed call is in their history too; a ring
+group or a receptionist call stays with the number's owner until somebody takes
+it. Only an answered call moves: until then a redelivered `call.initiated`
+compares the row with its route. A personal call never moves — its only member
+already owns it.
+
+- **Source of truth:** `InboundRingService` (`assignToAnswerer`),
+  `RingGroupDestinationHandler`, `InboundRouteResolverService.resolve`,
+  `CallRepository.assignInboundToAnswerer`
 
 ### NUM-008 — Only Ringee's authorization sends a call through a customer's PBX
 
@@ -1094,6 +1108,15 @@ When `schedule_callback` created a callback, the outcome is
 either result: the tool knows a row exists; the analysis is only reading what
 was said. Historical `appointment_booked` and `callback_requested` rows remain
 readable but are normalized at every public boundary.
+
+For the same reason a person outranks the analysis: on a receptionist call a
+member took over (`Call.answeredByUserId`), the disposition is that member's.
+The analysis, which lands minutes after the conversation, updates the agent's
+own row and never rewrites `Call.outcome` or publishes `call.outcome.updated`
+for it. The condition is on the write itself, so a takeover cannot lose a race.
+
+- **Source of truth:** `VoiceAgentResultService.applyKnownOutcome`,
+  `CallRepository.updateOutcomeUnlessTakenOver`
 
 ### AGENT-007 — Company context belongs to the agent, and falls back to the workspace
 

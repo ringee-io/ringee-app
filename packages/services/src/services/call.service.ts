@@ -921,24 +921,52 @@ export class CallService implements OnModuleDestroy {
    *
    * `outcome` is optional — a bare "close"/"skip" with no outcome still
    * finalizes the note with whatever metadata the call already carries.
+   *
+   * `userId` is who recorded it: a note it carries is also added to the
+   * call's contact in their name (`ContactService.addCallNote`).
    */
   async setOutcome(
     callId: string,
-    opts: { outcome?: CallOutcome | null; outcomeNote?: string | null } = {},
+    opts: {
+      outcome?: CallOutcome | null;
+      outcomeNote?: string | null;
+      userId?: string;
+    } = {},
   ): Promise<Call | null> {
-    const call =
+    const recorded =
       opts.outcome != null
-        ? await this.callRepository.updateOutcome(
+        ? await this.callRepository.recordOutcome(
             callId,
             opts.outcome,
             opts.outcomeNote ?? undefined,
           )
-        : await this.callRepository.findById(callId);
+        : null;
+    const call = recorded
+      ? recorded.call
+      : await this.callRepository.findById(callId);
 
     // AI Pipeline: mobile and any other callers that centralize outcome writes
     // here must feed the same idempotent fan-out as the web/meeting flow.
     if (call?.outcome) {
       this.pipelineFanout.handleCallFinalized(call.id);
+    }
+
+    // Custom Integrations: an outcome recorded here is the same fact the web
+    // dialer publishes, so it reaches subscribers the same way — once per
+    // change, however often the same disposition is saved.
+    if (recorded) {
+      if (recorded.changed)
+        void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(
+          recorded.call,
+        );
+      if (opts.userId)
+        void this.contactService
+          .addCallNote(opts.userId, recorded.call, opts.outcomeNote)
+          .catch((err: Error) =>
+            this.logger.warn(
+              `could not add the note of call ${callId} to its contact: ${err.message}`,
+            ),
+          );
     }
 
     // Best-effort: fold the finalized disposition into the held call-log note
@@ -1966,6 +1994,17 @@ export class CallService implements OnModuleDestroy {
             answered.inboundDestinationType !== "ai_receptionist"
           )
             await this.applyAnswerAutomation(answered);
+          // The endpoint that won the election was recorded before this
+          // caller leg was answered; now that it is, the call is theirs. It
+          // runs on every delivery, not only the one that recorded the
+          // answer — the hand-off is idempotent — so a redelivery finishes
+          // one that failed after the answer was written. Automation above
+          // stays with the first answer.
+          const current = answered ?? ringingCall;
+          await this.inboundRing.assignToAnswerer(
+            current.id,
+            current.answeredByUserId,
+          );
           break;
         }
         if (

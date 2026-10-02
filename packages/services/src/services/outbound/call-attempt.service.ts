@@ -23,6 +23,8 @@ import { AgentSessionStatus } from "@ringee/database";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { PipelineFanoutService } from "../ai-pipeline";
 import { ConcurrentCallGuardService } from "../security";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { ContactService } from "../contact.service";
 
 /**
  * The device a campaign session dials from, as the one-call-at-a-time lease
@@ -77,6 +79,8 @@ export class CallAttemptService {
     private readonly crmCallLog: CrmCallLogService,
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly contactService: ContactService,
   ) {}
 
   async createAttempt(data: {
@@ -635,7 +639,12 @@ export class CallAttemptService {
     // for campaign calls; without it the notes never left the attempt row.
     const callId = attempt.callId ?? current.callId;
     if (callId) {
-      await this.applyDispositionToCall(callId, disposition, data.note);
+      await this.applyDispositionToCall(
+        callId,
+        disposition,
+        data.note,
+        attempt.agentUserId,
+      );
     }
 
     this.logger.log(
@@ -661,13 +670,16 @@ export class CallAttemptService {
   /**
    * Mirror a campaign disposition onto the Call row (system codes map 1:1 to
    * the CallOutcome enum; custom codes keep the note only) and fold it into
-   * the CRM call-log note right away. Best-effort — a CRM/DB hiccup must never
-   * fail the disposition submit.
+   * the CRM call-log note right away. Custom Integrations get the outcome
+   * (`call.outcome.updated`, for codes that map to one) and the agent's note
+   * (`note.created`, on the lead's contact). Best-effort — a CRM/DB hiccup
+   * must never fail the disposition submit.
    */
   private async applyDispositionToCall(
     callId: string,
     disposition: Disposition,
-    note?: string,
+    note: string | undefined,
+    agentUserId: string,
   ): Promise<void> {
     const mappedOutcome = (Object.values(CallOutcome) as string[]).includes(
       disposition.code,
@@ -676,12 +688,18 @@ export class CallAttemptService {
       : null;
 
     let outcomePersisted = false;
+    let outcomeChanged = false;
+    let call: Call | null = null;
     try {
       if (mappedOutcome) {
-        await this.callRepo.updateOutcome(callId, mappedOutcome, note);
+        ({ call, changed: outcomeChanged } = await this.callRepo.recordOutcome(
+          callId,
+          mappedOutcome,
+          note,
+        ));
         outcomePersisted = true;
       } else if (note) {
-        await this.callRepo.updateOutcomeNote(callId, note);
+        call = await this.callRepo.updateOutcomeNote(callId, note);
       }
     } catch (err) {
       this.logger.warn(
@@ -693,6 +711,18 @@ export class CallAttemptService {
     // outcome-write path, so feed the finalized call into its campaign context.
     if (outcomePersisted) {
       this.pipelineFanout.handleCallFinalized(callId);
+    }
+
+    if (call) {
+      if (outcomeChanged)
+        void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(call);
+      void this.contactService
+        .addCallNote(agentUserId, call, note)
+        .catch((err: Error) =>
+          this.logger.warn(
+            `could not add the note of call ${callId} to its contact: ${err.message}`,
+          ),
+        );
     }
 
     void this.crmCallLog

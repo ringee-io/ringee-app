@@ -365,8 +365,11 @@ export class VoiceAgentResultService {
     if (agentCall.callId && callOutcome) {
       // The base Call row owns the public disposition used everywhere outside
       // the voice-agent detail. Write it first so a retry can repair the agent
-      // row and event if the second write ever fails.
-      call = await this.callRepository.updateOutcome(
+      // row and event if the second write ever fails. A receptionist call a
+      // member took over is that member's to disposition: the write is
+      // conditional on the row, so the analysis — which lands minutes after
+      // the conversation — stays on the agent's own row instead.
+      call = await this.callRepository.updateOutcomeUnlessTakenOver(
         agentCall.callId,
         callOutcome,
       );
@@ -383,13 +386,9 @@ export class VoiceAgentResultService {
     // on AiVoiceAgentCall and cannot leak into the public call event contract.
     // `updatedAt` is this persisted transition's revision. It keeps an outbox
     // replay idempotent without collapsing a later, genuine outcome change.
-    if (updated.callId && updated.outcome && callOutcome) {
-      // Consumers get the telephony detail inline instead of calling back for
-      // it; the write above already returned the row in the common path.
-      const callRow =
-        call?.id === updated.callId
-          ? call
-          : await this.callRepository.findById(updated.callId);
+    // Only an outcome the call actually took is published, and consumers get
+    // the telephony detail inline from the row that write returned.
+    if (updated.callId && updated.outcome && callOutcome && call) {
       await this.customIntegrationOutbound.enqueue({
         ctx: {
           userId: updated.userId,
@@ -398,7 +397,7 @@ export class VoiceAgentResultService {
         eventEnum: "call_outcome_updated",
         subjectId: updated.callId,
         dedupeKey: `${updated.callId}:outcome:${callOutcome}:${updated.updatedAt.toISOString()}`,
-        data: buildVoiceAgentCallOutcomeData(updated, callRow),
+        data: buildVoiceAgentCallOutcomeData(updated, call),
         occurredAt: updated.updatedAt,
       });
     }

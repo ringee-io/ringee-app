@@ -124,6 +124,7 @@ function build(
     { enqueue: async () => undefined } as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   return {
@@ -437,5 +438,74 @@ describe("MeetingService Ringee-first calendar sync", () => {
 
     assert.deepEqual(resolveCalls, []);
     assert.equal(createdMeetings[0]?.calendarId, "cal-pinned");
+  });
+});
+
+describe("MeetingService.updateCallOutcome", () => {
+  function setup() {
+    const call = {
+      id: "call-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      contactId: "contact-1",
+      outcome: null as string | null,
+      outcomeNote: null as string | null,
+      createdAt: new Date("2026-10-01T14:55:00.000Z"),
+      updatedAt: new Date("2026-10-01T14:56:00.000Z"),
+    };
+    const published: Array<Record<string, unknown>> = [];
+    const notes: Array<unknown[]> = [];
+    const service = Object.assign(Object.create(MeetingService.prototype), {
+      logger: { warn: () => {} },
+      callRepo: {
+        findById: async () => ({ ...call }),
+        // The repository writes only a change, and says so.
+        recordOutcome: async (_id: string, outcome: string, note?: string) => {
+          const changed =
+            call.outcome !== outcome ||
+            (note !== undefined && call.outcomeNote !== note);
+          if (changed)
+            Object.assign(call, {
+              outcome,
+              ...(note !== undefined ? { outcomeNote: note } : {}),
+              updatedAt: new Date(call.updatedAt.getTime() + 1_000),
+            });
+          return { call: { ...call }, changed };
+        },
+      },
+      pipelineFanout: { handleCallFinalized: () => undefined },
+      crmCallLog: { enqueueOutcomeUpdate: async () => undefined },
+      customIntegrationOutbound: {
+        enqueueCallOutcomeUpdated: async (row: Record<string, unknown>) => {
+          published.push(row);
+        },
+      },
+      contactService: {
+        addCallNote: async (...args: unknown[]) => {
+          notes.push(args);
+          return null;
+        },
+      },
+    }) as MeetingService;
+    return { service, published, notes };
+  }
+  const ctx = { userId: "user-1", organizationId: "org-1" };
+
+  it("publishes an outcome once however often the same one is saved", async () => {
+    const s = setup();
+    const save = { outcome: "meeting_booked" as never, outcomeNote: "Demo" };
+    await s.service.updateCallOutcome(ctx, "call-1", save);
+    // A retried request: same outcome, same note.
+    await s.service.updateCallOutcome(ctx, "call-1", save);
+    assert.equal(s.published.length, 1);
+    // A real change is a new event.
+    await s.service.updateCallOutcome(ctx, "call-1", {
+      ...save,
+      outcomeNote: "Demo on Tuesday",
+    });
+    assert.equal(s.published.length, 2);
+    // The note goes to the contact on every save: it is idempotent itself,
+    // and that is what lets a retry add one a failed save left out.
+    assert.equal(s.notes.length, 3);
   });
 });

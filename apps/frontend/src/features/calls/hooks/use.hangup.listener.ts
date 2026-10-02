@@ -106,6 +106,17 @@ export function useHangupListener() {
 
       dequeue(call.id);
 
+      // Only the call on this screen has a wrap-up: one this tab placed or
+      // answered. Every dashboard is offered every inbound leg on the shared
+      // credential (DEBT-020), and each of a member's tabs and devices rings
+      // for their own calls — so a leg that ends here is often somebody
+      // else's call, one taken on another tab or device, or one this user
+      // declined or missed. Treated as ours, it opened an empty wrap-up
+      // ("Unknown · 0:00") out of nowhere — typically noticed on coming back
+      // to the tab — and on a live call it swapped the call's controls for a
+      // wrap-up, or closed the call screen when that leg failed.
+      if (useTelnyxStore.getState().activeCall?.id !== call.id) return;
+
       // Calculate call duration
       const duration = callStartTimeRef.current
         ? Math.floor((Date.now() - callStartTimeRef.current) / 1000)

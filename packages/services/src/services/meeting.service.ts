@@ -29,12 +29,9 @@ import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 import { ReminderService } from "./reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
-import {
-  buildCallOutcomeData,
-  buildMeetingEventData,
-  callOwnershipFromCall,
-} from "./custom-integrations/custom-integration-event-builders";
+import { buildMeetingEventData } from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
+import { ContactService } from "./contact.service";
 
 @Injectable()
 export class MeetingService {
@@ -51,6 +48,7 @@ export class MeetingService {
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly crmCallLog: CrmCallLogService,
+    private readonly contactService: ContactService,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -67,8 +65,10 @@ export class MeetingService {
     });
   }
 
+  /** `changed`: the write moved the outcome or its note (`recordOutcome`). */
   private async enqueueOutcomeUpdated(
     call: Call,
+    changed: boolean,
     meetingUrl?: string | null,
   ): Promise<void> {
     // AI Pipeline: fan out the finalized outcome to enabled pipelines (counters
@@ -85,14 +85,11 @@ export class MeetingService {
         ),
       );
 
-    const ctx = callOwnershipFromCall(call);
-    if (!ctx) return;
-    void this.customIntegrationOutbound.enqueue({
-      ctx,
-      eventEnum: "call_outcome_updated",
-      subjectId: call.id,
-      data: buildCallOutcomeData(call),
-    });
+    // Custom Integrations only hear of a change: saving the same disposition
+    // again — a retried request, a second meeting on a booked call — is not a
+    // new outcome.
+    if (changed)
+      void this.customIntegrationOutbound.enqueueCallOutcomeUpdated(call);
   }
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -238,11 +235,11 @@ export class MeetingService {
     // Auto-set call outcome to meeting_booked if linked to a call. Fold the
     // fanout in below, AFTER the calendar event, so the Meet link makes it into
     // the same call-log note.
-    let bookedCall: Call | null = null;
+    let booked: { call: Call; changed: boolean } | null = null;
     if (dto.callId) {
       const call = await this.callRepo.findById(dto.callId);
       if (call) {
-        bookedCall = await this.callRepo.updateOutcome(
+        booked = await this.callRepo.recordOutcome(
           call.id,
           CallOutcome.meeting_booked,
         );
@@ -278,9 +275,10 @@ export class MeetingService {
 
     // Now that we have the Meet link, fan out the meeting_booked outcome so the
     // call-log note carries the join URL alongside the disposition.
-    if (bookedCall) {
+    if (booked) {
       await this.enqueueOutcomeUpdated(
-        bookedCall,
+        booked.call,
+        booked.changed,
         calendarResult?.meetLink ?? null,
       );
     }
@@ -478,12 +476,19 @@ export class MeetingService {
   ): Promise<Call> {
     const call = await this.assertCallAccess(ctx, callId);
 
-    const updated = await this.callRepo.updateOutcome(
+    const { call: updated, changed } = await this.callRepo.recordOutcome(
       call.id,
       dto.outcome,
       dto.outcomeNote,
     );
-    await this.enqueueOutcomeUpdated(updated);
+    await this.enqueueOutcomeUpdated(updated, changed);
+    void this.contactService
+      .addCallNote(ctx.userId, updated, dto.outcomeNote)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `could not add the note of call ${call.id} to its contact: ${err.message}`,
+        ),
+      );
     return updated;
   }
 

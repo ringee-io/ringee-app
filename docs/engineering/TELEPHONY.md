@@ -322,6 +322,15 @@ Pedro claims  ──► Call.answeredByUserId = Pedro   (one conditional UPDATE)
   The router bridges the winner and hangs up all other physical legs.
 - A member who leaves the workspace stops being a target on the next call,
   without anyone editing the group.
+- The winner owns the call. Once it is answered, `Call.userId` moves to
+  `answeredByUserId` (`InboundRingService.assignToAnswerer`), so the call is in
+  the history, "Recent calls", dashboard and CRM activity of whoever took it —
+  members only see their own calls. A route to one person (user, extension,
+  desk phone) is attributed to them from the first ring, so their missed calls
+  are theirs too; a group or receptionist call stays with the number's owner
+  until a member answers. The move waits for the answer because a redelivered
+  `call.initiated` compares the row's owner with its route, and the answer is
+  what makes that comparison stop (NUM-010).
 
 ### Configuration
 
@@ -378,7 +387,10 @@ When every endpoint ends unanswered, the transfer is recorded as failed
 ("Nobody answered the transfer.") and the caller is hung up; there is no
 voicemail or return to the assistant in this version.
 Original caller, called number, carrier, AI agent, recording and session remain
-unchanged. `answeredByUserId` and `answeredByRingAttemptId` record the human winner.
+unchanged. `answeredByUserId` and `answeredByRingAttemptId` record the human winner,
+and the call becomes theirs (`Call.userId`, NUM-010). From then on the call's
+disposition is the member's: the receptionist's post-call analysis updates only
+the agent's own row, never `Call.outcome` (AGENT-006).
 Provider and receiving endpoint sessions both resolve to the original Call.
 Signed correlation handles receiving-side webhooks from Browser and Desk Phone
 without duplicate history or billing.

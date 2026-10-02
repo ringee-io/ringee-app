@@ -502,13 +502,15 @@ function createWorld(
     complianceService as never,
     sseBridge as never,
     {
-      updateOutcome: async () => undefined,
+      recordOutcome: async () => ({ call: null, changed: false }),
       updateOutcomeNote: async () => undefined,
       findActiveByUserId: async () => liveCalls,
     } as never,
     { enqueueOutcomeUpdate: async () => undefined } as never,
     { handleCallFinalized: () => undefined } as never,
     guard as never,
+    { enqueueCallOutcomeUpdated: async () => undefined } as never,
+    { addCallNote: async () => null } as never,
   );
   const orchestrator = new DialerOrchestrationService(
     {
