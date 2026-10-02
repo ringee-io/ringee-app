@@ -103,6 +103,11 @@ function buildInstructions(ctx: OwnershipContext): string {
   );
 }
 
+/** Told about every tool call, for usage measurement. Must not throw. */
+export interface McpToolObserver {
+  onToolCall(toolName: string, success: boolean, durationMs: number): void;
+}
+
 const noopJsonSchemaValidator = {
   getValidator: () => (input: unknown) => ({
     valid: true,
@@ -112,15 +117,22 @@ const noopJsonSchemaValidator = {
 } as never;
 
 export class McpSettings {
+  /**
+   * `ctx` may be a function: a long-lived SSE session passes one so every tool
+   * call runs in the session's current workspace, which can change after a
+   * `switch_workspace`.
+   */
   static build(
-    ctx: OwnershipContext,
+    ctx: OwnershipContext | (() => OwnershipContext),
     func: McpFunc,
     tools: McpToolsRepository,
+    observer?: McpToolObserver,
   ): McpServer {
+    const currentCtx = typeof ctx === "function" ? ctx : () => ctx;
     const server = new McpServer(
       { name: SERVER_NAME, version: SERVER_VERSION },
       {
-        instructions: buildInstructions(ctx),
+        instructions: buildInstructions(currentCtx()),
         // Bypass the SDK's default Ajv-backed validator. The default loads
         // ajv-formats which crashes in our ESM/CJS interop. We don't use
         // elicitation, so an accept-all validator is safe here.
@@ -132,10 +144,17 @@ export class McpSettings {
       const { toolName, description, zod, annotations } = entry.data;
 
       const handler = async (input: Record<string, unknown>) => {
-        const result = await (func as unknown as Record<string, Function>)[
-          entry.func as string
-        ].call(func, ctx, input);
-        return { content: result };
+        const startedAt = Date.now();
+        try {
+          const result = await (func as unknown as Record<string, Function>)[
+            entry.func as string
+          ].call(func, currentCtx(), input);
+          observer?.onToolCall(toolName, true, Date.now() - startedAt);
+          return { content: result };
+        } catch (err) {
+          observer?.onToolCall(toolName, false, Date.now() - startedAt);
+          throw err;
+        }
       };
 
       if (zod) {

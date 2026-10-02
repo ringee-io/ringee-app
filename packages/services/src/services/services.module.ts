@@ -158,6 +158,11 @@ import {
   CustomIntegrationClickToCallService,
 } from "./custom-integrations";
 import {
+  CliAuthService,
+  McpUsageService,
+  PersonalApiKeyService,
+} from "./mcp-access";
+import {
   CallSessionService,
   CallSessionAccessTokenService,
 } from "./call-session";
@@ -308,6 +313,10 @@ const servicesProviders = [
   CustomIntegrationDeliveryService,
   CustomIntegrationFailureNotifierService,
   CustomIntegrationClickToCallService,
+  // MCP / CLI access (personal API keys, `ringee login`, usage)
+  PersonalApiKeyService,
+  CliAuthService,
+  McpUsageService,
   // Call Sessions (magic-link dialing)
   CallSessionService,
   CallSessionAccessTokenService,

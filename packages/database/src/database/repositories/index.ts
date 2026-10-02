@@ -96,3 +96,7 @@ export * from "./external-carrier.repository";
 export * from "./inbound-route.repository";
 export * from "./ring-group.repository";
 export * from "./inbound-ring-attempt.repository";
+
+export * from "./personal-api-key.repository";
+export * from "./cli-auth-request.repository";
+export * from "./mcp-usage.repository";

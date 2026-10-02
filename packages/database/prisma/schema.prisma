@@ -446,6 +446,9 @@ model User {
   aiConversations         AiConversation[]
   aiMessages              AiMessage[]
   customIntegrations      CustomIntegration[]
+  personalApiKeys         PersonalApiKey[]
+  cliAuthRequests         CliAuthRequest[]
+  mcpUsageEvents          McpUsageEvent[]
   freeTrialCallRequest    FreeTrialCallRequest?
   callSessions            CallSession[]
   callRecordingSettings   CallRecordingSettings?
@@ -2573,6 +2576,116 @@ model CustomIntegrationDelivery {
 
   @@index([status, nextAttemptAt])
   @@index([integrationId, createdAt])
+}
+
+// ── Personal API keys, CLI login and MCP usage ──
+// A personal API key authenticates a USER on the agent surfaces (the MCP
+// endpoint and the `ringee` CLI). Unlike a Custom Integration key it is not
+// pinned to a workspace: requests run in the user's active MCP workspace, the
+// one `switch_workspace` changes — the same rule as the ChatGPT connector.
+
+enum PersonalApiKeySource {
+  dashboard
+  cli
+}
+
+model PersonalApiKey {
+  id     String               @id @default(uuid()) @db.Uuid
+  userId String               @db.Uuid
+  name   String
+  source PersonalApiKeySource @default(dashboard)
+
+  // Public prefix shown in the UI (e.g. "ringee_sk_a1b2c3d4"); the full key is
+  // only revealed once, when it is created.
+  prefix  String @unique
+  keyHash String @unique
+
+  lastUsedAt        DateTime?
+  // MCP `clientInfo` from the last `initialize` (e.g. "claude-code", "ringee-cli").
+  lastClientName    String?
+  lastClientVersion String?
+  revokedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum CliAuthRequestStatus {
+  pending
+  approved
+  denied
+  consumed
+}
+
+/// One `ringee login` attempt (OAuth 2.0 device authorization grant shape,
+/// RFC 8628). The CLI holds the device code; the browser approves the user
+/// code. The API key is minted only when the approved request is consumed, so
+/// no plaintext key is ever stored.
+model CliAuthRequest {
+  id             String               @id @default(uuid()) @db.Uuid
+  userCode       String               @unique
+  deviceCodeHash String               @unique
+  status         CliAuthRequestStatus @default(pending)
+
+  // What the terminal said about itself — shown on the approval page so the
+  // user can recognize the device they are authorizing.
+  deviceName    String?
+  platform      String?
+  clientVersion String?
+  requestIp     String?
+
+  userId     String?   @db.Uuid
+  apiKeyId   String?   @db.Uuid
+  expiresAt  DateTime
+  decidedAt  DateTime?
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+enum McpUsageEventType {
+  connect
+  tool_call
+}
+
+enum McpUsageSurface {
+  mcp
+  cli
+}
+
+enum McpUsageAuthMethod {
+  api_key
+  url
+  oauth
+}
+
+/// Append-only usage log of the agent surfaces, read by the backoffice.
+model McpUsageEvent {
+  id             String             @id @default(uuid()) @db.Uuid
+  type           McpUsageEventType
+  surface        McpUsageSurface
+  authMethod     McpUsageAuthMethod
+  userId         String             @db.Uuid
+  organizationId String?            @db.Uuid
+  apiKeyId       String?            @db.Uuid
+  clientName     String?
+  clientVersion  String?
+  toolName       String?
+  success        Boolean            @default(true)
+  durationMs     Int?
+  createdAt      DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 // ── Social Links ──

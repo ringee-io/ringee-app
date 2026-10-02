@@ -70,6 +70,7 @@ export class McpChatgptController {
       ctx,
       `${GLOBAL_PREFIX}/mcp/chatgpt/messages`,
       res,
+      { authMethod: "oauth" },
     );
   }
 
@@ -88,7 +89,9 @@ export class McpChatgptController {
     if (!sessionId) {
       throw new HttpException("Missing sessionId", 400);
     }
-    await this.mcpService.handlePostMessage(ctx, sessionId, req, res, body);
+    await this.mcpService.handlePostMessage(ctx, sessionId, req, res, body, {
+      authMethod: "oauth",
+    });
   }
 
   // ── Auth resolution ───────────────────────────────────────────────────

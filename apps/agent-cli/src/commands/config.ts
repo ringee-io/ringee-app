@@ -5,9 +5,9 @@ import {
   TOOL_CATALOG,
   buildSystemPrompt,
   renderFlow,
-  resolveConfig,
 } from "@ringee-io/agent";
-import { getClient, run } from "../client.js";
+import { getClient, resolveConfig, run } from "../client.js";
+import { maskKey } from "./auth.js";
 import { c, fail, heading, info, kv, line, ok, sensitivityTag } from "../ui.js";
 
 export function registerConfig(program: Command): void {
@@ -22,10 +22,12 @@ export function registerConfig(program: Command): void {
       try {
         const cfg = resolveConfig();
         heading("Ringee connection");
+        kv("source", cfg.source);
         kv("mcpUrl", cfg.mcpUrl);
+        kv("transport", cfg.transport);
         kv("userId", cfg.userId);
         kv("orgId", cfg.organizationId);
-        kv("apiKey", cfg.apiKey ? "set (hidden)" : undefined);
+        kv("apiKey", cfg.apiKey ? maskKey(cfg.apiKey) : undefined);
       } catch (err) {
         if (err instanceof RingeeConfigError) {
           fail(err.message);

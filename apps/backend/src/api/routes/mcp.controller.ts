@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   Param,
@@ -8,6 +9,7 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from "@nestjs/common";
 import {
   CurrentUser,
@@ -19,6 +21,10 @@ import { apiConfiguration } from "@ringee/configuration";
 import { OrganizationService, UserService } from "@ringee/services";
 import type { Request, Response } from "express";
 import { McpService } from "../../mcp/mcp.service";
+import {
+  PersonalApiKeyGuard,
+  type PersonalApiKeyRequest,
+} from "../guards/personal-api-key.guard";
 
 const GLOBAL_PREFIX = "/api";
 
@@ -34,9 +40,10 @@ export class McpController {
   //  Connection info for the authenticated user
   //  GET /api/mcp/connection-info
   //
-  //  Returns the SSE URL the user can paste into an MCP client (Claude
-  //  desktop, ChatGPT, etc). The URL embeds the Ringee internal IDs so the
-  //  public /mcp/:id endpoints can route requests without re-auth.
+  //  `endpoint` / `sseEndpoint` are the API-key URLs (the recommended way to
+  //  connect): the same for everyone, the key carries the identity. `url` is
+  //  the legacy capability URL that embeds the Ringee internal IDs, kept for
+  //  clients that cannot send headers.
   // ──────────────────────────────────────────────────────────────────────
 
   @Get("connection-info")
@@ -46,6 +53,11 @@ export class McpController {
     }
 
     const baseUrl = (apiConfiguration.BACKEND_URL || "").replace(/\/+$/, "");
+    const endpoint = `${baseUrl}${GLOBAL_PREFIX}/mcp`;
+    const apiKeyEndpoints = {
+      endpoint,
+      sseEndpoint: `${endpoint}/sse`,
+    };
 
     if (user.activeOrgId) {
       return {
@@ -53,6 +65,7 @@ export class McpController {
         userId: user.id,
         organizationId: user.activeOrgId,
         url: `${baseUrl}${GLOBAL_PREFIX}/mcp/${user.id}/${user.activeOrgId}/sse`,
+        ...apiKeyEndpoints,
       };
     }
 
@@ -61,7 +74,88 @@ export class McpController {
       userId: user.id,
       organizationId: null,
       url: `${baseUrl}${GLOBAL_PREFIX}/mcp/${user.id}/sse`,
+      ...apiKeyEndpoints,
     };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  API-key endpoint (recommended)
+  //  POST /api/mcp            Streamable HTTP, stateless
+  //  GET  /api/mcp/sse        SSE, for clients without Streamable HTTP
+  //  POST /api/mcp/messages
+  //
+  //  `@Public()` only to skip the Clerk guard: `PersonalApiKeyGuard` is the
+  //  proof — `Authorization: Bearer ringee_sk_…`. The workspace is the
+  //  user's active MCP workspace, re-resolved on every request.
+  // ──────────────────────────────────────────────────────────────────────
+
+  @Public()
+  @UseGuards(PersonalApiKeyGuard)
+  @Post()
+  async streamable(
+    @Req() req: PersonalApiKeyRequest,
+    @Res() res: Response,
+    @Body() body: unknown,
+  ) {
+    await this.mcpService.handleStreamableRequest(
+      req.personalApiKeyAuth,
+      req,
+      res,
+      body,
+    );
+  }
+
+  /**
+   * Stateless server: no standalone SSE stream (GET) and no session to
+   * terminate (DELETE). 405 is the spec's answer for both.
+   */
+  @Public()
+  @Get()
+  streamableGet(@Res() res: Response) {
+    this.methodNotAllowed(res);
+  }
+
+  @Public()
+  @Delete()
+  streamableDelete(@Res() res: Response) {
+    this.methodNotAllowed(res);
+  }
+
+  @Public()
+  @UseGuards(PersonalApiKeyGuard)
+  @Get("sse")
+  async apiKeySse(@Req() req: PersonalApiKeyRequest, @Res() res: Response) {
+    const { ctx, apiKey } = req.personalApiKeyAuth;
+    await this.mcpService.openSseSession(
+      ctx,
+      `${GLOBAL_PREFIX}/mcp/messages`,
+      res,
+      {
+        authMethod: "api_key",
+        apiKeyId: apiKey.id,
+        apiKeySource: apiKey.source,
+      },
+    );
+  }
+
+  @Public()
+  @UseGuards(PersonalApiKeyGuard)
+  @Post("messages")
+  async apiKeyMessages(
+    @Query("sessionId") sessionId: string,
+    @Req() req: PersonalApiKeyRequest,
+    @Res() res: Response,
+    @Body() body: unknown,
+  ) {
+    if (!sessionId) {
+      throw new HttpException("Missing sessionId", 400);
+    }
+    const { ctx, apiKey } = req.personalApiKeyAuth;
+    await this.mcpService.handlePostMessage(ctx, sessionId, req, res, body, {
+      authMethod: "api_key",
+      apiKeyId: apiKey.id,
+      apiKeySource: apiKey.source,
+    });
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -134,6 +228,17 @@ export class McpController {
     const ctx = await this.resolveOrgContext(userId, organizationId);
 
     await this.mcpService.handlePostMessage(ctx, sessionId, req, res, body);
+  }
+
+  private methodNotAllowed(res: Response): void {
+    res
+      .status(405)
+      .setHeader("Allow", "POST")
+      .json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Method not allowed." },
+        id: null,
+      });
   }
 
   // ──────────────────────────────────────────────────────────────────────

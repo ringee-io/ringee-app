@@ -1,37 +1,51 @@
 import {
+  AGENT_VERSION,
+  RingeeAgentConfig,
   RingeeClient,
   RingeeConfigError,
   hasConfig,
-  resolveConfig,
+  resolveConfig as resolveAgentConfig,
 } from "@ringee-io/agent";
+import { readSavedLogin } from "./credentials.js";
 import { c, fail, line } from "./ui.js";
+
+/**
+ * The `clientInfo` this CLI sends over MCP. Ringee counts CLI usage by it, so
+ * keep it stable.
+ */
+export const CLI_CLIENT_NAME = "ringee-cli";
+export const CLI_USER_AGENT = `${CLI_CLIENT_NAME}/${AGENT_VERSION}`;
 
 let cached: RingeeClient | null = null;
 
+/** Environment first (CI, agent harnesses), then the saved `ringee login`. */
+export function resolveConfig(): RingeeAgentConfig {
+  return resolveAgentConfig(process.env, readSavedLogin());
+}
+
 /**
- * Build (once) a RingeeClient from the environment. Exits with a friendly
- * message if the connection is not configured.
+ * Build (once) a RingeeClient from the environment or the saved login. Exits
+ * with a friendly message if neither is there.
  */
 export function getClient(): RingeeClient {
   if (cached) return cached;
   try {
-    cached = RingeeClient.fromEnv();
+    cached = RingeeClient.fromConfig(resolveConfig(), {
+      clientName: CLI_CLIENT_NAME,
+      clientVersion: AGENT_VERSION,
+    });
     return cached;
   } catch (err) {
     if (err instanceof RingeeConfigError) {
-      fail("Ringee is not configured.");
-      line("");
-      line(`  Set ${c.bold("RINGEE_MCP_URL")} to your MCP SSE URL, or set`);
-      line(
-        `  ${c.bold("RINGEE_BACKEND_URL")} + ${c.bold("RINGEE_USER_ID")} (and optionally RINGEE_ORG_ID).`,
-      );
+      fail("You're not logged in to Ringee.");
       line("");
       line(
-        c.dim("  Find these in the dashboard: Settings → MCP / Integrations"),
+        `  Run ${c.bold("ringee login")} to authorize this terminal in your browser.`,
       );
+      line("");
       line(
         c.dim(
-          "  (GET /api/mcp/connection-info). Then run `ringee config show`.",
+          "  For CI or agents: set RINGEE_API_KEY (Settings → Connectors → API keys).",
         ),
       );
       process.exit(1);
@@ -40,7 +54,7 @@ export function getClient(): RingeeClient {
   }
 }
 
-export { hasConfig, resolveConfig };
+export { hasConfig };
 
 /** Standard error handler for command actions. */
 export async function run(fn: () => Promise<void>): Promise<void> {

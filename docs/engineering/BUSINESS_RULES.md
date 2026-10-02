@@ -93,7 +93,11 @@ automatically.
 
 Verified provider signature (Telnyx, Stripe, Clerk), hashed magic-link token
 (`CallSessionAccessTokenService`), SDK session (`SdkSessionGuard`), or API key
-(`CustomIntegration`). A `@Public()` route with none of these is a vulnerability.
+(`CustomIntegration`, or a personal key via `PersonalApiKeyGuard`). A
+`@Public()` route with none of these is a vulnerability. The `ringee login`
+device endpoints are the one shape without a credential up front: starting a
+login grants nothing, and the key is released only against the device code
+(`MCP-007`).
 
 - **Risk if violated:** unauthenticated access to tenant data or spend
 
@@ -962,6 +966,41 @@ It pushes to the user's active devices. With no active device, nothing happens.
 ### MCP-005 — Phone numbers are E.164; datetimes are ISO-8601 with an offset
 
 `E164_REGEX = /^\+[1-9]\d{1,14}$/` in `packages/agent/src/schemas/common.ts`.
+
+### MCP-006 — A personal API key acts as its user, in their active workspace
+
+A `ringee_sk_…` key is bound to a user, never to a workspace. Each request runs
+in the user's active MCP workspace (`OrganizationService.getActiveWorkspaceOrgId`,
+membership re-checked), so `switch_workspace` applies to the next request and a
+removed member falls back to personal. Revoked keys and blocked users
+(`WRK-007`) are refused. Keys are listed and revoked only by their owner.
+
+- **Source of truth:** `packages/services/src/services/mcp-access/personal-api-key.service.ts`,
+  `apps/backend/src/api/guards/personal-api-key.guard.ts`
+
+### MCP-007 — `ringee login` issues one key per approved code, once
+
+The browser must show the terminal's details and its user code and require an
+explicit approval (RFC 8628 §5.4). Codes live 10 minutes; approval, denial and
+collection are compare-and-set transitions on `CliAuthRequest.status`, and the
+key is minted in the same transaction that marks the request consumed. Approving
+also sets the user's active MCP workspace to the one they picked — before the
+approval is recorded, so a code is never collectable without it — and collecting
+does its reads before consuming, so a failure leaves the code collectable.
+
+- **Source of truth:** `packages/services/src/services/mcp-access/cli-auth.service.ts`,
+  `CliAuthRequestRepository.consumeWithKey`
+
+### MCP-008 — Agent-surface usage is measured, never at the tool's expense
+
+Every MCP `initialize` and tool call on any transport records a `McpUsageEvent`
+(surface, auth method, client name, tool, success, duration — no arguments or
+results). Recording is fire-and-forget; a telemetry failure must not fail or
+slow the call. Events are kept `MCP_USAGE_RETENTION_DAYS` (365) and pruned daily
+by the `ringee.mcp-usage-prune` schedule. The CLI identifies itself as MCP client `ringee-cli`; keep that
+name stable or the CLI/MCP split in the backoffice breaks.
+
+- **Source of truth:** `packages/services/src/services/mcp-access/mcp-usage.service.ts`
 
 ---
 

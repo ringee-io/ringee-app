@@ -5,8 +5,8 @@ The plugin ships no credentials of its own. Everything it does goes through the
 
 ## 1. Get your Ringee MCP URL
 
-In the Ringee dashboard: **Settings → Integrations → Connectors → MCP**, then copy
-the URL shown on that card. It looks like one of these:
+In the Ringee dashboard: **Settings → Connectors → Legacy connection URL**, then
+copy the URL shown there. It looks like one of these:
 
 ```text
 https://api.ringee.io/api/mcp/<userId>/sse                  # personal workspace
@@ -18,7 +18,13 @@ Which one you get depends on the workspace that is active when you open the page
 
 > **Treat this URL like a password.** It authenticates by itself — anyone holding
 > it can read and act on your Ringee data. Don't paste it into shared docs, issues
-> or screenshots. If it leaks, rotate it from the same screen.
+> or screenshots. It cannot be revoked by you, so if it leaks contact support.
+
+**Prefer an API key where your client can send a header.** Outside the plugin,
+create one under **Settings → Connectors → API keys** and connect to
+`https://api.ringee.io/api/mcp` with `Authorization: Bearer <key>` — for example
+`claude mcp add --transport http ringee https://api.ringee.io/api/mcp --header
+"Authorization: Bearer <key>"`. Keys are revocable one by one.
 
 ## 2. Connect it
 

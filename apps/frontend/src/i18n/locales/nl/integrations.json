@@ -311,31 +311,66 @@
   },
   "connectors": {
     "title": "Connectors",
-    "description": "Verbind externe AI-assistenten en automatiseringstools rechtstreeks met je Ringee-account. Connectors stellen je Ringee-gegevens en -acties (gesprekken, contacten, terugbelverzoeken, vergaderingen) beschikbaar via een gestandaardiseerd protocol, zodat elke compatibele client ze kan gebruiken.",
+    "description": "Koppel AI-assistenten (Claude, ChatGPT, Cursor…) en de Ringee CLI aan je account. Ze lezen en handelen namens jou met je Ringee-gegevens — contacten, gesprekken, campagnes, terugbelverzoeken en afspraken.",
+    "copy": "Kopiëren",
+    "copied": "Gekopieerd",
+    "copyError": "Kopiëren naar het klembord mislukt",
     "mcp": {
+      "title": "MCP-server",
       "badge": "AI-connector",
-      "description": "Het Model Context Protocol (MCP) stelt AI-clients zoals Claude Desktop, ChatGPT en andere agents in staat om je Ringee-gegevens te lezen en erop te reageren. Plak de onderstaande URL in je client om te verbinden.",
-      "refresh": "Vernieuwen",
-      "loadError": "Kan MCP-verbindingsinformatie niet laden",
+      "description": "Met het Model Context Protocol kunnen AI-clients zoals Claude, Cursor en andere agents Ringee gebruiken. Wijs je client naar dit endpoint en authenticeer met een API-sleutel.",
+      "endpointLabel": "Endpoint",
+      "endpointHint": "Streamable HTTP. Stuur je sleutel als <code>Authorization: Bearer ringee_sk_…</code>. Clients die alleen SSE ondersteunen, kunnen <code>/api/mcp/sse</code> gebruiken.",
+      "loadError": "MCP-verbindingsgegevens konden niet worden geladen"
+    },
+    "apiKeys": {
+      "title": "API-sleutels",
+      "description": "Elke sleutel handelt namens jou, in je actieve werkruimte. Maak er één per app of apparaat, zodat je ze los kunt intrekken.",
+      "create": "API-sleutel maken",
+      "nameLabel": "Naam van de sleutel",
+      "namePlaceholder": "bijv. Claude Code op mijn laptop",
+      "createSubmit": "Maken",
+      "cancel": "Annuleren",
+      "createError": "De API-sleutel kon niet worden gemaakt",
+      "loadError": "Je API-sleutels konden niet worden geladen",
+      "retry": "Opnieuw proberen",
+      "empty": "Nog geen API-sleutels. Maak er een om Claude, Cursor of een andere MCP-client te koppelen — of voer <code>ringee login</code> uit in je terminal.",
+      "createdTitle": "“{name}” is klaar",
+      "createdDescription": "Kopieer hem nu: om veiligheidsredenen wordt hij niet opnieuw getoond.",
+      "keyLabel": "API-sleutel",
+      "done": "Klaar",
+      "created": "gemaakt op {date}",
+      "lastUsed": "laatst gebruikt {time}",
+      "lastUsedWith": "laatst gebruikt {time} via {client}",
+      "neverUsed": "nooit gebruikt",
+      "revoke": "Intrekken",
+      "revokeAria": "{name} intrekken",
+      "revokeTitle": "“{name}” intrekken?",
+      "revokeDescription": "Elke app of terminal die deze sleutel gebruikt, verliest direct de toegang. Dit kan niet ongedaan worden gemaakt.",
+      "revokeConfirm": "Sleutel intrekken",
+      "revoked": "“{name}” ingetrokken",
+      "revokeError": "De API-sleutel kon niet worden ingetrokken"
+    },
+    "snippets": {
+      "jsonTab": "Cursor en andere",
+      "jsonHint": "Plak dit in de MCP-instellingen van je client (Cursor, Windsurf, VS Code…).",
+      "envTab": "CLI en CI",
+      "envHint": "Voor CI-jobs en agents. Op je eigen computer is <code>ringee login</code> eenvoudiger."
+    },
+    "cli": {
+      "title": "Ringee CLI",
+      "description": "Bedien Ringee vanuit de terminal of vanuit elke agent die shell-commando's uitvoert. <code>ringee login</code> opent je browser om de terminal te autoriseren — geen sleutels kopiëren.",
+      "hint": "Elke login maakt een sleutel met de naam “CLI · jouw-computer” in de lijst hierboven, zodat je een terminal altijd kunt intrekken."
+    },
+    "legacy": {
+      "toggle": "Verouderde verbindings-URL (zonder API-sleutel)",
+      "description": "Voor clients die geen headers kunnen sturen. De URL zelf is de inloggegevens en kan niet worden ingetrokken, dus gebruik waar mogelijk een API-sleutel.",
       "scopeOrganization": "Deze URL geeft toegang tot de actieve organisatie.",
-      "scopeFreelancer": "Deze URL geeft toegang tot je persoonlijke (freelance) werkruimte.",
-      "modeOrganization": "Organisatiemodus",
-      "modeFreelancer": "Freelancemodus",
-      "urlCopied": "MCP-URL gekopieerd",
-      "copyError": "Kan niet naar klembord kopiëren",
-      "copied": "Gekopieerd",
-      "copy": "Kopiëren"
-    },
-    "security": {
-      "title": "Behandel deze URL als een geheim",
-      "description": "Iedereen met deze URL kan via MCP je Ringee-gegevens lezen en ernaar handelen. Deel deze alleen met vertrouwde AI-clients. Als hij lekt, neem dan contact op met support om je account te roteren."
-    },
-    "howTo": {
-      "title": "Zo verbind je",
-      "step1": "Kopieer de bovenstaande URL.",
-      "step2": "Open je MCP-compatibele client (Claude Desktop, ChatGPT, Cursor, enz.) en voeg een nieuwe externe MCP-server toe.",
-      "step3": "Plak de URL als SSE-eindpunt. Er is geen extra API-sleutel nodig — de URL is de referentie.",
-      "step4": "Eenmaal verbonden ziet de client Ringee-tools voor het zoeken van contacten, starten van gesprekken, plannen van terugbelverzoeken en vergaderingen, en het vastleggen van uitkomsten."
+      "scopeFreelancer": "Deze URL geeft toegang tot je persoonlijke werkruimte.",
+      "modeOrganization": "Organisatie",
+      "modeFreelancer": "Persoonlijk",
+      "warningTitle": "Behandel deze URL als geheim",
+      "warningDescription": "Iedereen met deze URL kan je Ringee-gegevens lezen en ermee handelen. Neem contact op met support als hij uitlekt."
     }
   },
   "crm": {

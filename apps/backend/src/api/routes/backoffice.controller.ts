@@ -20,7 +20,11 @@ import {
   Max,
   Min,
 } from "class-validator";
-import { BackofficeService, PipelineType } from "@ringee/services";
+import {
+  BackofficeService,
+  McpUsageService,
+  PipelineType,
+} from "@ringee/services";
 import { AccountType } from "@ringee/database";
 import { SuperAdminOnly } from "../guards/super-admin.guard";
 import type { RealtimeDevice } from "@ringee/platform";
@@ -141,12 +145,20 @@ export class BackofficeController {
   constructor(
     private readonly backoffice: BackofficeService,
     private readonly userAccess: UserAccessEnforcementService,
+    private readonly mcpUsage: McpUsageService,
   ) {}
 
   @Get("dashboard")
   getDashboard(@Query() q: { start?: string; end?: string }) {
     const { start, end } = parseRange(q);
     return this.backoffice.getDashboard(start, end);
+  }
+
+  /** Who uses the MCP endpoint and the `ringee` CLI, and how. */
+  @Get("agents")
+  getAgentUsage(@Query() q: { start?: string; end?: string }) {
+    const { start, end } = parseRange(q);
+    return this.mcpUsage.getStats(start, end);
   }
 
   @Get("accounts")

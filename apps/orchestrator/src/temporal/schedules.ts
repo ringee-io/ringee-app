@@ -128,6 +128,14 @@ const SCHEDULES: ScheduleDef[] = [
     every: "30m",
     catchupWindow: "1h",
   },
+  {
+    // Retention for the MCP / CLI usage log. Events only age out by the day,
+    // so one run a day is enough; a missed day is simply caught up next run.
+    id: "ringee.mcp-usage-prune",
+    workflow: WORKFLOW_NAMES.mcpUsagePrune,
+    every: "24h",
+    catchupWindow: "1h",
+  },
 ];
 
 /**

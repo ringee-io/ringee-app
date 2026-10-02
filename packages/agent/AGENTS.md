@@ -34,6 +34,15 @@ Do not relax any of these to make an agent flow shorter.
 ## Server side
 
 The MCP transport, session handling and workspace resolution live in
-`apps/backend/src/mcp` and are `@Public()` — the workspace is resolved from the
-URL path. Any new tool must resolve and enforce workspace scope server-side; the
-schema is not an authorization boundary.
+`apps/backend/src/mcp`. The routes are `@Public()` and each carries its own
+proof: a personal API key on `/api/mcp` (Streamable HTTP) and `/api/mcp/sse`
+(`MCP-006`), a Clerk OAuth token on `/api/mcp/chatgpt/*`, or the legacy
+capability URL `/api/mcp/:id/sse`, whose workspace is resolved from the path.
+Any new tool must resolve and enforce workspace scope server-side; the schema is
+not an authorization boundary.
+
+`resolveConfig` (`src/config.ts`) lets environment variables win over a saved
+`ringee login`, and the legacy `RINGEE_MCP_URL` / `RINGEE_USER_ID` variables must
+keep working — users' scripts and agent harnesses depend on them. The CLI's MCP
+`clientInfo.name` is `ringee-cli`; the backoffice uses it to tell CLI usage from
+other MCP clients (`MCP-008`).
