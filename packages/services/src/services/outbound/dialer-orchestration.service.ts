@@ -1,6 +1,8 @@
 import {
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -31,6 +33,7 @@ import {
 import { ConcurrentCallGuardService } from "../security";
 import { UserService } from "../user.service";
 import { CreditService } from "../credit.service";
+import { CallService } from "../call.service";
 
 const DIALER_POLL_INTERVAL_MS = 500;
 
@@ -78,7 +81,9 @@ type RefusalReason =
   | "NO_CREDIT"
   | "CONCURRENT_CALL"
   | "NO_CALLER_ID"
-  | "CALLER_ID_UNAVAILABLE";
+  | "CALLER_ID_UNAVAILABLE"
+  | "CARRIER_UNAVAILABLE"
+  | "INVALID_DESTINATION";
 
 interface DialRefusal {
   reason: RefusalReason;
@@ -89,15 +94,28 @@ interface DialRefusal {
   deferLead?: boolean;
 }
 
+/**
+ * Where an approved dial goes out from: a Ringee caller ID, or the number on
+ * the workspace's own carrier the campaign names.
+ */
+type DialFrom = { callerIdNumber: string } | { externalNumberId: string };
+
 type DialGate =
-  | { allowed: true; callerIdNumber: string }
+  | { allowed: true; from: DialFrom }
   | { allowed: false; refusal: DialRefusal };
+
+/** A dial the server sends on through the workspace's own carrier. */
+interface CarrierRoute {
+  destinationUri: string;
+  callToken: string;
+}
 
 interface DialerCampaign {
   id: string;
   organizationId: string | null;
   callerIdId: string | null;
   numberPurchasedId: string | null;
+  externalNumberId?: string | null;
   rotationNumberIds?: string[] | null;
   maxAttempts: number;
   dialerMode: string;
@@ -148,6 +166,57 @@ function callerIdRefusal(reason: RotationReasonValue): DialRefusal {
   }
 }
 
+const NO_CREDIT_MESSAGE =
+  "Your workspace is out of credit. Dialing is paused — top up, then resume.";
+
+/**
+ * Copy for an external carrier pre-dial that was refused. The pre-flight keeps
+ * provider and PBX detail out of its errors; so does this.
+ */
+function carrierRefusal(err: unknown): DialRefusal {
+  const status = err instanceof HttpException ? err.getStatus() : 0;
+  switch (status) {
+    case HttpStatus.BAD_REQUEST:
+      return {
+        reason: "INVALID_DESTINATION",
+        message:
+          "This lead's phone number can't be dialed through the external carrier. The lead was moved back in the queue.",
+        to: AgentSessionStatus.ready,
+        deferLead: true,
+      };
+    case HttpStatus.PAYMENT_REQUIRED:
+      return {
+        reason: "NO_CREDIT",
+        message: NO_CREDIT_MESSAGE,
+        to: AgentSessionStatus.paused,
+      };
+    case HttpStatus.FORBIDDEN:
+      return {
+        reason: "CARRIER_UNAVAILABLE",
+        message:
+          "You can't call from this campaign's external carrier number. Dialing is paused.",
+        to: AgentSessionStatus.paused,
+      };
+    case HttpStatus.NOT_FOUND:
+    case HttpStatus.CONFLICT:
+    case HttpStatus.BAD_GATEWAY:
+      // Nothing about the next lead changes a carrier that is not registered
+      // or reachable — retrying every few seconds would only hammer it.
+      return {
+        reason: "CARRIER_UNAVAILABLE",
+        message:
+          "This campaign's external carrier isn't available: check that its extension is registered and synchronized. Dialing is paused — resume once it's back.",
+        to: AgentSessionStatus.paused,
+      };
+    default:
+      return {
+        reason: "CALLER_ID_UNAVAILABLE",
+        message: "The call couldn't be prepared right now. Retrying shortly.",
+        to: AgentSessionStatus.ready,
+      };
+  }
+}
+
 @Injectable()
 export class DialerOrchestrationService implements OnModuleDestroy {
   private readonly logger = new Logger(DialerOrchestrationService.name);
@@ -172,6 +241,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly userService: UserService,
     private readonly creditService: CreditService,
+    private readonly callService: CallService,
   ) {}
 
   onModuleDestroy(): void {
@@ -387,7 +457,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
 
       attemptId = (await this.createAttempt(campaign, agent, lead)).id;
       await this.emitLeadAssigned(campaign, agent, lead, attemptId);
-      await this.startDial(agent, lead, attemptId, gate.callerIdNumber);
+      await this.startDial(campaign, agent, lead, attemptId, gate.from);
     } catch (err) {
       this.logger.error(
         `Could not assign lead ${lead.id} to agent ${agent.id} — handing it back: ${err}`,
@@ -579,8 +649,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       if (balance <= 0) {
         return refuse({
           reason: "NO_CREDIT",
-          message:
-            "Your workspace is out of credit. Dialing is paused — top up, then resume.",
+          message: NO_CREDIT_MESSAGE,
           to: AgentSessionStatus.paused,
         });
       }
@@ -601,6 +670,16 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         message: decision.message,
         to: AgentSessionStatus.ready,
       });
+    }
+
+    // A campaign on the workspace's own carrier goes out with the caller ID its
+    // PBX presents: Ringee caller IDs and rotation do not apply. The route
+    // itself is checked when the dial is prepared (`prepareCarrierDial`).
+    if (campaign.externalNumberId) {
+      return {
+        allowed: true,
+        from: { externalNumberId: campaign.externalNumberId },
+      };
     }
 
     // Resolve caller ID phone number (rotation-aware; falls back to the
@@ -630,7 +709,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       return refuse(callerIdRefusal(selection.reason));
     }
 
-    return { allowed: true, callerIdNumber: selection.phoneNumber };
+    return { allowed: true, from: { callerIdNumber: selection.phoneNumber } };
   }
 
   /**
@@ -670,16 +749,88 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   }
 
   /**
+   * Pre-dial a lead through the workspace's own carrier: the same pre-flight
+   * the web dialer runs (`CallService.prepareExternalOutbound`), with the
+   * attempt stored on the call so the call's own webhooks settle it. A refused
+   * pre-dial is handed back like any refused dial (CMP-013); null then.
+   */
+  private async prepareCarrierDial(
+    campaign: DialerCampaign,
+    agent: DialerAgent,
+    lead: DialerLead,
+    attemptId: string,
+    externalNumberId: string,
+  ): Promise<{ callerIdNumber: string; carrierRoute: CarrierRoute } | null> {
+    try {
+      const route = await this.callService.prepareExternalOutbound(
+        { userId: agent.userId, organizationId: campaign.organizationId },
+        externalNumberId,
+        lead.contact.phoneNumber,
+        { callAttemptId: attemptId },
+      );
+      return {
+        callerIdNumber: route.phoneNumber,
+        carrierRoute: {
+          destinationUri: route.destinationUri,
+          callToken: route.callToken,
+        },
+      };
+    } catch (err) {
+      this.logger.warn(
+        `Could not pre-dial lead ${lead.id} through the external carrier (agent ${agent.id}): ${err}`,
+      );
+      await this.releaseLease(agent);
+      await this.refuseDial(agent, lead, carrierRefusal(err), attemptId);
+      return null;
+    }
+  }
+
+  /** A pre-dial nobody is going to place must not wait out its TTL. */
+  private async abandonCarrierDial(
+    campaign: DialerCampaign,
+    agent: DialerAgent,
+    callToken: string,
+  ): Promise<void> {
+    await this.callService
+      .abandonExternalOutbound(
+        { userId: agent.userId, organizationId: campaign.organizationId },
+        callToken,
+      )
+      .catch((err) =>
+        this.logger.warn(
+          `Could not close the external carrier pre-dial of agent ${agent.id}: ${err}`,
+        ),
+      );
+  }
+
+  /**
    * Tell the browser to place the call — if the agent is still reserved for
    * this very lead. Anything that moved them in the meantime (the session was
    * ended, or started again in another tab) means this dial must not happen.
    */
   private async startDial(
+    campaign: DialerCampaign,
     agent: DialerAgent,
     lead: DialerLead,
     attemptId: string,
-    callerIdNumber: string,
+    from: DialFrom,
   ): Promise<void> {
+    let callerIdNumber: string;
+    let carrierRoute: CarrierRoute | undefined;
+    if ("externalNumberId" in from) {
+      const prepared = await this.prepareCarrierDial(
+        campaign,
+        agent,
+        lead,
+        attemptId,
+        from.externalNumberId,
+      );
+      if (!prepared) return;
+      ({ callerIdNumber, carrierRoute } = prepared);
+    } else {
+      callerIdNumber = from.callerIdNumber;
+    }
+
     const marked = await this.callAttemptService
       .markDialing(attemptId)
       .catch((err) => {
@@ -700,6 +851,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       this.logger.warn(
         `Agent ${agent.id} is no longer reserved for lead ${lead.id} — not placing the call`,
       );
+      if (carrierRoute)
+        await this.abandonCarrierDial(campaign, agent, carrierRoute.callToken);
       const released = await this.callAttemptService.releaseUndialed({
         agentSessionId: agent.id,
         agentUserId: agent.userId,
@@ -725,15 +878,17 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       status: "dialing",
       attemptId,
     });
-    // Emit call.initiate event — frontend uses this to place the WebRTC call
+    // Emit call.initiate event — frontend uses this to place the WebRTC call.
+    // A carrier dial also carries where to send the leg and its signed token.
     this.sseBridge.emit(`agent:${agent.id}`, "call.initiate", {
       attemptId,
       phoneNumber: lead.contact.phoneNumber,
       callerIdNumber,
+      ...(carrierRoute ? { carrierRoute } : {}),
     });
 
     this.logger.log(
-      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber})`,
+      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber}${carrierRoute ? ", external carrier" : ""})`,
     );
   }
 
@@ -753,7 +908,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       await this.refuseDial(agent, lead, gate.refusal, attemptId);
       return;
     }
-    await this.startDial(agent, lead, attemptId, gate.callerIdNumber);
+    await this.startDial(campaign, agent, lead, attemptId, gate.from);
   }
 
   /**
@@ -867,6 +1022,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     sessionId: string,
     attemptId: string,
     reason?: string,
+    callToken?: string,
   ): Promise<{ released: boolean }> {
     const session = await this.agentSessionService.getById(sessionId);
     if (
@@ -909,6 +1065,16 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       this.logger.warn(
         `Browser abandoned dial for attempt ${attemptId} (session ${sessionId}, ${known ?? "dial_failed"}) — session paused`,
       );
+      // A carrier dial's pre-dial is closed now rather than at its TTL. The
+      // token is verified and only ever closes a pending call of this caller.
+      if (callToken)
+        await this.callService
+          .abandonExternalOutbound(ctx, callToken)
+          .catch((err) =>
+            this.logger.warn(
+              `Could not close the external carrier pre-dial of attempt ${attemptId}: ${err}`,
+            ),
+          );
     }
     return { released };
   }

@@ -70,6 +70,8 @@ function setup() {
   const transfers: Array<{ leg: string; params: Record<string, unknown> }> = [];
   const refusals: string[] = [];
   const claimsHeld = new Map<string, string>();
+  /** What the campaign dialer was told about its attempts. */
+  const attemptEvents: Array<{ attemptId: string; event: string }> = [];
   const state = {
     canCall: true,
     freeCallTrial: false,
@@ -185,6 +187,14 @@ function setup() {
       },
     },
     inboxTimelineService: { ensureThreadForCall: async () => {} },
+    callAttemptService: {
+      handleWebhookEvent: async (attemptId: string, event: string) => {
+        attemptEvents.push({ attemptId, event });
+      },
+      handleDialRefused: async (attemptId: string) => {
+        attemptEvents.push({ attemptId, event: "refused" });
+      },
+    },
     voicemailDropService: {
       parseClientState: () => null,
       isPlaybackState: () => false,
@@ -271,6 +281,7 @@ function setup() {
     hostLookups,
     transfers,
     refusals,
+    attemptEvents,
     state,
     leg,
     withToken,
@@ -585,6 +596,50 @@ describe("CallService external carrier outbound bridge", () => {
     );
     assert.equal(s.transfers.length, 1);
     assert.deepEqual(s.refusals, ["entry-2"]);
+  });
+
+  it("links a campaign pre-dial to its attempt from the row, not from the leg", async () => {
+    const s = setup();
+    const { callToken } = await s.service.prepareExternalOutbound(
+      ctx,
+      "number-1",
+      "+12125550199",
+      { callAttemptId: "attempt-1" },
+    );
+    // A leg claiming another attempt in its own client state is not believed.
+    await s.service.handleTelephonyEvent(
+      s.entryLeg(callToken, {
+        clientState: Buffer.from(
+          JSON.stringify({ callAttemptId: "someone-elses" }),
+        ).toString("base64"),
+      }),
+    );
+    assert.equal(s.claims.length, 1);
+    assert.deepEqual(s.attemptEvents, [
+      { attemptId: "attempt-1", event: "call.initiated" },
+    ]);
+    // An ordinary pre-dial names no attempt.
+    const t = setup();
+    const plain = await predial(t);
+    await t.service.handleTelephonyEvent(t.entryLeg(plain.callToken));
+    assert.equal(t.claims.length, 1);
+    assert.deepEqual(t.attemptEvents, []);
+  });
+
+  it("hands a refused campaign pre-dial's attempt back to the dialer", async () => {
+    const s = setup();
+    const { callToken } = await s.service.prepareExternalOutbound(
+      ctx,
+      "number-1",
+      "+12125550199",
+      { callAttemptId: "attempt-1" },
+    );
+    s.state.balance = 0;
+    await s.service.handleTelephonyEvent(s.entryLeg(callToken));
+    assert.equal(s.claims.length, 0);
+    assert.deepEqual(s.attemptEvents, [
+      { attemptId: "attempt-1", event: "refused" },
+    ]);
   });
 
   it("only relays for a browser leg bound first, and only within its session", async () => {

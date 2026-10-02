@@ -57,6 +57,11 @@ export interface PlaceCallOptions extends CallAttribution {
   /** E.164 destination. */
   destination: string;
   /**
+   * The leg's id, chosen by the caller so the leg can be tracked from its
+   * first state — the SDK reports that before `newCall` returns.
+   */
+  id?: string;
+  /**
    * Dial through the workspace's own carrier instead of Ringee's PSTN route.
    * The leg goes to the server-issued SIP destination and presents no caller
    * ID of its own: the carrier connection supplies the PBX identity.
@@ -90,6 +95,7 @@ export function placeCall(opts: PlaceCallOptions): Call {
   const { client, destination, callerId, userId, organizationId } = opts;
   const route = opts.carrierRoute;
   const call = client.newCall({
+    ...(opts.id ? { id: opts.id } : {}),
     ...(route
       ? { userVariables: { ringeeDestination: destination } }
       : { callerNumber: callerId }),

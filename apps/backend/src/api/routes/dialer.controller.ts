@@ -152,7 +152,14 @@ export class DialerController {
    */
   @Post("abandon")
   async abandonDial(
-    @Body() body: { sessionId: string; attemptId: string; reason?: string },
+    @Body()
+    body: {
+      sessionId: string;
+      attemptId: string;
+      reason?: string;
+      /** Signed pre-dial token of an external carrier dial, if it was one. */
+      callToken?: string;
+    },
     @CurrentUser() user: CurrentUserData,
   ) {
     this.requireOrg(user);
@@ -164,6 +171,7 @@ export class DialerController {
       body.sessionId,
       body.attemptId,
       typeof body.reason === "string" ? body.reason : undefined,
+      typeof body.callToken === "string" ? body.callToken : undefined,
     );
   }
 

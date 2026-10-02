@@ -244,6 +244,20 @@ export class ExternalCarrierService {
   }
 
   /**
+   * An external number a campaign may be set to dial from: this workspace's,
+   * active, on a synchronized endpoint of an active carrier. Checked when it
+   * is assigned; every dial re-checks the whole route, registration included
+   * (`resolveOutbound`).
+   */
+  async assertCallingNumber(ctx: OwnershipContext, numberId: string) {
+    const owner = await this.authorizeCalling(ctx);
+    const { fromNumber } = this.usableRoute(
+      await this.repo.findCallingRoute(owner, { id: numberId }),
+    );
+    return { id: numberId, phoneNumber: fromNumber };
+  }
+
+  /**
    * The persisted half of an outbound route: the number is this workspace's,
    * active, and on a synchronized endpoint of an active carrier. Another
    * organization's number is indistinguishable from a missing one. Ringee

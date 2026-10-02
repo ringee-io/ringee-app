@@ -221,6 +221,7 @@ export class CampaignRepository {
         | "dialerMode"
         | "callerIdId"
         | "numberPurchasedId"
+        | "externalNumberId"
         | "rotationNumberIds"
         | "maxAttempts"
         | "timezone"

@@ -20,6 +20,7 @@ import {
 } from "@ringee/platform";
 import { DispositionService } from "./disposition.service";
 import { LeadQueueService } from "./lead-queue.service";
+import { ExternalCarrierService } from "../external-carrier/external-carrier.service";
 
 export interface CreateCampaignFullDto {
   name: string;
@@ -27,6 +28,8 @@ export interface CreateCampaignFullDto {
   dialerMode?: DialerMode;
   callerIdId?: string;
   numberPurchasedId?: string;
+  /** A number on the workspace's own carrier; it overrides every other number. */
+  externalNumberId?: string;
   /** Owned numbers this campaign rotates among (when rotation is enabled). */
   rotationNumberIds?: string[];
   maxAttempts?: number;
@@ -44,6 +47,8 @@ export interface UpdateCampaignSettingsDto {
   dialerMode?: DialerMode;
   callerIdId?: string;
   numberPurchasedId?: string | null;
+  /** A number on the workspace's own carrier; it overrides every other number. */
+  externalNumberId?: string | null;
   /** Owned numbers this campaign rotates among (when rotation is enabled). */
   rotationNumberIds?: string[];
   maxAttempts?: number;
@@ -65,6 +70,7 @@ export class CampaignConfigService {
     private readonly numberPurchasedRepo: NumberPurchasedRepository,
     private readonly dispositionService: DispositionService,
     private readonly leadQueueService: LeadQueueService,
+    private readonly externalCarriers: ExternalCarrierService,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -91,6 +97,18 @@ export class CampaignConfigService {
         "Phone number does not belong to your organization",
       );
     }
+  }
+
+  /**
+   * An external (BYOC) number must be one this workspace can call from right
+   * now. Another organization's number reads as missing.
+   */
+  private async ensureExternalNumberUsable(
+    ctx: OwnershipContext,
+    externalNumberId?: string | null,
+  ): Promise<void> {
+    if (!externalNumberId) return;
+    await this.externalCarriers.assertCallingNumber(ctx, externalNumberId);
   }
 
   /**
@@ -127,6 +145,7 @@ export class CampaignConfigService {
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
+    await this.ensureExternalNumberUsable(ctx, dto.externalNumberId);
     await this.ensureNumbersOwnership(ctx, dto.rotationNumberIds);
 
     const campaign = await this.campaignRepo.create(
@@ -140,6 +159,7 @@ export class CampaignConfigService {
       dto.dialerMode ||
       dto.callerIdId ||
       dto.numberPurchasedId ||
+      dto.externalNumberId ||
       dto.rotationNumberIds ||
       dto.maxAttempts ||
       dto.timezone ||
@@ -167,6 +187,7 @@ export class CampaignConfigService {
     this.ensureOrganization(ctx);
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
     await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
+    await this.ensureExternalNumberUsable(ctx, dto.externalNumberId);
     await this.ensureNumbersOwnership(ctx, dto.rotationNumberIds);
 
     if (campaign.status !== "draft" && campaign.status !== "paused") {
@@ -176,6 +197,7 @@ export class CampaignConfigService {
         "description",
         "callerIdId",
         "numberPurchasedId",
+        "externalNumberId",
         "rotationNumberIds",
         "wrapUpTimeSec",
         "maxAttempts",
@@ -250,11 +272,15 @@ export class CampaignConfigService {
         );
       }
 
-      // A caller ID is optional: the campaign can dial from an explicitly
-      // assigned purchased number, a caller ID, or — failing those — any of the
-      // organization's purchased numbers. Activation only requires that *some*
-      // number can be resolved.
-      if (!campaign.numberPurchasedId && !campaign.callerIdId) {
+      // A caller ID is optional: the campaign can dial from its external
+      // carrier number, an explicitly assigned purchased number, a caller ID,
+      // or — failing those — any of the organization's purchased numbers.
+      // Activation only requires that *some* number can be resolved.
+      if (
+        !campaign.externalNumberId &&
+        !campaign.numberPurchasedId &&
+        !campaign.callerIdId
+      ) {
         const purchasedNumber = await this.numberPurchasedRepo.findOne({
           organizationId: ctx.organizationId,
           status: { in: ["active", "assigned"] },

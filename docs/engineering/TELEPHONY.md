@@ -218,6 +218,24 @@ before it returns) and reads every `telnyx.notification` straight from the
 client. A leg that ends before the provider acknowledged it (`trying`) never
 reached the server, so the browser reports it with `POST /dialer/abandon`.
 
+A campaign that names an external number (`Campaign.externalNumberId`) dials
+through the workspace's own carrier. The gates still run — enablement, credit,
+the one-call lease — but rotation and Ringee caller IDs are skipped: the PBX
+presents its own caller ID. Once the attempt exists, `prepareCarrierDial` runs
+the web dialer's pre-flight (`CallService.prepareExternalOutbound`) with the
+attempt id, and `call.initiate` carries the `carrierRoute` the browser dials
+(see "Outbound: the web dialer through the customer's carrier"). A refused
+pre-flight is a refused dial (`CMP-013`): an unregistered or unreachable carrier
+pauses the session, a destination the carrier cannot take defers the lead.
+
+The attempt is stored on the pre-dial's `Call.clientState`, written by the
+server. The browser's leg reaches the Call Control application as an incoming
+call, so its own `client_state` cannot link it; `claimExternalOutbound` links
+the attempt on adoption, and the answered/hangup handlers fall back to the
+stored id (`storedCallAttemptId`). A dial the browser abandons sends the
+pre-dial's token with `POST /dialer/abandon`, which closes the pre-dial instead
+of leaving it to its TTL.
+
 Retries, callbacks and reminders are Temporal Schedules, not campaign-loop work.
 
 ## Inbound routing
@@ -550,7 +568,9 @@ save extension ─► ExternalSipEndpoint row (UUID, encrypted SIP password)
 ### Outbound: the web dialer through the customer's carrier
 
 The browser never addresses the carrier. It calls Ringee's own Call Control
-application; the server sends that call on to the carrier connection.
+application; the server sends that call on to the carrier connection. Campaign
+dials take the same path; only the pre-flight is started by the dialer
+orchestrator instead of `/caller-id-rotation/resolve` (see "Campaigns").
 
 ```
 dialer, external number selected

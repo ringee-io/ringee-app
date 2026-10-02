@@ -6,14 +6,20 @@ import { useAuth } from '@clerk/nextjs';
 import {
   TELNYX_EVENTS,
   buildCallHeaders,
+  carrierCallFailure,
+  getCarrierCallToken,
   hangupCall,
   holdCall,
   mapTelnyxState,
   muteCall,
+  placeCall,
   sendDtmf,
-  setOutboundRingbackVolume
+  setOutboundRingbackVolume,
+  type CarrierRoute
 } from '@ringee/dialer-core/engine';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import {
   useDialerAttemptStore,
@@ -52,20 +58,33 @@ const ATTEMPT_PROGRESS: Record<CallAttemptStatus, number> = {
   dispositioned: 5
 };
 
+type AbandonDial = (
+  attemptId: string,
+  reason: DialFailureReason,
+  /** The pre-dial token of a dial through the workspace's own carrier. */
+  callToken?: string
+) => void;
+
 /**
  * Report a dial the browser could not place. The server hands the lead back,
  * pauses the session and tells the agent why over `call.blocked`; without this
- * the agent sat in `dialing` for good.
+ * the agent sat in `dialing` for good. A carrier dial's pre-dial is closed
+ * with it.
  */
-function useAbandonDial() {
+function useAbandonDial(): AbandonDial {
   const api = useApi();
 
   return useCallback(
-    (attemptId: string, reason: DialFailureReason) => {
+    (attemptId, reason, callToken) => {
       const sessionId = useDialerSessionStore.getState().sessionId;
       if (!sessionId) return;
       api
-        .post('/dialer/abandon', { sessionId, attemptId, reason })
+        .post('/dialer/abandon', {
+          sessionId,
+          attemptId,
+          reason,
+          ...(callToken ? { callToken } : {})
+        })
         .catch((err) =>
           console.warn('Could not report the abandoned dial', err)
         );
@@ -76,17 +95,20 @@ function useAbandonDial() {
 
 /**
  * The tracked leg is over: either it never reached the provider — reported as
- * an abandoned dial — or it is an ordinary end of call.
+ * an abandoned dial — or it is an ordinary end of call. `ended` is the leg as
+ * its last notification reported it, which may come before the store has it.
  */
-function settleEndedLeg(
-  abandon: (attemptId: string, reason: DialFailureReason) => void
-) {
+function settleEndedLeg(abandon: AbandonDial, ended?: Call) {
   const tracked = useDialerCallStore.getState();
   useDialerCallStore.getState().clear();
   if (!tracked.attemptId) return;
 
   if (!tracked.reachedProvider) {
-    abandon(tracked.attemptId, tracked.failure ?? 'dial_failed');
+    abandon(
+      tracked.attemptId,
+      tracked.failure ?? 'dial_failed',
+      getCarrierCallToken(ended ?? tracked.call)
+    );
     return;
   }
   const attempt = useDialerAttemptStore.getState();
@@ -102,10 +124,14 @@ function settleEndedLeg(
  */
 export function useDialerCallEngine() {
   const { userId, orgId } = useAuth();
+  const t = useTranslations('calls.dialer');
   const client = useTelnyxStore((s) => s.client);
   const abandon = useAbandonDial();
   const abandonRef = useRef(abandon);
   abandonRef.current = abandon;
+  // Read from the notification listener, which is registered once per client.
+  const tRef = useRef(t);
+  tRef.current = t;
 
   // A leg tracked before the workspace last unmounted (the agent left the page
   // mid-call) was followed by nobody since. The SDK's Call object still holds
@@ -146,7 +172,25 @@ export function useDialerCallEngine() {
 
         const state = call.state;
         if (mapTelnyxState(state) === 'ended') {
-          settleEndedLeg(abandonRef.current);
+          // A leg through the workspace's own carrier that the carrier or
+          // the PBX refused says why, in the same words as the dialer.
+          const failure = getCarrierCallToken(call)
+            ? carrierCallFailure(
+                (call as unknown as { sipCode?: unknown }).sipCode
+              )
+            : null;
+          if (failure) {
+            const tr = tRef.current;
+            toast.error(
+              {
+                rejected: tr('externalCarrier.rejected'),
+                destination: tr('externalCarrier.destinationRejected'),
+                timeout: tr('externalCarrier.timeout'),
+                unavailable: tr('externalCarrier.failed')
+              }[failure]
+            );
+          }
+          settleEndedLeg(abandonRef.current, call);
           return;
         }
 
@@ -186,25 +230,31 @@ export function useDialerCallEngine() {
   }, [client]);
 
   const dial = useCallback(
-    (phoneNumber: string, callerIdNumber: string | null, attemptId: string) => {
+    (
+      phoneNumber: string,
+      callerIdNumber: string | null,
+      attemptId: string,
+      carrierRoute?: CarrierRoute
+    ) => {
+      const callToken = carrierRoute?.callToken;
       const live = useDialerCallStore.getState();
       if (live.callId && isLiveCallState(live.state)) {
         // The same instruction delivered twice is already being dialed.
         if (live.attemptId === attemptId) return;
-        abandonRef.current(attemptId, 'already_on_call');
+        abandonRef.current(attemptId, 'already_on_call', callToken);
         return;
       }
 
       const telnyx = useTelnyxStore.getState();
       if (!telnyx.client || telnyx.status !== 'registered') {
-        abandonRef.current(attemptId, 'line_not_connected');
+        abandonRef.current(attemptId, 'line_not_connected', callToken);
         return;
       }
       // Placing the call with a fabricated caller ID gets silently rejected by
       // carriers that validate CLI authenticity (e.g. Spain's anti-fraud
       // rules) — refuse instead of dialing with a fake number.
       if (!callerIdNumber || !userId) {
-        abandonRef.current(attemptId, 'dial_failed');
+        abandonRef.current(attemptId, 'dial_failed', callToken);
         return;
       }
 
@@ -217,10 +267,30 @@ export function useDialerCallEngine() {
       // call-control webhooks can be linked back to this CallAttempt on the
       // backend (CallService.extractCallAttemptId). This is what lets the
       // attempt record answeredAt / durationSec, which campaign analytics
-      // (connected, contact rate, talk time) are computed from.
+      // (connected, contact rate, talk time) are computed from. A carrier
+      // dial needs none: the server stored the attempt on its pre-dial.
       const clientState = btoa(JSON.stringify({ callAttemptId: attemptId }));
 
       try {
+        if (carrierRoute) {
+          // Through the workspace's own carrier: the leg goes to the
+          // server-issued destination with its signed token, and the PBX
+          // presents its own caller ID.
+          const call = placeCall({
+            client: telnyx.client,
+            id: callId,
+            callerId: callerIdNumber,
+            destination: phoneNumber,
+            carrierRoute,
+            userId,
+            organizationId: orgId ?? undefined,
+            debug: process.env.NODE_ENV === 'development'
+          });
+          if (useDialerCallStore.getState().callId === callId) {
+            useDialerCallStore.getState().update({ call });
+          }
+          return;
+        }
         const call = telnyx.client.newCall({
           id: callId,
           callerNumber: callerIdNumber,
@@ -245,7 +315,7 @@ export function useDialerCallEngine() {
         if (useDialerCallStore.getState().callId === callId) {
           useDialerCallStore.getState().clear();
         }
-        abandonRef.current(attemptId, 'dial_failed');
+        abandonRef.current(attemptId, 'dial_failed', callToken);
       }
     },
     [userId, orgId]

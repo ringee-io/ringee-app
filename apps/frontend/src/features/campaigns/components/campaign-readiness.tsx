@@ -76,7 +76,11 @@ export function CampaignReadiness({
 
   const hasLeads = leadCount > 0;
   const hasDispositions = (dispositionCount ?? 0) > 0;
-  const hasNumber = Boolean(campaign.numberPurchasedId || campaign.callerIdId);
+  const hasNumber = Boolean(
+    campaign.externalNumberId ||
+      campaign.numberPurchasedId ||
+      campaign.callerIdId
+  );
   const hasTeam = (memberCount ?? 0) > 0;
   const required = [hasLeads, hasDispositions];
   const readyCount = required.filter(Boolean).length;

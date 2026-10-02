@@ -623,6 +623,9 @@ headers: the PBX presents its own caller ID.
 - **Changed 2026-09-23:** the browser used to dial the carrier host itself.
   Telnyx routes such a WebRTC leg to the PSTN instead of the connection, so the
   carrier leg is now placed by the server (`TELEPHONY.md`, "Outbound").
+- **Campaigns:** a campaign naming an external number dials through the same
+  pre-dial, prepared by the dialer orchestrator; the attempt it serves is
+  stored on the call by the server, never read from the browser's leg.
 - **Source of truth:** `CallService.prepareExternalOutbound`,
   `CallService.adoptExternalOutbound`, `CallService.bridgeExternalOutbound`,
   `carrier-route-key.ts`

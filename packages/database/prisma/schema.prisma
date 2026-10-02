@@ -1711,6 +1711,10 @@ model Campaign {
   callerIdId        String?    @db.Uuid
   // Purchased number used as the outbound caller ID for this campaign's calls
   numberPurchasedId String?    @db.Uuid
+  // A number on the workspace's own carrier (BYOC). When set, every dial goes
+  // out through that carrier and takes precedence over the purchased number,
+  // the caller ID and rotation.
+  externalNumberId  String?    @db.Uuid
   // Subset of owned numbers this campaign rotates among when caller-ID rotation
   // is enabled. Empty → rotate across the whole workspace pool.
   rotationNumberIds String[]   @db.Uuid
@@ -1732,10 +1736,11 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  callerId        NumberPurchased? @relation("campaignCallerId", fields: [callerIdId], references: [id], onDelete: SetNull)
-  numberPurchased NumberPurchased? @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  callerId        NumberPurchased?     @relation("campaignCallerId", fields: [callerIdId], references: [id], onDelete: SetNull)
+  numberPurchased NumberPurchased?     @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
+  externalNumber  ExternalPhoneNumber? @relation(fields: [externalNumberId], references: [id], onDelete: SetNull)
   members         CampaignMember[]
   leads           CampaignLead[]
   lists           CampaignList[]
@@ -1749,6 +1754,7 @@ model Campaign {
   @@index([organizationId])
   @@index([status])
   @@index([numberPurchasedId])
+  @@index([externalNumberId])
 }
 
 model CampaignLead {
@@ -4602,7 +4608,8 @@ model ExternalSipEndpoint {
 
 /// A DID the workspace owns at its own carrier. Ownership and extension are
 /// inherited from the endpoint. Any organization member may call from an active
-/// number on a synchronized endpoint (web dialer only).
+/// number on a synchronized endpoint: from the web dialer, or from a campaign
+/// that names it (`Campaign.externalNumberId`).
 model ExternalPhoneNumber {
   id                 String              @id @default(uuid()) @db.Uuid
   endpointId         String              @db.Uuid
@@ -4619,6 +4626,7 @@ model ExternalPhoneNumber {
   updatedAt          DateTime            @updatedAt
   endpoint           ExternalSipEndpoint @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict)
   inboundRoute       InboundRoute?
+  campaigns          Campaign[]
 
   @@unique([organizationId, phoneNumber])
   @@index([phoneNumber])

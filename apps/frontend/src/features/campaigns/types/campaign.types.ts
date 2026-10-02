@@ -29,6 +29,8 @@ export interface Campaign {
   dialerMode: DialerMode;
   callerIdId: string | null;
   numberPurchasedId: string | null;
+  /** A number on the workspace's own carrier; overrides every other number. */
+  externalNumberId: string | null;
   rotationNumberIds: string[];
   maxAttempts: number;
   timezone: string;
@@ -121,6 +123,7 @@ export interface CreateCampaignDto {
   dialerMode?: DialerMode;
   callerIdId?: string;
   numberPurchasedId?: string;
+  externalNumberId?: string;
   rotationNumberIds?: string[];
   maxAttempts?: number;
   timezone?: string;
