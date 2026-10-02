@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import type { CarrierRoute } from '@ringee/dialer-core/engine';
 import { useTranslations } from 'next-intl';
 import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
@@ -44,6 +45,8 @@ export function useDialerEvents(
     attemptId: string;
     phoneNumber: string;
     callerIdNumber: string | null;
+    /** Set when the campaign dials through the workspace's own carrier. */
+    carrierRoute?: CarrierRoute;
   }) => void
 ) {
   const eventSourceRef = useRef<EventSource | null>(null);

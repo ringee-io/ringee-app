@@ -26,6 +26,7 @@ import { Loader2, Phone, Shuffle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useRotationEnabled } from '@/features/number-rotation';
+import { CampaignCarrierNumberField } from './campaign-carrier-number-field';
 import type {
   Campaign,
   CreateCampaignDto,
@@ -206,7 +207,14 @@ export function CampaignCreateForm() {
           <CardDescription>{tc('create.dialerDescription')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
-          {rotationEnabled && (
+          <CampaignCarrierNumberField
+            value={form.externalNumberId ?? null}
+            onChange={(id) => updateForm({ externalNumberId: id ?? undefined })}
+          />
+
+          {/* Dialing through the carrier, its PBX presents its own caller ID:
+              Ringee numbers and rotation do not apply. */}
+          {rotationEnabled && !form.externalNumberId && (
             <div className='space-y-2'>
               <div className='flex items-center gap-2'>
                 <Shuffle className='h-4 w-4 text-emerald-600' />
@@ -248,7 +256,7 @@ export function CampaignCreateForm() {
             </div>
           )}
 
-          {!rotationEnabled && (
+          {!rotationEnabled && !form.externalNumberId && (
             <>
               <div className='space-y-2'>
                 <Label>{tc('fields.phoneNumber')}</Label>

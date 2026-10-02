@@ -68,9 +68,20 @@ describe("placeCall through the existing WebRTC engine", () => {
     ]);
     expect(sent.audio).toBe(true);
     expect(sent.keepConnectionAliveOnSocketClose).toBe(true);
+    expect(sent).not.toHaveProperty("id");
     // The UI and contact lookup keep seeing the number that was dialed.
     expect(getCallDestination(call as never)).toBe("+12125550199");
     expect(getCarrierCallToken(call as never)).toBe("signed-token");
+  });
+
+  it("places the leg under the id its caller tracks it by", () => {
+    const { newCall, options } = setup();
+    placeCall({
+      ...options,
+      id: "tracked-leg",
+      carrierRoute: { destinationUri: "sip:key@app", callToken: "token" },
+    });
+    expect(newCall.mock.calls[0][0].id).toBe("tracked-leg");
   });
 });
 

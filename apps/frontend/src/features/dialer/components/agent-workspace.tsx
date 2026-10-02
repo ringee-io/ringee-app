@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useDialerSession } from '../hooks/use-dialer-session';
 import { useDialerEvents } from '../hooks/use-dialer-events';
 import { useDialerCallEngine } from '../hooks/use-dialer-call';
+import type { CarrierRoute } from '@ringee/dialer-core/engine';
 import {
   isLiveCallState,
   useDialerCallStore
@@ -141,8 +142,14 @@ export function AgentWorkspace({
       attemptId: string;
       phoneNumber: string;
       callerIdNumber: string | null;
+      carrierRoute?: CarrierRoute;
     }) => {
-      dial(data.phoneNumber, data.callerIdNumber, data.attemptId);
+      dial(
+        data.phoneNumber,
+        data.callerIdNumber,
+        data.attemptId,
+        data.carrierRoute
+      );
     },
     [dial]
   );

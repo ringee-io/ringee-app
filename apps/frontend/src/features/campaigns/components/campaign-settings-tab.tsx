@@ -37,6 +37,7 @@ import { Loader2, Phone, Shuffle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useRotationEnabled } from '@/features/number-rotation';
+import { CampaignCarrierNumberField } from './campaign-carrier-number-field';
 import type { Campaign, DialerMode } from '../types/campaign.types';
 
 interface CallerId {
@@ -106,6 +107,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
     dialerMode: campaign.dialerMode,
     callerIdId: campaign.callerIdId || '',
     numberPurchasedId: campaign.numberPurchasedId || '',
+    externalNumberId: campaign.externalNumberId || '',
     rotationNumberIds: campaign.rotationNumberIds || [],
     maxAttempts: campaign.maxAttempts,
     timezone: campaign.timezone,
@@ -165,6 +167,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
         // Empty values clear the FK rather than violating it.
         callerIdId: form.callerIdId || null,
         numberPurchasedId: form.numberPurchasedId || null,
+        externalNumberId: form.externalNumberId || null,
         rotationNumberIds: form.rotationNumberIds
       });
       onUpdated();
@@ -236,7 +239,14 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
-          {rotationEnabled && (
+          <CampaignCarrierNumberField
+            value={form.externalNumberId || null}
+            onChange={(id) => updateForm({ externalNumberId: id ?? '' })}
+          />
+
+          {/* Dialing through the carrier, its PBX presents its own caller ID:
+              Ringee numbers and rotation do not apply. */}
+          {rotationEnabled && !form.externalNumberId && (
             <div className='space-y-2'>
               <div className='flex items-center gap-2'>
                 <Shuffle className='h-4 w-4 text-emerald-600' />
@@ -276,7 +286,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
             </div>
           )}
 
-          {!rotationEnabled && (
+          {!rotationEnabled && !form.externalNumberId && (
             <>
               <div className='space-y-2'>
                 <Label>{tc('fields.phoneNumber')}</Label>

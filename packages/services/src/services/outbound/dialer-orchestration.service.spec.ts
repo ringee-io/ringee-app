@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ConflictException, BadRequestException } from "@nestjs/common";
 import { AgentSessionService } from "./agent-session.service";
 import { CallAttemptService } from "./call-attempt.service";
 import { DialerOrchestrationService } from "./dialer-orchestration.service";
@@ -81,6 +82,7 @@ function createWorld(
     organizationId: "org-1",
     callerIdId: null,
     numberPurchasedId: null,
+    externalNumberId: null as string | null,
     rotationNumberIds: [] as string[],
     maxAttempts: 3,
     retryDelayMin: 60,
@@ -151,15 +153,56 @@ function createWorld(
       leaseReleases.push(deviceId);
     },
   };
+  /** The external carrier pre-flight (`CallService`). */
+  const carrier = {
+    error: null as Error | null,
+    prepared: [] as Array<{
+      ctx: { userId: string; organizationId: string | null };
+      numberId: string;
+      destination: string;
+      callAttemptId?: string;
+    }>,
+    abandoned: [] as string[],
+    prepareExternalOutbound: async (
+      ctx: { userId: string; organizationId: string | null },
+      numberId: string,
+      destination: string,
+      opts: { callAttemptId?: string } = {},
+    ) => {
+      await roundTrip();
+      if (carrier.error) throw carrier.error;
+      carrier.prepared.push({
+        ctx,
+        numberId,
+        destination,
+        callAttemptId: opts.callAttemptId,
+      });
+      return {
+        phoneNumber: "+34910000000",
+        numberId: null,
+        rotated: false,
+        reason: "external_carrier",
+        destinationUri: "sip:rco-key@ringee.sip.telnyx.com",
+        callToken: `token-${carrier.prepared.length}`,
+      };
+    },
+    abandonExternalOutbound: async (_ctx: unknown, token: string) => {
+      carrier.abandoned.push(token);
+    },
+  };
   const rotation = {
+    selections: 0,
     phoneNumber: "+12125559999" as string | null,
     reason: "rotated",
-    selectForDial: async () => ({
-      phoneNumber: rotation.phoneNumber,
-      numberId: null,
-      rotated: !!rotation.phoneNumber,
-      reason: rotation.reason,
-    }),
+    selectForDial: async () => {
+      rotation.selections += 1;
+      return {
+        phoneNumber: rotation.phoneNumber,
+        numberId: null,
+        rotated: !!rotation.phoneNumber,
+        reason: rotation.reason,
+      };
+    },
   };
   const credit = { balance: 50, getBalance: async () => credit.balance };
   /** Calls the database shows as up for the agent. */
@@ -529,6 +572,7 @@ function createWorld(
     guard as never,
     userService as never,
     credit as never,
+    carrier as never,
   );
   const internals = orchestrator as unknown as {
     runTick(): Promise<void>;
@@ -542,6 +586,7 @@ function createWorld(
     liveCalls,
     guard,
     rotation,
+    carrier,
     credit,
     user,
     events,
@@ -885,6 +930,129 @@ describe("DialerOrchestrationService", () => {
         message: "busy",
       });
       assert.equal(other.session().status, "dialing");
+    });
+  });
+
+  describe("a campaign on the workspace's own carrier", () => {
+    it("pre-dials the lead through the carrier and hands the browser its route", async () => {
+      const world = createWorld();
+      world.campaign.externalNumberId = "external-1";
+
+      await world.runTick();
+
+      const attempt = [...world.attempts.values()][0];
+      assert.equal(world.carrier.prepared.length, 1);
+      assert.deepEqual(world.carrier.prepared[0], {
+        ctx: { userId: "user-1", organizationId: "org-1" },
+        numberId: "external-1",
+        destination: world.lead("lead-1").contact.phoneNumber,
+        callAttemptId: attempt.id,
+      });
+      // The PBX presents its own caller ID: rotation is never consulted.
+      assert.equal(world.rotation.selections, 0);
+      const [dial] = world.of("call.initiate");
+      assert.equal(dial.data.attemptId, attempt.id);
+      assert.equal(dial.data.callerIdNumber, "+34910000000");
+      assert.deepEqual(dial.data.carrierRoute, {
+        destinationUri: "sip:rco-key@ringee.sip.telnyx.com",
+        callToken: "token-1",
+      });
+      assert.equal(world.session().status, "dialing");
+    });
+
+    it("dials an ordinary campaign without a carrier route", async () => {
+      const world = createWorld();
+
+      await world.runTick();
+
+      assert.equal(world.carrier.prepared.length, 0);
+      const [dial] = world.of("call.initiate");
+      assert.equal(dial.data.callerIdNumber, "+12125559999");
+      assert.equal("carrierRoute" in dial.data, false);
+    });
+
+    it("pauses, and hands everything back, when the carrier is not available", async () => {
+      const world = createWorld();
+      world.campaign.externalNumberId = "external-1";
+      world.carrier.error = new ConflictException("not registered");
+
+      await world.runTick();
+      await world.runTick();
+
+      assert.equal(world.of("call.initiate").length, 0);
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.session().status, "paused");
+      assert.equal(world.session().currentLeadId, null);
+      assert.equal(world.lead("lead-1").status, "queued");
+      assert.ok(world.leaseReleases.includes("campaign-agent:session-1"));
+      const blocked = world.of("call.blocked");
+      assert.equal(blocked.length, 1);
+      assert.equal(blocked[0].data.reason, "CARRIER_UNAVAILABLE");
+      // The provider's own words never reach the agent.
+      assert.doesNotMatch(blocked[0].data.message, /not registered/);
+    });
+
+    it("moves a lead the carrier cannot dial behind the queue and keeps going", async () => {
+      const world = createWorld();
+      world.campaign.externalNumberId = "external-1";
+      world.carrier.error = new BadRequestException("invalid number");
+
+      await world.runTick();
+
+      assert.equal(
+        world.of("call.blocked")[0].data.reason,
+        "INVALID_DESTINATION",
+      );
+      assert.equal(world.session().status, "ready");
+      assert.equal(world.attempts.size, 0);
+      assert.ok(world.lead("lead-1").nextCallAt);
+
+      world.carrier.error = null;
+      world.endCooldowns();
+      await world.runTick();
+      assert.equal(
+        world.of("call.initiate")[0].data.phoneNumber,
+        "+12125550002",
+      );
+    });
+
+    it("closes the pre-dial when the browser could not place it", async () => {
+      const world = createWorld();
+      world.campaign.externalNumberId = "external-1";
+      await world.runTick();
+      const attempt = [...world.attempts.values()][0];
+
+      const result = await world.orchestrator.abandonDial(
+        { userId: "user-1", organizationId: "org-1" },
+        "session-1",
+        attempt.id,
+        "line_not_connected",
+        "token-1",
+      );
+
+      assert.deepEqual(result, { released: true });
+      assert.deepEqual(world.carrier.abandoned, ["token-1"]);
+      assert.equal(world.session().status, "paused");
+    });
+
+    it("pre-dials a preview lead when the agent presses Dial", async () => {
+      const world = createWorld({ dialerMode: "preview" });
+      world.campaign.externalNumberId = "external-1";
+      await world.runTick();
+      assert.equal(world.carrier.prepared.length, 0);
+
+      await world.orchestrator.manualDial(
+        { userId: "user-1", organizationId: "org-1" },
+        "session-1",
+        "campaign-1",
+      );
+
+      const attempt = [...world.attempts.values()][0];
+      assert.equal(world.carrier.prepared[0].callAttemptId, attempt.id);
+      assert.equal(
+        world.of("call.initiate")[0].data.carrierRoute.callToken,
+        "token-1",
+      );
     });
   });
 

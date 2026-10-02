@@ -702,11 +702,17 @@ export class CallService implements OnModuleDestroy {
    * The browser's leg goes to Ringee's own Call Control application, addressed
    * with the call's signed key — never to the carrier. When it arrives there,
    * the server sends it on to the carrier (`bridgeExternalOutbound`).
+   *
+   * A campaign dial names its `CallAttempt`. It is stored on the row, written
+   * by the server: the leg reaches the application as an incoming call, so
+   * nothing the browser puts in its own `client_state` can be relied on to
+   * link it (`storedCallAttemptId`).
    */
   async prepareExternalOutbound(
     ctx: OwnershipContext,
     numberId: string,
     destination: string,
+    opts: { callAttemptId?: string } = {},
   ) {
     const route = await this.externalCarriers.resolveOutbound(
       ctx,
@@ -730,7 +736,11 @@ export class CallService implements OnModuleDestroy {
       direction: "outbound",
       source: "web",
       status: CallStatus.pending,
-      clientState: Buffer.from("initiate_call").toString("base64"),
+      clientState: Buffer.from(
+        opts.callAttemptId
+          ? JSON.stringify({ callAttemptId: opts.callAttemptId })
+          : "initiate_call",
+      ).toString("base64"),
       contact: contact ? { connect: { id: contact.id } } : undefined,
       externalCarrierId: route.externalCarrierId,
       externalSipEndpointId: route.externalSipEndpointId,
@@ -856,6 +866,7 @@ export class CallService implements OnModuleDestroy {
     endLeg?: (callControlId: string) => Promise<void>,
   ): Promise<boolean> {
     const { callControlId } = event;
+    const callAttemptId = this.storedCallAttemptId(call);
     if (
       !(await this.ensureCallAffordable(ctx, callControlId, endLeg)) ||
       !(await this.ensureNoConcurrentCall(ctx, callControlId, endLeg))
@@ -865,6 +876,11 @@ export class CallService implements OnModuleDestroy {
         call.id,
         "The call was refused.",
       );
+      await this.releaseRefusedCampaignLeg(callAttemptId, ctx.userId, {
+        reason: "CALL_REFUSED",
+        message:
+          "The call was refused before it connected. Dialing is paused — resume when you're ready.",
+      });
       return false;
     }
 
@@ -894,6 +910,12 @@ export class CallService implements OnModuleDestroy {
             `Inbox ensureThreadForCall failed (external carrier, call=${adopted.id}): ${err.message}`,
             err.stack,
           ),
+        );
+      if (callAttemptId)
+        await this.callAttemptService.handleWebhookEvent(
+          callAttemptId,
+          "call.initiated",
+          adopted,
         );
     }
     this.logger.log(
@@ -1440,6 +1462,16 @@ export class CallService implements OnModuleDestroy {
           `Could not release refused campaign attempt ${callAttemptId}: ${err.message}`,
         ),
       );
+  }
+
+  /**
+   * The campaign attempt an external carrier pre-dial was made for. Written by
+   * the server alone (`prepareExternalOutbound`), never read from a leg.
+   */
+  private storedCallAttemptId(call: Call): string | null {
+    return call.externalSipEndpointId
+      ? this.extractCallAttemptId(call.clientState)
+      : null;
   }
 
   /**
@@ -2029,7 +2061,9 @@ export class CallService implements OnModuleDestroy {
           callControlId,
           CallStatus.answered,
         );
-        const answeredAttemptId = this.extractCallAttemptId(event.clientState);
+        const answeredAttemptId =
+          this.extractCallAttemptId(event.clientState) ??
+          (answeredCall ? this.storedCallAttemptId(answeredCall) : null);
         if (answeredAttemptId && answeredCall) {
           await this.callAttemptService.handleWebhookEvent(
             answeredAttemptId,
@@ -2102,7 +2136,9 @@ export class CallService implements OnModuleDestroy {
               ),
             );
         }
-        const hangupAttemptId = this.extractCallAttemptId(event.clientState);
+        const hangupAttemptId =
+          this.extractCallAttemptId(event.clientState) ??
+          (hangupCall ? this.storedCallAttemptId(hangupCall) : null);
         if (hangupAttemptId && hangupCall) {
           await this.callAttemptService.handleWebhookEvent(
             hangupAttemptId,

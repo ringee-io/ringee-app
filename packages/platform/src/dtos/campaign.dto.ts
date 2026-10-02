@@ -12,6 +12,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsUUID,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -63,6 +64,11 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsString()
   numberPurchasedId?: string;
+
+  /** A number on the workspace's own carrier (BYOC); overrides the others. */
+  @IsOptional()
+  @IsUUID()
+  externalNumberId?: string;
 
   @IsOptional()
   @IsArray()
