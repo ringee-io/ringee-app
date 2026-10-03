@@ -267,16 +267,20 @@ export class DispositionRepository {
     });
   }
 
-  /** Puts the given dispositions in this order. Ids outside the workspace match nothing. */
+  /**
+   * Puts the given dispositions in this order. Ids outside the workspace match
+   * nothing. One batch, so the order lands whole or not at all; each statement
+   * keeps `buildOwnershipFilter` rather than a hand-written raw-SQL predicate.
+   */
   async reorderWorkspace(ctx: OwnershipContext, ids: string[]): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      for (const [sortOrder, id] of ids.entries()) {
-        await tx.disposition.updateMany({
+    await this.prisma.$transaction(
+      ids.map((id, sortOrder) =>
+        this.prisma.disposition.updateMany({
           where: { id, ...this.workspace(ctx) },
           data: { sortOrder },
-        });
-      }
-    });
+        }),
+      ),
+    );
   }
 
   /**

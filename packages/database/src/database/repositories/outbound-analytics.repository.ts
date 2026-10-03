@@ -1,14 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
+import { isConversionSql } from "./campaign-conversion.sql";
 
-/**
- * An attempt converts when what the agent recorded *means* a meeting or a sale
- * (DISP-002): its disposition's canonical outcome, or — for attempts recorded
- * before that was stored — the code, which then was the outcome. A workspace
- * disposition such as "Demo booked" (code `demo_booked`) counts; the label
- * itself never decides.
- */
-const IS_CONVERSION = `COALESCE("dispositionOutcome"::text, "dispositionCode") IN ('meeting_booked','sale')`;
+/** A converting attempt (DISP-002), as every query below counts it. */
+const IS_CONVERSION = isConversionSql();
 
 export interface CampaignSummaryStats {
   totalAttempts: number;

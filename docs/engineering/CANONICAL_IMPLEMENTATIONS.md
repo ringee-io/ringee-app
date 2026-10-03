@@ -69,17 +69,18 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 ## Call outcomes and dispositions
 
-| Responsibility                                       | Owner                                                                                  |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| The canonical outcome set                            | `CallOutcome` (Prisma enum) — `GET /api/dispositions/outcomes` serves it               |
-| Recording an outcome (with or without a disposition) | `CallRepository.recordOutcome` (DISP-005)                                              |
-| Workspace dispositions: CRUD, order, defaults        | `DispositionService` — `services/outbound/disposition.service.ts`                      |
-| Disposition → canonical outcome                      | `canonicalOutcomeOf`, `DispositionService.resolveSelectable` — same file               |
-| What a disposition does to a campaign lead           | `OUTCOME_BEHAVIOUR` — same file (DISP-002)                                             |
-| A campaign's dispositions                            | `DispositionService.listByCampaign` / `setCampaignSet` / `resolveForCampaign`          |
-| Lazy defaults, unique names (workspace lock)         | `DispositionRepository.seedWorkspaceIfEmpty` / `createForWorkspace`                    |
-| Manual/MCP outcome write                             | `MeetingService.updateCallOutcome` (`POST /meetings/call-outcome`, `log_call_outcome`) |
-| Campaign outcome write                               | `CallAttemptService.submitDisposition` (`POST /dialer/dispose`)                        |
+| Responsibility                                       | Owner                                                                                          |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| The canonical outcome set                            | `CallOutcome` (Prisma enum) — `GET /api/dispositions/outcomes` serves it                       |
+| Recording an outcome (with or without a disposition) | `CallRepository.recordOutcome` (DISP-005)                                                      |
+| Workspace dispositions: CRUD, order, defaults        | `DispositionService` — `services/outbound/disposition.service.ts`                              |
+| Disposition → canonical outcome                      | `canonicalOutcomeOf`, `DispositionService.resolveSelectable` — same file                       |
+| What a disposition does to a campaign lead           | `OUTCOME_BEHAVIOUR` — same file (DISP-002)                                                     |
+| What counts as a campaign conversion                 | `isConversionSql` / `CONVERSION_OUTCOMES` — `database/repositories/campaign-conversion.sql.ts` |
+| A campaign's dispositions                            | `DispositionService.listByCampaign` / `setCampaignSet` / `resolveForCampaign`                  |
+| Lazy defaults, unique names (workspace lock)         | `DispositionRepository.seedWorkspaceIfEmpty` / `createForWorkspace`                            |
+| Manual/MCP outcome write                             | `MeetingService.updateCallOutcome` (`POST /meetings/call-outcome`, `log_call_outcome`)         |
+| Campaign outcome write                               | `CallAttemptService.submitDisposition` (`POST /dialer/dispose`)                                |
 
 ## AI voice agents
 

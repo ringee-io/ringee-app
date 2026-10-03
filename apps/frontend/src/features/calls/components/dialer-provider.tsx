@@ -141,9 +141,14 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
     at: number;
   } | null>(null);
   const dispositionsRequest = useRef<Promise<DialerDisposition[]> | null>(null);
+  // Bumped by every edit. A request that started before one answers with the
+  // old list: it must not put that list back into the copy the edit dropped.
+  const dispositionsGeneration = useRef(0);
   useEffect(() => {
     const forget = () => {
+      dispositionsGeneration.current += 1;
       dispositions.current = null;
+      dispositionsRequest.current = null;
     };
     window.addEventListener(DISPOSITIONS_CHANGED_EVENT, forget);
     return () => window.removeEventListener(DISPOSITIONS_CHANGED_EVENT, forget);
@@ -175,15 +180,24 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
         if (cached && Date.now() - cached.at < DISPOSITIONS_TTL_MS) {
           return Promise.resolve(cached.rows);
         }
-        const fresh = (dispositionsRequest.current ??= api
-          .get<DialerDisposition[]>('/dispositions/defaults')
-          .then((rows) => {
-            dispositions.current = { rows, at: Date.now() };
-            return rows;
-          })
-          .finally(() => {
-            dispositionsRequest.current = null;
-          }));
+        if (!dispositionsRequest.current) {
+          const generation = dispositionsGeneration.current;
+          const request: Promise<DialerDisposition[]> = api
+            .get<DialerDisposition[]>('/dispositions/defaults')
+            .then((rows) => {
+              if (generation === dispositionsGeneration.current) {
+                dispositions.current = { rows, at: Date.now() };
+              }
+              return rows;
+            })
+            .finally(() => {
+              if (dispositionsRequest.current === request) {
+                dispositionsRequest.current = null;
+              }
+            });
+          dispositionsRequest.current = request;
+        }
+        const fresh = dispositionsRequest.current;
         // A stale copy still opens the view at once; the fresh one is next.
         if (!cached) return fresh;
         fresh.catch(() => undefined);

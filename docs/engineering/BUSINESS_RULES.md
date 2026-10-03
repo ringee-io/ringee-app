@@ -849,8 +849,9 @@ the attempt's canonical outcome (`CallAttempt.dispositionOutcome`, else the code
 of an attempt recorded before it existed), and CRM native fields (HubSpot's call
 disposition) map from `outcome`. No rule matches on a disposition's name or code.
 
-- **Source of truth:** `OUTCOME_BEHAVIOUR`; `OutboundAnalyticsRepository`,
-  `BackofficeCampaignRepository` (`IS_CONVERSION` / `ATTEMPT_OUTCOME`)
+- **Source of truth:** `OUTCOME_BEHAVIOUR`; `isConversionSql` /
+  `CONVERSION_OUTCOMES` (`database/repositories/campaign-conversion.sql.ts`),
+  the one conversion rule both the campaign dashboard and the backoffice count with
 - **Risk if violated:** renaming a disposition changes what happens to leads, or
   a "Demo booked" never counts as a conversion
 

@@ -928,21 +928,36 @@ export class CallRepository {
   /**
    * Records a campaign disposition whose custom code names no outcome — and
    * its note — without touching the outcome. History still shows what the
-   * agent picked, and the note still reaches the CRM call-log.
+   * agent picked, and the note still reaches the CRM call-log. Like
+   * `recordOutcome`, it writes only a change: `updatedAt` stays put when the
+   * same disposition and note are saved again.
    */
   async recordDispositionWithoutOutcome(
     callId: string,
     disposition: RecordedDisposition,
     outcomeNote?: string,
   ): Promise<Call> {
-    return this.prisma.call.update({
-      where: { id: callId },
+    await this.prisma.call.updateMany({
+      where: {
+        id: callId,
+        OR: [
+          { dispositionId: null },
+          { dispositionId: { not: disposition.id } },
+          { dispositionName: null },
+          { dispositionName: { not: disposition.name } },
+          ...(outcomeNote !== undefined
+            ? [{ outcomeNote: null }, { outcomeNote: { not: outcomeNote } }]
+            : []),
+        ],
+      },
       data: {
         dispositionId: disposition.id,
         dispositionName: disposition.name,
         ...(outcomeNote !== undefined ? { outcomeNote } : {}),
+        updatedAt: new Date(),
       },
     });
+    return this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
   }
 
   /**
