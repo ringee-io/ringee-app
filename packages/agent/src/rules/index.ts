@@ -63,6 +63,11 @@ export const OPERATING_RULES: OperatingRule[] = [
     appliesTo: ["read", "write", "destructive"],
   },
   {
+    id: "dispositions-from-list",
+    rule: "To record one of the workspace's own dispositions, take its id from list_dispositions and pass it to log_call_outcome as dispositionId — Ringee records the canonical outcome it maps to. Never invent a dispositionId; without one, pass a canonical outcome.",
+    appliesTo: ["write"],
+  },
+  {
     id: "leads-need-valid-job",
     rule: "Lead reveal/import actions require a valid jobId and externalId from a prior search_leads result. Never invent ids.",
     appliesTo: ["sensitive", "write"],

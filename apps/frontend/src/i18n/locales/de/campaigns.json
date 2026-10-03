@@ -375,52 +375,45 @@
   },
   "dispositions": {
     "title": "Klassifizierungen",
-    "description": "Konfigurieren Sie die Ergebniscodes, die Agenten nach jedem Anruf auswählen.",
-    "add": "Klassifizierung hinzufügen",
-    "createTitle": "Klassifizierung erstellen",
-    "createDescription": "Fügen Sie dieser Kampagne eine neue Anrufergebnis-Klassifizierung hinzu.",
-    "code": "Code",
-    "codePlaceholder": "z. B. meeting_booked",
-    "label": "Bezeichnung",
-    "labelPlaceholder": "z. B. Termin vereinbart",
-    "category": "Kategorie",
-    "color": "Farbe",
+    "description": "Die Ergebnisse, die Agenten nach jedem Anruf dieser Kampagne auswählen – in der Reihenfolge, in der der Dialer sie anzeigt.",
+    "createDescription": "Wählen Sie, welche Klassifizierungen der Dialer dieser Kampagne anzeigt, oder behalten Sie die Standards Ihres Workspaces.",
+    "edit": "Bearbeiten",
+    "switchToWorkspace": "Workspace-Klassifizierungen verwenden",
+    "loadError": "Die Klassifizierungen dieser Kampagne konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "legacySwitchNote": "Diese Kampagne wurde mit eigenen Klassifizierungen erstellt. Nach dem Speichern verwendet sie die hier gewählten (oder die Standards des Workspaces); ihr Anrufverlauf behält die bisherigen.",
     "cancel": "Abbrechen",
-    "create": "Erstellen",
-    "categories": {
-      "positive": "Positiv",
-      "neutral": "Neutral",
-      "negative": "Negativ",
-      "no_contact": "Kein Kontakt"
-    },
-    "triggers": {
-      "title": "Workflow-Auslöser",
-      "completion": "Markiert den Lead als abgeschlossen",
-      "retry": "Löst einen erneuten Versuch aus",
-      "callback": "Plant einen Rückruf",
-      "dnc": "Fügt zur Sperrliste hinzu",
-      "badges": {
-        "completion": "abgeschlossen",
-        "retry": "erneuter Versuch",
-        "callback": "Rückruf",
-        "dnc": "Nicht anrufen"
+    "save": "Speichern",
+    "empty": "Keine Klassifizierungen.",
+    "noOutcome": "Kein Ergebnis",
+    "modes": {
+      "campaign": {
+        "badge": "Für die Kampagne gewählt",
+        "description": "Agenten sehen diese, in dieser Reihenfolge."
+      },
+      "legacy": {
+        "badge": "Eigene der Kampagne",
+        "description": "Mit der Kampagne erstellt, vor den Workspace-Klassifizierungen."
+      },
+      "workspace": {
+        "badge": "Standard",
+        "description": "Nichts gewählt: Agenten sehen die Standard-Klassifizierungen Ihres Workspaces."
       }
     },
-    "empty": {
-      "title": "Keine Klassifizierungen konfiguriert",
-      "description": "Klassifizierungen werden beim Aktivieren der Kampagne automatisch angelegt, oder Sie fügen sie manuell hinzu."
-    },
-    "table": {
-      "code": "Code",
-      "label": "Bezeichnung",
-      "category": "Kategorie",
-      "triggers": "Auslöser"
-    },
     "toasts": {
-      "created": "Klassifizierung erstellt.",
-      "createError": "Die Klassifizierung konnte nicht erstellt werden.",
-      "removed": "Klassifizierung entfernt.",
-      "removeError": "Die Klassifizierung konnte nicht entfernt werden."
+      "saved": "Klassifizierungen gespeichert.",
+      "saveError": "Die Klassifizierungen konnten nicht gespeichert werden."
+    },
+    "picker": {
+      "loadError": "Ihre Klassifizierungen konnten nicht geladen werden.",
+      "usesDefaults": "Nichts gewählt: Der Dialer zeigt die Standards Ihres Workspaces.",
+      "customizeFromDefaults": "Mit den Standards beginnen",
+      "add": "Klassifizierung hinzufügen",
+      "addHint": "Aktive Klassifizierungen",
+      "useDefaults": "Standards verwenden",
+      "manage": "Klassifizierungen verwalten",
+      "dragToReorder": "Zum Sortieren ziehen",
+      "remove": "{name} entfernen"
     }
   },
   "members": {

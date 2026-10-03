@@ -50,6 +50,13 @@ const ScriptEditor = dynamic(
   () => import('./script-editor').then((m) => m.ScriptEditor),
   { loading }
 );
+const DispositionsPanel = dynamic(
+  () =>
+    import('@/features/dispositions/components/dispositions-panel').then(
+      (m) => m.DispositionsPanel
+    ),
+  { loading }
+);
 const RecordingSettingsCard = dynamic(
   () =>
     import('@/features/transcription/components/recording-settings-card').then(
@@ -375,6 +382,8 @@ function SettingsPanel({
       return <GeneralPanel />;
     case 'script':
       return <ScriptEditor />;
+    case 'dispositions':
+      return <DispositionsPanel />;
     case 'recording':
       return <RecordingSettingsCard className='max-w-2xl' />;
     case 'external-carriers':

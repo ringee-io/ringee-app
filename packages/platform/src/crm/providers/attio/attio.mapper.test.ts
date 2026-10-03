@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
+import type { CrmCallLogInput } from "../../types";
 import {
   buildAttioPersonName,
+  buildCallLogNote,
   mapAttioCompanyToSyncResult,
   mapAttioPersonToMatch,
   mapAttioPersonToSyncResult,
@@ -201,5 +203,34 @@ describe("Attio phone mapping", () => {
     };
 
     expect(mapAttioCompanyToSyncResult(record).phone).toBe("+18095551234");
+  });
+});
+
+describe("Attio call-log note", () => {
+  const input = (
+    overrides: Partial<CrmCallLogInput> = {},
+  ): CrmCallLogInput => ({
+    idempotencyKey: "key-1",
+    ringeeCallId: "call-1",
+    direction: "outbound",
+    from: "+14155550000",
+    to: "+14155552671",
+    startedAt: new Date("2026-09-01T10:00:00.000Z"),
+    durationSeconds: 125,
+    outcome: "meeting_booked",
+    outcomeLabel: "Meeting Booked",
+    linkedRecords: [],
+    ...overrides,
+  });
+
+  it("keeps the outcome as the title and names the disposition beside it", () => {
+    const note = buildCallLogNote(input({ dispositionName: "Demo booked" }));
+    expect(note.title).toBe("Ringee call — Meeting Booked");
+    expect(note.content).toContain("- **Outcome:** Meeting Booked");
+    expect(note.content).toContain("- **Disposition:** Demo booked");
+  });
+
+  it("reads as it always did for a call without a disposition", () => {
+    expect(buildCallLogNote(input()).content).not.toContain("Disposition");
   });
 });

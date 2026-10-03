@@ -285,6 +285,10 @@
         "label": "Script di chiamata",
         "description": "Lo script che il dialer mostra durante le chiamate."
       },
+      "dispositions": {
+        "label": "Classificazioni",
+        "description": "Ciò che il tuo team sceglie a fine chiamata, collegato agli esiti di Ringee."
+      },
       "calendars": {
         "label": "Calendari",
         "description": "Fasce di prenotazione, fusi orari e i calendari su cui prenotano i tuoi agenti."
@@ -375,5 +379,67 @@
     "bodyLabel": "Script",
     "bodyPlaceholder": "Ciò che dirai in questa parte dello script…",
     "removeSection": "Elimina sezione"
+  },
+  "dispositions": {
+    "intro": "Le classificazioni sono ciò che il tuo team sceglie a fine chiamata. Ognuna corrisponde a un esito di Ringee, così analisi, sincronizzazione CRM e automazioni sanno sempre cos'è successo, comunque tu la chiami.",
+    "new": "Nuova classificazione",
+    "loadError": "Impossibile caricare le tue classificazioni.",
+    "retry": "Riprova",
+    "empty": "Ancora nessuna classificazione.",
+    "columns": {
+      "disposition": "Classificazione",
+      "mapsTo": "Corrisponde a",
+      "default": "Predefinita",
+      "active": "Attiva"
+    },
+    "dragToReorder": "Trascina per riordinare",
+    "inactive": "Inattiva",
+    "mapsTo": "Corrisponde a {outcome}",
+    "actions": "Azioni",
+    "edit": "Modifica",
+    "activate": "Attiva",
+    "deactivate": "Disattiva",
+    "makeDefault": "Proponi come predefinita",
+    "removeDefault": "Non proporre come predefinita",
+    "delete": "Elimina",
+    "deleteInUse": "È già registrata su delle chiamate, quindi non si può eliminare: disattivala.",
+    "deleteDialog": {
+      "title": "Eliminare «{name}»?",
+      "description": "Non è mai stata registrata su una chiamata, quindi non si perde nessuno storico.",
+      "campaigns": "{count, plural, one {Verrà rimossa da # campagna.} other {Verrà rimossa da # campagne.}}",
+      "cancel": "Annulla",
+      "confirm": "Elimina"
+    },
+    "toasts": {
+      "created": "Classificazione creata.",
+      "saved": "Classificazione salvata.",
+      "deleted": "Classificazione eliminata.",
+      "reorderFailed": "Impossibile salvare il nuovo ordine.",
+      "error": "Impossibile salvare la classificazione."
+    },
+    "form": {
+      "createTitle": "Nuova classificazione",
+      "editTitle": "Modifica classificazione",
+      "description": "Ciò che il tuo team sceglie a fine chiamata e l'esito di Ringee che significa.",
+      "name": "Nome",
+      "namePlaceholder": "es. Demo fissata",
+      "mapsTo": "Corrisponde a",
+      "mapsToPlaceholder": "Scegli un esito",
+      "mapsToHint": "L'esito registrato da analisi, CRM e automazioni.",
+      "mapsToLocked": "È già registrata su delle chiamate, quindi la corrispondenza non può cambiare. Crea una nuova classificazione.",
+      "color": "Colore",
+      "customColor": "Personalizzato",
+      "noColor": "Nessun colore",
+      "descriptionLabel": "Descrizione",
+      "descriptionPlaceholder": "Facoltativa — quando sceglierla",
+      "isDefault": "Proponi come predefinita",
+      "isDefaultHint": "Mostrata dopo le chiamate manuali e nelle campagne che non scelgono le proprie.",
+      "cancel": "Annulla",
+      "save": "Salva",
+      "create": "Crea",
+      "saving": "Salvataggio…",
+      "required": "Obbligatorio",
+      "tooLong": "Troppo lungo"
+    }
   }
 }

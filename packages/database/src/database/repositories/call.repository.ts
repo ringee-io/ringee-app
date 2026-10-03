@@ -167,6 +167,13 @@ export type CallEventDetail = Prisma.CallGetPayload<{
   include: typeof CALL_EVENT_DETAIL_INCLUDE;
 }>;
 
+/** The disposition a person picked, as a call records it (DISP-005). */
+export interface RecordedDisposition {
+  id: string;
+  /** Snapshot: history keeps it after the disposition is renamed or deleted. */
+  name: string;
+}
+
 @Injectable()
 export class CallRepository {
   private readonly logger = new Logger(CallRepository.name);
@@ -814,50 +821,103 @@ export class CallRepository {
   }
 
   /**
-   * Records a disposition and says whether it changed anything. An unchanged
-   * outcome and note are not written again: `updatedAt` is the revision an
+   * Records an outcome — with the disposition that produced it, when a person
+   * picked one — and says whether it changed anything. An unchanged outcome,
+   * disposition and note are not written again: `updatedAt` is the revision an
    * outcome event is keyed on, and a retried save must not publish the same
    * outcome twice. The match is the write itself, so two identical saves
    * racing each other change the row once.
+   *
+   * A disposition always names the outcome it was recorded with (DISP-005): an
+   * outcome written without one replaces the call's disposition only when the
+   * outcome itself changes. Booking a meeting on a call dispositioned "Demo
+   * booked" (meeting_booked) keeps it; logging "not_interested" over it does not.
    */
   async recordOutcome(
     callId: string,
     outcome: CallOutcome,
     outcomeNote?: string,
+    disposition?: RecordedDisposition,
   ): Promise<{ call: Call; changed: boolean }> {
-    const { count } = await this.prisma.call.updateMany({
-      where: {
-        id: callId,
-        OR: [
-          { outcome: null },
-          { outcome: { not: outcome } },
-          ...(outcomeNote !== undefined
-            ? [{ outcomeNote: null }, { outcomeNote: { not: outcomeNote } }]
-            : []),
-        ],
-      },
-      data: {
-        outcome,
-        ...(outcomeNote !== undefined ? { outcomeNote } : {}),
-        updatedAt: new Date(),
-      },
-    });
+    const note = outcomeNote !== undefined ? { outcomeNote } : {};
+    const noteDiffers: Prisma.CallWhereInput[] =
+      outcomeNote !== undefined
+        ? [{ outcomeNote: null }, { outcomeNote: { not: outcomeNote } }]
+        : [];
+    const outcomeDiffers: Prisma.CallWhereInput[] = [
+      { outcome: null },
+      { outcome: { not: outcome } },
+    ];
+
+    let changed: boolean;
+    if (disposition) {
+      const { count } = await this.prisma.call.updateMany({
+        where: {
+          id: callId,
+          OR: [
+            ...outcomeDiffers,
+            { dispositionId: null },
+            { dispositionId: { not: disposition.id } },
+            { dispositionName: null },
+            { dispositionName: { not: disposition.name } },
+            ...noteDiffers,
+          ],
+        },
+        data: {
+          outcome,
+          dispositionId: disposition.id,
+          dispositionName: disposition.name,
+          ...note,
+          updatedAt: new Date(),
+        },
+      });
+      changed = count === 1;
+    } else {
+      const moved = await this.prisma.call.updateMany({
+        where: { id: callId, OR: outcomeDiffers },
+        data: {
+          outcome,
+          dispositionId: null,
+          dispositionName: null,
+          ...note,
+          updatedAt: new Date(),
+        },
+      });
+      changed = moved.count === 1;
+      if (!changed && noteDiffers.length > 0) {
+        const noted = await this.prisma.call.updateMany({
+          where: { id: callId, outcome, OR: noteDiffers },
+          data: { ...note, updatedAt: new Date() },
+        });
+        changed = noted.count === 1;
+      }
+    }
     const call = await this.prisma.call.findUniqueOrThrow({
       where: { id: callId },
     });
-    return { call, changed: count === 1 };
+    return { call, changed };
   }
 
   /**
    * Writes an AI voice agent's outcome onto its call, unless a member took the
    * call over — the disposition is theirs then. Conditional on the row, so an
    * analysis can never overwrite a takeover it raced. Null when nothing was
-   * written.
+   * written. A different outcome takes a person's disposition with it, as in
+   * `recordOutcome`.
    */
   async updateOutcomeUnlessTakenOver(
     callId: string,
     outcome: CallOutcome,
   ): Promise<Call | null> {
+    const moved = await this.prisma.call.updateMany({
+      where: {
+        id: callId,
+        answeredByUserId: null,
+        OR: [{ outcome: null }, { outcome: { not: outcome } }],
+      },
+      data: { outcome, dispositionId: null, dispositionName: null },
+    });
+    if (moved.count === 1) return this.findById(callId);
     const { count } = await this.prisma.call.updateMany({
       where: { id: callId, answeredByUserId: null },
       data: { outcome },
@@ -866,14 +926,22 @@ export class CallRepository {
   }
 
   /**
-   * Persist just the note — used by campaign dispositions whose custom codes
-   * don't map onto the CallOutcome enum but whose notes must still reach the
-   * CRM call-log.
+   * Records a campaign disposition whose custom code names no outcome — and
+   * its note — without touching the outcome. History still shows what the
+   * agent picked, and the note still reaches the CRM call-log.
    */
-  async updateOutcomeNote(callId: string, outcomeNote: string): Promise<Call> {
+  async recordDispositionWithoutOutcome(
+    callId: string,
+    disposition: RecordedDisposition,
+    outcomeNote?: string,
+  ): Promise<Call> {
     return this.prisma.call.update({
       where: { id: callId },
-      data: { outcomeNote },
+      data: {
+        dispositionId: disposition.id,
+        dispositionName: disposition.name,
+        ...(outcomeNote !== undefined ? { outcomeNote } : {}),
+      },
     });
   }
 

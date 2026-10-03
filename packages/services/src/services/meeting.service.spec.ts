@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { MeetingService } from "./meeting.service";
 
 const STORED_MEETING = {
@@ -122,6 +123,7 @@ function build(
     { scheduleForSubject: async () => undefined } as never,
     { findById: async () => null } as never,
     { enqueue: async () => undefined } as never,
+    {} as never,
     {} as never,
     {} as never,
     {} as never,
@@ -450,27 +452,71 @@ describe("MeetingService.updateCallOutcome", () => {
       contactId: "contact-1",
       outcome: null as string | null,
       outcomeNote: null as string | null,
+      dispositionId: null as string | null,
+      dispositionName: null as string | null,
       createdAt: new Date("2026-10-01T14:55:00.000Z"),
       updatedAt: new Date("2026-10-01T14:56:00.000Z"),
     };
     const published: Array<Record<string, unknown>> = [];
     const notes: Array<unknown[]> = [];
+    /** The workspace's dispositions, as `DispositionService` resolves them. */
+    const dispositions: Record<string, Record<string, unknown>> = {
+      "demo-booked": {
+        id: "demo-booked",
+        label: "Demo booked",
+        canonicalOutcome: "meeting_booked",
+        isActive: true,
+      },
+      retired: {
+        id: "retired",
+        label: "Old status",
+        canonicalOutcome: "follow_up",
+        isActive: false,
+      },
+    };
     const service = Object.assign(Object.create(MeetingService.prototype), {
       logger: { warn: () => {} },
       callRepo: {
         findById: async () => ({ ...call }),
-        // The repository writes only a change, and says so.
-        recordOutcome: async (_id: string, outcome: string, note?: string) => {
+        // The repository writes only a change, and says so. An outcome
+        // written without a disposition clears one only when it moves.
+        recordOutcome: async (
+          _id: string,
+          outcome: string,
+          note?: string,
+          disposition?: { id: string; name: string },
+        ) => {
           const changed =
             call.outcome !== outcome ||
+            (disposition !== undefined &&
+              call.dispositionId !== disposition.id) ||
             (note !== undefined && call.outcomeNote !== note);
-          if (changed)
+          if (changed) {
+            const keepsDisposition = !disposition && call.outcome === outcome;
             Object.assign(call, {
               outcome,
               ...(note !== undefined ? { outcomeNote: note } : {}),
+              ...(keepsDisposition
+                ? {}
+                : {
+                    dispositionId: disposition?.id ?? null,
+                    dispositionName: disposition?.name ?? null,
+                  }),
               updatedAt: new Date(call.updatedAt.getTime() + 1_000),
             });
+          }
           return { call: { ...call }, changed };
+        },
+      },
+      dispositions: {
+        resolveSelectable: async (_ctx: unknown, id: string) => {
+          const disposition = dispositions[id];
+          if (!disposition)
+            throw new NotFoundException("Disposition not found");
+          if (!disposition.isActive) {
+            throw new BadRequestException("This disposition is inactive");
+          }
+          return { disposition, outcome: disposition.canonicalOutcome };
         },
       },
       pipelineFanout: { handleCallFinalized: () => undefined },
@@ -507,5 +553,77 @@ describe("MeetingService.updateCallOutcome", () => {
     // The note goes to the contact on every save: it is idempotent itself,
     // and that is what lets a retry add one a failed save left out.
     assert.equal(s.notes.length, 3);
+  });
+
+  it("records the disposition and the outcome it maps to, whatever outcome the client sent", async () => {
+    const s = setup();
+    const updated = await s.service.updateCallOutcome(ctx, "call-1", {
+      dispositionId: "demo-booked",
+      // A client that also sends an outcome does not get to contradict it.
+      outcome: "not_interested",
+      outcomeNote: "Demo on Friday",
+    });
+    assert.equal(updated.outcome, "meeting_booked");
+    assert.equal(updated.dispositionId, "demo-booked");
+    assert.equal(updated.dispositionName, "Demo booked");
+    assert.equal(s.published.length, 1);
+  });
+
+  it("still records a bare outcome, as clients did before dispositions", async () => {
+    const s = setup();
+    const updated = await s.service.updateCallOutcome(ctx, "call-1", {
+      outcome: "voicemail",
+    });
+    assert.equal(updated.outcome, "voicemail");
+    assert.equal(updated.dispositionId, null);
+    assert.equal(s.published.length, 1);
+  });
+
+  it("keeps a disposition the same outcome confirms, and drops one a new outcome replaces", async () => {
+    const s = setup();
+    await s.service.updateCallOutcome(ctx, "call-1", {
+      dispositionId: "demo-booked",
+    });
+    // A meeting booked on the same call writes the outcome it already has.
+    const kept = await s.service.updateCallOutcome(ctx, "call-1", {
+      outcome: "meeting_booked",
+    });
+    assert.equal(kept.dispositionId, "demo-booked");
+
+    const replaced = await s.service.updateCallOutcome(ctx, "call-1", {
+      outcome: "not_interested",
+    });
+    assert.equal(replaced.outcome, "not_interested");
+    assert.equal(replaced.dispositionId, null);
+  });
+
+  it("refuses an unknown outcome, and a save with neither outcome nor disposition", async () => {
+    const s = setup();
+    await assert.rejects(
+      s.service.updateCallOutcome(ctx, "call-1", { outcome: "converted" }),
+      BadRequestException,
+    );
+    await assert.rejects(
+      s.service.updateCallOutcome(ctx, "call-1", {
+        outcomeNote: "just a note",
+      }),
+      BadRequestException,
+    );
+    assert.equal(s.published.length, 0);
+  });
+
+  it("refuses an inactive or unknown disposition without writing anything", async () => {
+    const s = setup();
+    await assert.rejects(
+      s.service.updateCallOutcome(ctx, "call-1", { dispositionId: "retired" }),
+      BadRequestException,
+    );
+    await assert.rejects(
+      s.service.updateCallOutcome(ctx, "call-1", {
+        dispositionId: "someone-elses",
+      }),
+      NotFoundException,
+    );
+    assert.equal(s.published.length, 0);
   });
 });

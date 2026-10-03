@@ -13,6 +13,7 @@ import {
   Min,
   Max,
   IsUUID,
+  ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -112,6 +113,16 @@ export class CreateCampaignDto {
   @Min(1)
   @Max(10080)
   retryDelayMin?: number;
+
+  /**
+   * Workspace dispositions the campaign's dialer shows, in order. Absent or
+   * empty: the workspace's default set.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("all", { each: true })
+  dispositionIds?: string[];
 }
 
 export class UpdateCampaignDto {

@@ -472,6 +472,10 @@ exists, so a call never stays `ringing` forever.
 `wrong_number`, `gatekeeper`. `hangupCause` distinguishes a real no-pickup from a
 carrier rejection, since neither sets `answeredAt`.
 
+A workspace names its own dispositions ("Demo booked", "Wrong person"), but each
+one maps onto a value of this set (`DISP-001`). The set itself does not grow
+with them: `Call.outcome` is always one of these.
+
 ---
 
 ## Numbers & caller ID (`NUM`)
@@ -808,6 +812,111 @@ browser also compares `startedAt` on each heartbeat. It is refused while that
 session is `dialing` or `in_call` with a live heartbeat.
 
 - **Source of truth:** `AgentSessionService.startSession`
+
+---
+
+## Dispositions (`DISP`)
+
+A disposition is what a person picks after a call. Ringee keeps two things apart:
+the **disposition** — the workspace's own label — and the **canonical outcome** it
+maps to, which is what everything else reads.
+
+### DISP-001 — The disposition is the label; the canonical outcome is the meaning
+
+Every disposition carries a `CallOutcome` (`Disposition.canonicalOutcome`).
+Recording one writes that outcome to `Call.outcome`, and the disposition beside
+it (`Call.dispositionId`, `Call.dispositionName`). `outcome` keeps its meaning
+everywhere — analytics, CRM fields, `call.outcome.updated`, the AI pipeline, the
+MCP; the disposition only ever adds a field next to it.
+
+Workspace dispositions (`campaignId` null) are tenant rows scoped by `WRK-001`.
+The rows every campaign was seeded with before them keep their `campaignId` and
+belong to that campaign; their canonical outcome is their code when the code is
+a `CallOutcome` (`canonicalOutcomeOf`), and none for a custom code.
+
+- **Source of truth:** `DispositionService` (`services/outbound/disposition.service.ts`),
+  `DispositionRepository`
+- **Risk if violated:** "Demo booked" and "Closed won" counted as different
+  things by analytics and integrations, or another workspace's labels on a call
+
+### DISP-002 — Behaviour follows the canonical outcome, never the label
+
+What a workspace disposition does to a campaign lead — complete it, retry it,
+add the number to DNC, schedule a callback — and its category are derived from
+its canonical outcome (`OUTCOME_BEHAVIOUR`), exactly as the seeded campaign
+dispositions behaved for the same outcome. Campaign conversions are counted on
+the attempt's canonical outcome (`CallAttempt.dispositionOutcome`, else the code
+of an attempt recorded before it existed), and CRM native fields (HubSpot's call
+disposition) map from `outcome`. No rule matches on a disposition's name or code.
+
+- **Source of truth:** `OUTCOME_BEHAVIOUR`; `OutboundAnalyticsRepository`,
+  `BackofficeCampaignRepository` (`IS_CONVERSION` / `ATTEMPT_OUTCOME`)
+- **Risk if violated:** renaming a disposition changes what happens to leads, or
+  a "Demo booked" never counts as a conversion
+
+### DISP-003 — A workspace gets its defaults on first use, once, and always keeps one active
+
+Nothing is seeded by migration. The first read of a workspace's dispositions
+creates the outcomes the manual post-call view always offered, under the
+workspace row lock (`lockWorkspace`), and never again once the workspace has any
+row — deleted or deactivated defaults do not come back. Names are unique per
+workspace, ignoring case and spacing, checked under the same lock. The last
+active disposition can be neither deactivated nor deleted. The default set (what
+the manual dialer offers, and what a campaign without a pick uses) is the active
+dispositions marked `isDefault`, or every active one when none is.
+
+- **Source of truth:** `DispositionService.ensureDefaults` / `listDefaults`,
+  `DispositionRepository.seedWorkspaceIfEmpty` / `createForWorkspace`
+- **Risk if violated:** duplicate defaults from two first reads, a dialer with no
+  button to record a call
+
+### DISP-004 — A campaign's dispositions resolve in a fixed order
+
+1. the workspace dispositions picked for it (`CampaignDisposition`), active, in
+   the campaign's order;
+2. else the dispositions it was seeded with before workspace dispositions, active;
+3. else the workspace's default set.
+
+Saving a pick — an empty one included, which means "the workspace defaults" —
+deactivates the campaign's own seeded rows, so a campaign moves to workspace
+dispositions once and does not fall back to them. A new campaign gets no rows of
+its own. When the agent saves an outcome, the disposition is resolved within
+that set, or — when an admin changed the set during the call — as any active
+disposition of the campaign or its workspace; never another workspace's.
+
+- **Source of truth:** `DispositionService.listByCampaign` / `setCampaignSet` /
+  `resolveForCampaign`; `POST /dialer/dispose`
+- **Risk if violated:** an agent stuck in wrap-up with a button the server
+  refuses, or a campaign recording another workspace's disposition
+
+### DISP-005 — A call's disposition always names the outcome it was recorded with
+
+With a `dispositionId`, the server derives the outcome from the disposition and
+ignores any outcome the client also sent. An outcome written without one —
+a legacy client, a meeting booked, an AI analysis — keeps the call's disposition
+only when the outcome does not change; a different outcome clears it. The name is
+snapshotted on the call, so history shows what was picked after a rename or a
+deletion. Every write is conditional on a change, so a retried save publishes no
+new event (`call.outcome.updated` is keyed on the write's revision).
+
+- **Source of truth:** `CallRepository.recordOutcome` /
+  `updateOutcomeUnlessTakenOver`, `MeetingService.updateCallOutcome`,
+  `CallAttemptService.submitDisposition`
+- **Risk if violated:** history showing "Demo booked" on a call whose outcome is
+  `not_interested`; duplicate outcome webhooks on retries
+
+### DISP-006 — A recorded disposition is history
+
+Once a call or an attempt names a disposition, what it maps to can no longer
+change (analytics already counted those calls under it) and it cannot be
+deleted — only deactivated, which takes it off every dialer and campaign while
+history keeps it. An unused one is deleted for real, and leaves every campaign
+that picked it.
+
+- **Source of truth:** `DispositionService.update` / `remove`,
+  `DispositionRepository.isInUse`
+- **Risk if violated:** past conversions silently reclassified, calls whose
+  disposition disappears
 
 ---
 

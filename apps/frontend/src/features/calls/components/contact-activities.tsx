@@ -35,6 +35,8 @@ interface ContactData {
     durationSeconds?: number;
     status: string;
     outcome?: string;
+    /** The workspace disposition picked, when one was ("Demo booked"). */
+    dispositionName?: string | null;
     hangupCause?: string;
     createdAt: string;
   }[];
@@ -202,7 +204,7 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
                   : undefined
               }
             >
-              &middot; {call.outcome.replace(/_/g, ' ')}
+              &middot; {call.dispositionName ?? call.outcome.replace(/_/g, ' ')}
               {call.outcome === 'no_answer' &&
                 call.hangupCause &&
                 ` (${call.hangupCause.replace(/_/g, ' ')})`}

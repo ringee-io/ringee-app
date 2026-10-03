@@ -25,7 +25,10 @@ Guidelines:
 4. start_call sends a push to the user's active devices — it does not place
    the call server-side. If no device is active, ask the user to open Ringee.
 5. log_call_outcome requires the callId of an existing call. Use the values
-   returned by other tools, never invent ids.
+   returned by other tools, never invent ids. To record one of the
+   workspace's own dispositions ("Demo booked"), take its id from
+   list_dispositions and pass it as dispositionId — the outcome is then the
+   canonical one it maps to. A bare outcome still works.
 6. create_call_session returns a joinUrl — share that URL exactly as given. The
    raw token is embedded once and cannot be re-fetched; use get_call_session
    to check status afterwards.

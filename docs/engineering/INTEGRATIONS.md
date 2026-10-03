@@ -50,6 +50,13 @@ there (`pnpm agent:install-skills`, `pnpm agent:package-skills`).
 Authorization is the workspace UUID in the URL — see
 [SECURITY.md](SECURITY.md) and `DEBT-005`.
 
+`log_call_outcome` takes either a canonical `outcome` (as it always did) or a
+workspace `dispositionId` from `list_dispositions`; with a disposition the
+backend records the outcome it maps to and ignores any outcome sent beside it
+(`DISP-005`). `outcome` became optional — a relaxation, not a breaking change for
+assistants that cached the old schema. The CLI mirrors it:
+`ringee dispositions list`, `ringee outcomes log <callId> --disposition <id>`.
+
 ### AI voice agents: list and trigger surfaces
 
 External agent surfaces deliberately expose execution, not configuration.
@@ -150,6 +157,7 @@ in `main.ts`.
 Runs inside Attio's own sandboxed runtime with its own SDK, linter and rules —
 see `apps/attio/AGENTS.md`. It is a separate execution environment, not a normal
 Node app. Backend counterpart: `attio-app.controller.ts` / `AttioAppService`.
+Its call history carries `outcome` (canonical) and, additively, `dispositionName`.
 
 ## Outbound — things Ringee calls
 
@@ -185,6 +193,9 @@ change — see `apps/hubspot/AGENTS.md`. Details that bite:
   outcome, inline recording). `Call.durationSeconds` includes ringing, so the
   call's status comes from its outcome and `CrmCallLogInput.answered`, never
   from the duration.
+- The built-in outcome (`hs_call_disposition`) maps from the canonical
+  `outcome`, never from the workspace's own disposition, which only adds a
+  "Disposition" line to the body (`DISP-002`).
 - A `403` is a missing scope, not a revoked token: it must never mark the
   connection revoked. Revocation is `invalid_grant` from the OAuth endpoints.
 - HubSpot's searchable phone properties hold the national number (no country
@@ -245,6 +256,12 @@ The generic, customer-facing integration surface.
   producer attached. Cost, provider ids and the encrypted `Recording.url` are
   never sent. It is a snapshot at queue time, so an early event can precede the
   transcript and recording.
+- A call recorded with a workspace disposition carries it beside the canonical
+  outcome: `data.disposition` (`{ id, name }`) on `call.outcome.updated` and in
+  `data.call`, and `dispositionName` on the CRM call log, which each provider
+  renders as a "Disposition" line. All additive: `outcome` keeps its meaning
+  (`DISP-001`), and a call without a disposition sends exactly what it did
+  before — no key at all.
 - `call.outcome.updated` has one producer for outcomes a person records,
   `CustomIntegrationOutboundService.enqueueCallOutcomeUpdated`, called by every
   surface that writes one: the web and extension dialers and the MCP

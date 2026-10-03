@@ -285,6 +285,10 @@
         "label": "Gesprächsleitfaden",
         "description": "Der Leitfaden, den Ihr Dialer während Anrufen anzeigt."
       },
+      "dispositions": {
+        "label": "Klassifizierungen",
+        "description": "Was Ihr Team nach einem Anruf auswählt, verknüpft mit den Ergebnissen in Ringee."
+      },
       "calendars": {
         "label": "Kalender",
         "description": "Buchungszeiten, Zeitzonen und die Kalender, in denen Ihre Agenten buchen."
@@ -375,5 +379,67 @@
     "bodyLabel": "Gesprächsleitfaden",
     "bodyPlaceholder": "Was Sie in diesem Teil des Gesprächsleitfadens sagen…",
     "removeSection": "Abschnitt löschen"
+  },
+  "dispositions": {
+    "intro": "Klassifizierungen sind das, was Ihr Team nach einem Anruf auswählt. Jede entspricht einem Ringee-Ergebnis – so wissen Auswertungen, CRM-Synchronisierung und Automatisierungen immer, was passiert ist, egal wie Sie sie nennen.",
+    "new": "Neue Klassifizierung",
+    "loadError": "Ihre Klassifizierungen konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "empty": "Noch keine Klassifizierungen.",
+    "columns": {
+      "disposition": "Klassifizierung",
+      "mapsTo": "Entspricht",
+      "default": "Standard",
+      "active": "Aktiv"
+    },
+    "dragToReorder": "Zum Sortieren ziehen",
+    "inactive": "Inaktiv",
+    "mapsTo": "Entspricht {outcome}",
+    "actions": "Aktionen",
+    "edit": "Bearbeiten",
+    "activate": "Aktivieren",
+    "deactivate": "Deaktivieren",
+    "makeDefault": "Standardmäßig anbieten",
+    "removeDefault": "Nicht mehr standardmäßig anbieten",
+    "delete": "Löschen",
+    "deleteInUse": "Bereits in Anrufen erfasst und daher nicht löschbar – deaktivieren Sie sie stattdessen.",
+    "deleteDialog": {
+      "title": "„{name}“ löschen?",
+      "description": "Sie wurde nie bei einem Anruf erfasst, es geht also kein Verlauf verloren.",
+      "campaigns": "{count, plural, one {Sie wird aus # Kampagne entfernt.} other {Sie wird aus # Kampagnen entfernt.}}",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen"
+    },
+    "toasts": {
+      "created": "Klassifizierung erstellt.",
+      "saved": "Klassifizierung gespeichert.",
+      "deleted": "Klassifizierung gelöscht.",
+      "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden.",
+      "error": "Die Klassifizierung konnte nicht gespeichert werden."
+    },
+    "form": {
+      "createTitle": "Neue Klassifizierung",
+      "editTitle": "Klassifizierung bearbeiten",
+      "description": "Was Ihr Team nach einem Anruf auswählt – und welches Ringee-Ergebnis es bedeutet.",
+      "name": "Name",
+      "namePlaceholder": "z. B. Demo vereinbart",
+      "mapsTo": "Entspricht",
+      "mapsToPlaceholder": "Ergebnis auswählen",
+      "mapsToHint": "Das Ergebnis, das Auswertungen, CRM und Automatisierungen erfassen.",
+      "mapsToLocked": "Bereits in Anrufen erfasst, daher kann die Zuordnung nicht mehr geändert werden. Legen Sie eine neue Klassifizierung an.",
+      "color": "Farbe",
+      "customColor": "Eigene",
+      "noColor": "Keine Farbe",
+      "descriptionLabel": "Beschreibung",
+      "descriptionPlaceholder": "Optional – wann sie gewählt wird",
+      "isDefault": "Standardmäßig anbieten",
+      "isDefaultHint": "Wird nach manuellen Anrufen angezeigt und in Kampagnen, die keine eigenen auswählen.",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "create": "Erstellen",
+      "saving": "Wird gespeichert…",
+      "required": "Pflichtfeld",
+      "tooLong": "Zu lang"
+    }
   }
 }

@@ -132,12 +132,27 @@ export function CallDetail({
   const recording = playableRecording(call);
   const extracted = agentCall?.extractedData ?? null;
 
+  // A person's outcome reads as the disposition they picked ("Demo booked"),
+  // beside the canonical outcome it means. Calls logged before dispositions,
+  // or without one, show the outcome alone.
+  const outcomeLabel = labels.outcome(call.outcome);
+  const humanOutcome = call.dispositionName ? (
+    <>
+      {call.dispositionName}
+      {outcomeLabel ? (
+        <span className='text-muted-foreground font-normal'>
+          {' '}
+          · {outcomeLabel}
+        </span>
+      ) : null}
+    </>
+  ) : (
+    outcomeLabel
+  );
   // An AI call has two outcomes — the agent's conclusion and whatever a human
   // later logged. The agent's is the one that describes this conversation.
   const headlineOutcome =
-    labels.agentOutcome(agentCall?.outcome) ??
-    labels.outcome(call.outcome) ??
-    t('notSet');
+    labels.agentOutcome(agentCall?.outcome) ?? humanOutcome ?? t('notSet');
 
   return (
     <div className='w-full space-y-5'>

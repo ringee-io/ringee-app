@@ -18,13 +18,35 @@ export interface DialerDataClient {
    * Persist the disposition + note for a finished call. `outcome` is optional:
    * Skip/close send the SAME request without one, which still pushes the CRM
    * call-log note immediately (POST /meetings/call-outcome on both hosts).
+   * With a `dispositionId`, the server records the outcome that disposition
+   * maps to; `outcome` is only what the screen showed.
    */
   saveCallOutcome(input: {
     callId?: string | null;
     callSessionId?: string | null;
     outcome?: CallOutcome;
     outcomeNote?: string;
+    dispositionId?: string | null;
   }): Promise<void>;
+  /**
+   * The workspace's default dispositions, in order. A host without them (or a
+   * workspace whose list comes back empty) gets the built-in outcome buttons.
+   * Called during the call to warm up, so the post-call view opens filled —
+   * hosts should answer from a cache when they can.
+   */
+  listDispositions?(): Promise<DialerDisposition[]>;
+}
+
+/**
+ * One of the workspace's own dispositions ("Demo booked"), as the post-call
+ * view offers it. Picking it records `canonicalOutcome` — the meaning the rest
+ * of Ringee reads — with the disposition beside it.
+ */
+export interface DialerDisposition {
+  id: string;
+  label: string;
+  color: string | null;
+  canonicalOutcome: CallOutcome;
 }
 
 /** Workspace recording policy that gates the manual record/transcribe buttons. */

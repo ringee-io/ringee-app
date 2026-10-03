@@ -238,6 +238,31 @@ of leaving it to its TTL.
 
 Retries, callbacks and reminders are Temporal Schedules, not campaign-loop work.
 
+### Dispositions
+
+The buttons an agent picks after a call are the campaign's dispositions
+(`DISP-004`): the workspace dispositions picked for it, the ones it was seeded
+with before workspace dispositions existed, or the workspace's default set.
+`lead.assigned` and `disposition.required` carry that list; `POST /dialer/dispose`
+takes the picked `dispositionId` (or, from older clients, its `dispositionCode`)
+and `CallAttemptService.submitDisposition` writes it to the attempt — with its
+canonical outcome in `CallAttempt.dispositionOutcome` — and to the call
+(`DISP-005`). What happens to the lead follows the canonical outcome
+(`DISP-002`). The manual dialer's post-call view offers the workspace's default
+set the same way, through `POST /meetings/call-outcome`.
+
+**Deployment.** Apply
+`packages/database/prisma/migrations-pending/20261002180000_workspace_dispositions`
+(additive: nullable columns, one empty table, no data rewritten), regenerate the
+Prisma client and deploy backend and dashboard together. Then run
+`packages/database/prisma/pending-migrations/20261002180100_workspace_dispositions_call_indexes.sql`
+by hand with `psql`, statement by statement — never through Prisma: it builds
+the `Call` and `CallAttempt` indexes `CONCURRENTLY` and adds the `Call` foreign
+key `NOT VALID` before validating it. No workspace gets rows from the migration;
+each one's defaults are created the first time it reads its dispositions
+(`DISP-003`). Existing campaigns keep their own dispositions until an admin
+picks workspace ones.
+
 ## Inbound routing
 
 Every inbound call, from every carrier, takes one path:

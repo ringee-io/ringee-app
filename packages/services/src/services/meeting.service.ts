@@ -32,6 +32,10 @@ import { CustomIntegrationOutboundService } from "./custom-integrations/custom-i
 import { buildMeetingEventData } from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
 import { ContactService } from "./contact.service";
+import {
+  DispositionService,
+  isCallOutcome,
+} from "./outbound/disposition.service";
 
 @Injectable()
 export class MeetingService {
@@ -49,6 +53,7 @@ export class MeetingService {
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly crmCallLog: CrmCallLogService,
     private readonly contactService: ContactService,
+    private readonly dispositions: DispositionService,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -466,20 +471,40 @@ export class MeetingService {
     return this.callRepo.findOneBySessionId(sessionId);
   }
 
+  /**
+   * Records how a call went: a workspace disposition (`dispositionId`), or a
+   * bare canonical outcome as every client did before dispositions. With a
+   * disposition, the outcome is the one it maps to and any `outcome` the client
+   * also sent is ignored — the disposition is the source of truth (DISP-005).
+   */
   async updateCallOutcome(
     ctx: OwnershipContext,
     callId: string,
     dto: {
-      outcome: CallOutcome;
+      outcome?: CallOutcome | string;
       outcomeNote?: string;
+      dispositionId?: string;
     },
   ): Promise<Call> {
     const call = await this.assertCallAccess(ctx, callId);
 
+    const picked = dto.dispositionId
+      ? await this.dispositions.resolveSelectable(ctx, dto.dispositionId)
+      : null;
+    if (!picked && !isCallOutcome(dto.outcome)) {
+      throw new BadRequestException(
+        "A valid outcome or a dispositionId is required",
+      );
+    }
+    const outcome = picked ? picked.outcome : (dto.outcome as CallOutcome);
+
     const { call: updated, changed } = await this.callRepo.recordOutcome(
       call.id,
-      dto.outcome,
+      outcome,
       dto.outcomeNote,
+      picked
+        ? { id: picked.disposition.id, name: picked.disposition.label }
+        : undefined,
     );
     await this.enqueueOutcomeUpdated(updated, changed);
     void this.contactService

@@ -91,7 +91,7 @@ function CallHistoryTable({ calls }: { calls: CallHistoryEntry[] }) {
               <Table.Cell>
                 {call.outcome ? (
                   <Badge color={outcomeBadgeColor(call.outcome)}>
-                    {call.outcome.replace(/_/g, " ")}
+                    {call.dispositionName ?? call.outcome.replace(/_/g, " ")}
                   </Badge>
                 ) : (
                   <Badge color="grey">{call.status}</Badge>

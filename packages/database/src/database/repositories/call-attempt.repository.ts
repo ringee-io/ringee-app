@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { CallAttempt, CallAttemptStatus, Prisma } from "@prisma/client";
+import {
+  CallAttempt,
+  CallAttemptStatus,
+  CallOutcome,
+  Prisma,
+} from "@prisma/client";
 
 /** An attempt with no provider leg yet: assigned, or handed to the browser. */
 const UNDIALED_ATTEMPT_STATUSES: CallAttemptStatus[] = [
@@ -247,6 +252,8 @@ export class CallAttemptRepository {
       dispositionId: string;
       dispositionCode: string;
       dispositionNote?: string;
+      /** The disposition's canonical outcome; null for a custom code. */
+      dispositionOutcome?: CallOutcome | null;
     },
   ): Promise<CallAttempt | null> {
     const result = await this.prisma.callAttempt.updateMany({
@@ -256,6 +263,7 @@ export class CallAttemptRepository {
         dispositionId: data.dispositionId,
         dispositionCode: data.dispositionCode,
         dispositionNote: data.dispositionNote,
+        dispositionOutcome: data.dispositionOutcome ?? null,
         dispositionedAt: new Date(),
       },
     });

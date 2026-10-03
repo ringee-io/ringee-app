@@ -24,7 +24,10 @@ export interface CallHistoryEntry {
   fromNumber: string;
   toNumber: string;
   status: string;
+  /** The canonical `CallOutcome`. */
   outcome: string | null;
+  /** The workspace disposition picked for the call, when one was ("Demo booked"). */
+  dispositionName: string | null;
   durationSeconds: number | null;
   startedAt: string | null;
   endedAt: string | null;
@@ -156,6 +159,7 @@ export class AttioAppService {
         toNumber: call.toNumber,
         status: call.status,
         outcome: call.outcome,
+        dispositionName: call.dispositionName,
         durationSeconds: call.durationSeconds,
         startedAt: call.startedAt?.toISOString() ?? null,
         endedAt: call.endedAt?.toISOString() ?? null,

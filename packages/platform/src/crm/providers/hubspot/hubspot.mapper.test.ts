@@ -297,6 +297,30 @@ describe("HubSpot call properties", () => {
     expect(disposition("gatekeeper")).toBeUndefined();
   });
 
+  it("maps the canonical outcome, never the workspace's own disposition, onto HubSpot's", () => {
+    const properties = buildHubSpotCallProperties(
+      callInput({
+        outcome: "not_interested",
+        outcomeLabel: "Not Interested",
+        dispositionName: "No <budget> & no time",
+      }),
+    );
+    expect(properties.hs_call_disposition).toBe(
+      HUBSPOT_CALL_DISPOSITION.connected,
+    );
+    expect(properties.hs_call_title).toBe("Ringee call — Not Interested");
+    expect(properties.hs_call_body).toContain(
+      "<li><strong>Disposition:</strong> No &lt;budget&gt; &amp; no time</li>",
+    );
+  });
+
+  it("adds no disposition line to a call recorded without one", () => {
+    const properties = buildHubSpotCallProperties(
+      callInput({ outcome: "voicemail", outcomeLabel: "Voicemail" }),
+    );
+    expect(properties.hs_call_body).not.toContain("Disposition:");
+  });
+
   it("omits the disposition when nothing is known about the call", () => {
     const properties = buildHubSpotCallProperties(callInput());
     expect(properties.hs_call_status).toBe("COMPLETED");

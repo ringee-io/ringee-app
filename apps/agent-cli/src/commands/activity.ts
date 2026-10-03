@@ -28,6 +28,7 @@ function printCall(call: CallDetail, opts: { full: boolean }): void {
   kv("when", call.startedAt ?? call.createdAt);
   kv("duration", call.duration);
   kv("outcome", call.outcome);
+  kv("disposition", call.dispositionName);
   kv("note", call.outcomeNote);
   if (call.contact?.company) kv("company", call.contact.company);
   kv("recording", call.recordingUrl);
@@ -121,20 +122,61 @@ export function registerActivity(program: Command): void {
   program
     .command("outcomes")
     .description("Log call outcomes")
-    .command("log <callId> <outcome>")
-    .description(`Record a call outcome. One of: ${OUTCOMES.join(", ")}`)
+    .command("log <callId> [outcome]")
+    .description(
+      `Record a call outcome — one of ${OUTCOMES.join(", ")} — or one of the ` +
+        "workspace's dispositions with --disposition (see `ringee dispositions list`)",
+    )
+    .option(
+      "--disposition <dispositionId>",
+      "a workspace disposition; its canonical outcome is recorded",
+    )
     .option("--note <note>", "free-text follow-up note")
-    .action((callId: string, outcome: string, opts) =>
+    .action((callId: string, outcome: string | undefined, opts) =>
       run(async () => {
+        if (!outcome && !opts.disposition) {
+          throw new Error(
+            "Pass an outcome, or --disposition <id> from `ringee dispositions list`.",
+          );
+        }
         const res = await getClient().logCallOutcome({
           callId,
-          outcome: outcome as CallOutcome,
+          outcome: outcome as CallOutcome | undefined,
+          dispositionId: opts.disposition,
           outcomeNote: opts.note,
         });
         if (wantsJson()) return json(res);
         ok(`Outcome logged: ${res.outcome}`);
         kv("call", res.callId);
+        kv("disposition", res.disposition?.name);
         kv("note", res.outcomeNote);
+      }),
+    );
+
+  program
+    .command("dispositions")
+    .description("Your workspace's dispositions")
+    .command("list")
+    .description(
+      "List the workspace's dispositions and the canonical outcome each maps to",
+    )
+    .action(() =>
+      run(async () => {
+        const res = await getClient().listDispositions();
+        if (wantsJson()) return json(res);
+        if (res.dispositions.length === 0) {
+          warn("No active dispositions.");
+          return;
+        }
+        heading(`${res.dispositions.length} disposition(s)`);
+        res.dispositions.forEach((d) => {
+          line("");
+          line(
+            `${c.bold(d.name)}  ${c.gray(d.id)}${d.isDefault ? "" : c.gray("  (not offered by default)")}`,
+          );
+          kv("maps to", d.canonicalOutcome);
+          kv("description", d.description);
+        });
       }),
     );
 

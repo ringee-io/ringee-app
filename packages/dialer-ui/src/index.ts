@@ -10,6 +10,7 @@ export { DialerProvider, useDialer } from "./data/context";
 export type { DialerProviderProps } from "./data/context";
 export type {
   DialerDataClient,
+  DialerDisposition,
   DialerRecordingSettings,
   DialerSlots,
   DialerLabels,

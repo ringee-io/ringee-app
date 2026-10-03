@@ -16,7 +16,10 @@ export const CallHistoryEntrySchema = z.object({
   fromNumber: z.string(),
   toNumber: z.string(),
   status: z.string(),
+  /** The canonical outcome. */
   outcome: z.string().nullable(),
+  /** The workspace disposition picked ("Demo booked"); absent on older backends. */
+  dispositionName: z.string().nullable().optional(),
   durationSeconds: z.number().nullable(),
   startedAt: z.string().nullable(),
   endedAt: z.string().nullable(),

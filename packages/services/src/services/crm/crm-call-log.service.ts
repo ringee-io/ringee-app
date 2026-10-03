@@ -246,6 +246,7 @@ export class CrmCallLogService {
         outcome: call.outcome ?? null,
         outcomeLabel:
           outcomeLabel(call.outcome) ?? opts.fallbackOutcomeLabel ?? null,
+        dispositionName: call.dispositionName ?? null,
         notes: call.outcomeNote ?? null,
         recordingUrl: null,
         transcript: null,
@@ -357,6 +358,7 @@ export class CrmCallLogService {
         currentPayload.to = to;
         currentPayload.outcome = call.outcome ?? null;
         currentPayload.outcomeLabel = label;
+        currentPayload.dispositionName = call.dispositionName ?? null;
         currentPayload.notes = call.outcomeNote ?? currentPayload.notes ?? null;
         currentPayload.durationSeconds =
           call.durationSeconds ?? currentPayload.durationSeconds ?? null;
@@ -393,6 +395,10 @@ export class CrmCallLogService {
 
       const parts: string[] = [];
       if (label) parts.push(`**Outcome:** ${label}`);
+      if (call.dispositionName) {
+        if (parts.length > 0) parts.push("");
+        parts.push(`**Disposition:** ${call.dispositionName}`);
+      }
       if (call.outcomeNote && call.outcomeNote.trim()) {
         if (parts.length > 0) parts.push("");
         parts.push("**Notes**");

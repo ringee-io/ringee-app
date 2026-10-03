@@ -285,6 +285,10 @@
         "label": "Script d'appel",
         "description": "Le script que votre composeur affiche pendant les appels."
       },
+      "dispositions": {
+        "label": "Qualifications",
+        "description": "Ce que votre équipe choisit à la fin d'un appel, associé aux résultats Ringee."
+      },
       "calendars": {
         "label": "Calendriers",
         "description": "Plages de réservation, fuseaux horaires et calendriers utilisés par vos agents."
@@ -375,5 +379,67 @@
     "bodyLabel": "Script",
     "bodyPlaceholder": "Ce que vous direz dans cette partie du script…",
     "removeSection": "Supprimer la section"
+  },
+  "dispositions": {
+    "intro": "Les qualifications sont ce que votre équipe choisit à la fin d'un appel. Chacune correspond à un résultat Ringee : les statistiques, la synchronisation CRM et les automatisations savent toujours ce qui s'est passé, quel que soit le nom que vous lui donnez.",
+    "new": "Nouvelle qualification",
+    "loadError": "Impossible de charger vos qualifications.",
+    "retry": "Réessayer",
+    "empty": "Aucune qualification pour l'instant.",
+    "columns": {
+      "disposition": "Qualification",
+      "mapsTo": "Correspond à",
+      "default": "Par défaut",
+      "active": "Active"
+    },
+    "dragToReorder": "Glisser pour réordonner",
+    "inactive": "Inactive",
+    "mapsTo": "Correspond à {outcome}",
+    "actions": "Actions",
+    "edit": "Modifier",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "makeDefault": "Proposer par défaut",
+    "removeDefault": "Ne plus proposer par défaut",
+    "delete": "Supprimer",
+    "deleteInUse": "Déjà enregistrée sur des appels : elle ne peut pas être supprimée, désactivez-la.",
+    "deleteDialog": {
+      "title": "Supprimer « {name} » ?",
+      "description": "Elle n'a jamais été enregistrée sur un appel : aucun historique n'est perdu.",
+      "campaigns": "{count, plural, one {Elle sera retirée de # campagne.} other {Elle sera retirée de # campagnes.}}",
+      "cancel": "Annuler",
+      "confirm": "Supprimer"
+    },
+    "toasts": {
+      "created": "Qualification créée.",
+      "saved": "Qualification enregistrée.",
+      "deleted": "Qualification supprimée.",
+      "reorderFailed": "Impossible d'enregistrer le nouvel ordre.",
+      "error": "Impossible d'enregistrer la qualification."
+    },
+    "form": {
+      "createTitle": "Nouvelle qualification",
+      "editTitle": "Modifier la qualification",
+      "description": "Ce que votre équipe choisit à la fin d'un appel, et le résultat Ringee qu'il signifie.",
+      "name": "Nom",
+      "namePlaceholder": "ex. Démo planifiée",
+      "mapsTo": "Correspond à",
+      "mapsToPlaceholder": "Choisissez un résultat",
+      "mapsToHint": "Le résultat qu'enregistrent les statistiques, le CRM et les automatisations.",
+      "mapsToLocked": "Déjà enregistrée sur des appels : sa correspondance ne peut plus changer. Créez une nouvelle qualification.",
+      "color": "Couleur",
+      "customColor": "Personnalisée",
+      "noColor": "Aucune couleur",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Facultatif — quand la choisir",
+      "isDefault": "Proposer par défaut",
+      "isDefaultHint": "Affichée après les appels manuels et dans les campagnes qui ne choisissent pas les leurs.",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "create": "Créer",
+      "saving": "Enregistrement…",
+      "required": "Obligatoire",
+      "tooLong": "Trop long"
+    }
   }
 }

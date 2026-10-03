@@ -15,6 +15,7 @@ import {
   GetContactSchema,
   ImportLeadsSchema,
   ListCallsSchema,
+  ListDispositionsSchema,
   LogCallOutcomeSchema,
   RevealLeadSchema,
   ScheduleMeetingSchema,
@@ -102,6 +103,7 @@ import type {
   FindContactsByOutcomeResult,
   ImportLeadsResult,
   ListCallsResult,
+  ListDispositionsResult,
   LogCallOutcomeResult,
   MutateContactResult,
   RevealLeadResult,
@@ -234,6 +236,11 @@ export class RingeeClient {
   /** List calls with full detail (transcription + recording URL). Read-only. */
   listCalls(input: ListCallsInput = {}): Promise<ListCallsResult> {
     return this.call("list_calls", ListCallsSchema.parse(input));
+  }
+
+  /** The workspace's active dispositions, for `logCallOutcome`'s `dispositionId`. */
+  listDispositions(): Promise<ListDispositionsResult> {
+    return this.call("list_dispositions", ListDispositionsSchema.parse({}));
   }
 
   logCallOutcome(input: LogCallOutcomeInput): Promise<LogCallOutcomeResult> {

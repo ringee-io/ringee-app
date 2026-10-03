@@ -12,8 +12,15 @@ import { PrismaService } from "../prisma.service";
  * cost lives — Call itself has no campaignId.
  */
 
-/** Disposition codes that count as a conversion, mirroring OutboundAnalyticsRepository. */
+/** Canonical outcomes that count as a conversion, mirroring OutboundAnalyticsRepository. */
 const CONVERSION_CODES = ["meeting_booked", "sale"];
+
+/**
+ * What an attempt's disposition means (DISP-002): its canonical outcome, or —
+ * for attempts recorded before that was stored — the code, which then was the
+ * outcome. Conversions are counted on this, never on a workspace's own label.
+ */
+const ATTEMPT_OUTCOME = `COALESCE(ca."dispositionOutcome"::text, ca."dispositionCode")`;
 
 export type CampaignOwnerScope = "all" | "org" | "personal";
 
@@ -502,7 +509,7 @@ export class BackofficeCampaignRepository {
           ca."campaignId"                                  AS campaign_id,
           COUNT(*)                                         AS attempts,
           COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL) AS connected,
-          COUNT(*) FILTER (WHERE ca."dispositionCode" IN (${this.conversionList()})) AS conversions,
+          COUNT(*) FILTER (WHERE ${ATTEMPT_OUTCOME} IN (${this.conversionList()})) AS conversions,
           COUNT(DISTINCT ca."campaignLeadId")              AS unique_leads,
           COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
           COALESCE(SUM(cl."totalCost"), 0)                 AS cost,
@@ -626,7 +633,7 @@ export class BackofficeCampaignRepository {
       SELECT
         COUNT(*)                                            AS attempts,
         COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
-        COUNT(*) FILTER (WHERE ca."dispositionCode" = ANY(${CONVERSION_CODES})) AS conversions,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COUNT(DISTINCT ca."campaignLeadId")                 AS unique_leads,
         COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
@@ -665,7 +672,7 @@ export class BackofficeCampaignRepository {
         date_trunc('day', ca."initiatedAt")                 AS day,
         COUNT(*)                                            AS attempts,
         COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
-        COUNT(*) FILTER (WHERE ca."dispositionCode" = ANY(${CONVERSION_CODES})) AS conversions,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca
@@ -741,8 +748,9 @@ export class BackofficeCampaignRepository {
         COUNT(*)                  AS count,
         ROUND(COUNT(*)::numeric / SUM(COUNT(*)) OVER () * 100, 1) AS percentage
       FROM "CallAttempt" ca
-      LEFT JOIN "Disposition" d
-        ON d."campaignId" = ca."campaignId" AND d.code = ca."dispositionCode"
+      -- By id, not by (campaign, code): a workspace disposition has no
+      -- campaign, and the attempt names the exact row it recorded.
+      LEFT JOIN "Disposition" d ON d.id = ca."dispositionId"
       WHERE ca."campaignId" = ${campaignId}::uuid
         AND ca."dispositionCode" IS NOT NULL
         AND ca."initiatedAt" BETWEEN ${start} AND ${end}
@@ -784,7 +792,7 @@ export class BackofficeCampaignRepository {
         MAX(e.email)                                        AS email,
         COUNT(*)                                            AS attempts,
         COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
-        COUNT(*) FILTER (WHERE ca."dispositionCode" = ANY(${CONVERSION_CODES})) AS conversions,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca

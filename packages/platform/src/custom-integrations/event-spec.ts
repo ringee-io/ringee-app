@@ -332,7 +332,7 @@ const ENTITY_CALL_DETAIL = {
   type: "object",
   description:
     "Full detail of the call the event belongs to: callId, fromNumber, toNumber, status, direction, source, " +
-    "startedAt, answeredAt, endedAt, createdAt, durationSeconds, outcome, outcomeNote, contact, user, " +
+    "startedAt, answeredAt, endedAt, createdAt, durationSeconds, outcome, outcomeNote, disposition { id, name }, contact, user, " +
     "recording { recordingId, url, status, format, durationSec }, " +
     "transcription { source, status, language, confidence, completedAt, text, segments[{ text, speaker, track, startMs, endMs }] }, " +
     "voiceAgentCall { id, agent, status, outcome, summary, sentiment, extractedData, variables, metadata }, " +
@@ -474,6 +474,13 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         type: "string",
         description: "Free-text note attached to the outcome.",
       },
+      {
+        name: "data.disposition",
+        type: "object",
+        description:
+          "The workspace disposition the user picked, when they picked one: { id, name } — e.g. " +
+          '"Demo booked". data.outcome is still the canonical CallOutcome it maps to.',
+      },
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       {
@@ -515,6 +522,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           createdAt: "2026-05-23T14:39:55.000Z",
           outcome: "meeting_booked",
           outcomeNote: "Demo scheduled for next Tuesday",
+          disposition: { id: "d_…", name: "Demo booked" },
           contact: {
             id: "…",
             phoneNumber: "+14155550123",
@@ -575,6 +583,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         agent: { id: "va_…", name: "Sofia" },
         outcome: "meeting_booked",
         outcomeNote: "Demo scheduled for next Tuesday",
+        disposition: { id: "d_…", name: "Demo booked" },
         updatedAt: "2026-05-23T14:50:00.000Z",
       },
     },
@@ -582,8 +591,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ACTOR_NOTE,
       "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
       "Every outcome written is its own event, whichever surface wrote it (dialer, mobile app, extension, call session, " +
-        "campaign disposition, MCP): changing the outcome, or adding a note to the same one, sends a new event. " +
-        "Saving the same outcome and note again sends nothing.",
+        "campaign disposition, MCP): changing the outcome, the disposition, or adding a note to the same one, sends a new event. " +
+        "Saving the same outcome, disposition and note again sends nothing.",
+      "data.outcome is always the canonical CallOutcome, whatever the workspace calls it. A workspace can name its own " +
+        'dispositions ("Demo booked", "Closed won") and map several to one outcome; data.disposition carries the one picked, ' +
+        "and is absent when the outcome was recorded without one (older clients, AI voice agents, meeting bookings).",
       "On a call an AI receptionist handed to a person, the outcome is that person's: the receptionist's analysis does not send this event.",
       CALL_DETAIL_NOTE,
       "`data.call` carries the full call so consumers do not have to correlate with call.completed; it is omitted only when the call row can no longer be resolved.",
