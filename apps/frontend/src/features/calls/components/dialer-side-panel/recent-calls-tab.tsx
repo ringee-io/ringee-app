@@ -34,6 +34,8 @@ interface RecentCall {
   direction: 'inbound' | 'outbound';
   status: string;
   outcome: CallOutcome | null;
+  /** The workspace disposition picked, when one was ("Demo booked"). */
+  dispositionName?: string | null;
   durationSeconds: number;
   startedAt: string | null;
   contact?: { id?: string; name?: string | null } | null;
@@ -102,7 +104,7 @@ export function RecentCallsTab() {
           const inbound = call.direction === 'inbound';
           const phoneNumber = inbound ? call.fromNumber : call.toNumber;
           const DirectionIcon = inbound ? PhoneIncoming : PhoneOutgoing;
-          const outcome = labels.outcome(call.outcome);
+          const outcome = call.dispositionName ?? labels.outcome(call.outcome);
           return (
             <li
               key={call.id}

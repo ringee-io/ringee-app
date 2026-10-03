@@ -263,6 +263,9 @@ export function buildCallLogNote(input: CrmCallLogInput): {
   if (input.to) lines.push(`- **To:** ${input.to}`);
   if (durationLabel !== null) lines.push(`- **Duration:** ${durationLabel}`);
   if (input.outcomeLabel) lines.push(`- **Outcome:** ${input.outcomeLabel}`);
+  if (input.dispositionName) {
+    lines.push(`- **Disposition:** ${input.dispositionName}`);
+  }
   if (input.agentName) lines.push(`- **Agent:** ${input.agentName}`);
   if (input.notes && input.notes.trim()) {
     lines.push("");

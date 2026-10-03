@@ -14,6 +14,7 @@ import {
   ContactService,
   ContextDescriptor,
   DashboardService,
+  DispositionService,
   LeadSearchService,
   MeetingService,
   ObjectionInsightService,
@@ -77,6 +78,7 @@ import {
   ListWorkspacesSchema,
   SwitchWorkspaceInput,
   SwitchWorkspaceSchema,
+  ListDispositionsSchema,
   LogCallOutcomeInput,
   LogCallOutcomeSchema,
   RevealLeadInput,
@@ -159,6 +161,7 @@ export class McpFunc {
     private readonly voiceAgentService: VoiceAgentService,
     private readonly voiceAgentCallService: VoiceAgentCallService,
     private readonly voiceAgentResultService: VoiceAgentResultService,
+    private readonly dispositionService: DispositionService,
   ) {}
 
   private buildJoinUrl(rawToken: string): string {
@@ -250,6 +253,8 @@ export class McpFunc {
       duration: this.formatDuration(call.durationSeconds),
       outcome: call.outcome,
       outcomeNote: call.outcomeNote,
+      // The workspace's own label for it ("Demo booked"), when one was picked.
+      dispositionName: call.dispositionName,
       contact: call.contact ? this.serializeContact(call.contact) : null,
       recordingUrl,
       hasRecording: !!recordingUrl,
@@ -795,10 +800,43 @@ export class McpFunc {
   // }
 
   @McpTool({
+    toolName: "list_dispositions",
+    description:
+      "List the workspace's dispositions — the outcomes its people pick after a " +
+      "call, such as 'Demo booked' or 'Wrong person' — each with the canonical " +
+      "outcome it maps to. Pass an id to log_call_outcome as dispositionId. " +
+      "isDefault marks the ones the dialer offers by default. Read-only.",
+    zod: ListDispositionsSchema,
+    annotations: {
+      title: "List dispositions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async listDispositions(ctx: OwnershipContext) {
+    const dispositions = await this.dispositionService.listActive(ctx);
+    return text({
+      dispositions: dispositions.map((d) => ({
+        id: d.id,
+        name: d.label,
+        description: d.description,
+        canonicalOutcome: d.canonicalOutcome,
+        color: d.color,
+        isDefault: d.isDefault,
+      })),
+    });
+  }
+
+  @McpTool({
     toolName: "log_call_outcome",
     description:
       "Record the outcome of a past call (e.g. meeting_booked, interested, voicemail). " +
-      "Use after the user describes how a call went. The call must belong to the current user/organization.",
+      "Use after the user describes how a call went. Pass a dispositionId from " +
+      "list_dispositions to record one of the workspace's own dispositions — the " +
+      "outcome is then the one it maps to — or a canonical outcome. " +
+      "The call must belong to the current user/organization.",
     zod: LogCallOutcomeSchema,
     annotations: {
       title: "Log call outcome",
@@ -809,12 +847,19 @@ export class McpFunc {
     },
   })
   async logCallOutcome(ctx: OwnershipContext, input: LogCallOutcomeInput) {
+    if (!input.outcome && !input.dispositionId) {
+      return text({
+        ok: false,
+        error: "Pass an outcome, or a dispositionId from list_dispositions.",
+      });
+    }
     const updated = await this.meetingService.updateCallOutcome(
       ctx,
       input.callId,
       {
-        outcome: input.outcome as CallOutcome,
+        outcome: input.outcome as CallOutcome | undefined,
         outcomeNote: input.outcomeNote,
+        dispositionId: input.dispositionId,
       },
     );
 
@@ -823,6 +868,9 @@ export class McpFunc {
       callId: updated.id,
       outcome: updated.outcome,
       outcomeNote: updated.outcomeNote,
+      disposition: updated.dispositionId
+        ? { id: updated.dispositionId, name: updated.dispositionName }
+        : null,
     });
   }
 

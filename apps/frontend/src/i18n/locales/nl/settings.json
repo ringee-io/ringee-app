@@ -285,6 +285,10 @@
         "label": "Belscript",
         "description": "Het script dat je dialer tijdens gesprekken toont."
       },
+      "dispositions": {
+        "label": "Classificaties",
+        "description": "Wat je team na een gesprek kiest, gekoppeld aan de resultaten in Ringee."
+      },
       "calendars": {
         "label": "Agenda's",
         "description": "Boekingsuren, tijdzones en de agenda's waarin je agents afspraken inplannen."
@@ -375,5 +379,67 @@
     "bodyLabel": "Belscript",
     "bodyPlaceholder": "Wat je in dit deel van het belscript zegt…",
     "removeSection": "Sectie verwijderen"
+  },
+  "dispositions": {
+    "intro": "Classificaties zijn wat je team na een gesprek kiest. Elke classificatie komt overeen met een Ringee-resultaat, zodat analyses, CRM-synchronisatie en automatiseringen altijd weten wat er gebeurde, hoe je het ook noemt.",
+    "new": "Nieuwe classificatie",
+    "loadError": "Je classificaties konden niet worden geladen.",
+    "retry": "Opnieuw proberen",
+    "empty": "Nog geen classificaties.",
+    "columns": {
+      "disposition": "Classificatie",
+      "mapsTo": "Komt overeen met",
+      "default": "Standaard",
+      "active": "Actief"
+    },
+    "dragToReorder": "Sleep om te ordenen",
+    "inactive": "Inactief",
+    "mapsTo": "Komt overeen met {outcome}",
+    "actions": "Acties",
+    "edit": "Bewerken",
+    "activate": "Activeren",
+    "deactivate": "Deactiveren",
+    "makeDefault": "Standaard aanbieden",
+    "removeDefault": "Niet meer standaard aanbieden",
+    "delete": "Verwijderen",
+    "deleteInUse": "Al vastgelegd bij gesprekken en daarom niet te verwijderen — deactiveer hem in plaats daarvan.",
+    "deleteDialog": {
+      "title": "“{name}” verwijderen?",
+      "description": "Hij is nooit bij een gesprek vastgelegd, dus er gaat geen geschiedenis verloren.",
+      "campaigns": "{count, plural, one {Hij wordt uit # campagne verwijderd.} other {Hij wordt uit # campagnes verwijderd.}}",
+      "cancel": "Annuleren",
+      "confirm": "Verwijderen"
+    },
+    "toasts": {
+      "created": "Classificatie aangemaakt.",
+      "saved": "Classificatie opgeslagen.",
+      "deleted": "Classificatie verwijderd.",
+      "reorderFailed": "De nieuwe volgorde kon niet worden opgeslagen.",
+      "error": "De classificatie kon niet worden opgeslagen."
+    },
+    "form": {
+      "createTitle": "Nieuwe classificatie",
+      "editTitle": "Classificatie bewerken",
+      "description": "Wat je team na een gesprek kiest, en welk Ringee-resultaat het betekent.",
+      "name": "Naam",
+      "namePlaceholder": "bijv. Demo ingepland",
+      "mapsTo": "Komt overeen met",
+      "mapsToPlaceholder": "Kies een resultaat",
+      "mapsToHint": "Het resultaat dat analyses, CRM en automatiseringen vastleggen.",
+      "mapsToLocked": "Al vastgelegd bij gesprekken, dus de koppeling kan niet meer veranderen. Maak een nieuwe classificatie aan.",
+      "color": "Kleur",
+      "customColor": "Aangepast",
+      "noColor": "Geen kleur",
+      "descriptionLabel": "Beschrijving",
+      "descriptionPlaceholder": "Optioneel — wanneer je hem kiest",
+      "isDefault": "Standaard aanbieden",
+      "isDefaultHint": "Wordt getoond na handmatige gesprekken en in campagnes die geen eigen classificaties kiezen.",
+      "cancel": "Annuleren",
+      "save": "Opslaan",
+      "create": "Aanmaken",
+      "saving": "Opslaan…",
+      "required": "Verplicht",
+      "tooLong": "Te lang"
+    }
   }
 }

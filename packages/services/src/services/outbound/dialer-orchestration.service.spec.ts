@@ -1,7 +1,11 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ConflictException, BadRequestException } from "@nestjs/common";
+import {
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from "@nestjs/common";
 import { AgentSessionService } from "./agent-session.service";
 import { CallAttemptService } from "./call-attempt.service";
 import { DialerOrchestrationService } from "./dialer-orchestration.service";
@@ -58,6 +62,7 @@ interface AttemptRow {
   dispositionId: string | null;
   dispositionCode: string | null;
   dispositionNote: string | null;
+  dispositionOutcome?: string | null;
   dispositionedAt: Date | null;
 }
 
@@ -514,17 +519,9 @@ function createWorld(
   };
   const dispositionService = {
     listByCampaign: async () => [],
-    getById: async () => ({
-      id: "disposition-1",
-      code: "not_interested",
-      label: "Not interested",
-      category: "negative",
-      triggersCompletion: false,
-      triggersDnc: false,
-      triggersCallback: false,
-      triggersRetry: false,
-    }),
   };
+  /** What the attempt's disposition wrote onto its Call. */
+  const outcomeWrites: unknown[][] = [];
   const complianceService = { isWithinCallingWindow: () => true };
   const userService = { getCachedUserById: async () => ({ ...user }) };
 
@@ -545,8 +542,14 @@ function createWorld(
     complianceService as never,
     sseBridge as never,
     {
-      recordOutcome: async () => ({ call: null, changed: false }),
-      updateOutcomeNote: async () => undefined,
+      recordOutcome: async (...args: unknown[]) => {
+        outcomeWrites.push(["recordOutcome", ...args]);
+        return { call: null, changed: false };
+      },
+      recordDispositionWithoutOutcome: async (...args: unknown[]) => {
+        outcomeWrites.push(["recordDispositionWithoutOutcome", ...args]);
+        return null;
+      },
       findActiveByUserId: async () => liveCalls,
     } as never,
     { enqueueOutcomeUpdate: async () => undefined } as never,
@@ -583,6 +586,7 @@ function createWorld(
   return {
     campaign,
     failures,
+    outcomeWrites,
     liveCalls,
     guard,
     rotation,
@@ -1131,6 +1135,30 @@ describe("CallAttemptService lifecycle", () => {
     return { world, attemptId: attempt.id };
   }
 
+  /** A workspace disposition of the campaign's organization. */
+  const notInterested = {
+    id: "disposition-1",
+    campaignId: null,
+    userId: "user-1",
+    organizationId: "org-1",
+    code: "not_interested",
+    label: "Not interested",
+    description: null,
+    category: "negative",
+    canonicalOutcome: "not_interested",
+    color: null,
+    sortOrder: 0,
+    triggersCompletion: false,
+    triggersDnc: false,
+    triggersCallback: false,
+    triggersRetry: false,
+    isActive: true,
+    isSystem: true,
+    isDefault: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as const;
+
   const dispose = (
     world: ReturnType<typeof createWorld>,
     attemptId: string,
@@ -1138,7 +1166,7 @@ describe("CallAttemptService lifecycle", () => {
   ) =>
     world.callAttemptService.submitDisposition({
       callAttemptId: attemptId,
-      dispositionId: "disposition-1",
+      disposition: notInterested as never,
       campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
       organizationId: "org-1",
       closeSession,
@@ -1183,6 +1211,92 @@ describe("CallAttemptService lifecycle", () => {
       assert.equal(stored.status, "dispositioned", `${order}: attempt`);
       assert.equal(stored.durationSec, 42, `${order}: duration`);
     }
+  });
+
+  it("records a workspace disposition's canonical outcome on the call and the attempt", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    const demoBooked = {
+      ...notInterested,
+      id: "disposition-demo",
+      code: "demo_booked",
+      label: "Demo booked",
+      category: "positive",
+      canonicalOutcome: "meeting_booked",
+      triggersCompletion: true,
+    };
+
+    const result = await world.callAttemptService.submitDisposition({
+      callAttemptId: attemptId,
+      disposition: demoBooked as never,
+      note: "Friday 10am",
+      campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+      organizationId: "org-1",
+    });
+
+    assert.equal(result.action, "completed");
+    const stored = world.attempts.get(attemptId)!;
+    assert.equal(stored.dispositionCode, "demo_booked");
+    assert.equal(stored.dispositionOutcome, "meeting_booked");
+    assert.deepEqual(world.outcomeWrites, [
+      [
+        "recordOutcome",
+        "call-1",
+        "meeting_booked",
+        "Friday 10am",
+        { id: "disposition-demo", name: "Demo booked" },
+      ],
+    ]);
+  });
+
+  it("records a custom-code campaign disposition without inventing an outcome", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    const busy = {
+      ...notInterested,
+      id: "legacy-busy",
+      campaignId: "campaign-1",
+      organizationId: null,
+      userId: null,
+      code: "busy",
+      label: "Busy",
+      canonicalOutcome: null,
+    };
+
+    await world.callAttemptService.submitDisposition({
+      callAttemptId: attemptId,
+      disposition: busy as never,
+      campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+      organizationId: "org-1",
+    });
+
+    assert.equal(world.attempts.get(attemptId)!.dispositionOutcome, null);
+    assert.deepEqual(world.outcomeWrites, [
+      [
+        "recordDispositionWithoutOutcome",
+        "call-1",
+        { id: "legacy-busy", name: "Busy" },
+        undefined,
+      ],
+    ]);
+  });
+
+  it("refuses another organization's disposition and leaves the lead as it was", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+
+    await assert.rejects(
+      world.callAttemptService.submitDisposition({
+        callAttemptId: attemptId,
+        disposition: { ...notInterested, organizationId: "org-2" } as never,
+        campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+        organizationId: "org-1",
+      }),
+      ForbiddenException,
+    );
+    assert.equal(world.attempts.get(attemptId)!.status, "ended");
+    assert.equal(world.lead("lead-1").status, "wrap_up");
+    assert.deepEqual(world.outcomeWrites, []);
   });
 
   it("emits the agent's next state before anything else, so it cannot land behind the next lead", async () => {

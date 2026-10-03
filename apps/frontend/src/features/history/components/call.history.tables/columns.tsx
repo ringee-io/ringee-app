@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl';
 // re-exports the detail screen, and pulling that into the history bundle would
 // ship the whole page to a route that only renders a badge.
 import { CallSourceBadge } from '@/features/call-detail/components/call-source-badge';
+import { useEnumLabels } from '@/features/call-detail/lib/labels';
 import type {
   CallListAgentRef,
   CallSource
@@ -44,7 +45,35 @@ type Call = {
   source?: CallSource;
   /** Present only on a call an AI voice agent placed. */
   aiVoiceAgentCall?: CallListAgentRef | null;
+  /** The canonical outcome. */
+  outcome?: string | null;
+  /** The workspace disposition picked, when one was ("Demo booked"). */
+  dispositionName?: string | null;
 };
+
+/**
+ * What a person recorded: the disposition they picked, else — on calls logged
+ * before dispositions, or without one — the canonical outcome.
+ */
+function OutcomeCell({ call }: { call: Call }) {
+  const labels = useEnumLabels();
+  const outcome = labels.outcome(call.outcome);
+  if (call.dispositionName) {
+    return (
+      <span
+        className='block max-w-[12rem] truncate text-sm'
+        title={outcome ?? undefined}
+      >
+        {call.dispositionName}
+      </span>
+    );
+  }
+  return outcome ? (
+    <span className='text-sm'>{outcome}</span>
+  ) : (
+    <span className='text-muted-foreground text-xs'>—</span>
+  );
+}
 
 const statusConfig: Record<
   string,
@@ -187,6 +216,14 @@ export const columns: ColumnDef<Call>[] = [
         </Badge>
       );
     }
+  },
+  {
+    id: 'outcome',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('outcome')}</>;
+    },
+    cell: ({ row }) => <OutcomeCell call={row.original} />
   },
   {
     accessorKey: 'durationSeconds',

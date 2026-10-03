@@ -102,6 +102,22 @@ export function voiceAgentRef(
   return { id: agent.id, name: agent.name };
 }
 
+/**
+ * `{ disposition: { id, name } }` when a person picked a disposition for the
+ * call ("Demo booked"), else nothing — so a payload without one is exactly what
+ * it was before dispositions existed. It sits beside the canonical `outcome`,
+ * which keeps its meaning (DISP-005). The name is the call's snapshot: the
+ * label as picked, even if the disposition was renamed since.
+ */
+export function callDispositionField(
+  call: Pick<Call, "dispositionId" | "dispositionName">,
+): { disposition?: { id: string; name: string | null } } {
+  if (!call.dispositionId) return {};
+  return {
+    disposition: { id: call.dispositionId, name: call.dispositionName ?? null },
+  };
+}
+
 export function buildCallEventData(call: Call): Record<string, unknown> {
   return {
     callId: call.id,
@@ -138,6 +154,7 @@ export function buildCallDetailData(
     createdAt: call.createdAt.toISOString(),
     outcome: call.outcome ?? undefined,
     outcomeNote: call.outcomeNote ?? undefined,
+    ...callDispositionField(call),
     contact: contactRef(call.contact),
     user: userRef(call.user),
     recording: callRecordingData(call),
@@ -247,6 +264,7 @@ export function buildCallOutcomeData(call: Call): Record<string, unknown> {
     call: buildCallEventData(call),
     outcome: call.outcome,
     outcomeNote: call.outcomeNote ?? undefined,
+    ...callDispositionField(call),
     updatedAt: (call.updatedAt ?? new Date()).toISOString(),
   };
 }

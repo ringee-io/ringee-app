@@ -375,52 +375,45 @@
   },
   "dispositions": {
     "title": "Classificazioni",
-    "description": "Configura i codici di esito che gli agenti selezionano dopo ogni chiamata.",
-    "add": "Aggiungi classificazione",
-    "createTitle": "Crea classificazione",
-    "createDescription": "Aggiungi una nuova classificazione di esito chiamata a questa campagna.",
-    "code": "Codice",
-    "codePlaceholder": "es. meeting_booked",
-    "label": "Etichetta",
-    "labelPlaceholder": "es. Appuntamento fissato",
-    "category": "Categoria",
-    "color": "Colore",
+    "description": "Gli esiti che gli agenti scelgono dopo ogni chiamata di questa campagna, nell'ordine in cui il dialer li mostra.",
+    "createDescription": "Scegli quali classificazioni mostra il dialer di questa campagna, oppure lascia quelle predefinite del tuo spazio di lavoro.",
+    "edit": "Modifica",
+    "switchToWorkspace": "Usa quelle dello spazio di lavoro",
+    "loadError": "Impossibile caricare le classificazioni di questa campagna.",
+    "retry": "Riprova",
+    "legacySwitchNote": "Questa campagna è stata creata con classificazioni proprie. Dopo il salvataggio userà quelle scelte qui (o quelle predefinite dello spazio di lavoro); lo storico delle chiamate conserva le precedenti.",
     "cancel": "Annulla",
-    "create": "Crea",
-    "categories": {
-      "positive": "Positiva",
-      "neutral": "Neutra",
-      "negative": "Negativa",
-      "no_contact": "Nessun contatto"
-    },
-    "triggers": {
-      "title": "Trigger del workflow",
-      "completion": "Segna il lead come completato",
-      "retry": "Attiva un nuovo tentativo",
-      "callback": "Programma una richiamata",
-      "dnc": "Aggiunge all'elenco «non chiamare»",
-      "badges": {
-        "completion": "completato",
-        "retry": "nuovo tentativo",
-        "callback": "richiamata",
-        "dnc": "Non chiamare"
+    "save": "Salva",
+    "empty": "Nessuna classificazione.",
+    "noOutcome": "Nessun esito",
+    "modes": {
+      "campaign": {
+        "badge": "Scelte per la campagna",
+        "description": "Gli agenti vedono queste, in quest'ordine."
+      },
+      "legacy": {
+        "badge": "Proprie della campagna",
+        "description": "Create con la campagna, prima delle classificazioni dello spazio di lavoro."
+      },
+      "workspace": {
+        "badge": "Predefinite",
+        "description": "Nessuna scelta: gli agenti vedono le classificazioni predefinite del tuo spazio di lavoro."
       }
     },
-    "empty": {
-      "title": "Nessuna classificazione configurata",
-      "description": "Le classificazioni vengono create automaticamente quando attivi la campagna, oppure puoi aggiungerle manualmente."
-    },
-    "table": {
-      "code": "Codice",
-      "label": "Etichetta",
-      "category": "Categoria",
-      "triggers": "Trigger"
-    },
     "toasts": {
-      "created": "Classificazione creata.",
-      "createError": "Impossibile creare la classificazione.",
-      "removed": "Classificazione rimossa.",
-      "removeError": "Impossibile rimuovere la classificazione."
+      "saved": "Classificazioni salvate.",
+      "saveError": "Impossibile salvare le classificazioni."
+    },
+    "picker": {
+      "loadError": "Impossibile caricare le tue classificazioni.",
+      "usesDefaults": "Nessuna scelta: il dialer mostra quelle predefinite del tuo spazio di lavoro.",
+      "customizeFromDefaults": "Parti da quelle predefinite",
+      "add": "Aggiungi classificazione",
+      "addHint": "Classificazioni attive",
+      "useDefaults": "Usa quelle predefinite",
+      "manage": "Gestisci classificazioni",
+      "dragToReorder": "Trascina per riordinare",
+      "remove": "Rimuovi {name}"
     }
   },
   "members": {

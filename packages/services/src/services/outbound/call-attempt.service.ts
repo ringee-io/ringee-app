@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,14 +8,17 @@ import {
 import {
   Call,
   CallAttemptRepository,
-  CallOutcome,
   CallRepository,
   CampaignLeadRepository,
   CampaignLeadStatus,
   Disposition,
 } from "@ringee/database";
 import { AgentSessionService } from "./agent-session.service";
-import { DispositionService } from "./disposition.service";
+import {
+  DispositionService,
+  canonicalOutcomeOf,
+  dispositionBelongsToCampaign,
+} from "./disposition.service";
 import { RetryEngine } from "./retry-engine.service";
 import { CallbackService } from "./callback.service";
 import { ComplianceService } from "./compliance.service";
@@ -438,10 +442,14 @@ export class CallAttemptService {
   /**
    * Submit a disposition for a call attempt.
    * Triggers the appropriate workflow based on disposition flags.
+   *
+   * `disposition` is the one resolved for the attempt's campaign
+   * (`DispositionService.resolveForCampaign`); it is checked against that
+   * campaign again here, so no other campaign's or workspace's can be recorded.
    */
   async submitDisposition(data: {
     callAttemptId: string;
-    dispositionId: string;
+    disposition: Disposition;
     note?: string;
     callback?: { scheduledAt: Date; note?: string };
     campaignDefaults: { maxAttempts: number; retryDelayMin: number };
@@ -449,13 +457,23 @@ export class CallAttemptService {
     /** The agent asked to stop dialing once this lead was wrapped up. */
     closeSession?: boolean;
   }): Promise<{ action: string; sessionClosed: boolean }> {
-    const disposition = await this.dispositionService.getById(
-      data.dispositionId,
-    );
+    const { disposition } = data;
 
     const current = await this.attemptRepo.findById(data.callAttemptId);
     if (!current) {
       throw new NotFoundException("Call attempt not found");
+    }
+    // The dialer is organization-only, so the campaign's workspace is the
+    // organization the caller's attempt was verified against.
+    if (
+      !dispositionBelongsToCampaign(disposition, current.campaignId, {
+        userId: current.agentUserId,
+        organizationId: data.organizationId,
+      })
+    ) {
+      throw new ForbiddenException(
+        "That disposition does not belong to this campaign",
+      );
     }
 
     // An outcome recorded for an older attempt must not rewrite a lead that
@@ -483,9 +501,10 @@ export class CallAttemptService {
     }
 
     const attempt = await this.attemptRepo.setDisposition(data.callAttemptId, {
-      dispositionId: data.dispositionId,
+      dispositionId: disposition.id,
       dispositionCode: disposition.code,
       dispositionNote: data.note,
+      dispositionOutcome: canonicalOutcomeOf(disposition),
     });
 
     if (!attempt) {
@@ -668,10 +687,11 @@ export class CallAttemptService {
   }
 
   /**
-   * Mirror a campaign disposition onto the Call row (system codes map 1:1 to
-   * the CallOutcome enum; custom codes keep the note only) and fold it into
-   * the CRM call-log note right away. Custom Integrations get the outcome
-   * (`call.outcome.updated`, for codes that map to one) and the agent's note
+   * Mirror a campaign disposition onto the Call row — the disposition the
+   * agent picked and the canonical outcome it means (DISP-005); a custom code
+   * that means no outcome records the disposition and the note only — and fold
+   * it into the CRM call-log note right away. Custom Integrations get the
+   * outcome (`call.outcome.updated`, when there is one) and the agent's note
    * (`note.created`, on the lead's contact). Best-effort — a CRM/DB hiccup
    * must never fail the disposition submit.
    */
@@ -681,11 +701,8 @@ export class CallAttemptService {
     note: string | undefined,
     agentUserId: string,
   ): Promise<void> {
-    const mappedOutcome = (Object.values(CallOutcome) as string[]).includes(
-      disposition.code,
-    )
-      ? (disposition.code as CallOutcome)
-      : null;
+    const mappedOutcome = canonicalOutcomeOf(disposition);
+    const recorded = { id: disposition.id, name: disposition.label };
 
     let outcomePersisted = false;
     let outcomeChanged = false;
@@ -696,10 +713,15 @@ export class CallAttemptService {
           callId,
           mappedOutcome,
           note,
+          recorded,
         ));
         outcomePersisted = true;
-      } else if (note) {
-        call = await this.callRepo.updateOutcomeNote(callId, note);
+      } else {
+        call = await this.callRepo.recordDispositionWithoutOutcome(
+          callId,
+          recorded,
+          note,
+        );
       }
     } catch (err) {
       this.logger.warn(

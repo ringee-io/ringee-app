@@ -375,52 +375,45 @@
   },
   "dispositions": {
     "title": "Classificaties",
-    "description": "Stel de resultaatcodes in die agenten na elk gesprek selecteren.",
-    "add": "Classificatie toevoegen",
-    "createTitle": "Classificatie aanmaken",
-    "createDescription": "Voeg een nieuwe gespreksresultaat-classificatie toe aan deze campagne.",
-    "code": "Code",
-    "codePlaceholder": "bijv. meeting_booked",
-    "label": "Label",
-    "labelPlaceholder": "bijv. Afspraak gepland",
-    "category": "Categorie",
-    "color": "Kleur",
+    "description": "De resultaten die agenten na elk gesprek in deze campagne kiezen, in de volgorde waarin de dialer ze toont.",
+    "createDescription": "Kies welke classificaties de dialer van deze campagne toont, of houd de standaard van je werkruimte.",
+    "edit": "Bewerken",
+    "switchToWorkspace": "Classificaties van de werkruimte gebruiken",
+    "loadError": "De classificaties van deze campagne konden niet worden geladen.",
+    "retry": "Opnieuw proberen",
+    "legacySwitchNote": "Deze campagne is aangemaakt met eigen classificaties. Na opslaan gebruikt ze de classificaties die je hier kiest (of de standaard van de werkruimte); de gespreksgeschiedenis behoudt de oude.",
     "cancel": "Annuleren",
-    "create": "Aanmaken",
-    "categories": {
-      "positive": "Positief",
-      "neutral": "Neutraal",
-      "negative": "Negatief",
-      "no_contact": "Geen contact"
-    },
-    "triggers": {
-      "title": "Workflow-triggers",
-      "completion": "Markeert de lead als afgerond",
-      "retry": "Start een nieuwe poging",
-      "callback": "Plant een terugbelverzoek",
-      "dnc": "Voegt toe aan de niet-bellen-lijst",
-      "badges": {
-        "completion": "afgerond",
-        "retry": "nieuwe poging",
-        "callback": "terugbellen",
-        "dnc": "Niet bellen"
+    "save": "Opslaan",
+    "empty": "Geen classificaties.",
+    "noOutcome": "Geen resultaat",
+    "modes": {
+      "campaign": {
+        "badge": "Gekozen voor de campagne",
+        "description": "Agenten zien deze, in deze volgorde."
+      },
+      "legacy": {
+        "badge": "Eigen aan de campagne",
+        "description": "Aangemaakt met de campagne, vóór de classificaties van de werkruimte."
+      },
+      "workspace": {
+        "badge": "Standaard",
+        "description": "Niets gekozen: agenten zien de standaardclassificaties van je werkruimte."
       }
     },
-    "empty": {
-      "title": "Geen classificaties ingesteld",
-      "description": "Classificaties worden automatisch aangemaakt wanneer je de campagne activeert, of je voegt ze handmatig toe."
-    },
-    "table": {
-      "code": "Code",
-      "label": "Label",
-      "category": "Categorie",
-      "triggers": "Triggers"
-    },
     "toasts": {
-      "created": "Classificatie aangemaakt.",
-      "createError": "Kan de classificatie niet aanmaken.",
-      "removed": "Classificatie verwijderd.",
-      "removeError": "Kan de classificatie niet verwijderen."
+      "saved": "Classificaties opgeslagen.",
+      "saveError": "De classificaties konden niet worden opgeslagen."
+    },
+    "picker": {
+      "loadError": "Je classificaties konden niet worden geladen.",
+      "usesDefaults": "Niets gekozen: de dialer toont de standaard van je werkruimte.",
+      "customizeFromDefaults": "Beginnen met de standaard",
+      "add": "Classificatie toevoegen",
+      "addHint": "Actieve classificaties",
+      "useDefaults": "Standaard gebruiken",
+      "manage": "Classificaties beheren",
+      "dragToReorder": "Sleep om te ordenen",
+      "remove": "{name} verwijderen"
     }
   },
   "members": {

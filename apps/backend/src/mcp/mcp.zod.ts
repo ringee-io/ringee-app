@@ -451,13 +451,28 @@ export const LogCallOutcomeSchema = {
     .describe("UUID of the call whose outcome should be recorded."),
   outcome: z
     .enum(CALL_OUTCOME_VALUES)
-    .describe("Disposition for the call. Pick the most specific value."),
+    .optional()
+    .describe(
+      "Canonical outcome for the call. Pick the most specific value. " +
+        "Required unless dispositionId is given.",
+    ),
+  dispositionId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "A workspace disposition from list_dispositions (e.g. 'Demo booked'). " +
+        "When given, the call's outcome is the disposition's canonical " +
+        "outcome and any outcome sent with it is ignored.",
+    ),
   outcomeNote: z
     .string()
     .max(2000)
     .optional()
     .describe("Free-text follow-up note. Visible in the call detail view."),
 };
+
+export const ListDispositionsSchema = {};
 
 export const CreateCallbackSchema = {
   contactId: z

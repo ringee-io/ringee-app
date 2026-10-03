@@ -285,6 +285,10 @@
         "label": "Guion de llamada",
         "description": "El guion que tu marcador muestra durante las llamadas."
       },
+      "dispositions": {
+        "label": "Tipificaciones",
+        "description": "Lo que tu equipo marca al terminar una llamada, vinculado a los resultados de Ringee."
+      },
       "calendars": {
         "label": "Calendarios",
         "description": "Franjas de reserva, zonas horarias y los calendarios donde agendan tus agentes."
@@ -383,6 +387,68 @@
     "bodyLabel": "Guion",
     "bodyPlaceholder": "Lo que dirás en esta parte del guion…",
     "removeSection": "Eliminar sección"
+  },
+  "dispositions": {
+    "intro": "Las tipificaciones son lo que tu equipo marca al terminar una llamada. Cada una equivale a un resultado de Ringee, así las analíticas, la sincronización con el CRM y las automatizaciones siempre saben qué pasó, la llames como la llames.",
+    "new": "Nueva tipificación",
+    "loadError": "No se pudieron cargar tus tipificaciones.",
+    "retry": "Reintentar",
+    "empty": "Todavía no hay tipificaciones.",
+    "columns": {
+      "disposition": "Tipificación",
+      "mapsTo": "Equivale a",
+      "default": "Por defecto",
+      "active": "Activa"
+    },
+    "dragToReorder": "Arrastra para reordenar",
+    "inactive": "Inactiva",
+    "mapsTo": "Equivale a {outcome}",
+    "actions": "Acciones",
+    "edit": "Editar",
+    "activate": "Activar",
+    "deactivate": "Desactivar",
+    "makeDefault": "Ofrecer por defecto",
+    "removeDefault": "No ofrecer por defecto",
+    "delete": "Eliminar",
+    "deleteInUse": "Ya está registrada en llamadas, así que no se puede eliminar: desactívala.",
+    "deleteDialog": {
+      "title": "¿Eliminar «{name}»?",
+      "description": "Nunca se registró en una llamada, así que no se pierde historial.",
+      "campaigns": "{count, plural, one {Se quitará de # campaña.} other {Se quitará de # campañas.}}",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar"
+    },
+    "toasts": {
+      "created": "Tipificación creada.",
+      "saved": "Tipificación guardada.",
+      "deleted": "Tipificación eliminada.",
+      "reorderFailed": "No se pudo guardar el nuevo orden.",
+      "error": "No se pudo guardar la tipificación."
+    },
+    "form": {
+      "createTitle": "Nueva tipificación",
+      "editTitle": "Editar tipificación",
+      "description": "Lo que tu equipo marca al terminar una llamada y el resultado de Ringee que significa.",
+      "name": "Nombre",
+      "namePlaceholder": "p. ej. Demo agendada",
+      "mapsTo": "Equivale a",
+      "mapsToPlaceholder": "Elige un resultado",
+      "mapsToHint": "El resultado que registran las analíticas, el CRM y las automatizaciones.",
+      "mapsToLocked": "Ya está registrada en llamadas, así que su equivalencia no puede cambiar. Crea una tipificación nueva.",
+      "color": "Color",
+      "customColor": "Personalizado",
+      "noColor": "Sin color",
+      "descriptionLabel": "Descripción",
+      "descriptionPlaceholder": "Opcional: cuándo marcarla",
+      "isDefault": "Ofrecer por defecto",
+      "isDefaultHint": "Se muestra tras las llamadas manuales y en las campañas que no eligen las suyas.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "create": "Crear",
+      "saving": "Guardando…",
+      "required": "Obligatorio",
+      "tooLong": "Demasiado largo"
+    }
   },
   "byoc": {
     "intro": "Conecta tu operador o PBX para llamar desde tus propios números en el marcador y hacer sonar un teléfono de escritorio cuando los llamen.",

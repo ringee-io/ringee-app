@@ -375,52 +375,45 @@
   },
   "dispositions": {
     "title": "Tipificaciones",
-    "description": "Configura los códigos de resultado que los agentes eligen tras cada llamada.",
-    "add": "Añadir tipificación",
-    "createTitle": "Crear tipificación",
-    "createDescription": "Añade una nueva tipificación de resultado a esta campaña.",
-    "code": "Código",
-    "codePlaceholder": "p. ej. meeting_booked",
-    "label": "Etiqueta",
-    "labelPlaceholder": "p. ej. Reunión agendada",
-    "category": "Categoría",
-    "color": "Color",
+    "description": "Los resultados que marcan los agentes tras cada llamada de esta campaña, en el orden en que los muestra el marcador.",
+    "createDescription": "Elige qué tipificaciones muestra el marcador de esta campaña, o deja las predeterminadas de tu espacio de trabajo.",
+    "edit": "Editar",
+    "switchToWorkspace": "Usar las del espacio de trabajo",
+    "loadError": "No se pudieron cargar las tipificaciones de esta campaña.",
+    "retry": "Reintentar",
+    "legacySwitchNote": "Esta campaña se creó con sus propias tipificaciones. Al guardar usará las que elijas aquí (o las predeterminadas del espacio de trabajo); su historial de llamadas conserva las anteriores.",
     "cancel": "Cancelar",
-    "create": "Crear",
-    "categories": {
-      "positive": "Positiva",
-      "neutral": "Neutra",
-      "negative": "Negativa",
-      "no_contact": "Sin contacto"
-    },
-    "triggers": {
-      "title": "Disparadores del flujo",
-      "completion": "Marca el lead como completado",
-      "retry": "Activa un reintento",
-      "callback": "Programa una devolución de llamada",
-      "dnc": "Añade a la lista de no llamar",
-      "badges": {
-        "completion": "completado",
-        "retry": "reintento",
-        "callback": "devolución",
-        "dnc": "No llamar"
+    "save": "Guardar",
+    "empty": "Sin tipificaciones.",
+    "noOutcome": "Sin resultado",
+    "modes": {
+      "campaign": {
+        "badge": "Elegidas para la campaña",
+        "description": "Los agentes ven estas, en este orden."
+      },
+      "legacy": {
+        "badge": "Propias de la campaña",
+        "description": "Creadas con la campaña, antes de las tipificaciones del espacio de trabajo."
+      },
+      "workspace": {
+        "badge": "Predeterminadas",
+        "description": "Sin selección: los agentes ven las tipificaciones predeterminadas de tu espacio de trabajo."
       }
     },
-    "empty": {
-      "title": "No hay tipificaciones configuradas",
-      "description": "Las tipificaciones se crean automáticamente al activar la campaña, o puedes añadirlas manualmente."
-    },
-    "table": {
-      "code": "Código",
-      "label": "Etiqueta",
-      "category": "Categoría",
-      "triggers": "Disparadores"
-    },
     "toasts": {
-      "created": "Tipificación creada.",
-      "createError": "No se pudo crear la tipificación.",
-      "removed": "Tipificación eliminada.",
-      "removeError": "No se pudo eliminar la tipificación."
+      "saved": "Tipificaciones guardadas.",
+      "saveError": "No se pudieron guardar las tipificaciones."
+    },
+    "picker": {
+      "loadError": "No se pudieron cargar tus tipificaciones.",
+      "usesDefaults": "Sin selección: el marcador muestra las predeterminadas de tu espacio de trabajo.",
+      "customizeFromDefaults": "Partir de las predeterminadas",
+      "add": "Añadir tipificación",
+      "addHint": "Tipificaciones activas",
+      "useDefaults": "Usar las predeterminadas",
+      "manage": "Gestionar tipificaciones",
+      "dragToReorder": "Arrastra para reordenar",
+      "remove": "Quitar {name}"
     }
   },
   "members": {

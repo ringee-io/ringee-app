@@ -31,6 +31,7 @@ import { RecordingsController } from "./recordings.controller";
 import { SubscriptionController } from "./subscription.controller";
 import { EncryptionController } from "./encryption.controller";
 import { CampaignController } from "./campaign.controller";
+import { DispositionController } from "./disposition.controller";
 import { DialerController } from "./dialer.controller";
 import { DNCController } from "./dnc.controller";
 import { CallbackController } from "./callback.controller";
@@ -105,6 +106,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     SubscriptionController,
     EncryptionController,
     CampaignController,
+    DispositionController,
     DialerController,
     DNCController,
     CallbackController,

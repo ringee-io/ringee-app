@@ -77,8 +77,14 @@ export type CrmCallLogInput = {
    * no outcome yet.
    */
   answered?: boolean | null;
+  /** The canonical `CallOutcome` — what native CRM fields are mapped from. */
   outcome?: string | null;
   outcomeLabel?: string | null;
+  /**
+   * The workspace disposition the user picked ("Demo booked"), shown beside the
+   * outcome. Never mapped onto a CRM field: `outcome` is what those read.
+   */
+  dispositionName?: string | null;
   notes?: string | null;
   recordingUrl?: string | null;
   transcriptUrl?: string | null;

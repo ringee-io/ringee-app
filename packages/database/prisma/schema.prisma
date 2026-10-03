@@ -428,6 +428,7 @@ model User {
   campaigns               Campaign[]
   campaignMembers         CampaignMember[]
   campaignLeads           CampaignLead[]
+  dispositions            Disposition[]
   tags                    Tag[]
   meetings                Meeting[]
   calendars               Calendar[]
@@ -533,6 +534,7 @@ model Organization {
   creditAutoReload       CreditAutoReload?
   subscriptions          Subscription[]
   campaigns              Campaign[]
+  dispositions           Disposition[]
   tags                   Tag[]
   meetings               Meeting[]
   calendars              Calendar[]
@@ -691,6 +693,14 @@ model Call {
   outcome     CallOutcome?
   outcomeNote String?      @db.Text
 
+  // The workspace disposition the user picked ("Demo booked"), when one was.
+  // `outcome` stays the canonical meaning every consumer reads; the name is a
+  // snapshot as well as a relation, so history keeps what was picked after the
+  // disposition is renamed, remapped or deleted.
+  dispositionId   String?      @db.Uuid
+  dispositionName String?
+  disposition     Disposition? @relation(fields: [dispositionId], references: [id], onDelete: SetNull)
+
   // Origin channel of the call, used for history filtering/badges.
   // Values: "web" | "chrome_extension" | "mobile" | "campaign" | "session" |
   // "sip_device" | "ai_voice_agent". Null on legacy rows (treated as the
@@ -759,6 +769,7 @@ model Call {
   @@index([inboundRouteId])
   @@index([ringGroupId])
   @@index([answeredByUserId])
+  @@index([dispositionId])
 }
 
 model CallTranscriptionSegment {
@@ -1736,15 +1747,17 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization    Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  callerId        NumberPurchased?     @relation("campaignCallerId", fields: [callerIdId], references: [id], onDelete: SetNull)
-  numberPurchased NumberPurchased?     @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
-  externalNumber  ExternalPhoneNumber? @relation(fields: [externalNumberId], references: [id], onDelete: SetNull)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  callerId        NumberPurchased?      @relation("campaignCallerId", fields: [callerIdId], references: [id], onDelete: SetNull)
+  numberPurchased NumberPurchased?      @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
+  externalNumber  ExternalPhoneNumber?  @relation(fields: [externalNumberId], references: [id], onDelete: SetNull)
   members         CampaignMember[]
   leads           CampaignLead[]
   lists           CampaignList[]
   dispositions    Disposition[]
+  /// Workspace dispositions picked for this campaign, in the order its dialer shows them.
+  dispositionSet  CampaignDisposition[]
   retryRules      RetryRule[]
   callAttempts    CallAttempt[]
   agentSessions   AgentSession[]
@@ -2033,9 +2046,14 @@ model CallAttempt {
   hangupCause String?
   durationSec Int?
 
-  dispositionId   String? @db.Uuid
-  dispositionCode String?
-  dispositionNote String? @db.Text
+  dispositionId      String?      @db.Uuid
+  dispositionCode    String?
+  dispositionNote    String?      @db.Text
+  /// The disposition's canonical outcome when it was recorded. Campaign
+  /// analytics count conversions on it, so a workspace disposition such as
+  /// "Demo booked" (code `demo_booked`) still counts as `meeting_booked`.
+  /// Null on attempts recorded before it existed: their code is the outcome.
+  dispositionOutcome CallOutcome?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2053,33 +2071,74 @@ model CallAttempt {
   @@index([campaignId, status])
   @@index([campaignId, dispositionCode])
   @@index([agentUserId, initiatedAt])
+  @@index([dispositionId])
 }
 
+/// An outcome a person can pick after a call ("Demo booked"), mapped onto the
+/// canonical `CallOutcome` the rest of Ringee reads (DISP-001).
+///
+/// Two kinds of row share the table:
+/// - **Workspace dispositions** (`campaignId` null) belong to a workspace
+///   through `userId`/`organizationId` (WRK-001). The manual dialer shows them,
+///   and campaigns pick from them through `CampaignDisposition`.
+/// - **Campaign dispositions** (`campaignId` set) are the ones every campaign
+///   was seeded with before workspace dispositions existed. A campaign keeps
+///   using its own until an admin picks workspace dispositions for it.
 model Disposition {
-  id         String              @id @default(uuid()) @db.Uuid
-  campaignId String              @db.Uuid
-  code       String
-  label      String
-  category   DispositionCategory
-  color      String?             @db.VarChar(7)
-  sortOrder  Int                 @default(0)
+  id               String              @id @default(uuid()) @db.Uuid
+  campaignId       String?             @db.Uuid
+  userId           String?             @db.Uuid
+  organizationId   String?             @db.Uuid
+  code             String
+  label            String
+  description      String?
+  category         DispositionCategory
+  /// What the disposition means. Always set on a workspace disposition; null
+  /// on a campaign disposition whose custom code names no outcome.
+  canonicalOutcome CallOutcome?
+  color            String?             @db.VarChar(7)
+  sortOrder        Int                 @default(0)
 
   triggersRetry      Boolean @default(false)
   triggersCompletion Boolean @default(false)
   triggersDnc        Boolean @default(false)
   triggersCallback   Boolean @default(false)
 
-  isActive Boolean @default(true)
-  isSystem Boolean @default(false)
+  isActive  Boolean @default(true)
+  isSystem  Boolean @default(false)
+  /// In the workspace's default set: what the manual dialer offers, and what a
+  /// campaign without its own selection uses.
+  isDefault Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign     Campaign?             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   callAttempts CallAttempt[]
+  calls        Call[]
+  campaigns    CampaignDisposition[]
 
   @@unique([campaignId, code])
   @@index([campaignId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+/// A workspace disposition picked for a campaign, at its place in that
+/// campaign's dialer. A campaign with none uses the workspace's default set.
+model CampaignDisposition {
+  campaignId    String   @db.Uuid
+  dispositionId String   @db.Uuid
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  campaign    Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  disposition Disposition @relation(fields: [dispositionId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, dispositionId])
+  @@index([dispositionId])
 }
 
 model RetryRule {

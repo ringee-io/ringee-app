@@ -11,6 +11,7 @@ export type SettingsSectionId = 'settings' | 'integrations';
 export type SettingsItemId =
   | 'general'
   | 'script'
+  | 'dispositions'
   | 'calendars'
   | 'recording'
   | 'call-routing'

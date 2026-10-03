@@ -67,6 +67,21 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Clerk user/org sync                   | `UserService.syncFromClerk`, `OrganizationService.syncFromClerk`                     |
 | Push-token registration               | `UserDeviceService.registerPushToken`                                                |
 
+## Call outcomes and dispositions
+
+| Responsibility                                       | Owner                                                                                          |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| The canonical outcome set                            | `CallOutcome` (Prisma enum) — `GET /api/dispositions/outcomes` serves it                       |
+| Recording an outcome (with or without a disposition) | `CallRepository.recordOutcome` (DISP-005)                                                      |
+| Workspace dispositions: CRUD, order, defaults        | `DispositionService` — `services/outbound/disposition.service.ts`                              |
+| Disposition → canonical outcome                      | `canonicalOutcomeOf`, `DispositionService.resolveSelectable` — same file                       |
+| What a disposition does to a campaign lead           | `OUTCOME_BEHAVIOUR` — same file (DISP-002)                                                     |
+| What counts as a campaign conversion                 | `isConversionSql` / `CONVERSION_OUTCOMES` — `database/repositories/campaign-conversion.sql.ts` |
+| A campaign's dispositions                            | `DispositionService.listByCampaign` / `setCampaignSet` / `resolveForCampaign`                  |
+| Lazy defaults, unique names (workspace lock)         | `DispositionRepository.seedWorkspaceIfEmpty` / `createForWorkspace`                            |
+| Manual/MCP outcome write                             | `MeetingService.updateCallOutcome` (`POST /meetings/call-outcome`, `log_call_outcome`)         |
+| Campaign outcome write                               | `CallAttemptService.submitDisposition` (`POST /dialer/dispose`)                                |
+
 ## AI voice agents
 
 | Responsibility                        | Owner                                                                                |
@@ -154,6 +169,10 @@ pick the one matching your runtime.
 | Campaign calling session UI    | `AgentSessionDialog` → `AgentWorkspace` — `features/dialer/components/`                                       |
 | Campaign disposition write     | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`                              |
 | Campaign outcome buttons       | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx`                       |
+| Manual post-call buttons       | `PostCallView` — `packages/dialer-ui` (workspace dispositions via `DialerDataClient.listDispositions`)        |
+| Workspace dispositions (UI)    | `DispositionsPanel` (`#settings/dispositions`), `useWorkspaceDispositions` — `features/dispositions/`         |
+| Picking a campaign's set       | `DispositionPicker` — `features/dispositions/components/disposition-picker.tsx`                               |
+| Canonical outcome → label      | `useEnumLabels().outcome` — `features/call-detail/lib/labels.ts` (`calls.detail.outcomes.*`)                  |
 | Validation 400 → `fields` map  | `validationExceptionFactory` — `apps/backend/src/api/validation-error.ts`                                     |
 | `ApiError` → sentence / fields | `describeApiError`, `fieldErrorsFrom` — `features/ai-voice-agents/lib/api-error.ts`                           |
 

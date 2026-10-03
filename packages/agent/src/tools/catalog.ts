@@ -194,10 +194,26 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     },
   },
   {
+    action: "dispositions.list",
+    tool: "list_dispositions",
+    title: "List dispositions",
+    summary:
+      "List the workspace's own dispositions (e.g. 'Demo booked') and the canonical outcome each maps to.",
+    sensitivity: "read",
+    cli: "ringee dispositions list",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
     action: "outcomes.log",
     tool: "log_call_outcome",
     title: "Log call outcome",
-    summary: "Record the disposition of a past call.",
+    summary:
+      "Record how a past call went: one of the workspace's dispositions, or a canonical outcome.",
     sensitivity: "write",
     cli: 'ringee outcomes log <callId> meeting_booked --note "Demo Friday"',
     component: "CallOutcomeCard",

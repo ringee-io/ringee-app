@@ -44,11 +44,27 @@ export const ListCallsSchema = z.object({
     .describe("Default 10, max 50."),
 });
 
+/**
+ * Either a canonical `outcome` or a workspace `dispositionId` (from
+ * list_dispositions). With a disposition, the backend records the outcome it
+ * maps to. Kept a plain object — the ChatGPT App registers its `.shape` — so
+ * "one of the two" is enforced by the backend, not by a refinement here.
+ */
 export const LogCallOutcomeSchema = z.object({
   callId: uuid.describe("UUID of an existing call. Never invent ids."),
-  outcome: callOutcomeEnum,
+  outcome: callOutcomeEnum
+    .optional()
+    .describe("Canonical outcome. Required unless dispositionId is given."),
+  dispositionId: uuid
+    .optional()
+    .describe(
+      "A workspace disposition id from list_dispositions. Its canonical outcome is recorded; an outcome sent with it is ignored.",
+    ),
   outcomeNote: z.string().max(2000).optional(),
 });
+
+/** The workspace's active dispositions. No input. */
+export const ListDispositionsSchema = z.object({});
 
 export const CreateCallbackSchema = z.object({
   contactId: uuid,
@@ -92,6 +108,7 @@ export const ScheduleMeetingSchema = z.object({
 
 export type ListCallsInput = z.infer<typeof ListCallsSchema>;
 export type LogCallOutcomeInput = z.infer<typeof LogCallOutcomeSchema>;
+export type ListDispositionsInput = z.infer<typeof ListDispositionsSchema>;
 export type CreateCallbackInput = z.infer<typeof CreateCallbackSchema>;
 export type ListCallbacksInput = z.infer<typeof ListCallbacksSchema>;
 export type ScheduleMeetingInput = z.infer<typeof ScheduleMeetingSchema>;

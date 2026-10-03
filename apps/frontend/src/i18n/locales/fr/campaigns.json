@@ -375,52 +375,45 @@
   },
   "dispositions": {
     "title": "Qualifications",
-    "description": "Configurez les codes de résultat que les agents choisissent après chaque appel.",
-    "add": "Ajouter une qualification",
-    "createTitle": "Créer une qualification",
-    "createDescription": "Ajoutez une nouvelle qualification de résultat d'appel à cette campagne.",
-    "code": "Code",
-    "codePlaceholder": "p. ex. meeting_booked",
-    "label": "Libellé",
-    "labelPlaceholder": "p. ex. Rendez-vous fixé",
-    "category": "Catégorie",
-    "color": "Couleur",
+    "description": "Les résultats que les agents choisissent après chaque appel de cette campagne, dans l'ordre où le composeur les affiche.",
+    "createDescription": "Choisissez les qualifications affichées par le composeur de cette campagne, ou gardez celles par défaut de votre espace de travail.",
+    "edit": "Modifier",
+    "switchToWorkspace": "Utiliser celles de l'espace de travail",
+    "loadError": "Impossible de charger les qualifications de cette campagne.",
+    "retry": "Réessayer",
+    "legacySwitchNote": "Cette campagne a été créée avec ses propres qualifications. Après l'enregistrement, elle utilisera celles choisies ici (ou celles par défaut de l'espace de travail) ; son historique d'appels conserve les anciennes.",
     "cancel": "Annuler",
-    "create": "Créer",
-    "categories": {
-      "positive": "Positive",
-      "neutral": "Neutre",
-      "negative": "Négative",
-      "no_contact": "Sans contact"
-    },
-    "triggers": {
-      "title": "Déclencheurs de workflow",
-      "completion": "Marque le lead comme terminé",
-      "retry": "Déclenche une nouvelle tentative",
-      "callback": "Planifie un rappel",
-      "dnc": "Ajoute à la liste « ne pas appeler »",
-      "badges": {
-        "completion": "terminé",
-        "retry": "nouvelle tentative",
-        "callback": "rappel",
-        "dnc": "Ne pas appeler"
+    "save": "Enregistrer",
+    "empty": "Aucune qualification.",
+    "noOutcome": "Aucun résultat",
+    "modes": {
+      "campaign": {
+        "badge": "Choisies pour la campagne",
+        "description": "Les agents voient celles-ci, dans cet ordre."
+      },
+      "legacy": {
+        "badge": "Propres à la campagne",
+        "description": "Créées avec la campagne, avant les qualifications de l'espace de travail."
+      },
+      "workspace": {
+        "badge": "Par défaut",
+        "description": "Rien de choisi : les agents voient les qualifications par défaut de votre espace de travail."
       }
     },
-    "empty": {
-      "title": "Aucune qualification configurée",
-      "description": "Les qualifications sont créées automatiquement lorsque vous activez la campagne, ou vous pouvez les ajouter manuellement."
-    },
-    "table": {
-      "code": "Code",
-      "label": "Libellé",
-      "category": "Catégorie",
-      "triggers": "Déclencheurs"
-    },
     "toasts": {
-      "created": "Qualification créée.",
-      "createError": "Impossible de créer la qualification.",
-      "removed": "Qualification supprimée.",
-      "removeError": "Impossible de supprimer la qualification."
+      "saved": "Qualifications enregistrées.",
+      "saveError": "Impossible d'enregistrer les qualifications."
+    },
+    "picker": {
+      "loadError": "Impossible de charger vos qualifications.",
+      "usesDefaults": "Rien de choisi : le composeur affiche celles par défaut de votre espace de travail.",
+      "customizeFromDefaults": "Partir de celles par défaut",
+      "add": "Ajouter une qualification",
+      "addHint": "Qualifications actives",
+      "useDefaults": "Utiliser celles par défaut",
+      "manage": "Gérer les qualifications",
+      "dragToReorder": "Glisser pour réordonner",
+      "remove": "Retirer {name}"
     }
   },
   "members": {

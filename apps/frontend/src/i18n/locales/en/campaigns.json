@@ -375,52 +375,45 @@
   },
   "dispositions": {
     "title": "Dispositions",
-    "description": "Configure outcome codes agents select after each call.",
-    "add": "Add Disposition",
-    "createTitle": "Create Disposition",
-    "createDescription": "Add a new call outcome disposition to this campaign.",
-    "code": "Code",
-    "codePlaceholder": "e.g. meeting_booked",
-    "label": "Label",
-    "labelPlaceholder": "e.g. Meeting Booked",
-    "category": "Category",
-    "color": "Color",
+    "description": "The outcomes agents pick after each call in this campaign, in the order the dialer shows them.",
+    "createDescription": "Pick the dispositions this campaign's dialer shows, or keep your workspace defaults.",
+    "edit": "Edit",
+    "switchToWorkspace": "Use workspace dispositions",
+    "loadError": "Could not load this campaign's dispositions.",
+    "retry": "Try again",
+    "legacySwitchNote": "This campaign was created with its own dispositions. Once you save, it uses the ones you pick here (or your workspace defaults); its call history keeps the old ones.",
     "cancel": "Cancel",
-    "create": "Create",
-    "categories": {
-      "positive": "Positive",
-      "neutral": "Neutral",
-      "negative": "Negative",
-      "no_contact": "No Contact"
-    },
-    "triggers": {
-      "title": "Workflow Triggers",
-      "completion": "Marks lead as completed",
-      "retry": "Triggers retry",
-      "callback": "Schedules callback",
-      "dnc": "Adds to DNC list",
-      "badges": {
-        "completion": "completion",
-        "retry": "retry",
-        "callback": "callback",
-        "dnc": "DNC"
+    "save": "Save",
+    "empty": "No dispositions.",
+    "noOutcome": "No outcome",
+    "modes": {
+      "campaign": {
+        "badge": "Picked for this campaign",
+        "description": "Agents see these, in this order."
+      },
+      "legacy": {
+        "badge": "Campaign's own",
+        "description": "Created with the campaign, before workspace dispositions."
+      },
+      "workspace": {
+        "badge": "Workspace defaults",
+        "description": "Nothing picked: agents see your workspace's default dispositions."
       }
     },
-    "empty": {
-      "title": "No dispositions configured",
-      "description": "Dispositions are seeded automatically when you activate the campaign, or you can add them manually."
-    },
-    "table": {
-      "code": "Code",
-      "label": "Label",
-      "category": "Category",
-      "triggers": "Triggers"
-    },
     "toasts": {
-      "created": "Disposition created.",
-      "createError": "Could not create disposition.",
-      "removed": "Disposition removed.",
-      "removeError": "Could not remove disposition."
+      "saved": "Dispositions saved.",
+      "saveError": "Could not save the dispositions."
+    },
+    "picker": {
+      "loadError": "Could not load your dispositions.",
+      "usesDefaults": "Nothing picked: the dialer shows your workspace defaults.",
+      "customizeFromDefaults": "Start from the defaults",
+      "add": "Add disposition",
+      "addHint": "Active dispositions",
+      "useDefaults": "Use workspace defaults",
+      "manage": "Manage dispositions",
+      "dragToReorder": "Drag to reorder",
+      "remove": "Remove {name}"
     }
   },
   "members": {

@@ -52,6 +52,29 @@ describe("call outcome event data", () => {
     });
   });
 
+  it("names the disposition picked beside the canonical outcome, which keeps its meaning", () => {
+    const data = buildCallOutcomeData({
+      ...(call as object),
+      dispositionId: "disposition-1",
+      dispositionName: "Demo booked",
+    } as never);
+
+    assert.equal(data.outcome, "meeting_booked");
+    assert.deepEqual(data.disposition, {
+      id: "disposition-1",
+      name: "Demo booked",
+    });
+  });
+
+  it("sends no disposition key at all for a call recorded without one", () => {
+    const data = buildCallOutcomeData({
+      ...(call as object),
+      dispositionId: null,
+      dispositionName: null,
+    } as never);
+    assert.equal("disposition" in data, false);
+  });
+
   it("carries the same call detail for an AI voice-agent outcome", () => {
     const data = buildVoiceAgentCallOutcomeData(
       {
@@ -971,6 +994,7 @@ describe("call detail event data", () => {
       variables: { first_name: "Ada" },
       metadata: { external_id: "crm-123" },
     });
+    assert.equal("disposition" in data, false);
     assert.equal(data.meetings[0].notes, "Bring pricing");
     assert.equal(data.callbacks[0].note, "Confirm attendees");
     assert.deepEqual(data.campaignAttempts[0], {
@@ -980,6 +1004,19 @@ describe("call detail event data", () => {
       campaign: { id: "campaign-1", name: "Q2 founders" },
       disposition: { code: "demo", label: "Demo booked" },
       dispositionNote: "Second try got through",
+    });
+  });
+
+  it("names the call's disposition when one was picked", () => {
+    const data = buildCallDetailData({
+      ...(CALL_EVENT_DETAIL as object),
+      dispositionId: "disposition-1",
+      dispositionName: "Demo booked",
+    } as never) as Record<string, any>;
+    assert.equal(data.outcome, "meeting_booked");
+    assert.deepEqual(data.disposition, {
+      id: "disposition-1",
+      name: "Demo booked",
     });
   });
 
