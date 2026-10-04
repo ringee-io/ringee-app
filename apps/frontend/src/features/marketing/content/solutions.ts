@@ -1,6 +1,7 @@
 import type { Faq } from '../components/faq';
 import { PRICING } from '../site';
 import { CALL_RATE_FROM, PHONE_NUMBER_COUNTRIES } from './phone-numbers';
+import type { MarketingVideoId } from './videos';
 
 /**
  * Solution pages: the landing pages written for one buying question each —
@@ -12,7 +13,9 @@ import { CALL_RATE_FROM, PHONE_NUMBER_COUNTRIES } from './phone-numbers';
  * - AI voice agents: appointment-booking and reminders blueprints, outbound
  *   only, one call per trigger, the same DNC / credit / caller-ID gates on
  *   every surface (AGENT-004, AGENT-008), no live transfer (AGENT-010).
- * - The AI receptionist is not public yet: do not mention it until it ships.
+ * - The AI receptionist is public: it answers the Ringee or BYOC numbers
+ *   routed to it and transfers callers to the team. It never dials and cannot
+ *   book, move or cancel meetings (AGENT-016).
  * - Dialer modes are progressive and preview only — never claim predictive or
  *   parallel dialing.
  * - Prices come from `PRICING` and the pricing snapshot, never from literals
@@ -43,6 +46,14 @@ export type SolutionSection =
       title: string;
       description?: string;
       items: string[];
+    }
+  | {
+      kind: 'video';
+      id: string;
+      title: string;
+      description?: string;
+      /** In the page's own language. */
+      video: MarketingVideoId;
     };
 
 export type SolutionContent = {
@@ -60,6 +71,8 @@ export type SolutionContent = {
   metaDescription: string;
   h1: string;
   intro: string[];
+  /** Product video under the hero, in the page's own language. */
+  video?: MarketingVideoId;
   whoFor: string[];
   benefits: string[];
   capabilitiesTitle: string;
@@ -533,6 +546,7 @@ export const SOLUTIONS: SolutionContent[] = [
       'Ringee is an outbound sales dialer that runs in the browser, in the iOS and Android apps, and in the Chrome extension. Reps work a queue in progressive mode, where the next lead is dialed as soon as they are free, or in preview mode, where they review each lead before they call.',
       `Calls can be recorded and transcribed live, outcomes and callbacks are logged on the same screen, and caller ID rotation shows each lead a local number. There is no per-seat fee: the dialer is free for one person, and ${TEAM_PRICE} covers your whole team.`
     ],
+    video: 'campaigns-progressive-dialer',
     whoFor: [
       'SDR and BDR teams working lists every day',
       'Recruiters calling candidates and clients',
@@ -598,6 +612,14 @@ export const SOLUTIONS: SolutionContent[] = [
       }
     ],
     sections: [
+      {
+        kind: 'video',
+        id: 'local-presence',
+        title: 'Local presence on every call',
+        description:
+          'Caller ID rotation shows each lead a number from their own country, with their area code when your pool has one, and spreads the calls across your numbers within a daily cap per number.',
+        video: 'numbers-caller-id'
+      },
       {
         kind: 'table',
         id: 'dialer-types',
@@ -751,6 +773,7 @@ export const SOLUTIONS: SolutionContent[] = [
       'Moving to a new calling platform usually means porting your numbers and leaving your carrier. With Ringee you can skip both. Connect your carrier or PBX as a SIP extension and your numbers keep working where they are, with Ringee’s dialer and call history on top.',
       'Ringee registers to your PBX as an extension, using the SIP settings you enter. Your reps call from the browser through your carrier, and the PBX presents the caller ID you already use. Calls to your numbers can be routed into Ringee to a teammate, a ring group, an extension or a desk phone.'
     ],
+    video: 'bring-your-own-carrier',
     whoFor: [
       'Companies with numbers and contracts they cannot move',
       'Teams that already run a PBX and want a better dialer',

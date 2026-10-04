@@ -15,6 +15,7 @@ import {
 
 import type { Faq } from '../components/faq';
 import { DOCS_API_URL } from '../site';
+import type { MarketingVideoId } from './videos';
 
 export type FeatureCategory =
   | 'Communicate'
@@ -35,6 +36,8 @@ export type FeatureContent = {
   h1: string;
   /** Lead paragraphs explaining the feature. */
   intro: string[];
+  /** Product video under the hero. */
+  video?: MarketingVideoId;
   whoFor: string[];
   howItWorks: { title: string; description: string }[];
   benefits: string[];
@@ -100,6 +103,7 @@ export const FEATURES: FeatureContent[] = [
       'Ringee turns any browser into an outbound calling station. Open the dialer, work through your list, and place clear calls to leads in over 180 countries — no desk phone, SIP handset, or extra hardware required.',
       'Every call is connected through Telnyx, so audio quality stays high and you only pay for the minutes you use. Calling credits are billed separately from your subscription, which keeps your team subscription flat as your team grows.'
     ],
+    video: 'international-calls',
     whoFor: [
       'SDR and BDR teams running daily outbound dials',
       'Recruiters working candidate and client lists',
@@ -242,6 +246,7 @@ export const FEATURES: FeatureContent[] = [
       'People answer numbers they recognize. Caller ID rotation automatically presents a local number that matches each prospect’s area code, then rotates across a pool of your numbers so no single line gets overused or flagged as spam.',
       'One engine on Ringee’s backend decides the caller ID for every outbound call — guaranteeing it always matches the destination’s country, favoring the local area code, respecting per-number daily caps, and ranking by each number’s recent health. You dial; Ringee shows the right number.'
     ],
+    video: 'numbers-caller-id',
     whoFor: [
       'Outbound teams dialing across many regions or countries',
       'SDRs who need higher pickup from cold lists',
@@ -315,6 +320,7 @@ export const FEATURES: FeatureContent[] = [
       'Campaigns group your leads into one calling queue that the whole team works. In progressive mode Ringee dials the next lead as soon as a rep is free; in preview mode reps see each lead first and start the call themselves.',
       'Each campaign keeps its own list, notes, outcomes and progress, and applies the rules that keep outbound compliant: calling windows, retry limits and do-not-call checks on every dial.'
     ],
+    video: 'campaigns-progressive-dialer',
     whoFor: [
       'SDR teams running outbound sequences',
       'Agencies executing client calling projects',
@@ -777,6 +783,7 @@ export const FEATURES: FeatureContent[] = [
       'Ringee exposes its outbound workflow through an MCP server, so AI assistants can search and import leads, create contacts, start calls, log outcomes, and schedule callbacks and meetings.',
       'Choose the operator for the conversation. An agent can create a calling session or ring a teammate for a human-led call, or trigger a configured Ringee AI voice agent that places the call, speaks with the person, uses tools, and returns the result.'
     ],
+    video: 'built-for-agents',
     whoFor: [
       'Operators who live in ChatGPT or Claude',
       'Developers who want scriptable outbound',

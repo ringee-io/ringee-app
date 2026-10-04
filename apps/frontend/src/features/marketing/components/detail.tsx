@@ -2,6 +2,8 @@ import { MarketingLink as Link } from './marketing-link';
 import type { ReactNode } from 'react';
 import { ArrowRight, BookOpen, X } from 'lucide-react';
 
+import type { MarketingVideoId } from '../content/videos';
+import { MarketingVideo } from './marketing-video';
 import {
   ButtonLink,
   Card,
@@ -13,19 +15,24 @@ import {
   SectionHeading
 } from './primitives';
 
-/** Detail-page hero: eyebrow, the page's single H1, intro paragraphs, CTAs. */
+/**
+ * Detail-page hero: eyebrow, the page's single H1, intro paragraphs, CTAs, and
+ * the page's product video when it has one.
+ */
 export function DetailHero({
   eyebrow,
   title,
   intro,
   primaryLabel,
-  secondaryLabel
+  secondaryLabel,
+  video
 }: {
   eyebrow: string;
   title: string;
   intro: string[];
   primaryLabel?: string;
   secondaryLabel?: string;
+  video?: MarketingVideoId;
 }) {
   return (
     <Section className='pt-10 pb-8 sm:pt-12'>
@@ -49,6 +56,7 @@ export function DetailHero({
           primaryLabel={primaryLabel}
           secondaryLabel={secondaryLabel}
         />
+        {video ? <MarketingVideo id={video} className='mt-10' /> : null}
       </Container>
     </Section>
   );

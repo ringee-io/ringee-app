@@ -20,6 +20,7 @@ import { EverywhereMode } from '@/features/marketing/components/everywhere-mode'
 import { AgenticCrmFlow } from '@/features/marketing/components/agentic-crm-flow';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
+import { MarketingVideo } from '@/features/marketing/components/marketing-video';
 import {
   JsonLd,
   softwareAppJsonLd
@@ -45,6 +46,19 @@ export default async function HomePage() {
 
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
+
+      {/* Product tour — the whole stack in one 15-second video. The video is
+          English, so its copy has only English messages. */}
+      <Section id='product-tour' className='py-16 sm:py-20'>
+        <Container className='max-w-5xl'>
+          <SectionHeading
+            eyebrow={t('video.eyebrow')}
+            title={t('video.title')}
+            description={t('video.description')}
+          />
+          <MarketingVideo id='ringee-features' className='mt-10' />
+        </Container>
+      </Section>
 
       <Section id='ai-voice-agents' className='py-16 sm:py-20'>
         <Container className='grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]'>

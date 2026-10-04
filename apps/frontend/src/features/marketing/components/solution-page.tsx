@@ -22,6 +22,7 @@ import {
 } from './detail';
 import { FaqSection } from './faq';
 import { JsonLd } from './json-ld';
+import { MarketingVideo } from './marketing-video';
 import {
   ButtonLink,
   Card,
@@ -116,6 +117,8 @@ function SolutionSectionBlock({
           </Card>
         ))}
       </div>
+    ) : section.kind === 'video' ? (
+      <MarketingVideo id={section.video} className='max-w-3xl' />
     ) : (
       <ul className='flex max-w-3xl flex-col gap-3'>
         {section.items.map((item) => (
@@ -181,6 +184,7 @@ export function SolutionPage({
         intro={solution.intro}
         primaryLabel={labels.primaryLabel}
         secondaryLabel={labels.secondaryLabel}
+        video={solution.video}
       />
 
       <WhoForAndBenefits

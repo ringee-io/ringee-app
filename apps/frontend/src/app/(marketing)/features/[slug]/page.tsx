@@ -109,6 +109,7 @@ export default async function FeatureDetailPage({ params }: Params) {
         eyebrow={feature.category}
         title={feature.h1}
         intro={feature.intro}
+        video={feature.video}
       />
       {demo && (
         <FeatureDemo

@@ -771,6 +771,11 @@
     "surfacesNote": "Three surfaces, no extra user fees"
   },
   "home": {
+    "video": {
+      "eyebrow": "Product tour",
+      "title": "The whole calling stack in 15 seconds",
+      "description": "Call 180+ countries from your browser, work the campaign queue hands-free, record and transcribe your calls, hand the right ones to AI voice agents, and run it all from ChatGPT or Claude."
+    },
     "pricing": {
       "eyebrow": "05 / Simple team pricing",
       "title": "Add teammates. Keep one subscription.",
