@@ -84,6 +84,20 @@ export class InboundCallController {
     return this.ring.endAnsweredLeg(createOwnershipContext(user), id);
   }
 
+  /**
+   * The member declined a call ringing for them alone. The caller is ended,
+   * not only the copy of the call this device was rung with.
+   */
+  @Post(":callControlId/decline")
+  decline(
+    @CurrentUser() user: CurrentUserData,
+    @Param("callControlId") callControlId: string,
+  ) {
+    if (!CALL_CONTROL_ID.test(callControlId))
+      throw new BadRequestException("Unknown call.");
+    return this.ring.decline(createOwnershipContext(user), callControlId);
+  }
+
   @Post(":callControlId/claim")
   async claim(
     @CurrentUser() user: CurrentUserData,

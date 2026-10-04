@@ -153,9 +153,21 @@ export function IncomingCall({
     // A ring group is one call ringing several people: this member stepping
     // away must not end it for everybody else. Only a call that is ours alone
     // is hung up here.
-    if (offer?.destinationType !== 'ring_group') call?.hangup?.();
+    if (offer?.destinationType !== 'ring_group') {
+      call?.hangup?.();
+      // That ends only the copy of the call this device was rung with — every
+      // dashboard is offered its own (`DEBT-020`) — so the caller kept
+      // ringing. The server ends the call for them.
+      if (offer?.callControlId)
+        void api
+          .post(
+            `/inbound-calls/${encodeURIComponent(offer.callControlId)}/decline`,
+            {}
+          )
+          .catch(() => undefined);
+    }
     close();
-  }, [call, close, offer?.destinationType]);
+  }, [api, call, close, offer?.callControlId, offer?.destinationType]);
 
   const role = [contact?.jobTitle, contact?.company]
     .filter(Boolean)

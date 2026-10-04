@@ -622,4 +622,65 @@ describe("Ending the caller's leg", () => {
       );
     assert.deepEqual(sent, []);
   });
+
+  /** A call ringing one person, nobody has answered yet. */
+  const ringingForOne = (s: ReturnType<typeof setup>) =>
+    Object.assign(s.call, {
+      answeredAt: null,
+      inboundDestinationType: "user",
+      inboundTransferState: null,
+    });
+
+  it("ends the caller when the member a call rings alone declines it", async () => {
+    const s = setup();
+    ringingForOne(s);
+    const sent = commands(s);
+    assert.deepEqual(await s.service.decline(member, "caller"), {
+      declined: true,
+    });
+    assert.deepEqual(sent, ["caller:inbound-decline-call"]);
+  });
+  it("leaves a group's call, an answered call or a caller already gone alone", async () => {
+    for (const change of [
+      { inboundDestinationType: "ring_group" },
+      { answeredAt: new Date() },
+      { answeredByUserId: "user-b" },
+      { endedAt: new Date() },
+    ]) {
+      const s = setup();
+      Object.assign(ringingForOne(s), change);
+      const sent = commands(s);
+      assert.deepEqual(
+        await s.service.decline(member, "caller"),
+        { declined: false },
+        JSON.stringify(change),
+      );
+      assert.deepEqual(sent, [], JSON.stringify(change));
+    }
+  });
+  it("refuses a decline from anyone the call was not offered to", async () => {
+    const s = setup();
+    ringingForOne(s);
+    const sent = commands(s);
+    for (const ctx of [
+      { userId: "user-c", organizationId: "org" },
+      { userId: "user-a", organizationId: "other-org" },
+      { userId: "user-a", organizationId: null },
+    ])
+      await assert.rejects(s.service.decline(ctx, "caller"), NotFoundException);
+    // With nobody rung through an attempt, the call is its owner's alone.
+    s.attempts.length = 0;
+    await assert.rejects(
+      s.service.decline(member, "caller"),
+      NotFoundException,
+    );
+    assert.deepEqual(sent, []);
+    assert.deepEqual(
+      await s.service.decline(
+        { userId: "owner", organizationId: "org" },
+        "caller",
+      ),
+      { declined: true },
+    );
+  });
 });

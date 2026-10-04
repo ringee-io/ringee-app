@@ -705,6 +705,37 @@ export class InboundRingService {
     return { ended: true };
   }
 
+  /**
+   * The member declined a call that was ringing for them alone. Their device
+   * hangs up only the copy of the call it was rung with — on the shared
+   * credential every dashboard is offered its own (`DEBT-020`) — so the
+   * caller kept ringing until they gave up. The caller is ended here. A ring
+   * group's call is not: one member stepping away must not end it for the
+   * rest. Neither is a call somebody already answered.
+   */
+  async decline(ctx: OwnershipContext, callControlId: string) {
+    const call = await this.callRepository.findByControlId(callControlId);
+    if (!call || call.organizationId !== (ctx.organizationId ?? null))
+      throw new NotFoundException("This call was not offered to you.");
+    const attempts = await this.attempts.listByCall(call.id);
+    const isTarget = attempts.length
+      ? attempts.some((attempt) => attempt.userId === ctx.userId)
+      : call.userId === ctx.userId;
+    if (!isTarget)
+      throw new NotFoundException("This call was not offered to you.");
+    if (
+      !call.callControlId ||
+      call.direction !== "inbound" ||
+      call.endedAt ||
+      call.answeredAt ||
+      call.answeredByUserId ||
+      call.inboundDestinationType === "ring_group"
+    )
+      return { declined: false };
+    await this.endLeg(call.callControlId, `inbound-decline-${call.id}`);
+    return { declined: true };
+  }
+
   /** Reuses the periodic call sweep to bound a handoff interrupted by a crash or lost webhook. */
   async expireStalledTransfers(before: Date, limit: number): Promise<void> {
     const calls = await this.callRepository.findStalledInboundTransfers(
