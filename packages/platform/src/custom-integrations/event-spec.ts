@@ -522,7 +522,6 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           createdAt: "2026-05-23T14:39:55.000Z",
           outcome: "meeting_booked",
           outcomeNote: "Demo scheduled for next Tuesday",
-          disposition: { id: "d_…", name: "Demo booked" },
           contact: {
             id: "…",
             phoneNumber: "+14155550123",
@@ -583,7 +582,6 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         agent: { id: "va_…", name: "Sofia" },
         outcome: "meeting_booked",
         outcomeNote: "Demo scheduled for next Tuesday",
-        disposition: { id: "d_…", name: "Demo booked" },
         updatedAt: "2026-05-23T14:50:00.000Z",
       },
     },
