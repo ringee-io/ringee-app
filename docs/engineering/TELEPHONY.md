@@ -371,6 +371,12 @@ Pedro claims  ──► Call.answeredByUserId = Pedro   (one conditional UPDATE)
   arrives, cannot leave the caller on a silent line. Only the member whose
   attempt won can end the caller this way; anyone else's leg ends nothing but
   itself.
+- Declining a call that rings one person ends the caller too
+  (`POST /api/inbound-calls/:callControlId/decline`, `inbound-decline-<call id>`).
+  The device hangs up only its own copy of the call — on the shared credential
+  every dashboard has one (`DEBT-020`) — which left the caller ringing. A ring
+  group's call, or one somebody answered, is left alone: one member stepping
+  away does not end it for the rest.
 - A member who leaves the workspace stops being a target on the next call,
   without anyone editing the group.
 - The winner owns the call. Once it is answered, `Call.userId` moves to
