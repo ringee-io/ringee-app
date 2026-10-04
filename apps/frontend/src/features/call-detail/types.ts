@@ -173,6 +173,10 @@ export interface CallDetail {
   costMeta: Record<string, unknown> | null;
   outcome: CallOutcome | null;
   outcomeNote: string | null;
+  /** The workspace disposition picked ("Demo booked"); `outcome` is what it means. */
+  dispositionId: string | null;
+  /** The disposition's name when it was picked — kept if it is renamed or deleted. */
+  dispositionName: string | null;
   hangupCause: string | null;
   errorMessage: string | null;
 

@@ -39,6 +39,11 @@ export function buildOdooCallLog(input: CrmCallLogInput): {
       `<li><strong>Outcome:</strong> ${escapeHtml(input.outcomeLabel)}</li>`,
     );
   }
+  if (input.dispositionName) {
+    lines.push(
+      `<li><strong>Disposition:</strong> ${escapeHtml(input.dispositionName)}</li>`,
+    );
+  }
   if (input.agentName) {
     lines.push(
       `<li><strong>Agent:</strong> ${escapeHtml(input.agentName)}</li>`,

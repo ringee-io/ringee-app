@@ -1,9 +1,13 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { DialerProvider, type DialerSlots } from '@ringee/dialer-ui';
+import {
+  DialerProvider,
+  type DialerDisposition,
+  type DialerSlots
+} from '@ringee/dialer-ui';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { ContactActivities } from './contact-activities';
 import { InCallScript } from './in-call-script';
@@ -11,6 +15,7 @@ import { InCallContactInfo } from './in-call-contact-info';
 import { BookMeetingForm } from './book-meeting.form';
 import { ScheduleCallbackForm } from './schedule-callback.form';
 import { VoicemailDropSlot } from '@/features/voicemail';
+import { DISPOSITIONS_CHANGED_EVENT } from '@/features/dispositions/events';
 import {
   CallSubtitles,
   LiveTranscriptPanel,
@@ -38,6 +43,9 @@ function SubtitlesSlot({
   });
   return <CallSubtitles data={data} show={show} />;
 }
+
+/** How long the post-call view reuses the workspace's dispositions. */
+const DISPOSITIONS_TTL_MS = 5 * 60_000;
 
 /**
  * Supplies the web app's data client + the full set of rich panels to the
@@ -125,24 +133,76 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
     [recordingSettings.transcribeRealtime]
   );
 
+  // The workspace's dispositions, fetched while a call is up and reused for a
+  // few minutes so the post-call view opens filled. An edit in Settings drops
+  // the copy, so the next call shows it.
+  const dispositions = useRef<{
+    rows: DialerDisposition[];
+    at: number;
+  } | null>(null);
+  const dispositionsRequest = useRef<Promise<DialerDisposition[]> | null>(null);
+  // Bumped by every edit. A request that started before one answers with the
+  // old list: it must not put that list back into the copy the edit dropped.
+  const dispositionsGeneration = useRef(0);
+  useEffect(() => {
+    const forget = () => {
+      dispositionsGeneration.current += 1;
+      dispositions.current = null;
+      dispositionsRequest.current = null;
+    };
+    window.addEventListener(DISPOSITIONS_CHANGED_EVENT, forget);
+    return () => window.removeEventListener(DISPOSITIONS_CHANGED_EVENT, forget);
+  }, []);
+
   const data = useMemo(
     () => ({
       // Outcome save AND skip/close share this request — with no `outcome` the
-      // backend just pushes the CRM call-log note immediately.
+      // backend just pushes the CRM call-log note immediately. With a
+      // disposition, the backend records the outcome it maps to.
       saveCallOutcome: (input: {
         callId?: string | null;
         callSessionId?: string | null;
         outcome?: string;
         outcomeNote?: string;
+        dispositionId?: string | null;
       }) =>
         api
           .post('/meetings/call-outcome', {
             callId: input.callId || undefined,
             callSessionId: input.callSessionId || undefined,
             outcome: input.outcome || undefined,
-            outcomeNote: input.outcomeNote || undefined
+            outcomeNote: input.outcomeNote || undefined,
+            dispositionId: input.dispositionId || undefined
           })
-          .then(() => undefined)
+          .then(() => undefined),
+      listDispositions: () => {
+        const cached = dispositions.current;
+        if (cached && Date.now() - cached.at < DISPOSITIONS_TTL_MS) {
+          return Promise.resolve(cached.rows);
+        }
+        if (!dispositionsRequest.current) {
+          const generation = dispositionsGeneration.current;
+          const request: Promise<DialerDisposition[]> = api
+            .get<DialerDisposition[]>('/dispositions/defaults')
+            .then((rows) => {
+              if (generation === dispositionsGeneration.current) {
+                dispositions.current = { rows, at: Date.now() };
+              }
+              return rows;
+            })
+            .finally(() => {
+              if (dispositionsRequest.current === request) {
+                dispositionsRequest.current = null;
+              }
+            });
+          dispositionsRequest.current = request;
+        }
+        const fresh = dispositionsRequest.current;
+        // A stale copy still opens the view at once; the fresh one is next.
+        if (!cached) return fresh;
+        fresh.catch(() => undefined);
+        return Promise.resolve(cached.rows);
+      }
     }),
     [api]
   );

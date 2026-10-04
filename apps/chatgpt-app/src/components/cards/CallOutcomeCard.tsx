@@ -60,8 +60,13 @@ export function CallOutcomeCard({
             Outcome logged
           </p>
           <h3 className="truncate text-base font-semibold leading-tight">
-            {titleCase(outcome.outcome)}
+            {outcome.disposition?.name ?? titleCase(outcome.outcome)}
           </h3>
+          {outcome.disposition?.name ? (
+            <p className="truncate text-xs text-muted-foreground">
+              {titleCase(outcome.outcome)}
+            </p>
+          ) : null}
         </div>
       </CardHeader>
 

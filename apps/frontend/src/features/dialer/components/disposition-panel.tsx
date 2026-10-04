@@ -99,6 +99,7 @@ export function DispositionPanel() {
       return;
     }
     const saved = await dispose({
+      dispositionId: selectedDispo?.id,
       dispositionCode: selectedCode,
       note,
       ...(showCallbackFields && callbackDate

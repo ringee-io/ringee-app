@@ -60,6 +60,7 @@
       "from": "From",
       "to": "To",
       "status": "Status",
+      "outcome": "Outcome",
       "duration": "Duration",
       "date": "Date",
       "recording": "Recording",

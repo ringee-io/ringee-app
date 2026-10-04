@@ -534,6 +534,9 @@ function renderCallBody(
 
   const facts: string[] = [];
   if (input.outcomeLabel) facts.push(fact("Outcome", input.outcomeLabel));
+  if (input.dispositionName) {
+    facts.push(fact("Disposition", input.dispositionName));
+  }
   if (input.agentName) facts.push(fact("Agent", input.agentName));
   if (facts.length > 0) parts.push(`<ul>${facts.join("")}</ul>`);
 

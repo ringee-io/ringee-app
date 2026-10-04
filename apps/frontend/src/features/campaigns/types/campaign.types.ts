@@ -1,3 +1,5 @@
+import type { DispositionCategory } from '@/features/dispositions/types';
+
 export type DialerMode = 'progressive' | 'preview';
 
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
@@ -15,11 +17,11 @@ export type CampaignLeadStatus =
   | 'exhausted'
   | 'dnc';
 
-export type DispositionCategory =
-  | 'positive'
-  | 'neutral'
-  | 'negative'
-  | 'no_contact';
+// A campaign's dispositions are the dispositions feature's — one type for both.
+export type {
+  Disposition,
+  DispositionCategory
+} from '@/features/dispositions/types';
 
 export interface Campaign {
   id: string;
@@ -92,22 +94,6 @@ export interface CampaignList {
   _count?: { leads: number };
 }
 
-export interface Disposition {
-  id: string;
-  campaignId: string;
-  code: string;
-  label: string;
-  category: DispositionCategory;
-  color: string | null;
-  sortOrder: number;
-  triggersRetry: boolean;
-  triggersCompletion: boolean;
-  triggersDnc: boolean;
-  triggersCallback: boolean;
-  isActive: boolean;
-  isSystem: boolean;
-}
-
 export interface RetryRule {
   id: string;
   campaignId: string;
@@ -132,6 +118,8 @@ export interface CreateCampaignDto {
   workDays?: number[];
   wrapUpTimeSec?: number;
   retryDelayMin?: number;
+  /** Workspace dispositions the dialer shows, in order; none = workspace defaults. */
+  dispositionIds?: string[];
 }
 
 export interface CampaignLeadLastAttempt {

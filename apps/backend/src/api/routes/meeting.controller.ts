@@ -22,6 +22,7 @@ import {
   Max,
   MaxLength,
   Min,
+  isUUID,
 } from "class-validator";
 import {
   CurrentUser,
@@ -223,8 +224,11 @@ export class MeetingController {
   }
 
   /**
-   * Post-call disposition. `outcome` is optional: skip/close send the same
-   * request without one, which still pushes the CRM call-log note immediately.
+   * Post-call disposition. `dispositionId` (a workspace disposition) or
+   * `outcome` (a bare canonical outcome, as older clients send) — with both,
+   * the disposition decides the outcome. Neither is required: skip/close send
+   * the same request without one, which still pushes the CRM call-log note
+   * immediately.
    */
   @Post("call-outcome")
   async updateCallOutcome(
@@ -234,6 +238,7 @@ export class MeetingController {
       callSessionId?: string;
       outcome?: string;
       outcomeNote?: string;
+      dispositionId?: string;
     },
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -253,13 +258,17 @@ export class MeetingController {
       throw new BadRequestException("callId or callSessionId is required");
     }
 
-    if (!dto.outcome) {
+    if (!dto.outcome && !dto.dispositionId) {
       return this.meetingService.finalizeCall(ctx, callId);
+    }
+    if (dto.dispositionId && !isUUID(dto.dispositionId)) {
+      throw new BadRequestException("dispositionId must be a UUID");
     }
 
     return this.meetingService.updateCallOutcome(ctx, callId, {
-      outcome: dto.outcome as any,
+      outcome: dto.outcome,
       outcomeNote: dto.outcomeNote,
+      dispositionId: dto.dispositionId,
     });
   }
 }

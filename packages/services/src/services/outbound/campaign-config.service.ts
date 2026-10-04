@@ -8,7 +8,6 @@ import {
   CampaignRepository,
   CampaignLeadRepository,
   CampaignListRepository,
-  DispositionRepository,
   NumberPurchasedRepository,
   Campaign,
   DialerMode,
@@ -39,6 +38,11 @@ export interface CreateCampaignFullDto {
   workDays?: number[];
   wrapUpTimeSec?: number;
   retryDelayMin?: number;
+  /**
+   * Workspace dispositions the campaign's dialer shows, in order. Absent or
+   * empty: the workspace's default set (DISP-004).
+   */
+  dispositionIds?: string[];
 }
 
 export interface UpdateCampaignSettingsDto {
@@ -66,7 +70,6 @@ export class CampaignConfigService {
     private readonly campaignRepo: CampaignRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignListRepo: CampaignListRepository,
-    private readonly dispositionRepo: DispositionRepository,
     private readonly numberPurchasedRepo: NumberPurchasedRepository,
     private readonly dispositionService: DispositionService,
     private readonly leadQueueService: LeadQueueService,
@@ -147,6 +150,9 @@ export class CampaignConfigService {
     await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
     await this.ensureExternalNumberUsable(ctx, dto.externalNumberId);
     await this.ensureNumbersOwnership(ctx, dto.rotationNumberIds);
+    // Checked before anything is written, so a bad pick leaves no campaign.
+    const dispositionIds = dto.dispositionIds ?? [];
+    await this.dispositionService.assertPickable(ctx, dispositionIds);
 
     const campaign = await this.campaignRepo.create(
       ctx.userId,
@@ -169,12 +175,24 @@ export class CampaignConfigService {
       dto.wrapUpTimeSec !== undefined ||
       dto.retryDelayMin !== undefined
     ) {
-      const { name: _n, description: _d, ...settings } = dto;
+      const {
+        name: _n,
+        description: _d,
+        dispositionIds: _dispositions,
+        ...settings
+      } = dto;
       await this.campaignRepo.update(campaign.id, settings);
     }
 
-    // Seed default dispositions
-    await this.dispositionService.seedDefaults(campaign.id);
+    // A campaign no longer gets its own copy of every disposition: with no
+    // pick it shows the workspace's default set (DISP-004).
+    if (dispositionIds.length > 0) {
+      await this.dispositionService.setCampaignSet(
+        ctx,
+        campaign.id,
+        dispositionIds,
+      );
+    }
 
     return (await this.campaignRepo.findById(campaign.id))!;
   }
@@ -265,7 +283,7 @@ export class CampaignConfigService {
       }
 
       const dispositions =
-        await this.dispositionRepo.findByCampaign(campaignId);
+        await this.dispositionService.listByCampaign(campaignId);
       if (dispositions.length === 0) {
         throw new BadRequestException(
           "Campaign must have at least 1 disposition configured",

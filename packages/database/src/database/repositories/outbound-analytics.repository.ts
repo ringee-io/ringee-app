@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
+import { isConversionSql } from "./campaign-conversion.sql";
+
+/** A converting attempt (DISP-002), as every query below counts it. */
+const IS_CONVERSION = isConversionSql();
 
 export interface CampaignSummaryStats {
   totalAttempts: number;
@@ -62,11 +66,11 @@ export class OutboundAnalyticsRepository {
       `SELECT
         COUNT(*) as total_attempts,
         COUNT(*) FILTER (WHERE "answeredAt" IS NOT NULL) as connected,
-        COUNT(*) FILTER (WHERE "dispositionCode" IN ('meeting_booked','sale')) as conversions,
+        COUNT(*) FILTER (WHERE ${IS_CONVERSION}) as conversions,
         AVG("durationSec") FILTER (WHERE "answeredAt" IS NOT NULL) as avg_handle_time,
         COUNT(DISTINCT "campaignLeadId") as unique_leads,
         ROUND(COUNT(*) FILTER (WHERE "answeredAt" IS NOT NULL)::numeric / NULLIF(COUNT(*), 0) * 100, 1) as contact_rate,
-        ROUND(COUNT(*) FILTER (WHERE "dispositionCode" IN ('meeting_booked','sale'))::numeric / NULLIF(COUNT(*), 0) * 100, 1) as conversion_rate
+        ROUND(COUNT(*) FILTER (WHERE ${IS_CONVERSION})::numeric / NULLIF(COUNT(*), 0) * 100, 1) as conversion_rate
       FROM "CallAttempt"
       WHERE "campaignId" = $1::uuid ${dateFilter}`,
       ...params,
@@ -111,7 +115,7 @@ export class OutboundAnalyticsRepository {
         COUNT(*) as attempts,
         COUNT(*) FILTER (WHERE "answeredAt" IS NOT NULL) as connected,
         COALESCE(SUM("durationSec") FILTER (WHERE "answeredAt" IS NOT NULL), 0) as total_talk_sec,
-        COUNT(*) FILTER (WHERE "dispositionCode" IN ('meeting_booked','sale')) as conversions,
+        COUNT(*) FILTER (WHERE ${IS_CONVERSION}) as conversions,
         ROUND(COUNT(*) FILTER (WHERE "answeredAt" IS NOT NULL)::numeric / NULLIF(COUNT(*), 0) * 100, 1) as contact_rate
       FROM "CallAttempt"
       WHERE "campaignId" = $1::uuid ${dateFilter}

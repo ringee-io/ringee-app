@@ -13,6 +13,7 @@ import {
   MessageEvent,
 } from "@nestjs/common";
 import { Observable, merge, interval, map } from "rxjs";
+import { isUUID } from "class-validator";
 import { Request } from "express";
 import { CurrentUser, createOwnershipContext, Public } from "@ringee/platform";
 import {
@@ -192,7 +193,10 @@ export class DialerController {
     @Body()
     body: {
       callAttemptId: string;
-      dispositionCode: string;
+      /** The disposition picked. Preferred over the code when both are sent. */
+      dispositionId?: string;
+      /** How every client named it before workspace dispositions. */
+      dispositionCode?: string;
       note?: string;
       callbackScheduledAt?: string;
       callbackNote?: string;
@@ -226,15 +230,28 @@ export class DialerController {
       attempt.campaignId,
     );
 
-    const disposition = await this.dispositionService.findByCampaignAndCode(
+    // Resolved within what this campaign may record (DISP-004): its set, or
+    // an active disposition of its own or its workspace's. An id from another
+    // campaign or workspace, or an inactive one, reads as missing.
+    if (!body.dispositionId && !body.dispositionCode) {
+      throw new BadRequestException(
+        "dispositionId or dispositionCode is required",
+      );
+    }
+    if (body.dispositionId && !isUUID(body.dispositionId)) {
+      throw new BadRequestException("dispositionId must be a UUID");
+    }
+    const disposition = await this.dispositionService.resolveForCampaign(
       attempt.campaignId,
-      body.dispositionCode,
+      body.dispositionId
+        ? { id: body.dispositionId }
+        : { code: body.dispositionCode! },
     );
     if (!disposition) throw new BadRequestException("Disposition not found");
 
     const result = await this.callAttemptService.submitDisposition({
       callAttemptId: body.callAttemptId,
-      dispositionId: disposition.id,
+      disposition,
       note: body.note,
       callback:
         disposition.triggersCallback && body.callbackScheduledAt

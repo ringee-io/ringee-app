@@ -31,6 +31,7 @@ Read (always safe):
 - `get_call_analytics` — the dashboard overview numbers
 - `get_day_activity` — one calendar day: calls + callbacks + meetings
 - `list_callbacks` — callbacks still owed
+- `list_dispositions` — the workspace's own dispositions and the outcome each maps to
 - `list_dnc` — suppressed numbers
 - `list_ai_voice_agents` — configured AI voice agents available in the workspace
 - `get_ai_voice_agent_call` — status, outcome, summary and results for an AI call

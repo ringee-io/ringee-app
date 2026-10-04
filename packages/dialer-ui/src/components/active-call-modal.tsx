@@ -133,7 +133,7 @@ export function ActiveCallModal({
   callId,
   compact = false,
 }: ActiveCallModalProps) {
-  const { slots, recordingSettings } = useDialer();
+  const { data, slots, recordingSettings } = useDialer();
   const [elapsed, setElapsed] = useState(0);
   const {
     bookingPanelOpen,
@@ -165,6 +165,13 @@ export function ActiveCallModal({
   useEffect(() => {
     if (bookingPanelOpen && hasBooking) setActiveTab("booking");
   }, [bookingPanelOpen, hasBooking]);
+
+  // Fetch the workspace's dispositions while the call is still up, so the
+  // post-call view opens with its buttons rather than a placeholder.
+  useEffect(() => {
+    if (!open || isPostCall) return;
+    void data.listDispositions?.().catch(() => undefined);
+  }, [open, isPostCall, data]);
 
   useEffect(() => {
     if (!open) return;

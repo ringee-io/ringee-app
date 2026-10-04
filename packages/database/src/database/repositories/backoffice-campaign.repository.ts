@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
+import {
+  CONVERSION_OUTCOMES,
+  attemptOutcomeSql,
+  isConversionSql,
+} from "./campaign-conversion.sql";
 
 /**
  * Cross-tenant campaign analytics for the internal super-admin (backoffice)
@@ -12,8 +17,11 @@ import { PrismaService } from "../prisma.service";
  * cost lives — Call itself has no campaignId.
  */
 
-/** Disposition codes that count as a conversion, mirroring OutboundAnalyticsRepository. */
-const CONVERSION_CODES = ["meeting_booked", "sale"];
+/** Canonical outcomes that count as a conversion — the dashboard's own list. */
+const CONVERSION_CODES = [...CONVERSION_OUTCOMES];
+
+/** What a `ca` attempt's disposition means (DISP-002), as conversions are counted on it. */
+const ATTEMPT_OUTCOME = attemptOutcomeSql("ca");
 
 export type CampaignOwnerScope = "all" | "org" | "personal";
 
@@ -502,7 +510,7 @@ export class BackofficeCampaignRepository {
           ca."campaignId"                                  AS campaign_id,
           COUNT(*)                                         AS attempts,
           COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL) AS connected,
-          COUNT(*) FILTER (WHERE ca."dispositionCode" IN (${this.conversionList()})) AS conversions,
+          COUNT(*) FILTER (WHERE ${isConversionSql("ca")}) AS conversions,
           COUNT(DISTINCT ca."campaignLeadId")              AS unique_leads,
           COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
           COALESCE(SUM(cl."totalCost"), 0)                 AS cost,
@@ -520,10 +528,6 @@ export class BackofficeCampaignRepository {
         FROM "CampaignLead"
         GROUP BY "campaignId"
       )`;
-  }
-
-  private conversionList(): string {
-    return CONVERSION_CODES.map((c) => `'${c}'`).join(",");
   }
 
   /** Organizations that own at least one campaign, for the filter dropdown. */
@@ -626,7 +630,7 @@ export class BackofficeCampaignRepository {
       SELECT
         COUNT(*)                                            AS attempts,
         COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
-        COUNT(*) FILTER (WHERE ca."dispositionCode" = ANY(${CONVERSION_CODES})) AS conversions,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COUNT(DISTINCT ca."campaignLeadId")                 AS unique_leads,
         COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
@@ -665,7 +669,7 @@ export class BackofficeCampaignRepository {
         date_trunc('day', ca."initiatedAt")                 AS day,
         COUNT(*)                                            AS attempts,
         COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
-        COUNT(*) FILTER (WHERE ca."dispositionCode" = ANY(${CONVERSION_CODES})) AS conversions,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca
@@ -736,13 +740,19 @@ export class BackofficeCampaignRepository {
     >(Prisma.sql`
       SELECT
         ca."dispositionCode"      AS code,
-        MAX(d.label)              AS label,
-        MAX(d.category::text)     AS category,
+        -- One code can name two rows: a campaign's seeded "meeting_booked" and
+        -- the workspace disposition it switched to. The bucket stays per code;
+        -- its label is the one recorded last, not whichever sorts highest.
+        (ARRAY_AGG(d.label ORDER BY ca."initiatedAt" DESC)
+          FILTER (WHERE d.label IS NOT NULL))[1]          AS label,
+        (ARRAY_AGG(d.category::text ORDER BY ca."initiatedAt" DESC)
+          FILTER (WHERE d.category IS NOT NULL))[1]       AS category,
         COUNT(*)                  AS count,
         ROUND(COUNT(*)::numeric / SUM(COUNT(*)) OVER () * 100, 1) AS percentage
       FROM "CallAttempt" ca
-      LEFT JOIN "Disposition" d
-        ON d."campaignId" = ca."campaignId" AND d.code = ca."dispositionCode"
+      -- By id, not by (campaign, code): a workspace disposition has no
+      -- campaign, and the attempt names the exact row it recorded.
+      LEFT JOIN "Disposition" d ON d.id = ca."dispositionId"
       WHERE ca."campaignId" = ${campaignId}::uuid
         AND ca."dispositionCode" IS NOT NULL
         AND ca."initiatedAt" BETWEEN ${start} AND ${end}
@@ -784,7 +794,7 @@ export class BackofficeCampaignRepository {
         MAX(e.email)                                        AS email,
         COUNT(*)                                            AS attempts,
         COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
-        COUNT(*) FILTER (WHERE ca."dispositionCode" = ANY(${CONVERSION_CODES})) AS conversions,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca

@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   Patch,
+  Put,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
@@ -29,8 +30,18 @@ import {
   DispositionService,
   RetryEngine,
   CampaignMemberService,
+  type UpdateCampaignDispositionDto,
 } from "@ringee/services";
 import { DispositionCategory } from "@ringee/database";
+import { ArrayMaxSize, IsArray, IsUUID } from "class-validator";
+
+class SetCampaignDispositionsDto {
+  /** Workspace disposition ids, in the order the dialer shows them. */
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("all", { each: true })
+  dispositionIds!: string[];
+}
 
 interface CurrentUserData {
   id: string;
@@ -144,6 +155,11 @@ export class CampaignController {
 
   // ── Disposition endpoints ──
 
+  /**
+   * The dispositions the campaign's dialer shows, in order (DISP-004) — the
+   * ones picked for it, its own pre-workspace ones, or the workspace's default
+   * set. Members see only the campaigns they are assigned to.
+   */
   @Get(":id/dispositions")
   @AllowOrgMember()
   async listDispositions(
@@ -153,9 +169,55 @@ export class CampaignController {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.dispositionService.listByCampaign(campaignId);
+    const { dispositions } = await this.dispositionService.getCampaignSet(
+      createOwnershipContext(user),
+      campaignId,
+      this.membershipRule(user),
+    );
+    return dispositions;
   }
 
+  /** Same list, plus where it comes from — for the campaign's settings. */
+  @Get(":id/disposition-set")
+  @AllowOrgMember()
+  async getDispositionSet(
+    @Param("id") campaignId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.dispositionService.getCampaignSet(
+      createOwnershipContext(user),
+      campaignId,
+      this.membershipRule(user),
+    );
+  }
+
+  /**
+   * Picks the workspace dispositions the dialer shows, in order. An empty
+   * list returns the campaign to the workspace's default set.
+   */
+  @Put(":id/disposition-set")
+  async setDispositionSet(
+    @Param("id") campaignId: string,
+    @Body() body: SetCampaignDispositionsDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.dispositionService.setCampaignSet(
+      createOwnershipContext(user),
+      campaignId,
+      body.dispositionIds,
+    );
+  }
+
+  /**
+   * Adds a disposition owned by this campaign alone. Kept for API
+   * compatibility: the dashboard picks workspace dispositions instead.
+   */
   @Post(":id/dispositions")
   async createDisposition(
     @Param("id") campaignId: string,
@@ -176,30 +238,54 @@ export class CampaignController {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.dispositionService.create(campaignId, body);
+    return this.dispositionService.createForCampaign(
+      createOwnershipContext(user),
+      campaignId,
+      body,
+    );
   }
 
+  /** Edits one of the campaign's own dispositions — never another campaign's. */
   @Patch(":id/dispositions/:dispositionId")
   async updateDisposition(
+    @Param("id") campaignId: string,
     @Param("dispositionId") dispositionId: string,
-    @Body() body: any,
+    @Body() body: UpdateCampaignDispositionDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.dispositionService.update(dispositionId, body);
+    return this.dispositionService.updateForCampaign(
+      createOwnershipContext(user),
+      campaignId,
+      dispositionId,
+      body,
+    );
   }
 
   @Delete(":id/dispositions/:dispositionId")
   async deleteDisposition(
+    @Param("id") campaignId: string,
     @Param("dispositionId") dispositionId: string,
     @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.dispositionService.deactivate(dispositionId);
+    return this.dispositionService.deactivateForCampaign(
+      createOwnershipContext(user),
+      campaignId,
+      dispositionId,
+    );
+  }
+
+  /** Non-admins may only read campaigns they are assigned to. */
+  private membershipRule(user: CurrentUserData) {
+    return {
+      requireMembershipForUserId:
+        user.activeOrgRole === "org:admin" ? undefined : user.id,
+    };
   }
 
   // ── Retry rule endpoints ──

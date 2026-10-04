@@ -60,6 +60,7 @@
       "from": "Von",
       "to": "An",
       "status": "Status",
+      "outcome": "Ergebnis",
       "duration": "Dauer",
       "date": "Datum",
       "recording": "Aufzeichnung",

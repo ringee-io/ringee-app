@@ -285,6 +285,10 @@
         "label": "Call script",
         "description": "The script your dialer reads on calls."
       },
+      "dispositions": {
+        "label": "Dispositions",
+        "description": "What your team picks after a call, mapped to Ringee outcomes."
+      },
       "calendars": {
         "label": "Calendars",
         "description": "Booking hours, time zones and the calendars your agents book on."
@@ -383,6 +387,68 @@
     "bodyLabel": "Script",
     "bodyPlaceholder": "What you’ll say in this part of the script…",
     "removeSection": "Delete section"
+  },
+  "dispositions": {
+    "intro": "Dispositions are what your team picks after a call. Each one maps to a Ringee outcome, so analytics, CRM sync and automations always know what happened — whatever you call it.",
+    "new": "New disposition",
+    "loadError": "Could not load your dispositions.",
+    "retry": "Try again",
+    "empty": "No dispositions yet.",
+    "columns": {
+      "disposition": "Disposition",
+      "mapsTo": "Maps to",
+      "default": "Default",
+      "active": "Active"
+    },
+    "dragToReorder": "Drag to reorder",
+    "inactive": "Inactive",
+    "mapsTo": "Maps to {outcome}",
+    "actions": "Actions",
+    "edit": "Edit",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "makeDefault": "Offer by default",
+    "removeDefault": "Stop offering by default",
+    "delete": "Delete",
+    "deleteInUse": "Recorded on calls, so it can't be deleted — deactivate it instead.",
+    "deleteDialog": {
+      "title": "Delete “{name}”?",
+      "description": "It has never been recorded on a call, so no history is lost.",
+      "campaigns": "{count, plural, one {It will be removed from # campaign.} other {It will be removed from # campaigns.}}",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "toasts": {
+      "created": "Disposition created.",
+      "saved": "Disposition saved.",
+      "deleted": "Disposition deleted.",
+      "reorderFailed": "Could not save the new order.",
+      "error": "Could not save the disposition."
+    },
+    "form": {
+      "createTitle": "New disposition",
+      "editTitle": "Edit disposition",
+      "description": "What your team picks after a call, and the Ringee outcome it means.",
+      "name": "Name",
+      "namePlaceholder": "e.g. Demo booked",
+      "mapsTo": "Maps to",
+      "mapsToPlaceholder": "Choose an outcome",
+      "mapsToHint": "The outcome analytics, CRM sync and automations record.",
+      "mapsToLocked": "Already recorded on calls, so what it maps to can't change. Create a new disposition instead.",
+      "color": "Color",
+      "customColor": "Custom",
+      "noColor": "No color",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional — when to pick it",
+      "isDefault": "Offer by default",
+      "isDefaultHint": "Shown after manual calls, and in campaigns that don't pick their own.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "saving": "Saving…",
+      "required": "Required",
+      "tooLong": "Too long"
+    }
   },
   "byoc": {
     "intro": "Connect your carrier or PBX to call from your own numbers in the dialer and ring a desk phone when they are called.",

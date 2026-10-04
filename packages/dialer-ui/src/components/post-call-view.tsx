@@ -4,7 +4,7 @@ import { Button } from "@ringee/frontend-shared/components/ui/button";
 import { Textarea } from "@ringee/frontend-shared/components/ui/textarea";
 import { cn } from "@ringee/frontend-shared/lib/utils";
 import { useCallStore, type CallOutcome } from "@ringee/dialer-core/store";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CalendarCheck,
   ThumbsUp,
@@ -20,6 +20,7 @@ import {
   PhoneCall,
 } from "lucide-react";
 import { useDialer } from "../data/context";
+import type { DialerDisposition } from "../data/types";
 
 const OUTCOMES: {
   id: CallOutcome;
@@ -137,6 +138,38 @@ export function PostCallView({ onClose }: PostCallViewProps) {
   const [showCallback, setShowCallback] = useState(false);
   const [showVoicemail, setShowVoicemail] = useState(false);
   const [voicemailSent, setVoicemailSent] = useState(false);
+  // The workspace's dispositions: null while they load, empty when the host
+  // has none — then the built-in outcome buttons are the choice, as before.
+  const [dispositions, setDispositions] = useState<DialerDisposition[] | null>(
+    data.listDispositions ? null : [],
+  );
+  const [dispositionId, setDispositionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!data.listDispositions) return;
+    let cancelled = false;
+    data
+      .listDispositions()
+      .then((rows) => !cancelled && setDispositions(rows))
+      .catch(() => !cancelled && setDispositions([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
+
+  const hasDispositions = !!dispositions && dispositions.length > 0;
+
+  // The pick follows the outcome when something else sets it — a meeting
+  // booked or a callback scheduled — onto the first disposition that means it.
+  // With none, the outcome is saved on its own, as it always was.
+  useEffect(() => {
+    if (!hasDispositions || !outcome) return;
+    const picked = dispositions!.find((d) => d.id === dispositionId);
+    if (picked?.canonicalOutcome === outcome) return;
+    setDispositionId(
+      dispositions!.find((d) => d.canonicalOutcome === outcome)?.id ?? null,
+    );
+  }, [outcome, dispositions, hasDispositions, dispositionId]);
 
   const durationLabel = `${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, "0")}`;
 
@@ -150,6 +183,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           callSessionId: callSessionId || undefined,
           outcome,
           outcomeNote: outcomeNote || undefined,
+          dispositionId: dispositionId ?? undefined,
         });
       }
       notify("success", "Call outcome saved");
@@ -190,6 +224,11 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     setVoicemailSent(true);
     setShowVoicemail(false);
     notify("success", "Voicemail on its way");
+  };
+
+  const handleDispositionClick = (disposition: DialerDisposition) => {
+    setDispositionId(disposition.id);
+    handleOutcomeClick(disposition.canonicalOutcome);
   };
 
   const handleOutcomeClick = (id: CallOutcome) => {
@@ -265,75 +304,135 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         </div>
       )}
 
-      {/* Outcomes */}
-      <div className="mb-2 flex flex-col gap-3">
-        <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-          Successful Outcomes
-        </p>
-        <div className="grid grid-cols-2 gap-2.5">
-          {OUTCOMES.filter((o) =>
-            ["sale", "meeting_booked"].includes(o.id),
-          ).map((o) => {
-            const Icon = o.icon;
-            const isSelected = outcome === o.id;
+      {/* Dispositions — the workspace's own, each meaning one outcome */}
+      {dispositions === null ? (
+        <div className="mb-2 grid grid-cols-2 gap-2" aria-busy="true">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="bg-muted/60 h-11 animate-pulse rounded-lg"
+            />
+          ))}
+        </div>
+      ) : hasDispositions ? (
+        <div className="mb-2 grid grid-cols-2 gap-2">
+          {dispositions.map((d) => {
+            const isSelected = dispositionId === d.id;
+            const color = d.color ?? undefined;
             return (
               <button
-                key={o.id}
-                onClick={() => handleOutcomeClick(o.id)}
+                key={d.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => handleDispositionClick(d)}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-all duration-200 active:scale-95",
+                  "flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200 active:scale-95",
                   isSelected
-                    ? cn(o.bgActive, "scale-[1.02] shadow-md")
-                    : "border-border/60 bg-card hover:border-border hover:bg-muted/30 hover:shadow-sm",
+                    ? "border-foreground/40 bg-muted/40 shadow-sm"
+                    : "border-border/60 bg-card hover:border-border hover:bg-muted/30",
                 )}
+                style={
+                  isSelected && color
+                    ? {
+                        borderColor: color,
+                        backgroundColor: `${color}1A`,
+                        boxShadow: `0 0 0 1px ${color}40`,
+                      }
+                    : undefined
+                }
               >
-                <div
+                <span
+                  aria-hidden
                   className={cn(
-                    "flex items-center justify-center rounded-lg p-2 transition-colors",
-                    isSelected ? "bg-background/50" : "bg-muted/50",
+                    "size-2.5 shrink-0 rounded-full",
+                    !color && "border-muted-foreground/50 border",
+                  )}
+                  style={color ? { backgroundColor: color } : undefined}
+                />
+                <span className="min-w-0 flex-1 leading-tight">{d.label}</span>
+                {isSelected ? (
+                  <Check
+                    className="h-4 w-4 shrink-0"
+                    style={color ? { color } : undefined}
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        /* Outcomes — the built-in buttons, for a host without dispositions */
+        <div className="mb-2 flex flex-col gap-3">
+          <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+            Successful Outcomes
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {OUTCOMES.filter((o) =>
+              ["sale", "meeting_booked"].includes(o.id),
+            ).map((o) => {
+              const Icon = o.icon;
+              const isSelected = outcome === o.id;
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => handleOutcomeClick(o.id)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-all duration-200 active:scale-95",
+                    isSelected
+                      ? cn(o.bgActive, "scale-[1.02] shadow-md")
+                      : "border-border/60 bg-card hover:border-border hover:bg-muted/30 hover:shadow-sm",
                   )}
                 >
-                  <Icon className={cn("h-5 w-5", isSelected ? "" : o.color)} />
-                </div>
-                <span>{o.label}</span>
-              </button>
-            );
-          })}
-        </div>
+                  <div
+                    className={cn(
+                      "flex items-center justify-center rounded-lg p-2 transition-colors",
+                      isSelected ? "bg-background/50" : "bg-muted/50",
+                    )}
+                  >
+                    <Icon
+                      className={cn("h-5 w-5", isSelected ? "" : o.color)}
+                    />
+                  </div>
+                  <span>{o.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        <p className="text-muted-foreground mt-2 text-xs font-medium tracking-wider uppercase">
-          Other Dispositions
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {OUTCOMES.filter(
-            (o) => !["sale", "meeting_booked"].includes(o.id),
-          ).map((o) => {
-            const Icon = o.icon;
-            const isSelected = outcome === o.id;
-            return (
-              <button
-                key={o.id}
-                onClick={() => handleOutcomeClick(o.id)}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-all duration-200 active:scale-95",
-                  isSelected
-                    ? cn(o.bgActive, "shadow-sm")
-                    : "border-border/50 bg-card hover:border-border hover:bg-muted/20",
-                )}
-              >
-                <Icon
-                  className={cn("mb-0.5 h-4 w-4", isSelected ? "" : o.color)}
-                />
-                <span className="text-center leading-tight">
-                  {o.id === "callback_scheduled"
-                    ? labels.callbackDisposition
-                    : o.label}
-                </span>
-              </button>
-            );
-          })}
+          <p className="text-muted-foreground mt-2 text-xs font-medium tracking-wider uppercase">
+            Other Dispositions
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {OUTCOMES.filter(
+              (o) => !["sale", "meeting_booked"].includes(o.id),
+            ).map((o) => {
+              const Icon = o.icon;
+              const isSelected = outcome === o.id;
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => handleOutcomeClick(o.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-all duration-200 active:scale-95",
+                    isSelected
+                      ? cn(o.bgActive, "shadow-sm")
+                      : "border-border/50 bg-card hover:border-border hover:bg-muted/20",
+                  )}
+                >
+                  <Icon
+                    className={cn("mb-0.5 h-4 w-4", isSelected ? "" : o.color)}
+                  />
+                  <span className="text-center leading-tight">
+                    {o.id === "callback_scheduled"
+                      ? labels.callbackDisposition
+                      : o.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Booking prompt */}
       {showBookingPrompt && (

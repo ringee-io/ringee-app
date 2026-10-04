@@ -26,6 +26,7 @@ import { Loader2, Phone, Shuffle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useRotationEnabled } from '@/features/number-rotation';
+import { DispositionPicker } from '@/features/dispositions';
 import { CampaignCarrierNumberField } from './campaign-carrier-number-field';
 import type {
   Campaign,
@@ -393,6 +394,23 @@ export function CampaignCreateForm() {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Dispositions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{tc('dispositions.title')}</CardTitle>
+          <CardDescription>
+            {tc('dispositions.createDescription')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DispositionPicker
+            value={form.dispositionIds ?? []}
+            onChange={(dispositionIds) => updateForm({ dispositionIds })}
+            disabled={saving}
+          />
         </CardContent>
       </Card>
 

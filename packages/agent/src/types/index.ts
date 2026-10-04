@@ -150,6 +150,8 @@ export interface CallDetail {
   duration: string | null;
   outcome: CallOutcome | null;
   outcomeNote: string | null;
+  /** The workspace disposition picked for the call ("Demo booked"), if any. */
+  dispositionName?: string | null;
   contact: ContactSummary | null;
   recordingUrl: string | null;
   hasRecording: boolean;
@@ -169,8 +171,29 @@ export interface ListCallsResult {
 export interface LogCallOutcomeResult {
   ok: boolean;
   callId: string;
+  /** Always the canonical outcome — the disposition's, when one was given. */
   outcome: CallOutcome;
   outcomeNote?: string | null;
+  /** The workspace disposition recorded with it, if any. */
+  disposition?: { id: string; name: string | null } | null;
+}
+
+/**
+ * One of the workspace's own dispositions ("Demo booked"), mapped onto the
+ * canonical outcome Ringee records for it.
+ */
+export interface Disposition {
+  id: string;
+  name: string;
+  description: string | null;
+  canonicalOutcome: CallOutcome;
+  color: string | null;
+  /** Offered by the dialer by default. */
+  isDefault: boolean;
+}
+
+export interface ListDispositionsResult {
+  dispositions: Disposition[];
 }
 
 export interface CreateCallbackResult {

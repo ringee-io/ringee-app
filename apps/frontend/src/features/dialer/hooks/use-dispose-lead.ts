@@ -9,6 +9,9 @@ import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 
 export interface DisposeLeadInput {
+  /** The disposition picked. The server resolves it within the campaign. */
+  dispositionId?: string;
+  /** Its code — what an older server resolves when it does not know ids. */
   dispositionCode: string;
   note?: string;
   /** `datetime-local` value; only read for a callback disposition. */
@@ -41,6 +44,7 @@ export function useDisposeLead() {
           '/dialer/dispose',
           {
             callAttemptId: attemptId,
+            dispositionId: input.dispositionId,
             dispositionCode: input.dispositionCode,
             note: input.note || undefined,
             ...(input.callbackScheduledAt

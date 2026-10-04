@@ -3,6 +3,7 @@ import {
   CalendarClock,
   CalendarDays,
   FileText,
+  ListChecks,
   Mic,
   Phone,
   Radio,
@@ -31,6 +32,13 @@ export const SETTINGS_SECTIONS: SettingsSectionId[] = [
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'general', section: 'settings', icon: SlidersHorizontal },
   { id: 'script', section: 'settings', icon: FileText },
+  // Workspace configuration: org admins, and freelancers for their own.
+  {
+    id: 'dispositions',
+    section: 'settings',
+    icon: ListChecks,
+    adminOnly: true
+  },
   { id: 'calendars', section: 'settings', icon: CalendarClock },
   { id: 'recording', section: 'settings', icon: Mic, adminOnly: true },
   {
