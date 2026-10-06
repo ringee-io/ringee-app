@@ -171,6 +171,11 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     );
   }, [outcome, dispositions, hasDispositions, dispositionId]);
 
+  // The callback form needs a contact to schedule against. Without one (an
+  // unknown number) or without the host's form, the callback outcome is saved
+  // on its own — it must never leave Save & Close disabled with nothing to do.
+  const canScheduleCallback = !!callContactId && !!slots.renderScheduleCallback;
+
   const durationLabel = `${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, "0")}`;
 
   const handleSave = async () => {
@@ -236,7 +241,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     // Selecting `callback_scheduled` immediately opens the date/time picker.
     // Deselecting it (or picking something else) hides the form.
     if (id === "callback_scheduled") {
-      if (!callbackScheduled && slots.renderScheduleCallback) {
+      if (!callbackScheduled && canScheduleCallback) {
         setShowCallback(true);
       }
     } else if (showCallback) {
@@ -516,7 +521,9 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           disabled={
             !outcome ||
             isSaving ||
-            (outcome === "callback_scheduled" && !callbackScheduled)
+            (outcome === "callback_scheduled" &&
+              canScheduleCallback &&
+              !callbackScheduled)
           }
           className="flex-1"
           size="sm"
