@@ -1,6 +1,6 @@
-/* Home feature carousel: a full-bleed, snapping track whose first card lines
-   up with the page's Container, and the small motion of its illustrations.
-   prefers-reduced-motion stills all of it. */
+/* Home feature carousel: a full-bleed, snapping track of cards in several
+   shapes, the entrance and the small scenes they play, and the motion of
+   their illustrations. prefers-reduced-motion stills all of it. */
 
 /* The wrapper is the width the track measures itself against, so the edge
    matches Container (px-6, then px-8 inside max-w-6xl) without 100vw, which
@@ -62,11 +62,68 @@
 }
 
 .slide {
+  display: flex;
   flex: 0 0 auto;
   scroll-snap-align: start;
 }
 
-/* The illustration panel at the top of a card. */
+/* On a phone one card is on screen at a time, so each keeps its own height;
+   from two cards up they line up like a bento. */
+@media (max-width: 639px) {
+  .track {
+    align-items: flex-start;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion. The client arms the carousel only when it may animate; until */
+/* then — no JavaScript, reduced motion — everything is simply visible. */
+/* ------------------------------------------------------------------ */
+
+/* Cards rise into place, one after another, when the section comes into
+   view. */
+.root[data-armed] .slide {
+  opacity: 0;
+  transform: translateY(2rem);
+}
+
+.root[data-armed][data-shown] .slide {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 700ms ease,
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(min(var(--i), 4) * 90ms);
+}
+
+/* Then each card plays its scene once, the first time it is on screen. */
+.root[data-armed] .step {
+  opacity: 0;
+  transform: translateY(0.5rem) scale(0.98);
+}
+
+.root[data-armed] [data-play] .step {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 500ms ease var(--at, 0ms),
+    transform 650ms cubic-bezier(0.16, 1, 0.3, 1) var(--at, 0ms);
+}
+
+.fill {
+  width: var(--w);
+}
+
+.root[data-armed] .fill {
+  width: 0;
+}
+
+.root[data-armed] [data-play] .fill {
+  width: var(--w);
+  transition: width 1000ms cubic-bezier(0.16, 1, 0.3, 1) var(--at, 0ms);
+}
+
+/* The illustration panel of a card. */
 .frame {
   background:
     radial-gradient(90% 75% at 50% 0%, rgb(16 185 129 / 0.13), transparent 70%),
@@ -85,6 +142,92 @@
       )
       0 0 / 18px 18px,
     linear-gradient(#151a18, #0f1211);
+}
+
+/* The dark card's panel sits on its own night sky in both themes. */
+.frameNight {
+  background:
+    radial-gradient(
+      70% 60% at 70% 30%,
+      rgb(16 185 129 / 0.28),
+      transparent 70%
+    ),
+    radial-gradient(
+        circle at 1px 1px,
+        rgb(255 255 255 / 0.07) 1px,
+        transparent 0
+      )
+      0 0 / 18px 18px,
+    linear-gradient(160deg, #0d1512, #070a09);
+}
+
+/* The statement card: an arch, and rings turning slowly inside it like a
+   globe. Each top radius is half the width, so the top is a half circle;
+   a larger one would make the browser shrink every corner. */
+.arch {
+  --w: min(calc(100vw - 4.5rem), 22rem);
+  width: var(--w);
+  border-radius: calc(var(--w) / 2) calc(var(--w) / 2) 2rem 2rem;
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      rgb(52 211 153 / 0.35),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #065f46, #022c22 70%);
+}
+
+@media (min-width: 1024px) {
+  .arch {
+    --w: 23rem;
+  }
+}
+
+:global(.dark) .arch {
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      rgb(52 211 153 / 0.28),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #064e3b, #011a14 70%);
+}
+
+/* A square on the arch's top, so its circles share the arch's centre. */
+.rings {
+  position: absolute;
+  inset: 0 0 auto;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.rings > span {
+  grid-area: 1 / 1;
+  border-radius: 9999px;
+  border: 1px solid rgb(167 243 208 / 0.22);
+}
+
+.orbit {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  animation: feature-orbit 18s linear infinite;
+}
+
+.orbit > i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(110 231 183);
+  box-shadow: 0 0 12px rgb(110 231 183 / 0.9);
+}
+
+@keyframes feature-orbit {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* A voice: bars that rise and fall out of step. */
@@ -144,9 +287,30 @@
   }
 }
 
+/* The group chips: one dark pill slides to the group on screen. */
+.chips {
+  position: relative;
+}
+
+.indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 9999px;
+  background: var(--color-foreground);
+  transition:
+    transform 450ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wave > span,
-  .typing > span {
+  .typing > span,
+  .orbit {
     animation: none;
+  }
+
+  .indicator {
+    transition: none;
   }
 }

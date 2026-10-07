@@ -45,6 +45,27 @@ after its network. The file's header explains how to add one.
   card: an overflowing child of a card in columns is carried into the
   neighbouring column.
 
+## Home feature carousel
+
+The `#features` section of the home page (`feature-carousel.tsx`) shows every
+feature and AI voice agent as a card: what it does, the job it does for the
+reader, and a link to the page that goes deeper. `SLIDES` sets the order and
+each slide's shape — an arch with one big number, a wide card whose scene
+takes a side, a tall card, or a pair of compact cards — so the rhythm changes
+as you scroll. Copy is `marketing.home.features` (EN and ES); prices and
+country counts come from the same constants as the pricing pages.
+
+- A card's scene (`feature-carousel-visuals.tsx`) is markup with sample data:
+  demo names and numbers from fictional ranges, never a result or a metric.
+- Every claim is something the product does today. The ChatGPT/Claude card
+  says "compare the calls that close with the ones that don't", not "see what
+  your best rep does": the MCP `list_calls` result does not name the member
+  who made a call.
+- Motion is opt-in. The track (`feature-carousel-track.tsx`) arms the cards'
+  entrance and their scenes only when the viewer allows motion and the
+  section is still below the fold, so without JavaScript, with reduced motion,
+  or when the page opens on the section, everything is simply visible.
+
 ## Legacy 3D render
 
 `apps/frontend/public/hero/human-ai-operators.webp` is an earlier experiment,

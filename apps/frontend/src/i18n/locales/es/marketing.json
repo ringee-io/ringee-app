@@ -715,7 +715,7 @@
   "home": {
     "features": {
       "eyebrow": "Funciones",
-      "title": "Todo lo que hace Ringee, y para qué te sirve",
+      "title": "Todo lo que hace Ringee, <hl>y para qué te sirve</hl>",
       "description": "Para tu equipo de ventas y para tus agentes de voz IA, en una sola plataforma.",
       "more": "Ver más",
       "groups": {
@@ -732,25 +732,21 @@
       },
       "cards": {
         "global": {
-          "title": "Llama a 180+ países",
+          "title": "Llama a <stat>180+</stat> países",
           "useCase": "Llama a cualquier país desde el navegador, desde {rate}/min y sin hardware.",
           "points": {
             "screens": {
-              "label": "En cualquier pantalla.",
+              "label": "En cualquier pantalla",
               "text": "Web, iOS, Android y extensión de Chrome."
             },
             "click": {
-              "label": "Clic para llamar.",
+              "label": "Clic para llamar",
               "text": "Marca cualquier número que veas en una web."
             },
             "payg": {
-              "label": "Pago por uso.",
+              "label": "Pago por uso",
               "text": "Por minuto, sin cuota por usuario."
             }
-          },
-          "visual": {
-            "status": "Conectada",
-            "place": "Londres, Reino Unido"
           }
         },
         "rotation": {
@@ -758,21 +754,23 @@
           "useCase": "Cada lead ve un número local, sin que tengas que elegirlo. Más llamadas contestadas y menos spam.",
           "points": {
             "local": {
-              "label": "Presencia local.",
+              "label": "Presencia local",
               "text": "Tu número del país y código de área del lead."
             },
             "cap": {
-              "label": "Límite diario.",
+              "label": "Límite diario",
               "text": "Tú decides cuántas llamadas hace cada número al día."
             },
             "health": {
-              "label": "Salud automática.",
+              "label": "Salud automática",
               "text": "Un número con poca respuesta descansa solo."
             }
           },
           "visual": {
-            "lead": "Lead en Madrid",
-            "shows": "Se muestra",
+            "matches": "Cada lead ve un número local",
+            "leadMadrid": "Madrid",
+            "leadMiami": "Miami",
+            "leadLondon": "Londres",
             "pool": "Tus números hoy",
             "active": "Activo",
             "atCap": "Al límite",
@@ -784,22 +782,17 @@
           "useCase": "Ten un número en cada mercado, o llama desde el que tus clientes ya conocen.",
           "points": {
             "countries": {
-              "label": "{countries} países.",
+              "label": "{countries} países",
               "text": "Números locales, toll-free y móviles."
             },
             "verified": {
-              "label": "Tu número actual.",
+              "label": "Tu número actual",
               "text": "Verifícalo y úsalo como caller ID."
             },
             "inbound": {
-              "label": "Entrantes.",
+              "label": "Entrantes",
               "text": "A una persona, un grupo o un teléfono de escritorio."
             }
-          },
-          "visual": {
-            "mobile": "Móvil",
-            "yours": "Tuyo",
-            "verified": "Caller ID verificado"
           }
         },
         "campaigns": {
@@ -807,15 +800,15 @@
           "useCase": "Tu equipo trabaja una sola cola y Ringee marca al siguiente lead en cuanto alguien queda libre.",
           "points": {
             "modes": {
-              "label": "Progresivo o vista previa.",
+              "label": "Progresivo o vista previa",
               "text": "Volumen, o revisar cada lead antes de llamar."
             },
             "rules": {
-              "label": "Horario y reintentos.",
+              "label": "Horario y reintentos",
               "text": "Solo llama en tu horario, con límite de intentos."
             },
             "dnc": {
-              "label": "Lista de no llamar.",
+              "label": "Lista de no llamar",
               "text": "Se revisa en cada marcación."
             }
           },
@@ -833,23 +826,17 @@
           "useCase": "Conecta tu operador o PBX y usa todo Ringee sin portar tus números.",
           "points": {
             "sip": {
-              "label": "SIP o PBX.",
+              "label": "SIP o PBX",
               "text": "Conserva tu contrato, tus tarifas y tu caller ID."
             },
             "selfHosted": {
-              "label": "Self-hosted.",
+              "label": "Self-hosted",
               "text": "Instala todo Ringee en tus propios servidores."
             },
             "openSource": {
-              "label": "Open source.",
+              "label": "Open source",
               "text": "Licencia MIT: audita cada línea."
             }
-          },
-          "visual": {
-            "carrier": "Tu operador",
-            "dialer": "Marcador",
-            "campaigns": "Campañas",
-            "agents": "Agentes IA"
           }
         },
         "appointments": {
@@ -857,15 +844,15 @@
           "useCase": "Llama a tus leads, consulta tu disponibilidad real y agenda solo la hora que la persona confirma.",
           "points": {
             "availability": {
-              "label": "Sin dobles reservas.",
+              "label": "Sin dobles reservas",
               "text": "Solo ofrece horas libres de tu calendario."
             },
             "callback": {
-              "label": "Callback automático.",
+              "label": "Callback automático",
               "text": "¿Le piden llamar más tarde? Vuelve a llamar a esa hora."
             },
             "sync": {
-              "label": "Google o Microsoft.",
+              "label": "Google o Microsoft",
               "text": "La cita aparece en tu calendario."
             }
           },
@@ -881,20 +868,21 @@
           "useCase": "Contesta cada llamada entrante, entiende qué necesita la persona y la pasa con quien corresponde.",
           "points": {
             "always": {
-              "label": "Siempre contesta.",
+              "label": "Siempre contesta",
               "text": "Aunque tu equipo esté ocupado o fuera de horario."
             },
             "transfer": {
-              "label": "Transferencia en vivo.",
+              "label": "Transferencia en vivo",
               "text": "A la persona, el grupo o la extensión correcta."
             },
             "followUp": {
-              "label": "Nada se pierde.",
+              "label": "Nada se pierde",
               "text": "Si nadie puede atender, avisa a tu equipo."
             }
           },
           "visual": {
             "incoming": "Llamada entrante",
+            "greeting": "Hola, gracias por llamar a Acme. ¿En qué le ayudo?",
             "caller": "Quiero hablar con ventas.",
             "agent": "Claro, le paso con el equipo de ventas.",
             "transfer": "Transfiriendo a Ventas"
@@ -905,24 +893,17 @@
           "useCase": "Confirma citas y avisos por teléfono, y te devuelve una respuesta clara.",
           "points": {
             "answer": {
-              "label": "Respuesta clara.",
+              "label": "Respuesta clara",
               "text": "Confirmado, no asistirá o llamar después."
             },
             "callback": {
-              "label": "Vuelve a llamar.",
+              "label": "Vuelve a llamar",
               "text": "A la hora que la persona pida."
             },
             "human": {
-              "label": "Escala a un humano.",
+              "label": "Escala a un humano",
               "text": "Cuando la persona lo necesita."
             }
-          },
-          "visual": {
-            "header": "Recordatorio · cita de mañana",
-            "ask": "¿Nos confirma su cita de mañana a las 9:00?",
-            "confirmed": "Confirmado",
-            "cantAttend": "No asistirá",
-            "later": "Llamar después"
           }
         },
         "customize": {
@@ -930,25 +911,17 @@
           "useCase": "Un agente que suena como tu equipo y conoce tu negocio, en 6 idiomas.",
           "points": {
             "clone": {
-              "label": "Clona una voz.",
+              "label": "Clona una voz",
               "text": "Con unos segundos de audio."
             },
             "knowledge": {
-              "label": "Conocimiento.",
+              "label": "Conocimiento",
               "text": "Páginas web, PDF, DOCX o texto."
             },
             "model": {
-              "label": "Tu modelo.",
+              "label": "Tu modelo",
               "text": "Ringee AI o tu propia API key."
             }
-          },
-          "visual": {
-            "voice": "Voz",
-            "cloned": "Clonada · 10 s",
-            "knowledge": "Conocimiento",
-            "file": "precios.pdf",
-            "model": "Modelo",
-            "ownKey": "Tu API key"
           }
         },
         "assistants": {
@@ -956,21 +929,27 @@
           "useCase": "Pregúntale a tus llamadas con los modelos más inteligentes y descubre qué está frenando tus ventas.",
           "points": {
             "analyze": {
-              "label": "Analiza.",
+              "label": "Analiza",
               "text": "Compara las llamadas que cierran con las que no."
             },
             "automate": {
-              "label": "Automatiza.",
+              "label": "Automatiza",
               "text": "Busca leads, arma listas y agenda seguimientos."
             },
             "act": {
-              "label": "Ejecuta.",
+              "label": "Ejecuta",
               "text": "Activa campañas o llamadas de agentes IA."
             }
           },
           "visual": {
             "connected": "Conectado a Ringee",
-            "prompt": "¿Qué está frenando mis ventas este mes?"
+            "prompt": "¿Qué está frenando mis ventas este mes?",
+            "reading": "Leyendo tus llamadas…",
+            "suggestions": {
+              "one": "Resume las llamadas de ayer",
+              "two": "Llama a los interesados",
+              "three": "Agenda los seguimientos"
+            }
           }
         },
         "insights": {
@@ -978,15 +957,15 @@
           "useCase": "Lee cualquier llamada en segundos y descubre qué objeción se repite y cómo responderla.",
           "points": {
             "live": {
-              "label": "Transcripción en vivo.",
+              "label": "Transcripción en vivo",
               "text": "Incluso si decides no grabar."
             },
             "objections": {
-              "label": "Objeciones.",
+              "label": "Objeciones",
               "text": "La IA las ordena y sugiere qué responder."
             },
             "next": {
-              "label": "Siguiente paso.",
+              "label": "Siguiente paso",
               "text": "Cada seguimiento con prioridad y fecha."
             }
           },
@@ -1007,15 +986,15 @@
           "useCase": "Encuentra a quién llamar y pasa de la búsqueda a la llamada sin salir de Ringee.",
           "points": {
             "search": {
-              "label": "Busca.",
+              "label": "Busca",
               "text": "Por cargo, empresa, industria o ubicación."
             },
             "reveal": {
-              "label": "Revela.",
+              "label": "Revela",
               "text": "Móvil y email, guardados como contacto."
             },
             "linkedin": {
-              "label": "Desde LinkedIn.",
+              "label": "Desde LinkedIn",
               "text": "Pega un perfil y encuentra al lead."
             }
           },
@@ -1031,25 +1010,17 @@
           "useCase": "Registra cómo fue la llamada y agenda el siguiente paso antes de colgar.",
           "points": {
             "outcomes": {
-              "label": "Un clic.",
+              "label": "Un clic",
               "text": "Resultado y nota al terminar la llamada."
             },
             "callbacks": {
-              "label": "Callbacks.",
+              "label": "Callbacks",
               "text": "Vuelven justo cuando toca llamar de nuevo."
             },
             "meetings": {
-              "label": "Reuniones.",
+              "label": "Reuniones",
               "text": "Sincronizadas con Google o Microsoft."
             }
-          },
-          "visual": {
-            "ended": "Llamada terminada",
-            "interested": "Interesado",
-            "sale": "Venta",
-            "noAnswer": "No contesta",
-            "callback": "Callback · mañana 10:00",
-            "meeting": "Reunión · jue 15:30"
           }
         },
         "crmSync": {
@@ -1057,22 +1028,17 @@
           "useCase": "Cada llamada, resultado y nota llega a tu CRM sin copiar nada a mano.",
           "points": {
             "crms": {
-              "label": "Attio y Odoo.",
+              "label": "Attio y Odoo",
               "text": "La actividad en el registro correcto."
             },
             "webhooks": {
-              "label": "Webhooks firmados.",
+              "label": "Webhooks firmados",
               "text": "Cada evento, enviado a tu propio sistema."
             },
             "api": {
-              "label": "API.",
+              "label": "API",
               "text": "Contactos y click-to-call desde tu app."
             }
-          },
-          "visual": {
-            "event": "Llamada · 04:12 · Interesado",
-            "attio": "Registro actualizado",
-            "odoo": "Actividad registrada"
           }
         }
       }

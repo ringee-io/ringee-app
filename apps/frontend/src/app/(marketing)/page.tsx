@@ -50,15 +50,22 @@ export default async function HomePage() {
       <TrustedBy />
 
       {/* Product tour — the whole stack in one 30-second video. The video is
-          English, so its copy has only English messages. */}
+          English, so its copy has only English messages. The container is
+          wider than the page's so the video reads at full size; the heading
+          keeps its own narrow column. */}
       <Section id='product-tour' className='py-16 sm:py-20'>
-        <Container className='max-w-5xl'>
+        <Container className='max-w-7xl'>
           <SectionHeading
             eyebrow={t('video.eyebrow')}
             title={t('video.title')}
             description={t('video.description')}
           />
-          <MarketingVideo id='ringee-overview' className='mt-10' />
+          {/* Never taller than the screen under the navbar, so the whole
+              frame and its controls stay in view on a short laptop. */}
+          <MarketingVideo
+            id='ringee-overview'
+            className='mx-auto mt-10 max-w-[calc((100svh_-_8rem)*16/9)]'
+          />
         </Container>
       </Section>
 
