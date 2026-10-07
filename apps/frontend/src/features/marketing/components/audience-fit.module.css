@@ -1,0 +1,28 @@
+/* The fit check's lines rise into place as each one scrolls into view, so
+   the two lists read top to bottom. A browser without scroll-driven
+   animations, or a reader who asked for less motion, sees them in place. */
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .item {
+      animation-name: fit-rise;
+      animation-duration: auto;
+      animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1);
+      animation-fill-mode: both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 22%;
+    }
+  }
+}
+
+@keyframes fit-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

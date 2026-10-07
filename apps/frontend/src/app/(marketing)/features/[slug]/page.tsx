@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import {
   FeatureDemo,
@@ -103,7 +102,6 @@ export default async function FeatureDetailPage({ params }: Params) {
         { name: 'Features', href: '/features' },
         { name: feature.name, href: path }
       ]}
-      cta={<CtaSection />}
     >
       <DetailHero
         eyebrow={feature.category}

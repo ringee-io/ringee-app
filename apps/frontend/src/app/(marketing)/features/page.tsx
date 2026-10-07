@@ -10,7 +10,6 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { MarketingVideo } from '@/features/marketing/components/marketing-video';
 import {
@@ -128,7 +127,6 @@ export default function FeaturesPage() {
       })}
 
       <FaqSection faqs={FEATURES_FAQS} />
-      <CtaSection />
     </>
   );
 }

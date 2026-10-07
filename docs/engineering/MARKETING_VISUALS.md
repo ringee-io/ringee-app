@@ -66,6 +66,51 @@ country counts come from the same constants as the pricing pages.
   section is still below the fold, so without JavaScript, with reduced motion,
   or when the page opens on the section, everything is simply visible.
 
+## Who it's for
+
+`#who-its-for` on the home page (`audience-fit.tsx`), between the wall of love
+and the pricing, is the fit check: "Sorry, enterprises. Ringee isn't for you."
+A large emerald card lists who Ringee is for, with the roles a reader
+recognizes (each linked to its use case), and a smaller dashed card lists who
+it is not for. Copy is `marketing.home.audience` (EN and ES).
+
+- Every line is a stance or something the product does today: no per-user
+  fees, access without a sales call, AI voice agents, open source. No
+  figures, and nothing that says Ringee lacks a feature.
+- The lines rise in with a scroll-driven animation
+  (`audience-fit.module.css`), under `@supports` and only when motion is
+  allowed, so without it they simply stand.
+
+## Closing call to action and footer logo
+
+Every marketing page ends the way postiz.com does: a plain call to action
+(title, one line of copy, one button) standing on the Ringee logo, which
+rises out of the footer's top border. There is no band or box behind it.
+
+The footer renders that call to action itself, `CtaSection` with
+`placement='footer'` and the default copy, so no page can end without one.
+Its copy follows the request's language (next-intl), like the home page, so
+on `/` it matches the page above it. A page that needs its own copy (a
+country's numbers, the Dialer SDK's npm link, the AI note on agent pages) ends
+with its own `CtaSection` instead; `cta-section.module.css` then hides the
+footer's with `body:has([data-cta='page'])`, so a page never shows two. Do not
+add a `CtaSection` that only repeats the default: the footer already has it.
+The home page ends with the FAQ (`FaqSection layout='split'`, the heading in
+a column of its own beside larger questions) and lets the footer close it.
+
+The logo is `FooterWordmark`, as wide as the page and cut off by the footer's
+border. It is `ringee-logo.ts`: vector paths traced from
+`public/logos/black.logo.png`, one per glyph so each can move on its own, with
+the PNG's underline left out. If the logo changes, trace the new PNG again
+(potrace), keep one path per glyph with its counters (`fillRule="evenodd"`),
+and check that it still lines up with the PNG.
+
+Its entrance is a scroll-driven animation (`animation-timeline: view()`)
+under `@supports`: the glyphs rise one after another as they scroll into
+view, all of them up by the time the logo is fully on screen. A browser
+without it shows the logo already in place, and with reduced motion nothing
+moves.
+
 ## Legacy 3D render
 
 `apps/frontend/public/hero/human-ai-operators.webp` is an earlier experiment,

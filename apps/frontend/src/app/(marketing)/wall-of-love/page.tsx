@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { WallOfLoveStage } from '@/features/marketing/components/wall-of-love';
 
 export const metadata: Metadata = buildMetadata({
@@ -12,10 +11,5 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function WallOfLovePage() {
-  return (
-    <>
-      <WallOfLoveStage />
-      <CtaSection />
-    </>
-  );
+  return <WallOfLoveStage />;
 }

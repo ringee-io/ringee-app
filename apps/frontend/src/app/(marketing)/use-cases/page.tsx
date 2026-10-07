@@ -9,7 +9,6 @@ import {
   Section
 } from '@/features/marketing/components/primitives';
 import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { USE_CASES } from '@/features/marketing/content/use-cases';
 
 export const metadata: Metadata = buildMetadata({
@@ -61,8 +60,6 @@ export default function UseCasesPage() {
           </div>
         </Container>
       </Section>
-
-      <CtaSection />
     </>
   );
 }

@@ -18,7 +18,6 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 
 export const metadata: Metadata = buildMetadata({
@@ -122,7 +121,6 @@ export default function SecurityPage() {
         { name: 'Home', href: '/' },
         { name: 'Security', href: '/security' }
       ]}
-      cta={<CtaSection />}
     >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>

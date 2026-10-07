@@ -19,7 +19,6 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { CLI_NPM_URL, DOCS_URL, GITHUB_URL } from '@/features/marketing/site';
 
@@ -83,7 +82,6 @@ export default function OpenSourcePage() {
         { name: 'Home', href: '/' },
         { name: 'Open Source', href: '/open-source' }
       ]}
-      cta={<CtaSection />}
     >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>

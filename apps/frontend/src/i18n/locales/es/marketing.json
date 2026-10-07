@@ -1043,6 +1043,40 @@
         }
       }
     },
+    "audience": {
+      "eyebrow": "Para quién es",
+      "title": "Lo sentimos, grandes empresas. <hl>Ringee no es para ustedes.</hl>",
+      "description": "Casi todo el software de llamadas está hecho para centros de 500 puestos. Ringee lo hicimos para quienes levantan el teléfono y venden.",
+      "fit": {
+        "title": "Ringee es para ti si…",
+        "items": {
+          "solo": "Vendes por teléfono, solo o con un equipo pequeño",
+          "week": "Quieres empezar a llamar esta semana, no el próximo trimestre",
+          "minutes": "Prefieres pagar minutos, no puestos",
+          "agents": "Quieres agentes de IA llamando junto a tu equipo"
+        }
+      },
+      "notFit": {
+        "title": "Ringee no es para ti si…",
+        "items": {
+          "procurement": "Tu sistema telefónico necesita un comité de compras",
+          "rollout": "Planeas seis meses de implementación antes de la primera llamada",
+          "seats": "Te parece bien pagar cada puesto, incluso los vacíos",
+          "blackBox": "Te basta con una caja negra que no puedes revisar"
+        }
+      },
+      "roles": {
+        "label": "Hecho para",
+        "items": {
+          "founders": "Fundadores",
+          "sdrs": "SDRs",
+          "freelancers": "Freelancers",
+          "agencies": "Agencias",
+          "recruiters": "Reclutadores",
+          "salesTeams": "Equipos de ventas"
+        }
+      }
+    },
     "pricing": {
       "eyebrow": "05 / Precios simples para equipos",
       "title": "Suma personas. Mantén una sola suscripción.",
@@ -1060,6 +1094,49 @@
       },
       "usage": "Las llamadas y los números se cobran por separado. Las llamadas con IA también incluyen uso de voz y modelo.",
       "cta": "Ver precios y tarifas completos"
+    },
+    "faq": {
+      "eyebrow": "Antes de empezar",
+      "title": "Preguntas frecuentes",
+      "description": "Respuestas rápidas sobre planes, agentes de voz con IA y cómo empezar.",
+      "items": {
+        "what": {
+          "question": "¿Qué es Ringee?",
+          "answer": "Ringee es una infraestructura de llamadas de código abierto para equipos y agentes de voz con IA. Tu equipo llama desde el navegador, las apps móviles o la extensión de Chrome, y los agentes de voz con IA llaman desde la misma plataforma, con los mismos números, historial y grabaciones."
+        },
+        "cost": {
+          "question": "¿Cuánto cuesta Ringee?",
+          "answer": "El plan Freelancer es gratis para una persona. El plan Organization cuesta ${price}/mes para todo el equipo, con usuarios ilimitados. Las llamadas son de pago por uso, desde {rate}/min, y se pagan con créditos, aparte del plan."
+        },
+        "perUser": {
+          "question": "¿Cobran por usuario?",
+          "answer": "No. Un solo plan Organization cubre a todo tu equipo, así que sumar a alguien nunca sube tu suscripción."
+        },
+        "aiAgents": {
+          "question": "¿Los agentes de voz con IA hacen llamadas reales?",
+          "answer": "Sí. Un agente de voz con IA hace una llamada saliente real y mantiene la conversación: agenda citas según tu disponibilidad real, confirma recordatorios y programa nuevas llamadas. Los agentes de voz con IA requieren el plan Organization."
+        },
+        "install": {
+          "question": "¿Tengo que instalar algo?",
+          "answer": "No. Ringee funciona en cualquier navegador moderno. La extensión de Chrome y las apps de iPhone y Android son opcionales y comparten la misma cuenta, contactos e historial de llamadas."
+        },
+        "carrier": {
+          "question": "¿Puedo mantener mi operador y mis números?",
+          "answer": "Sí. Conecta tu operador o tu centralita como una extensión SIP y tus números se quedan donde están, sin portabilidad. Conectar tu operador (BYOC) está incluido en el plan Organization."
+        },
+        "assistants": {
+          "question": "¿Puedo usar Ringee desde ChatGPT o Claude?",
+          "answer": "Sí. El servidor MCP de Ringee permite que ChatGPT, Claude y otros agentes compatibles busquen prospectos, creen sesiones de llamadas, inicien llamadas con agentes de voz y registren resultados. Los desarrolladores pueden automatizar lo mismo desde la CLI."
+        },
+        "openSource": {
+          "question": "¿Ringee es de código abierto?",
+          "answer": "Sí. El código es público en GitHub. Usa Ringee en la nube o instálalo en tu propia infraestructura: ambas opciones usan el mismo código."
+        },
+        "start": {
+          "question": "¿Cómo empiezo?",
+          "answer": "Solicita tu cuenta. Revisamos cada solicitud y te enviamos el acceso por correo, normalmente en un día hábil, sin llamadas de ventas."
+        }
+      }
     }
   },
   "wallOfLove": {

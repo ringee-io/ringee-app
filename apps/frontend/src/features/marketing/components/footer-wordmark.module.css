@@ -1,0 +1,100 @@
+/* The giant logo above the footer. Its window ends on the footer's top
+   border and clips the logo there. Where scroll-driven animations exist and
+   motion is allowed, the glyphs rise out of the footer one after another as
+   the window scrolls into view; everywhere else the logo simply stands. */
+
+.horizon {
+  position: relative;
+  isolation: isolate;
+}
+
+/* A soft emerald glow along the footer's edge, behind the logo. */
+.horizon::after {
+  position: absolute;
+  z-index: -1;
+  inset: auto 0 0;
+  height: 70%;
+  background: radial-gradient(
+    45% 100% at 50% 100%,
+    rgb(16 185 129 / 0.14),
+    transparent 70%
+  );
+  content: '';
+  pointer-events: none;
+}
+
+:global(.dark) .horizon::after {
+  background: radial-gradient(
+    45% 100% at 50% 100%,
+    rgb(16 185 129 / 0.22),
+    transparent 70%
+  );
+}
+
+/* Cuts the logo at the footer's edge. It has to be a scroll container
+   (hidden, not clip): only then does its aspect ratio beat the height of the
+   logo inside it. */
+.window {
+  overflow: hidden;
+}
+
+.logo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.stopTop {
+  stop-color: #34d399;
+}
+
+.stopMid {
+  stop-color: #059669;
+}
+
+.stopBottom {
+  stop-color: #065f46;
+}
+
+:global(.dark) .stopTop {
+  stop-color: #6ee7b7;
+}
+
+:global(.dark) .stopMid {
+  stop-color: #10b981;
+}
+
+:global(.dark) .stopBottom {
+  stop-color: #064e3b;
+}
+
+/* Every glyph is up once the whole window is on screen, so the logo is
+   never left half-sunk at the bottom of the page. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .window {
+      view-timeline: --footer-wordmark block;
+    }
+
+    .glyph {
+      animation-name: wordmark-rise;
+      animation-duration: auto;
+      animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1);
+      animation-fill-mode: both;
+      animation-timeline: --footer-wordmark;
+      animation-range: entry calc(var(--i) * 6%) entry calc(46% + var(--i) * 6%);
+    }
+  }
+}
+
+/* Percentages are of the logo's view box: low enough to hide every letter
+   behind the footer. */
+@keyframes wordmark-rise {
+  from {
+    transform: translateY(62%);
+  }
+
+  to {
+    transform: none;
+  }
+}

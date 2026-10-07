@@ -13,7 +13,7 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { CtaSection } from '@/features/marketing/components/cta-section';
+import { FaqSection } from '@/features/marketing/components/faq';
 import { CallingHero } from '@/features/marketing/components/calling-hero';
 import { AgenticMode } from '@/features/marketing/components/agentic-mode';
 import { EverywhereMode } from '@/features/marketing/components/everywhere-mode';
@@ -23,6 +23,7 @@ import { TrustedBy } from '@/features/marketing/components/trusted-by';
 import { MarketingVideo } from '@/features/marketing/components/marketing-video';
 import { WallOfLoveSection } from '@/features/marketing/components/wall-of-love';
 import { FeatureCarouselSection } from '@/features/marketing/components/feature-carousel';
+import { AudienceFitSection } from '@/features/marketing/components/audience-fit';
 import {
   JsonLd,
   softwareAppJsonLd
@@ -36,11 +37,28 @@ export const metadata: Metadata = buildMetadata({
   path: '/'
 });
 
+/** The home FAQ, in reading order; the copy is in `marketing.home.faq`. */
+const FAQ_KEYS = [
+  'what',
+  'cost',
+  'perUser',
+  'aiAgents',
+  'install',
+  'carrier',
+  'assistants',
+  'openSource',
+  'start'
+] as const;
+
 export default async function HomePage() {
   const { userId } = await auth();
   if (userId) redirect('/dashboard/overview');
   const t = await getTranslations('marketing.home');
   const price = PRICING.organization.price;
+  const faqs = FAQ_KEYS.map((key) => ({
+    question: t(`faq.items.${key}.question`),
+    answer: t(`faq.items.${key}.answer`, { price, rate: CALL_RATE_FROM })
+  }));
 
   return (
     <>
@@ -74,6 +92,9 @@ export default async function HomePage() {
 
       {/* Wall of love — what people said about Ringee, where they said it */}
       <WallOfLoveSection />
+
+      {/* Who it's for — the reader recognizes their role, or that it isn't */}
+      <AudienceFitSection />
 
       {/* <Section id='ai-voice-agents' className='py-16 sm:py-20'>
         <Container className='grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]'>
@@ -346,7 +367,14 @@ export default async function HomePage() {
         </Container>
       </Section> */}
 
-      <CtaSection />
+      {/* FAQ — the footer's call to action follows it, as on every page */}
+      <FaqSection
+        layout='split'
+        eyebrow={t('faq.eyebrow')}
+        title={t('faq.title')}
+        description={t('faq.description')}
+        faqs={faqs}
+      />
 
       <JsonLd
         data={softwareAppJsonLd({

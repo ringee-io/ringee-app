@@ -173,7 +173,6 @@ export function SolutionPage({
           description={solution.cta.description}
           ai={solution.ai}
           primaryLabel={labels.primaryLabel}
-          secondaryLabel={labels.secondaryLabel}
         />
       }
     >

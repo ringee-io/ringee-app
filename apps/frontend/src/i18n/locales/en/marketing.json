@@ -1106,6 +1106,40 @@
       "title": "The whole calling stack in 30 seconds",
       "description": "From the first dial to the CRM, for your reps and AI voice agents."
     },
+    "audience": {
+      "eyebrow": "Who it's for",
+      "title": "Sorry, enterprises. <hl>Ringee isn't for you.</hl>",
+      "description": "Most calling software is built for the 500-seat floor. We built Ringee for the people who pick up the phone and sell.",
+      "fit": {
+        "title": "Ringee is for you if…",
+        "items": {
+          "solo": "You sell by phone, solo or with a small team",
+          "week": "You want to start calling this week, not next quarter",
+          "minutes": "You'd rather pay for minutes than for seats",
+          "agents": "You want AI agents calling next to your reps"
+        }
+      },
+      "notFit": {
+        "title": "Ringee isn't for you if…",
+        "items": {
+          "procurement": "Your phone system needs a procurement committee",
+          "rollout": "You plan a six-month rollout before the first call",
+          "seats": "You're fine paying for every seat, even the empty ones",
+          "blackBox": "You're happy with a black box you can't look inside"
+        }
+      },
+      "roles": {
+        "label": "Made for",
+        "items": {
+          "founders": "Founders",
+          "sdrs": "SDRs",
+          "freelancers": "Freelancers",
+          "agencies": "Agencies",
+          "recruiters": "Recruiters",
+          "salesTeams": "Sales teams"
+        }
+      }
+    },
     "pricing": {
       "eyebrow": "05 / Simple team pricing",
       "title": "Add teammates. Keep one subscription.",
@@ -1123,6 +1157,49 @@
       },
       "usage": "Calling and number costs are separate. AI calls also include voice and model usage.",
       "cta": "See full pricing and rates"
+    },
+    "faq": {
+      "eyebrow": "Before you start",
+      "title": "Frequently asked questions",
+      "description": "Quick answers about plans, AI voice agents and getting started.",
+      "items": {
+        "what": {
+          "question": "What is Ringee?",
+          "answer": "Ringee is open-source calling infrastructure for human teams and AI voice agents. Your reps call from the browser, the mobile apps or the Chrome extension, and AI voice agents call from the same stack, with the same numbers, history and recordings."
+        },
+        "cost": {
+          "question": "How much does Ringee cost?",
+          "answer": "The Freelancer plan is free for one person. The Organization plan is ${price}/month for the whole team, with unlimited users. Calls are pay-as-you-go, from {rate}/min, paid from credits apart from the plan."
+        },
+        "perUser": {
+          "question": "Do you charge per user?",
+          "answer": "No. One Organization plan covers your whole team, so adding a teammate never raises your subscription."
+        },
+        "aiAgents": {
+          "question": "Can AI voice agents make real phone calls?",
+          "answer": "Yes. An AI voice agent places a real outbound call and holds the conversation itself: it books appointments against your real availability, confirms reminders and schedules callbacks. AI voice agents need the Organization plan."
+        },
+        "install": {
+          "question": "Do I need to install anything?",
+          "answer": "No. Ringee runs in any modern browser. The Chrome extension and the iPhone and Android apps are optional and share the same account, contacts and call history."
+        },
+        "carrier": {
+          "question": "Can I keep my carrier and my numbers?",
+          "answer": "Yes. Connect your carrier or PBX as a SIP extension and your numbers stay where they are, with no porting. Bring your own carrier is part of the Organization plan."
+        },
+        "assistants": {
+          "question": "Can I use Ringee from ChatGPT or Claude?",
+          "answer": "Yes. Ringee’s MCP server lets ChatGPT, Claude and other compatible agents find leads, build calling sessions, start AI voice agent calls and log outcomes. Developers can script the same work from the CLI."
+        },
+        "openSource": {
+          "question": "Is Ringee open source?",
+          "answer": "Yes. The code is public on GitHub. Use Ringee in the cloud, or self-host it on your own infrastructure: both run the same codebase."
+        },
+        "start": {
+          "question": "How do I get started?",
+          "answer": "Request your account. We review every request and email you access, usually within one business day, with no sales call to book."
+        }
+      }
     }
   },
   "wallOfLove": {
