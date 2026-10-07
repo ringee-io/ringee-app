@@ -146,6 +146,8 @@ type ButtonLinkProps = {
   href: string;
   children: ReactNode;
   variant?: 'primary' | 'secondary';
+  /** `lg` for the closing call to action. */
+  size?: 'default' | 'lg';
   external?: boolean;
   className?: string;
   withArrow?: boolean;
@@ -156,12 +158,14 @@ export function ButtonLink({
   href,
   children,
   variant = 'primary',
+  size = 'default',
   external,
   className,
   withArrow
 }: ButtonLinkProps) {
   const base =
-    'inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold transition-all focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-[0.98]';
+    'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-[0.98]';
+  const sizes = size === 'lg' ? 'h-14 px-8 text-base' : 'h-12 px-6 text-sm';
   const styles =
     variant === 'primary'
       ? 'bg-emerald-700 text-white shadow-lg shadow-emerald-700/20 hover:bg-emerald-700/90 hover:shadow-xl hover:shadow-emerald-700/30'
@@ -172,7 +176,7 @@ export function ButtonLink({
   return (
     <Link
       href={href}
-      className={cn(base, styles, className)}
+      className={cn(base, sizes, styles, className)}
       {...externalProps}
     >
       {children}

@@ -484,6 +484,7 @@ export const ES_SOLUTIONS: (SolutionContent & { path: string })[] = [
       'Ringee es un marcador de ventas para llamadas salientes que funciona en el navegador, las apps de iOS y Android y la extensión de Chrome. Los representantes trabajan una cola en modo progresivo, que llama al siguiente prospecto cuando quedan libres, o en modo preview, que permite revisar cada prospecto antes de llamar.',
       `Puedes grabar y transcribir llamadas en vivo, registrar resultados y devoluciones de llamada en la misma pantalla y mostrar un número local mediante la rotación del identificador de llamada. Sin tarifa por usuario: el marcador es gratis para una persona y $${PRICING.organization.price}/mes cubre a todo el equipo.`
     ],
+    video: 'campanas-marcador-progresivo',
     whoFor: [
       'Equipos SDR y BDR que trabajan listas cada día',
       'Reclutadores que llaman a candidatos y clientes',
@@ -549,6 +550,14 @@ export const ES_SOLUTIONS: (SolutionContent & { path: string })[] = [
       }
     ],
     sections: [
+      {
+        kind: 'video',
+        id: 'local-presence',
+        title: 'Presencia local en cada llamada',
+        description:
+          'La rotación del identificador muestra a cada prospecto un número de su país, con su mismo prefijo cuando tienes uno, y reparte las llamadas entre tus números con un límite diario por número.',
+        video: 'numeros-caller-id'
+      },
       {
         kind: 'table',
         id: 'dialer-types',
@@ -709,6 +718,7 @@ export const ES_SOLUTIONS: (SolutionContent & { path: string })[] = [
       'Cambiar de plataforma de llamadas suele implicar portar tus números y dejar tu operador. Con Ringee puedes conservar ambos. Conecta tu operador o centralita como una extensión SIP: tus números siguen donde están y usas el marcador y el historial de Ringee.',
       'Ringee se registra en tu centralita como una extensión con los ajustes SIP que introduces. Tus representantes llaman desde el navegador a través de tu operador y la centralita presenta tu identificador habitual. Las llamadas a tus números pueden entrar en Ringee y dirigirse a un compañero, grupo de llamada, extensión o teléfono de escritorio.'
     ],
+    video: 'trae-tu-operador',
     whoFor: [
       'Empresas con números y contratos que no pueden trasladar',
       'Equipos que ya usan una centralita y quieren un mejor marcador',

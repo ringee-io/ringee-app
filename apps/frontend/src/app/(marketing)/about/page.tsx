@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { JsonLd } from '@/features/marketing/components/json-ld';
@@ -69,7 +68,6 @@ export default function AboutPage() {
         { name: 'Home', href: '/' },
         { name: 'About', href: '/about' }
       ]}
-      cta={<CtaSection />}
     >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>

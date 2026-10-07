@@ -96,7 +96,6 @@ export function ComparisonPage({
         <CtaSection
           title={labels.ctaTitle}
           primaryLabel={labels.primaryLabel}
-          secondaryLabel={labels.secondaryLabel}
         />
       }
     >

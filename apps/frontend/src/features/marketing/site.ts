@@ -25,6 +25,9 @@ export const DOCS_URL = 'https://docs.ringee.io';
 export const BLOG_URL = 'https://blog.ringee.io';
 /** Public product roadmap and feature requests (Canny). */
 export const ROADMAP_URL = 'https://ringee.canny.io/';
+export const LINKEDIN_URL = 'https://www.linkedin.com/company/ringee-io';
+/** Ringee's public Trustpilot profile, where customers leave a review. */
+export const TRUSTPILOT_URL = 'https://www.trustpilot.com/review/ringee.io';
 
 /**
  * Deep links into the developer docs. Marketing pages link to the docs section
@@ -62,7 +65,7 @@ export const SITE_LAST_MODIFIED =
  */
 export const SAME_AS = [
   'https://x.com/ringeeio',
-  'https://www.linkedin.com/company/ringee-io',
+  LINKEDIN_URL,
   GITHUB_ORG_URL,
   'https://www.reddit.com/r/ringee/',
   CLI_NPM_URL,
@@ -398,6 +401,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     title: 'Company',
     links: [
       { label: 'About', href: '/about' },
+      { label: 'Wall of love', href: '/wall-of-love' },
       { label: 'Alternatives', href: '/alternatives' },
       { label: 'Security', href: '/security' },
       { label: 'Open source', href: '/open-source' },
@@ -569,6 +573,7 @@ const SITE_TEXT_ES: Record<string, string> = {
   'All comparisons': 'Todas las comparativas',
   Company: 'Empresa',
   About: 'Quiénes somos',
+  'Wall of love': 'Opiniones',
   Alternatives: 'Alternativas',
   'Open source': 'Código abierto',
   'Self-hosted': 'Alojamiento propio',

@@ -34,6 +34,3 @@ packages/database/prisma/migrations/*
 apps/frontend/.next-mine
 # CI writes this in the architecture-boundary step.
 eslint-report.json
-
-
-apps/frontend/public/videos

@@ -10,8 +10,8 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
+import { MarketingVideo } from '@/features/marketing/components/marketing-video';
 import {
   FEATURE_CATEGORIES,
   featuresByCategory
@@ -71,6 +71,7 @@ export default function FeaturesPage() {
             with leads, learn from every call, let AI orchestrate or hold the
             conversation, sync your data, and stay in control.
           </p>
+          <MarketingVideo id='ringee-features' className='mt-10' />
         </Container>
       </Section>
 
@@ -126,7 +127,6 @@ export default function FeaturesPage() {
       })}
 
       <FaqSection faqs={FEATURES_FAQS} />
-      <CtaSection />
     </>
   );
 }

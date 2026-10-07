@@ -10,7 +10,6 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import {
   INTEGRATION_CATEGORIES,
   integrationsByCategory
@@ -80,8 +79,6 @@ export default function IntegrationsPage() {
           </Section>
         );
       })}
-
-      <CtaSection />
     </>
   );
 }

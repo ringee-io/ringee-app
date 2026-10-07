@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
@@ -54,7 +53,6 @@ export default async function UseCaseDetailPage({ params }: Params) {
         { name: 'Use Cases', href: '/use-cases' },
         { name: useCase.name, href: path }
       ]}
-      cta={<CtaSection />}
     >
       <DetailHero eyebrow='Use case' title={useCase.h1} intro={useCase.intro} />
       <ProblemSolution

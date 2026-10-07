@@ -132,7 +132,6 @@ export function AlternativesPage({
         <CtaSection
           title={labels.ctaTitle}
           primaryLabel={labels.primaryLabel}
-          secondaryLabel={labels.secondaryLabel}
         />
       }
     >

@@ -13,13 +13,17 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { CtaSection } from '@/features/marketing/components/cta-section';
+import { FaqSection } from '@/features/marketing/components/faq';
 import { CallingHero } from '@/features/marketing/components/calling-hero';
 import { AgenticMode } from '@/features/marketing/components/agentic-mode';
 import { EverywhereMode } from '@/features/marketing/components/everywhere-mode';
 import { AgenticCrmFlow } from '@/features/marketing/components/agentic-crm-flow';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
+import { MarketingVideo } from '@/features/marketing/components/marketing-video';
+import { WallOfLoveSection } from '@/features/marketing/components/wall-of-love';
+import { FeatureCarouselSection } from '@/features/marketing/components/feature-carousel';
+import { AudienceFitSection } from '@/features/marketing/components/audience-fit';
 import {
   JsonLd,
   softwareAppJsonLd
@@ -33,11 +37,28 @@ export const metadata: Metadata = buildMetadata({
   path: '/'
 });
 
+/** The home FAQ, in reading order; the copy is in `marketing.home.faq`. */
+const FAQ_KEYS = [
+  'what',
+  'cost',
+  'perUser',
+  'aiAgents',
+  'install',
+  'carrier',
+  'assistants',
+  'openSource',
+  'start'
+] as const;
+
 export default async function HomePage() {
   const { userId } = await auth();
   if (userId) redirect('/dashboard/overview');
   const t = await getTranslations('marketing.home');
   const price = PRICING.organization.price;
+  const faqs = FAQ_KEYS.map((key) => ({
+    question: t(`faq.items.${key}.question`),
+    answer: t(`faq.items.${key}.answer`, { price, rate: CALL_RATE_FROM })
+  }));
 
   return (
     <>
@@ -46,7 +67,36 @@ export default async function HomePage() {
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
 
-      <Section id='ai-voice-agents' className='py-16 sm:py-20'>
+      {/* Product tour — the whole stack in one 30-second video. The video is
+          English, so its copy has only English messages. The container is
+          wider than the page's so the video reads at full size; the heading
+          keeps its own narrow column. */}
+      <Section id='product-tour' className='py-16 sm:py-20'>
+        <Container className='max-w-7xl'>
+          <SectionHeading
+            eyebrow={t('video.eyebrow')}
+            title={t('video.title')}
+            description={t('video.description')}
+          />
+          {/* Never taller than the screen under the navbar, so the whole
+              frame and its controls stay in view on a short laptop. */}
+          <MarketingVideo
+            id='ringee-overview'
+            className='mx-auto mt-10 max-w-[calc((100svh_-_8rem)*16/9)]'
+          />
+        </Container>
+      </Section>
+
+      {/* Features — one card per feature and voice agent, with its use case */}
+      <FeatureCarouselSection />
+
+      {/* Wall of love — what people said about Ringee, where they said it */}
+      <WallOfLoveSection />
+
+      {/* Who it's for — the reader recognizes their role, or that it isn't */}
+      <AudienceFitSection />
+
+      {/* <Section id='ai-voice-agents' className='py-16 sm:py-20'>
         <Container className='grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]'>
           <div>
             <Eyebrow>AI Voice Agents</Eyebrow>
@@ -113,16 +163,16 @@ export default async function HomePage() {
             </Card>
           </div>
         </Container>
-      </Section>
+      </Section> */}
 
       {/* Ringee everywhere — the same day on web, mobile and the extension */}
-      <EverywhereMode />
+      {/* <EverywhereMode /> */}
 
       {/* Agentic mode — connect once, then the seven-step loop */}
-      <AgenticMode />
+      {/* <AgenticMode /> */}
 
       {/* Attio, specifically: the same loop, aimed at the agentic CRM */}
-      <AgenticCrmFlow />
+      {/* <AgenticCrmFlow /> */}
 
       {/* Full feature catalog — internal linking from the home page */}
       {/* <Section className='py-16 sm:py-20'>
@@ -207,7 +257,7 @@ export default async function HomePage() {
       {/* Simple team pricing — flat team plan next to the cost calculator */}
       <Section
         id='team-pricing'
-        className='border-border/50 bg-muted/25 border-y py-20 sm:py-24'
+        className='border-border/50 border-y py-20 sm:py-24'
       >
         <Container>
           <SectionHeading
@@ -317,7 +367,14 @@ export default async function HomePage() {
         </Container>
       </Section> */}
 
-      <CtaSection />
+      {/* FAQ — the footer's call to action follows it, as on every page */}
+      <FaqSection
+        layout='split'
+        eyebrow={t('faq.eyebrow')}
+        title={t('faq.title')}
+        description={t('faq.description')}
+        faqs={faqs}
+      />
 
       <JsonLd
         data={softwareAppJsonLd({

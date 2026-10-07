@@ -10,7 +10,6 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
   JsonLd,
@@ -112,7 +111,6 @@ export default function PricingPage() {
         { name: 'Pricing', href: '/pricing' }
       ]}
       showToc={false}
-      cta={<CtaSection />}
     >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl text-center'>

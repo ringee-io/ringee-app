@@ -10,7 +10,6 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { ALTERNATIVES } from '@/features/marketing/content/alternatives';
 import { COMPARISONS } from '@/features/marketing/content/comparisons';
@@ -68,7 +67,6 @@ export default function AlternativesPage() {
         { name: 'Home', href: '/' },
         { name: 'Alternatives', href: '/alternatives' }
       ]}
-      cta={<CtaSection />}
     >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>

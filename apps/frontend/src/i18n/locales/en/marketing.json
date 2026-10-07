@@ -771,6 +771,375 @@
     "surfacesNote": "Three surfaces, no extra user fees"
   },
   "home": {
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything Ringee does, <hl>and what it’s for</hl>",
+      "description": "For your sales team and your AI voice agents, on one platform.",
+      "more": "Learn more",
+      "groups": {
+        "calling": "Calling",
+        "agents": "AI voice agents",
+        "ai": "AI & automation",
+        "crm": "Prospecting & CRM"
+      },
+      "controls": {
+        "track": "Ringee features",
+        "groups": "Feature groups",
+        "previous": "Previous features",
+        "next": "More features"
+      },
+      "cards": {
+        "global": {
+          "title": "Call <stat>180+</stat> countries",
+          "useCase": "Call any country from your browser, from {rate}/min, with no hardware.",
+          "points": {
+            "screens": {
+              "label": "Any screen",
+              "text": "Web, iOS, Android and the Chrome extension."
+            },
+            "click": {
+              "label": "Click to call",
+              "text": "Dial any number you see on a web page."
+            },
+            "payg": {
+              "label": "Pay as you go",
+              "text": "Per minute, with no per-user fees."
+            }
+          }
+        },
+        "rotation": {
+          "title": "Number rotation",
+          "useCase": "Every lead sees a local number, without you picking it. More answered calls, fewer spam flags.",
+          "points": {
+            "local": {
+              "label": "Local presence",
+              "text": "Your number from the lead’s country and area code."
+            },
+            "cap": {
+              "label": "Daily cap",
+              "text": "You decide how many calls each number makes a day."
+            },
+            "health": {
+              "label": "Self-healing",
+              "text": "A number with a low answer rate rests on its own."
+            }
+          },
+          "visual": {
+            "matches": "Each lead sees a local number",
+            "leadMadrid": "Madrid",
+            "leadMiami": "Miami",
+            "leadLondon": "London",
+            "pool": "Your numbers today",
+            "active": "Active",
+            "atCap": "At cap",
+            "resting": "Resting"
+          }
+        },
+        "numbers": {
+          "title": "Local numbers, or your own",
+          "useCase": "Get a number in every market, or call from the one your customers already know.",
+          "points": {
+            "countries": {
+              "label": "{countries} countries",
+              "text": "Local, toll-free and mobile numbers."
+            },
+            "verified": {
+              "label": "Your current number",
+              "text": "Verify it and use it as your caller ID."
+            },
+            "inbound": {
+              "label": "Inbound",
+              "text": "Ring a person, a group or a desk phone."
+            }
+          }
+        },
+        "campaigns": {
+          "title": "Campaigns with a progressive dialer",
+          "useCase": "Your team works one queue, and Ringee dials the next lead the moment someone is free.",
+          "points": {
+            "modes": {
+              "label": "Progressive or preview",
+              "text": "Go for volume, or review each lead first."
+            },
+            "rules": {
+              "label": "Hours and retries",
+              "text": "Dials only in your calling window, with an attempt limit."
+            },
+            "dnc": {
+              "label": "Do-not-call list",
+              "text": "Checked on every dial."
+            }
+          },
+          "visual": {
+            "progressive": "Progressive",
+            "preview": "Preview",
+            "calling": "Calling",
+            "next": "Next",
+            "queued": "Queued",
+            "attempts": "3 attempts"
+          }
+        },
+        "byoc": {
+          "title": "Bring your own carrier",
+          "useCase": "Connect your carrier or PBX and use all of Ringee without porting your numbers.",
+          "points": {
+            "sip": {
+              "label": "SIP or PBX",
+              "text": "Keep your contract, your rates and your caller ID."
+            },
+            "selfHosted": {
+              "label": "Self-hosted",
+              "text": "Run all of Ringee on your own servers."
+            },
+            "openSource": {
+              "label": "Open source",
+              "text": "MIT licensed: audit every line."
+            }
+          }
+        },
+        "appointments": {
+          "title": "Appointment-setting agent",
+          "useCase": "It calls your leads, checks your real availability and books only the time the person confirms.",
+          "points": {
+            "availability": {
+              "label": "No double bookings",
+              "text": "It offers only open times on your calendar."
+            },
+            "callback": {
+              "label": "Automatic callbacks",
+              "text": "Asked to call later? It calls back at that time."
+            },
+            "sync": {
+              "label": "Google or Microsoft",
+              "text": "The meeting lands on your calendar."
+            }
+          },
+          "visual": {
+            "header": "AI agent · calling Olivia",
+            "ask": "Does Tuesday at 10:00 work for you?",
+            "answer": "Yes, perfect.",
+            "booked": "Meeting booked · Tue 10:00"
+          }
+        },
+        "receptionist": {
+          "title": "AI receptionist",
+          "useCase": "It answers every incoming call, works out what the caller needs and puts them through to the right person.",
+          "points": {
+            "always": {
+              "label": "Always answers",
+              "text": "Even when your team is busy or off the clock."
+            },
+            "transfer": {
+              "label": "Live transfer",
+              "text": "To the right person, ring group or extension."
+            },
+            "followUp": {
+              "label": "Nothing slips",
+              "text": "If nobody can take it, your team is alerted."
+            }
+          },
+          "visual": {
+            "incoming": "Incoming call",
+            "greeting": "Hi, thanks for calling Acme. How can I help?",
+            "caller": "I’d like to talk to sales.",
+            "agent": "Sure, putting you through to sales.",
+            "transfer": "Transferring to Sales"
+          }
+        },
+        "reminders": {
+          "title": "Reminder agent",
+          "useCase": "It confirms appointments and updates by phone, and brings back a clear answer.",
+          "points": {
+            "answer": {
+              "label": "A clear answer",
+              "text": "Confirmed, can’t attend, or call back later."
+            },
+            "callback": {
+              "label": "Calls back",
+              "text": "At the time the person asks for."
+            },
+            "human": {
+              "label": "Brings in a human",
+              "text": "When the person needs one."
+            }
+          }
+        },
+        "customize": {
+          "title": "Your voice, your knowledge, your model",
+          "useCase": "An agent that sounds like your team and knows your business, in 6 languages.",
+          "points": {
+            "clone": {
+              "label": "Clone a voice",
+              "text": "From a few seconds of audio."
+            },
+            "knowledge": {
+              "label": "Knowledge",
+              "text": "Web pages, PDF, DOCX or plain text."
+            },
+            "model": {
+              "label": "Your model",
+              "text": "Ringee AI or your own API key."
+            }
+          }
+        },
+        "assistants": {
+          "title": "ChatGPT, Claude and MCP",
+          "useCase": "Ask your calls anything with the smartest models, and find out what’s holding your sales back.",
+          "points": {
+            "analyze": {
+              "label": "Analyze",
+              "text": "Compare the calls that close with the ones that don’t."
+            },
+            "automate": {
+              "label": "Automate",
+              "text": "Find leads, build call lists and book follow-ups."
+            },
+            "act": {
+              "label": "Act",
+              "text": "Start campaigns or AI agent calls."
+            }
+          },
+          "visual": {
+            "connected": "Connected to Ringee",
+            "prompt": "What’s holding back my sales this month?",
+            "reading": "Reading your calls…",
+            "suggestions": {
+              "one": "Summarize yesterday’s calls",
+              "two": "Call the interested leads",
+              "three": "Book the follow-ups"
+            }
+          }
+        },
+        "insights": {
+          "title": "Recordings, transcripts and AI analysis",
+          "useCase": "Read any call in seconds, and see which objection keeps coming up and how to answer it.",
+          "points": {
+            "live": {
+              "label": "Live transcripts",
+              "text": "Even if you choose not to record."
+            },
+            "objections": {
+              "label": "Objections",
+              "text": "AI ranks them and suggests a response."
+            },
+            "next": {
+              "label": "Next steps",
+              "text": "Each follow-up with a priority and a due date."
+            }
+          },
+          "visual": {
+            "live": "Live transcript",
+            "leadLabel": "Lead:",
+            "lead": "We already work with another provider.",
+            "youLabel": "You:",
+            "you": "What would you change about them?",
+            "top": "Top objections",
+            "price": "Price",
+            "provider": "Has a provider",
+            "timing": "Bad timing"
+          }
+        },
+        "prospecting": {
+          "title": "Prospecting with Apollo and Prospeo",
+          "useCase": "Find who to call, and go from search to call without leaving Ringee.",
+          "points": {
+            "search": {
+              "label": "Search",
+              "text": "By job title, company, industry or location."
+            },
+            "reveal": {
+              "label": "Reveal",
+              "text": "Mobile and email, saved as a contact."
+            },
+            "linkedin": {
+              "label": "From LinkedIn",
+              "text": "Paste a profile URL to find the lead."
+            }
+          },
+          "visual": {
+            "query": "VP Sales · Spain",
+            "roleOne": "VP Sales · Fintech",
+            "reveal": "Reveal",
+            "call": "Call Diego"
+          }
+        },
+        "followUp": {
+          "title": "Outcomes, callbacks and meetings",
+          "useCase": "Log how the call went and book the next step before you hang up.",
+          "points": {
+            "outcomes": {
+              "label": "One click",
+              "text": "Outcome and note as the call ends."
+            },
+            "callbacks": {
+              "label": "Callbacks",
+              "text": "Back on your list right when it’s time to call."
+            },
+            "meetings": {
+              "label": "Meetings",
+              "text": "Synced to Google or Microsoft calendars."
+            }
+          }
+        },
+        "crmSync": {
+          "title": "Your CRM, always up to date",
+          "useCase": "Every call, outcome and note reaches your CRM, with nothing copied by hand.",
+          "points": {
+            "crms": {
+              "label": "Attio and Odoo",
+              "text": "Activity on the right record."
+            },
+            "webhooks": {
+              "label": "Signed webhooks",
+              "text": "Every event, sent to your own system."
+            },
+            "api": {
+              "label": "API",
+              "text": "Contacts and click-to-call from your app."
+            }
+          }
+        }
+      }
+    },
+    "video": {
+      "eyebrow": "Product tour",
+      "title": "The whole calling stack in 30 seconds",
+      "description": "From the first dial to the CRM, for your reps and AI voice agents."
+    },
+    "audience": {
+      "eyebrow": "Who it's for",
+      "title": "Sorry, enterprises. <hl>Ringee isn't for you.</hl>",
+      "description": "Most calling software is built for the 500-seat floor. We built Ringee for the people who pick up the phone and sell.",
+      "fit": {
+        "title": "Ringee is for you if…",
+        "items": {
+          "solo": "You sell by phone, solo or with a small team",
+          "week": "You want to start calling this week, not next quarter",
+          "minutes": "You'd rather pay for minutes than for seats",
+          "agents": "You want AI agents calling next to your reps"
+        }
+      },
+      "notFit": {
+        "title": "Ringee isn't for you if…",
+        "items": {
+          "procurement": "Your phone system needs a procurement committee",
+          "rollout": "You plan a six-month rollout before the first call",
+          "seats": "You're fine paying for every seat, even the empty ones",
+          "blackBox": "You're happy with a black box you can't look inside"
+        }
+      },
+      "roles": {
+        "label": "Made for",
+        "items": {
+          "founders": "Founders",
+          "sdrs": "SDRs",
+          "freelancers": "Freelancers",
+          "agencies": "Agencies",
+          "recruiters": "Recruiters",
+          "salesTeams": "Sales teams"
+        }
+      }
+    },
     "pricing": {
       "eyebrow": "05 / Simple team pricing",
       "title": "Add teammates. Keep one subscription.",
@@ -788,6 +1157,97 @@
       },
       "usage": "Calling and number costs are separate. AI calls also include voice and model usage.",
       "cta": "See full pricing and rates"
+    },
+    "faq": {
+      "eyebrow": "Before you start",
+      "title": "Frequently asked questions",
+      "description": "Quick answers about plans, AI voice agents and getting started.",
+      "items": {
+        "what": {
+          "question": "What is Ringee?",
+          "answer": "Ringee is open-source calling infrastructure for human teams and AI voice agents. Your reps call from the browser, the mobile apps or the Chrome extension, and AI voice agents call from the same stack, with the same numbers, history and recordings."
+        },
+        "cost": {
+          "question": "How much does Ringee cost?",
+          "answer": "The Freelancer plan is free for one person. The Organization plan is ${price}/month for the whole team, with unlimited users. Calls are pay-as-you-go, from {rate}/min, paid from credits apart from the plan."
+        },
+        "perUser": {
+          "question": "Do you charge per user?",
+          "answer": "No. One Organization plan covers your whole team, so adding a teammate never raises your subscription."
+        },
+        "aiAgents": {
+          "question": "Can AI voice agents make real phone calls?",
+          "answer": "Yes. An AI voice agent places a real outbound call and holds the conversation itself: it books appointments against your real availability, confirms reminders and schedules callbacks. AI voice agents need the Organization plan."
+        },
+        "install": {
+          "question": "Do I need to install anything?",
+          "answer": "No. Ringee runs in any modern browser. The Chrome extension and the iPhone and Android apps are optional and share the same account, contacts and call history."
+        },
+        "carrier": {
+          "question": "Can I keep my carrier and my numbers?",
+          "answer": "Yes. Connect your carrier or PBX as a SIP extension and your numbers stay where they are, with no porting. Bring your own carrier is part of the Organization plan."
+        },
+        "assistants": {
+          "question": "Can I use Ringee from ChatGPT or Claude?",
+          "answer": "Yes. Ringee’s MCP server lets ChatGPT, Claude and other compatible agents find leads, build calling sessions, start AI voice agent calls and log outcomes. Developers can script the same work from the CLI."
+        },
+        "openSource": {
+          "question": "Is Ringee open source?",
+          "answer": "Yes. The code is public on GitHub. Use Ringee in the cloud, or self-host it on your own infrastructure: both run the same codebase."
+        },
+        "start": {
+          "question": "How do I get started?",
+          "answer": "Request your account. We review every request and email you access, usually within one business day, with no sales call to book."
+        }
+      }
+    }
+  },
+  "wallOfLove": {
+    "eyebrow": "Wall of love",
+    "title": "Don’t take our word for it",
+    "description": "Real posts, messages and reviews from the teams and freelancers who call with Ringee, linked to the original wherever there is one.",
+    "seeAll": "See the whole wall of love",
+    "page": {
+      "badge": "Wall of love",
+      "title": "Loved by the people who call with <brand>Ringee</brand>",
+      "description": "What teams and freelancers say about calling with Ringee, in their own posts, messages, reviews and videos, linked to the original wherever there is one.",
+      "join": "Posted about Ringee? Tag us on LinkedIn or leave a review on Trustpilot, and we’ll add you to the wall.",
+      "linkedin": "Ringee on LinkedIn",
+      "trustpilot": "Review us on Trustpilot",
+      "sources": {
+        "linkedin": "{count, plural, one {# LinkedIn post} other {# LinkedIn posts}}",
+        "email": "{count, plural, one {# email} other {# emails}}",
+        "whatsapp": "{count, plural, one {# WhatsApp message} other {# WhatsApp messages}}",
+        "trustpilot": "{count, plural, one {# Trustpilot review} other {# Trustpilot reviews}}",
+        "x": "{count, plural, one {# post on X} other {# posts on X}}",
+        "video": "{count, plural, one {# video} other {# videos}}"
+      }
+    },
+    "takeover": {
+      "badge": "Wall of love",
+      "title": "Everything people say about Ringee",
+      "description": "Posts, messages and reviews from the people who call with Ringee. Click a card to read the original.",
+      "close": "Close the wall of love",
+      "page": "Open the wall of love page"
+    },
+    "card": {
+      "more": "See more",
+      "less": "See less",
+      "comment": "Comment",
+      "openPost": "Open {name}’s post on {network}",
+      "openComment": "Open {name}’s comment on {network}",
+      "openReview": "Open {name}’s review on {network}",
+      "openVideo": "Open {name}’s video",
+      "playVideo": "Play {name}’s video",
+      "viewScreenshot": "View full screenshot",
+      "emailScreenshotTitle": "Email from {name}",
+      "screenshotTitle": "{name} on WhatsApp",
+      "close": "Close",
+      "rating": "Rated {rating} out of 5",
+      "reactions": "{count, plural, one {# reaction} other {# reactions}}",
+      "comments": "{count, plural, one {# comment} other {# comments}}",
+      "reposts": "{count, plural, one {# repost} other {# reposts}}",
+      "rewarded": "Rewarded with Ringee credits"
     }
   },
   "calculator": {

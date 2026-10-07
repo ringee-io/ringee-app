@@ -1,0 +1,7 @@
+/* The footer closes every page with the default call to action. A page that
+   ends with its own `CtaSection` replaces it, so the page's copy is the one
+   that stands on the footer's logo. A browser without :has() shows both. */
+
+body:has([data-cta='page']) .footer {
+  display: none;
+}
