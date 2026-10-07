@@ -1,0 +1,152 @@
+/* Home feature carousel: a full-bleed, snapping track whose first card lines
+   up with the page's Container, and the small motion of its illustrations.
+   prefers-reduced-motion stills all of it. */
+
+/* The wrapper is the width the track measures itself against, so the edge
+   matches Container (px-6, then px-8 inside max-w-6xl) without 100vw, which
+   counts a desktop scrollbar. */
+.viewport {
+  container-type: inline-size;
+}
+
+/* Positioned, so a slide's offsetLeft is measured inside the track and does
+   not move as it scrolls. */
+.track {
+  --edge: 1.5rem;
+  --gap: 1rem;
+  position: relative;
+  display: flex;
+  gap: var(--gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--edge);
+  /* Room above and below for the hover lift and the card shadows, which the
+     scroll container would otherwise clip. The end edge is the spacer below:
+     not every browser scrolls a flex container's end padding into view. */
+  padding: 0.75rem 0 2rem var(--edge);
+  scrollbar-width: none;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.track::after {
+  content: '';
+  flex: 0 0 calc(var(--edge) - var(--gap));
+}
+
+.track:focus-visible {
+  outline: 2px solid rgb(16 185 129);
+  outline-offset: -2px;
+  border-radius: 1rem;
+}
+
+@media (min-width: 640px) {
+  .track {
+    --gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .track {
+    --edge: max(2rem, calc((100cqw - 72rem) / 2 + 2rem));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .track {
+    scroll-behavior: smooth;
+  }
+}
+
+.slide {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* The illustration panel at the top of a card. */
+.frame {
+  background:
+    radial-gradient(90% 75% at 50% 0%, rgb(16 185 129 / 0.13), transparent 70%),
+    radial-gradient(circle at 1px 1px, rgb(15 23 42 / 0.07) 1px, transparent 0)
+      0 0 / 18px 18px,
+    linear-gradient(#f7f9f8, #f1f4f3);
+}
+
+:global(.dark) .frame {
+  background:
+    radial-gradient(90% 75% at 50% 0%, rgb(52 211 153 / 0.12), transparent 70%),
+    radial-gradient(
+        circle at 1px 1px,
+        rgb(255 255 255 / 0.06) 1px,
+        transparent 0
+      )
+      0 0 / 18px 18px,
+    linear-gradient(#151a18, #0f1211);
+}
+
+/* A voice: bars that rise and fall out of step. */
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.wave > span {
+  width: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  transform-origin: center;
+  animation: feature-wave 1.4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -110ms);
+}
+
+@keyframes feature-wave {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* The assistant is thinking. */
+.typing > span {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: feature-typing 1.2s ease-in-out infinite;
+}
+
+.typing > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes feature-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave > span,
+  .typing > span {
+    animation: none;
+  }
+}

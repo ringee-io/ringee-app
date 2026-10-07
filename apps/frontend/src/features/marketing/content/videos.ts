@@ -23,6 +23,14 @@ export type MarketingVideo = {
 };
 
 export const MARKETING_VIDEOS = {
+  // The home page's product tour. Integrations end on "and more" on purpose:
+  // new ones are added without a re-render.
+  'ringee-overview': {
+    src: '/videos/ringee-overview',
+    version: '2026-10-06',
+    label:
+      'Ringee in 30 seconds: calls to 180+ countries with a local caller ID, prospecting and a progressive dialer, recording and live transcription, outcomes synced to your CRM, AI voice agents, control from ChatGPT or Claude, every screen, and your own carrier or self-hosting'
+  },
   'ringee-features': {
     src: '/videos/ringee-features',
     version: '2026-09-26',

@@ -1,0 +1,486 @@
+/* Wall of love: card motion, the stage and the takeover's reveal.
+   Everything here is decoration; prefers-reduced-motion turns it off. */
+
+/* ------------------------------------------------------------------ */
+/* A card on the wall                                                  */
+/* ------------------------------------------------------------------ */
+
+/* The tilt is an inline transform JS writes on .item; the shake runs on the
+   inner .shake, so the two never fight over one transform. No will-change: a
+   promoted layer inside CSS columns is what WebKit has painted wrongly. */
+.item {
+  position: relative;
+  transition: transform 160ms ease-out;
+}
+
+.item[data-lit] {
+  z-index: 10;
+}
+
+/* The wiggle every card does when the wall first comes into view. */
+.item[data-wiggle] .shake {
+  animation: wall-wiggle 0.5s ease-in-out var(--wiggle-delay, 0ms) 1;
+}
+
+/* After the wiggle, so a lit card shakes even mid-wiggle. */
+.item[data-lit] .shake {
+  animation: wall-shake 0.85s ease-in-out 2;
+}
+
+/* The heart in the badges beats. */
+.beat {
+  animation: wall-beat 1.6s ease-in-out infinite;
+}
+
+@keyframes wall-beat {
+  0%,
+  40%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.25);
+  }
+  28% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes wall-shake {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  12% {
+    transform: translate(-2.5px, 0.4px) rotate(-0.5deg);
+  }
+  24% {
+    transform: translate(2.5px, -0.4px) rotate(0.5deg);
+  }
+  36% {
+    transform: translate(-2px, 0.3px) rotate(-0.35deg);
+  }
+  48% {
+    transform: translate(2px, -0.3px) rotate(0.4deg);
+  }
+  60% {
+    transform: translate(-1.5px, 0.2px) rotate(-0.25deg);
+  }
+  72% {
+    transform: translate(1.2px, -0.2px) rotate(0.3deg);
+  }
+  84% {
+    transform: translate(-0.8px, 0) rotate(-0.15deg);
+  }
+}
+
+@keyframes wall-wiggle {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px) rotate(-0.4deg);
+  }
+  40% {
+    transform: translateX(3px) rotate(0.4deg);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Three soft blobs that morph behind the lit card. One layer for the whole
+   wall, outside its columns and placed under the lit card by JS: a glow
+   inside a column reaches past the card, and the browser would carry the
+   overflow into the neighbouring column. The blobs only animate while on. */
+.glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease-out;
+}
+
+.glow[data-on] {
+  opacity: 1;
+}
+
+.glow > span {
+  position: absolute;
+  filter: blur(18px);
+}
+
+.glow > span:nth-child(1) {
+  inset: -30px -22px -26px -28px;
+  background: radial-gradient(
+    ellipse at 30% 35%,
+    rgba(16, 185, 129, 0.8),
+    rgba(20, 184, 166, 0.6) 50%,
+    rgba(6, 182, 212, 0.15) 75%,
+    transparent 90%
+  );
+}
+
+.glow > span:nth-child(2) {
+  inset: -22px -32px -30px -18px;
+  background: radial-gradient(
+    ellipse at 70% 65%,
+    rgba(6, 182, 212, 0.7),
+    rgba(139, 92, 246, 0.55) 50%,
+    rgba(236, 72, 153, 0.15) 75%,
+    transparent 90%
+  );
+}
+
+.glow > span:nth-child(3) {
+  inset: -26px -26px -22px -30px;
+  background: radial-gradient(
+    ellipse at 55% 30%,
+    rgba(250, 204, 21, 0.55),
+    rgba(52, 211, 153, 0.5) 40%,
+    rgba(59, 130, 246, 0.25) 65%,
+    transparent 90%
+  );
+}
+
+.glow[data-on] > span:nth-child(1) {
+  animation:
+    wall-blob-1 5s ease-in-out infinite,
+    wall-blob-pulse 3.8s ease-in-out infinite;
+}
+
+.glow[data-on] > span:nth-child(2) {
+  animation:
+    wall-blob-2 6.5s ease-in-out infinite,
+    wall-blob-pulse 4.5s ease-in-out -1.2s infinite;
+}
+
+.glow[data-on] > span:nth-child(3) {
+  animation:
+    wall-blob-3 4.2s ease-in-out infinite,
+    wall-blob-pulse 4.1s ease-in-out -2.4s infinite;
+}
+
+@keyframes wall-blob-1 {
+  0%,
+  100% {
+    border-radius: 40% 60% 70% 30% / 50% 40% 60% 50%;
+    transform: translate(-8px, -6px) scale(1);
+  }
+  33% {
+    border-radius: 55% 45% 35% 65% / 60% 55% 45% 40%;
+    transform: translate(6px, 4px) scale(1.08);
+  }
+  66% {
+    border-radius: 35% 65% 50% 50% / 40% 60% 40% 60%;
+    transform: translate(-4px, 8px) scale(0.95);
+  }
+}
+
+@keyframes wall-blob-2 {
+  0%,
+  100% {
+    border-radius: 60% 40% 30% 70% / 45% 55% 50% 50%;
+    transform: translate(6px, 8px) scale(1.05);
+  }
+  33% {
+    border-radius: 45% 55% 60% 40% / 50% 40% 55% 45%;
+    transform: translate(-6px, -4px) scale(0.92);
+  }
+  66% {
+    border-radius: 50% 50% 45% 55% / 55% 45% 50% 50%;
+    transform: translate(8px, -6px) scale(1.06);
+  }
+}
+
+@keyframes wall-blob-3 {
+  0%,
+  100% {
+    border-radius: 50% 50% 40% 60% / 60% 40% 55% 45%;
+    transform: translate(4px, -8px) scale(0.98);
+  }
+  33% {
+    border-radius: 65% 35% 55% 45% / 40% 60% 45% 55%;
+    transform: translate(-8px, 6px) scale(1.1);
+  }
+  66% {
+    border-radius: 38% 62% 55% 45% / 55% 45% 60% 40%;
+    transform: translate(6px, 3px) scale(0.96);
+  }
+}
+
+@keyframes wall-blob-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  40% {
+    opacity: 0.45;
+  }
+  70% {
+    opacity: 0.85;
+  }
+}
+
+/* Cards below the fold rise in as they arrive. `backwards`, not `both`: once
+   it ends, the tilt's inline transform must win again. */
+.item[data-reveal='pending'] {
+  opacity: 0;
+}
+
+.item[data-reveal='shown'] {
+  animation: wall-rise 0.65s cubic-bezier(0.2, 0.8, 0.2, 1)
+    var(--reveal-delay, 0ms) backwards;
+}
+
+@keyframes wall-rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The hand that shows a visitor the cards react to the pointer. */
+.hand {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* ------------------------------------------------------------------ */
+/* The stage behind the page and the takeover                          */
+/* ------------------------------------------------------------------ */
+
+/* It follows the site's theme: a pale mint wash in light, near black in
+   dark. The aurora and the grid read their strength from the stage. */
+.stage {
+  --stage-line: rgba(0, 0, 0, 0.05);
+  --aurora-opacity: 0.3;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #f3f8f6;
+  color: var(--foreground);
+}
+
+:global(.dark) .stage {
+  --stage-line: rgba(255, 255, 255, 0.045);
+  --aurora-opacity: 0.55;
+  background: #050807;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--stage-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--stage-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(
+    ellipse 80% 55% at 50% 0%,
+    black 25%,
+    transparent 80%
+  );
+}
+
+.aurora > span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: var(--aurora-opacity);
+}
+
+.aurora > span:nth-child(1) {
+  top: -14rem;
+  left: 8%;
+  width: 34rem;
+  height: 34rem;
+  background: radial-gradient(circle, #10b981 0%, transparent 68%);
+  animation: wall-drift-1 18s ease-in-out infinite;
+}
+
+.aurora > span:nth-child(2) {
+  top: -10rem;
+  right: 6%;
+  width: 30rem;
+  height: 30rem;
+  background: radial-gradient(circle, #06b6d4 0%, transparent 68%);
+  animation: wall-drift-2 22s ease-in-out infinite;
+}
+
+.aurora > span:nth-child(3) {
+  top: 6rem;
+  left: 38%;
+  width: 26rem;
+  height: 26rem;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+  opacity: calc(var(--aurora-opacity) * 0.65);
+  animation: wall-drift-3 26s ease-in-out infinite;
+}
+
+@keyframes wall-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8rem, 3rem) scale(1.15);
+  }
+}
+
+@keyframes wall-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate(-7rem, 4rem) scale(0.9);
+  }
+}
+
+@keyframes wall-drift-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(0.95);
+  }
+  50% {
+    transform: translate(-5rem, -2rem) scale(1.2);
+  }
+}
+
+/* Hearts and network marks drifting up through the top of the stage. */
+.rising {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 40rem;
+}
+
+.rising > span {
+  position: absolute;
+  bottom: -3rem;
+  left: var(--x);
+  opacity: 0;
+  animation: wall-rise-up var(--duration) linear var(--delay) infinite;
+}
+
+@keyframes wall-rise-up {
+  0% {
+    transform: translateY(0) scale(0.7) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--opacity, 0.7);
+  }
+  80% {
+    opacity: var(--opacity, 0.7);
+  }
+  100% {
+    transform: translateY(calc(-1 * var(--travel, 38rem))) scale(1.1)
+      rotate(var(--spin, 20deg));
+    opacity: 0;
+  }
+}
+
+/* Network badges floating around the hero. */
+.float {
+  animation: wall-float 7s ease-in-out var(--delay, 0s) infinite;
+}
+
+@keyframes wall-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-12px) rotate(calc(var(--tilt, 0deg) * -1));
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The takeover: the whole wall, revealed from the pointer             */
+/* ------------------------------------------------------------------ */
+
+.takeover:modal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.takeover::backdrop {
+  background: transparent;
+}
+
+/* The clipped layer holds the still backdrop and, above it, the scroller. */
+.panel {
+  position: absolute;
+  inset: 0;
+  clip-path: circle(0px at var(--x, 50%) var(--y, 50%));
+  transition: clip-path 0.95s cubic-bezier(0.6, 0, 0.3, 1);
+}
+
+/* --r reaches the corner farthest from the pointer, so the circle spends its
+   whole run on screen instead of racing past the edges. */
+.takeover[data-state='open'] .panel {
+  clip-path: circle(var(--r, 150vmax) at var(--x, 50%) var(--y, 50%));
+}
+
+.takeover[data-state='closing'] .panel {
+  transition-duration: 0.5s;
+  transition-timing-function: cubic-bezier(0.5, 0, 0.75, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .item[data-lit] .shake,
+  .item[data-wiggle] .shake,
+  .item[data-reveal='shown'],
+  .glow[data-on] > span,
+  .aurora > span,
+  .float,
+  .beat {
+    animation: none;
+    transition: none;
+  }
+
+  .item[data-reveal='pending'] {
+    opacity: 1;
+  }
+
+  .rising {
+    display: none;
+  }
+
+  .panel {
+    transition: none;
+  }
+}

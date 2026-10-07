@@ -18,6 +18,33 @@ Theme selection uses CSS and `next/image` with native lazy loading so the
 hidden variant does not download on first paint. Labels and capabilities stay
 in markup, with copy in the `marketing.callingHero` translation namespace.
 
+## Wall of love
+
+`/wall-of-love`, and its share on the home page, render
+`content/wall-of-love.ts`: LinkedIn posts and comments, WhatsApp chats, X
+posts, Trustpilot reviews, emails and video testimonials, each card drawn
+after its network. The file's header explains how to add one.
+
+- A testimonial is a quote: copied word for word, never written or tidied. A
+  public original is linked with `url` and the whole card opens it; a private
+  chat or email needs its author's OK and goes in with phone numbers cropped
+  out.
+- An entry its author was rewarded for (the `customer-review` offer pays
+  credits for a Trustpilot review), or that someone close to the team wrote,
+  is marked `incentivized`, and its card says so.
+- Photos, screenshots and videos live in `apps/frontend/public/wall-of-love/`.
+  A changed file needs a new name, because images are cached as immutable for
+  a year.
+- The home page shows the `featured` entries, or the first six. Resting the
+  pointer on one opens the whole wall over the page (at most every two
+  minutes); `/wall-of-love` is the same wall on a stage that follows the
+  site's light or dark theme, like the cards themselves. The motion is
+  in `wall-of-love-motion.tsx` and `wall-of-love.module.css`, and
+  `prefers-reduced-motion` stills all of it.
+- The lit card's glow is one layer beside the CSS columns, never inside a
+  card: an overflowing child of a card in columns is carried into the
+  neighbouring column.
+
 ## Legacy 3D render
 
 `apps/frontend/public/hero/human-ai-operators.webp` is an earlier experiment,

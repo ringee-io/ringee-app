@@ -21,6 +21,8 @@ import { AgenticCrmFlow } from '@/features/marketing/components/agentic-crm-flow
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
 import { MarketingVideo } from '@/features/marketing/components/marketing-video';
+import { WallOfLoveSection } from '@/features/marketing/components/wall-of-love';
+import { FeatureCarouselSection } from '@/features/marketing/components/feature-carousel';
 import {
   JsonLd,
   softwareAppJsonLd
@@ -47,7 +49,7 @@ export default async function HomePage() {
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
 
-      {/* Product tour — the whole stack in one 15-second video. The video is
+      {/* Product tour — the whole stack in one 30-second video. The video is
           English, so its copy has only English messages. */}
       <Section id='product-tour' className='py-16 sm:py-20'>
         <Container className='max-w-5xl'>
@@ -56,11 +58,17 @@ export default async function HomePage() {
             title={t('video.title')}
             description={t('video.description')}
           />
-          <MarketingVideo id='ringee-features' className='mt-10' />
+          <MarketingVideo id='ringee-overview' className='mt-10' />
         </Container>
       </Section>
 
-      <Section id='ai-voice-agents' className='py-16 sm:py-20'>
+      {/* Features — one card per feature and voice agent, with its use case */}
+      <FeatureCarouselSection />
+
+      {/* Wall of love — what people said about Ringee, where they said it */}
+      <WallOfLoveSection />
+
+      {/* <Section id='ai-voice-agents' className='py-16 sm:py-20'>
         <Container className='grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]'>
           <div>
             <Eyebrow>AI Voice Agents</Eyebrow>
@@ -127,16 +135,16 @@ export default async function HomePage() {
             </Card>
           </div>
         </Container>
-      </Section>
+      </Section> */}
 
       {/* Ringee everywhere — the same day on web, mobile and the extension */}
-      <EverywhereMode />
+      {/* <EverywhereMode /> */}
 
       {/* Agentic mode — connect once, then the seven-step loop */}
-      <AgenticMode />
+      {/* <AgenticMode /> */}
 
       {/* Attio, specifically: the same loop, aimed at the agentic CRM */}
-      <AgenticCrmFlow />
+      {/* <AgenticCrmFlow /> */}
 
       {/* Full feature catalog — internal linking from the home page */}
       {/* <Section className='py-16 sm:py-20'>
@@ -221,7 +229,7 @@ export default async function HomePage() {
       {/* Simple team pricing — flat team plan next to the cost calculator */}
       <Section
         id='team-pricing'
-        className='border-border/50 bg-muted/25 border-y py-20 sm:py-24'
+        className='border-border/50 border-y py-20 sm:py-24'
       >
         <Container>
           <SectionHeading
