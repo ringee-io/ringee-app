@@ -10,13 +10,15 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
  */
 export function useCallIdBySession(sessionId: string | null | undefined) {
   const api = useApi();
-  const [callId, setCallId] = useState<string | null>(null);
+  // Kept with the session it was resolved for: a new leg is a new call, and
+  // must not read as the previous one until its own lookup answers.
+  const [resolved, setResolved] = useState<{
+    sessionId: string;
+    callId: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!sessionId) {
-      setCallId(null);
-      return;
-    }
+    if (!sessionId) return;
     let cancelled = false;
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -27,7 +29,7 @@ export function useCallIdBySession(sessionId: string | null | undefined) {
           `/telephony/calls/by-session/${sessionId}`
         );
         if (!cancelled && call?.id) {
-          setCallId(call.id);
+          setResolved({ sessionId, callId: call.id });
           return;
         }
       } catch {
@@ -48,5 +50,7 @@ export function useCallIdBySession(sessionId: string | null | undefined) {
     };
   }, [api, sessionId]);
 
-  return callId;
+  return sessionId && resolved?.sessionId === sessionId
+    ? resolved.callId
+    : null;
 }

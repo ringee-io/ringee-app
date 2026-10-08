@@ -175,13 +175,17 @@ function dateRange(ctx: DashboardContext) {
   return { start, end };
 }
 
-// A call counts as "answered" purely by its disposition: it has an outcome
-// and that outcome is not one of the machine/no-pickup ones. The telephony
-// signals are NOT consulted — `answeredAt` gets stamped by voicemail pickups
-// (and fake answer supervision on some international routes), and `completed`
-// status is reached by EVERY call on hangup. Unconnected outbound calls are
-// auto-dispositioned no_answer at hangup (completeCall), so outcome is the
-// single source of truth.
+// A call counts as "answered" when it connected — `answeredAt`, stamped by the
+// `call.answered` webhook — whether or not anybody recorded an outcome for it.
+// Counting only dispositioned calls hid every connected call that went without
+// one: a whole workspace's answered calls read as 0 when their outcomes never
+// reached the row. `completed` status is NOT a signal: every call reaches it on
+// hangup.
+//
+// The disposition only overrules the signal the other way. `answeredAt` is also
+// stamped by voicemail pickups (and fake answer supervision on some
+// international routes), so a call its agent recorded as voicemail or no
+// answer did not reach a person.
 const UNANSWERED_OUTCOMES: CallOutcome[] = [
   CallOutcome.no_answer,
   CallOutcome.voicemail,
@@ -240,8 +244,18 @@ export class DashboardRepository {
         where: {
           ...callBaseWhere,
           // Under AND so it composes with (instead of replacing) the
-          // ctx.outcome filter already spread in via callBaseWhere.
-          AND: [{ outcome: { not: null, notIn: UNANSWERED_OUTCOMES } }],
+          // ctx.outcome filter already spread in via callBaseWhere. The
+          // explicit `outcome: null` arm matters: `notIn`, like SQL's NOT IN,
+          // drops NULL rows — exactly the calls nobody dispositioned.
+          AND: [
+            { answeredAt: { not: null } },
+            {
+              OR: [
+                { outcome: null },
+                { outcome: { notIn: UNANSWERED_OUTCOMES } },
+              ],
+            },
+          ],
         },
       }),
       countByOutcome(CallOutcome.meeting_booked),
@@ -591,8 +605,9 @@ export class DashboardRepository {
         u."lastName",
         COUNT(*)::int AS total,
         COUNT(*) FILTER (
-          WHERE c.outcome IS NOT NULL
-            AND c.outcome NOT IN ('no_answer','voicemail')
+          WHERE c."answeredAt" IS NOT NULL
+            AND (c.outcome IS NULL
+              OR c.outcome NOT IN ('no_answer','voicemail'))
         )::int AS answered,
         COUNT(*) FILTER (WHERE c.outcome = 'meeting_booked')::int AS meetings,
         COUNT(*) FILTER (WHERE c.outcome = 'sale')::int AS sales,

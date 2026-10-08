@@ -187,12 +187,14 @@ export function useCall(call?: Call | null) {
     // as the fallback so behavior is unchanged when number rotation is off;
     // when it's on, the backend rotates to the best country-matched number.
     let callerId = selectedNumber?.phoneNumber ?? null;
+    let carrierCallId: string | null = null;
     try {
       const res = await api.post<{
         phoneNumber: string | null;
         reason: string;
         destinationUri?: string;
         callToken?: string;
+        callId?: string;
       }>('/caller-id-rotation/resolve', {
         destination: number,
         ...(external ? { source: 'external_carrier' } : {}),
@@ -213,6 +215,7 @@ export function useCall(call?: Call | null) {
           destinationUri: res.destinationUri,
           callToken: res.callToken
         };
+        carrierCallId = res.callId ?? null;
       }
     } catch (err) {
       // A 409 is a deliberate refusal, not a hiccup: the user is already on a
@@ -250,6 +253,13 @@ export function useCall(call?: Call | null) {
       void abandonDial();
       return false;
     }
+
+    // The post-call view saves the outcome on the store's call id, else on the
+    // leg's session. A call through the workspace's own carrier is bound to
+    // the application's leg, not this browser's, so its session finds nothing
+    // and the outcome was lost: name the call the pre-flight created. Any
+    // other call clears the id, so a previous call's never carries over.
+    useCallStore.getState().setCallId(carrierCallId);
 
     try {
       placeCall({
