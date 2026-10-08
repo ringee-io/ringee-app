@@ -51,21 +51,16 @@ export function ShowActiveCall() {
 
   // The Ringee callId is created server-side from the call.initiated webhook,
   // so the WebRTC client only knows the Telnyx session id. Resolve the callId
-  // from it (same mapping the recording feature uses) and keep it across the
-  // active → post-call transition so the transcript stays visible.
+  // from it (same mapping the recording feature uses); until then, or when the
+  // session finds nothing (an external carrier's call), use the id the dial or
+  // the answer put in the store. Derived, not copied: the same call keeps it
+  // into the wrap-up, and a new call never shows the previous call's.
   const telnyxSessionId = (activeCall as any)?.telnyxIDs?.telnyxSessionId as
     | string
     | undefined;
   const resolvedCallId = useCallIdBySession(telnyxSessionId);
   const storeCallId = useCallStore((s) => s.callId);
-  const [callId, setCallId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (resolvedCallId) setCallId(resolvedCallId);
-  }, [resolvedCallId]);
-  useEffect(() => {
-    if (storeCallId) setCallId(storeCallId);
-  }, [storeCallId]);
+  const callId = resolvedCallId ?? storeCallId;
 
   // Who is on the other end. An inbound leg's destination is our own side of
   // the line — the number that was called, or the credential a transfer rang —
@@ -132,7 +127,6 @@ export function ShowActiveCall() {
       resolvedNumberRef.current = null;
       setContactId(null);
       setContactName(undefined);
-      setCallId(null);
     }
   }, [activeCall, postCallPhase]);
 
