@@ -614,7 +614,7 @@ dialer, external number selected
       Call row: pending · outbound · from = external number · to = destination
                 externalCarrierId + externalSipEndpointId
       ExternalCarrierService.outboundEntry          sip:<call key>@<app subdomain>.sip.telnyx.com
-    ← { destinationUri, callToken }                 no carrier, no number, no credentials
+    ← { destinationUri, callToken, callId }         no carrier, no number, no credentials
 browser: placeCall({ carrierRoute })   same TelnyxRTC client; no caller ID or identity
                                        headers; X-Ringee-Byoc-Call-Id: <signed token>
    │
@@ -663,6 +663,13 @@ leg C  Call Control → UAC FQDN ──► customer's PBX ──► their carrie
   Telnyx ever report the browser's side as a leg of its own and it is bound
   first, B only relays it — same `call_session_id` required — and is marked
   too.
+- **The browser names the call by the pre-flight's id, never by its leg.** The
+  row is bound to B, so the browser's own `telnyxSessionId` does not find it.
+  The pre-flight returns `callId`, and `handleCall` puts it in the call store
+  before placing the leg, so the post-call outcome, a meeting booked from it
+  and the transcript all reach the row. Looked up by session instead, every
+  outcome on these calls was lost: 35 answered calls in one workspace,
+  none with an outcome, all counted as unanswered by the dashboard.
 - **Failures.** A carrier leg that ends unanswered (busy, declined,
   unreachable) leaves B parked on the application: the server hangs it up and
   stores the cause on the row. After an answer both legs end together. A

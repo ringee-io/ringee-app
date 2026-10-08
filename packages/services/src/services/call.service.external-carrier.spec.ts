@@ -341,6 +341,9 @@ describe("CallService external carrier outbound", () => {
     );
     assert.equal(result.phoneNumber, route.fromNumber);
     const row = s.rows.get(verifyCallCorrelation(result.callToken)!)!;
+    // The post-call view saves the outcome on this id: the browser's own leg
+    // is not the one the row is bound to.
+    assert.equal(result.callId, row.id);
     // The browser is sent to Ringee's application, never to the carrier.
     assert.equal(result.destinationUri, entryFor(row.id));
     assert.ok(!result.destinationUri.includes(HOST));

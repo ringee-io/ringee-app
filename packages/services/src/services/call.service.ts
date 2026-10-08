@@ -761,6 +761,9 @@ export class CallService implements OnModuleDestroy {
       reason: "external_carrier",
       destinationUri,
       callToken: signCallCorrelation(call.id),
+      // The browser cannot find this call by its own leg's session — the row
+      // is bound to the application's leg — so its post-call view names it.
+      callId: call.id,
     };
   }
 
