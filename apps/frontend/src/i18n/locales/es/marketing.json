@@ -1212,8 +1212,8 @@
   "impulsateBanner": {
     "finalist": "Finalista",
     "contest": "Impúlsate Popular 2026",
-    "ask": "Ayúdanos a ganar el premio de <prize>US$5K</prize> al proyecto más votado",
-    "short": "Ayúdanos a ganar <prize>US$5K</prize>",
+    "ask": "Ayúdanos a ganar el premio de <prize>RD$300K</prize> al proyecto más votado",
+    "short": "Ayúdanos a ganar <prize>RD$300K</prize>",
     "cta": "Vota por Ringee",
     "newTab": "(se abre en una pestaña nueva)"
   }
