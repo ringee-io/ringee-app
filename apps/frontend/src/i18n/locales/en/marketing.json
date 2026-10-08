@@ -1265,5 +1265,13 @@
     "annual": "{amount} over a year",
     "note": "Illustrative subscription comparison, not a quote. Calling, numbers, and AI usage are excluded.",
     "noSavings": "No subscription savings at this price."
+  },
+  "impulsateBanner": {
+    "finalist": "Finalist",
+    "contest": "Impúlsate Popular 2026",
+    "ask": "Help us win the <prize>US$5K</prize> people's choice award",
+    "short": "Help us win <prize>US$5K</prize>",
+    "cta": "Vote for Ringee",
+    "newTab": "(opens in a new tab)"
   }
 }
