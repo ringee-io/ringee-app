@@ -476,6 +476,20 @@ A workspace names its own dispositions ("Demo booked", "Wrong person"), but each
 one maps onto a value of this set (`DISP-001`). The set itself does not grow
 with them: `Call.outcome` is always one of these.
 
+### CALL-012 — An answered call is one that connected, outcome or not
+
+The dashboard counts a call as answered when `answeredAt` is set, whether or not
+anybody recorded an outcome for it. The outcome only overrules that signal the
+other way: an answer its agent recorded as `voicemail` or `no_answer` reached a
+machine, not a person. `completed` status is never a signal — every call
+reaches it on hangup.
+
+- **Source of truth:** `UNANSWERED_OUTCOMES` and the answered counts in
+  `DashboardRepository` (`getKpis`, `getAgentPerformance`)
+- **Risk if violated:** counted by outcome alone, every connected call without
+  one disappears — a workspace whose outcomes never reached the row
+  (external-carrier calls, 2026-10) read 0 answered out of 35 connected calls
+
 ---
 
 ## Numbers & caller ID (`NUM`)
