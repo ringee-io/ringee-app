@@ -27,10 +27,6 @@
     "stepsCompleted": "{completed} von {total} Schritten abgeschlossen"
   },
   "guideSteps": {
-    "request_free_call": {
-      "title": "Fordern Sie Ihren kostenlosen Anruf an",
-      "description": "Bitten Sie das Ringee-Team um einen kostenlosen Testanruf"
-    },
     "first_call": {
       "title": "Tätigen Sie Ihren ersten Anruf",
       "description": "Ihr erster Anruf bei Ringee ist kostenlos"
@@ -51,31 +47,5 @@
   "headerProgress": {
     "label": "Einrichtungsleitfaden",
     "tooltip": "Onboarding fortsetzen"
-  },
-  "firstCallModal": {
-    "title": "Ihr erster Anruf geht aufs Haus",
-    "subtitle": "Tätigen und zeichnen Sie Ihren ersten kostenlosen Anruf auf!",
-    "step1Title": "Schritt 1: Telefonnummer eingeben",
-    "step1Description": "Geben Sie über das Tastenfeld eine beliebige Nummer ein. Es funktioniert wie ein normales Telefon.",
-    "step2Title": "Schritt 2: Aufzeichnung starten",
-    "step2Description": "Vergessen Sie nicht, nach Verbindungsaufbau auf die Aufnahmetaste zu klicken, um das Gespräch zu speichern.",
-    "recordingButton": "Aufnahmetaste",
-    "recordingAlt": "So starten Sie die Aufzeichnung",
-    "maybeLater": "Vielleicht später",
-    "startCalling": "Jetzt anrufen"
-  },
-  "freeCallRequest": {
-    "badge": "Kostenloser Anruf",
-    "title": "Kostenlosen Anruf anfordern",
-    "description": "Testen Sie Ringee mit einem Anruf auf uns. Senden Sie eine Anfrage – unser Team prüft sie und meldet sich per E-Mail.",
-    "notePlaceholder": "Erzählen Sie uns kurz, wie Sie Ringee nutzen möchten (optional)",
-    "submit": "Kostenlosen Anruf anfordern",
-    "submitting": "Anfrage wird gesendet…",
-    "dismiss": "Vielleicht später",
-    "successTitle": "Anfrage gesendet",
-    "successDescription": "Danke! Das Ringee-Team prüft Ihre Anfrage und meldet sich bald per E-Mail.",
-    "done": "Fertig",
-    "errorTitle": "Etwas ist schiefgelaufen",
-    "errorDescription": "Wir konnten Ihre Anfrage nicht senden. Bitte versuchen Sie es gleich noch einmal."
   }
 }

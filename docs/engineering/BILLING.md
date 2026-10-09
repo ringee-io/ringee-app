@@ -60,7 +60,7 @@ a failure. Side effects are gated on the returned boolean (`BILL-004`).
 | Recording transcription      | `transcription-recording:<headerId>`                               |
 | Human voice clone            | `voice-clone:<localCloneId>` (source `ai-voice-agent.voice-clone`) |
 | Offer reward                 | `OfferRewardService.idempotencyKey(participationId)`               |
-| First-list onboarding gift   | `onboarding:first-list:<userId>` (source `ONBOARDING_REWARD`)      |
+| First-list onboarding gift   | `onboarding:first-list:org:<orgId>` or `…:user:<userId>`           |
 | Caller-ID verification       | `caller-id-verification:<numberId>:<requestedAt>`                  |
 | Auto-reload (Stripe side)    | `autoreload:<settingsId>:<minute>`                                 |
 | AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation                |

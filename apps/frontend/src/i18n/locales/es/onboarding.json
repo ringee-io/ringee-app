@@ -27,10 +27,6 @@
     "stepsCompleted": "{completed} de {total} pasos completados"
   },
   "guideSteps": {
-    "request_free_call": {
-      "title": "Solicita tu llamada gratis",
-      "description": "Pide al equipo de Ringee una llamada gratis para probar el servicio"
-    },
     "first_call": {
       "title": "Haz tu primera llamada",
       "description": "Ringee te regala la primera llamada"
@@ -51,32 +47,6 @@
   "headerProgress": {
     "label": "Guía de configuración",
     "tooltip": "Reanudar la configuración"
-  },
-  "firstCallModal": {
-    "title": "Tu primera llamada va por nuestra cuenta",
-    "subtitle": "¡Haz y graba tu primera llamada gratis!",
-    "step1Title": "Paso 1: Introduce un número",
-    "step1Description": "Usa el teclado para introducir cualquier número. Funciona igual que un teléfono normal.",
-    "step2Title": "Paso 2: Empieza a grabar",
-    "step2Description": "No olvides pulsar el botón de grabación al conectar la llamada para guardar la conversación.",
-    "recordingButton": "Botón de grabación",
-    "recordingAlt": "Cómo iniciar la grabación",
-    "maybeLater": "Quizás más tarde",
-    "startCalling": "Empezar a llamar"
-  },
-  "freeCallRequest": {
-    "badge": "Llamada gratis",
-    "title": "Solicita una llamada gratis",
-    "description": "Prueba Ringee con una llamada de nuestra parte. Envía una solicitud y nuestro equipo la revisará y te responderá por correo.",
-    "notePlaceholder": "Cuéntanos un poco cómo piensas usar Ringee (opcional)",
-    "submit": "Solicitar llamada gratis",
-    "submitting": "Enviando solicitud…",
-    "dismiss": "Quizás más tarde",
-    "successTitle": "Solicitud enviada",
-    "successDescription": "¡Gracias! El equipo de Ringee revisará tu solicitud y te contactará pronto por correo.",
-    "done": "Listo",
-    "errorTitle": "Algo salió mal",
-    "errorDescription": "No pudimos enviar tu solicitud. Inténtalo de nuevo en un momento."
   },
   "firstList": {
     "stepOf": "Paso {current} de {total}",

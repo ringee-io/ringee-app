@@ -178,6 +178,19 @@ export class ContactListRepository {
     return { data, total };
   }
 
+  /**
+   * The workspace's oldest list that still exists — an organization's, or the
+   * person's own. The onboarding gift is for that list only (BILL-022).
+   */
+  async firstInWorkspace(ctx: OwnershipContext): Promise<string | null> {
+    const first = await this.prisma.contactList.findFirst({
+      where: buildOwnershipFilter(ctx),
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true },
+    });
+    return first?.id ?? null;
+  }
+
   /** Callers load the list through `findInWorkspace` first. */
   update(
     id: string,

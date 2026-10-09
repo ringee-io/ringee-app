@@ -379,23 +379,33 @@ records the margins it ran with.
   and `country-rate.util.ts` (+ specs)
 - **Risk if violated:** a published price the product does not honour
 
-### BILL-022 — Finishing the first-list onboarding gives $1, once per user, only to an empty balance
+### BILL-022 — The first-list onboarding gives a workspace $1, once, for its first list, only at $0
 
 The Call page's onboarding ends when the user has a list they created for
 themselves with somebody in it (`POST /onboarding/first-list/:listId` checks
-the list, never the client's word). Finishing it adds `FIRST_LIST_REWARD_USD`
-($1) to the workspace they finished in — only for whoever manages that balance
-(a freelancer, an org admin) and only when it is at $0 to the cent. A workspace
-with credit, one in debt, and an org member get nothing, and the step
-completes all the same; a member's request never reads the organization's
-balance (`CALL-014`). It is a `grantCreditsOnce` keyed
-`onboarding:first-list:<userId>`, so a user is paid once whatever workspace or
-retry they finish from; the step is stamped after the grant, and a stamped
-step is never paid again.
+the list, never the client's word). The gift belongs to the **workspace**: a
+person's own workspace once, an organization once — never once per member.
+Finishing adds `FIRST_LIST_REWARD_USD` ($1) only when all of these hold:
+
+- it is the workspace's first list (its oldest one) — another list never pays,
+  at $0 or not, and a workspace that already had lists is past its first;
+- it is the first time this user finishes it in that workspace — a first time
+  that paid nothing, because there was credit, closes it all the same;
+- the user manages the balance (a freelancer, an org admin) — a member
+  finishes it without a gift, and their request never reads the
+  organization's balance (`CALL-014`);
+- the balance is at $0 to the cent — a workspace with credit, or in debt,
+  gets nothing.
+
+It is a `grantCreditsOnce` keyed `onboarding:first-list:<org:id|user:id>`, so a
+workspace is paid once whoever finishes it and however often it is retried;
+the step is stamped on the user per workspace (`first_list`,
+`first_list:<orgId>`) after the grant.
 
 - **Source of truth:** `OnboardingService.completeFirstList` (+ spec)
-- **Risk if violated:** free credit farmed by repeating the onboarding, or paid
-  on top of money a customer already has
+- **Risk if violated:** free credit farmed by repeating the onboarding or by
+  each member of an organization, or paid on top of money a customer already
+  has
 
 ---
 

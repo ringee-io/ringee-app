@@ -227,6 +227,14 @@ export class ContactListService {
     return this.toView(actor, await this.lists.update(list.id, data));
   }
 
+  /**
+   * The workspace's first list — of the ones that still exist — or null
+   * before it has any. The onboarding gift is for that list only (BILL-022).
+   */
+  firstListInWorkspace(ctx: OwnershipContext): Promise<string | null> {
+    return this.lists.firstInWorkspace(ctx);
+  }
+
   /** Deletes the list. Its contacts stay in the workspace (LIST-004). */
   async remove(actor: ContactListActor, listId: string): Promise<void> {
     const list = await this.loadVisible(actor, listId);

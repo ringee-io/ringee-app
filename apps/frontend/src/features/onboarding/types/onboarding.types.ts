@@ -1,5 +1,4 @@
 export type OnboardingStep =
-  | 'request_free_call'
   | 'first_call'
   | 'recording'
   | 'check_numbers'

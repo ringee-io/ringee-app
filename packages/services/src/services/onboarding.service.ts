@@ -4,11 +4,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { UserRepository } from "@ringee/database";
+import { OwnershipContext } from "@ringee/platform";
 import { ContactListActor, ContactListService } from "./contact-lists";
 import { CreditService } from "./credit.service";
 
 export type OnboardingStep =
-  | "request_free_call"
   | "first_call"
   | "recording"
   | "check_numbers"
@@ -24,10 +24,12 @@ export interface OnboardingStatusDto {
 
 /** The Call page's first-list onboarding, as `GET /onboarding/first-list` returns it. */
 export interface FirstListOnboardingDto {
+  /** The user has finished it in this workspace. */
   completed: boolean;
   /**
-   * USD finishing it now would add: zero once done, while there is credit,
-   * and for an org member, who is not told the organization's balance.
+   * USD finishing it now would add: zero once done, once the workspace has a
+   * list, while there is credit, and for an org member, who is not told the
+   * organization's balance.
    */
   reward: number;
 }
@@ -38,26 +40,39 @@ export interface FirstListCompletionDto {
   rewardGranted: number;
 }
 
-/** The setup guide's checklist. */
+/**
+ * The setup guide's checklist. Steps stored on the user that are not in it —
+ * a retired `request_free_call`, the first-list onboarding — never count.
+ */
 const ALL_STEPS: OnboardingStep[] = [
-  "request_free_call",
   "first_call",
   "recording",
   "check_numbers",
   "buy_credits",
 ];
 
-/**
- * Stored with the guide's steps, but not one of them: only
- * `completeFirstList` marks it, once it has seen the list.
- */
-const FIRST_LIST_STEP = "first_list";
-
 /** The gift for finishing the first-list onboarding (BILL-022). */
 export const FIRST_LIST_REWARD_USD = 1;
 
 /** Ledger `source` of onboarding gifts. Traceability only — never branched on. */
 export const ONBOARDING_REWARD_SOURCE = "ONBOARDING_REWARD";
+
+/** Whose gift it is: an organization's, or a person's own workspace. */
+function workspaceOf(ctx: OwnershipContext): string {
+  return ctx.organizationId
+    ? `org:${ctx.organizationId}`
+    : `user:${ctx.userId}`;
+}
+
+/**
+ * The first-list onboarding is done once per workspace — the personal one,
+ * and each organization — so it is stored per workspace on the user, beside
+ * the guide's steps but never one of them. Only `completeFirstList` writes
+ * it, once it has seen the list.
+ */
+function firstListStep(ctx: OwnershipContext): string {
+  return ctx.organizationId ? `first_list:${ctx.organizationId}` : "first_list";
+}
 
 @Injectable()
 export class OnboardingService {
@@ -67,9 +82,9 @@ export class OnboardingService {
     private readonly credits: CreditService,
   ) {}
 
-  /** One gift per user, whatever workspace they finish in (BILL-022). */
-  static firstListRewardKey(userId: string): string {
-    return `onboarding:first-list:${userId}`;
+  /** One gift per workspace: an organization once, a person's own once. */
+  static firstListRewardKey(ctx: OwnershipContext): string {
+    return `onboarding:first-list:${workspaceOf(ctx)}`;
   }
 
   async getStatus(userId: string): Promise<OnboardingStatusDto> {
@@ -119,24 +134,28 @@ export class OnboardingService {
     return { success: true };
   }
 
-  /** Whether the user has made their first list, and what finishing it pays. */
+  /** Whether the user has made their first list here, and what it pays. */
   async getFirstList(actor: ContactListActor): Promise<FirstListOnboardingDto> {
-    if (await this.hasCompletedFirstList(actor.userId)) {
+    if (await this.hasCompletedFirstList(actor)) {
       return { completed: true, reward: 0 };
     }
-    const owed = await this.rewardOwed(actor);
+    // A workspace that already has a list would only be making another one.
+    const owed =
+      (await this.contactLists.firstListInWorkspace(actor)) === null &&
+      (await this.rewardOwed(actor));
     return { completed: false, reward: owed ? FIRST_LIST_REWARD_USD : 0 };
   }
 
   /**
    * Finishes the first-list onboarding with the list the user just made: one
-   * they created for themselves, with somebody in it. The first time, for
-   * whoever manages the balance and only while it is empty, it adds the gift
-   * (BILL-022).
+   * they created for themselves, with somebody in it. The gift (BILL-022) is
+   * for the workspace's first list only, once per workspace, for whoever
+   * manages its balance and only while that balance is empty. Any later list
+   * — at $0 or not — pays nothing, and neither does a member.
    *
    * The credit is granted before the step is stamped: a failure in between
    * leaves the gift paid and the stamp recoverable on retry, never two gifts —
-   * the ledger key is per user.
+   * the ledger key is the workspace's.
    */
   async completeFirstList(
     actor: ContactListActor,
@@ -156,19 +175,21 @@ export class OnboardingService {
       throw new BadRequestException("Add somebody to call to the list first");
     }
 
-    if (await this.hasCompletedFirstList(actor.userId)) {
+    if (await this.hasCompletedFirstList(actor)) {
       return { completed: true, rewardGranted: 0 };
     }
 
+    const firstList =
+      (await this.contactLists.firstListInWorkspace(actor)) === list.id;
     let rewardGranted = 0;
-    if (await this.rewardOwed(actor)) {
+    if (firstList && (await this.rewardOwed(actor))) {
       const { granted } = await this.credits.grantCreditsOnce(
         actor,
         FIRST_LIST_REWARD_USD,
         {
-          idempotencyKey: OnboardingService.firstListRewardKey(actor.userId),
+          idempotencyKey: OnboardingService.firstListRewardKey(actor),
           source: ONBOARDING_REWARD_SOURCE,
-          metadata: { step: FIRST_LIST_STEP, listId: list.id },
+          metadata: { listId: list.id, userId: actor.userId },
         },
       );
       if (granted) rewardGranted = FIRST_LIST_REWARD_USD;
@@ -176,7 +197,7 @@ export class OnboardingService {
 
     await this.userRepository.completeOnboardingStep(
       actor.userId,
-      FIRST_LIST_STEP,
+      firstListStep(actor),
     );
     return { completed: true, rewardGranted };
   }
@@ -191,10 +212,12 @@ export class OnboardingService {
     return isEmptyBalance(await this.credits.getBalance(actor));
   }
 
-  private async hasCompletedFirstList(userId: string): Promise<boolean> {
-    const status = await this.userRepository.getOnboardingStatus(userId);
+  private async hasCompletedFirstList(
+    actor: ContactListActor,
+  ): Promise<boolean> {
+    const status = await this.userRepository.getOnboardingStatus(actor.userId);
     if (!status) throw new NotFoundException("User not found");
-    return status.completedSteps.includes(FIRST_LIST_STEP);
+    return status.completedSteps.includes(firstListStep(actor));
   }
 }
 
