@@ -8,6 +8,7 @@ export * from "./telnyx.rate.per.minute.repository";
 export * from "./number.purchased.repository";
 export * from "./caller-id-rotation.repository";
 export * from "./contact.repository";
+export * from "./contact-list.repository";
 export * from "./credit.repository";
 export * from "./credit-auto-reload.repository";
 export * from "./credit-topup.repository";

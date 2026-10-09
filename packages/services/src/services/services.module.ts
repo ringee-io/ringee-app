@@ -34,6 +34,7 @@ import { CallService } from "./call.service";
 import { NumberPurchasedService } from "./number.purchased.service";
 import { RegulatoryDocumentService } from "./regulatory-document.service";
 import { ContactService } from "./contact.service";
+import { ContactListService } from "./contact-lists";
 import { CallerIdService } from "./caller.id.service";
 import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation.service";
 import { CreditService } from "./credit.service";
@@ -215,6 +216,7 @@ const servicesProviders = [
   NumberPurchasedService,
   RegulatoryDocumentService,
   ContactService,
+  ContactListService,
   CallerIdService,
   CallerIdRotationService,
   CreditService,

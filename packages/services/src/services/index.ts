@@ -4,6 +4,7 @@ export * from "./chat.auth.service";
 export * from "./call.service";
 export * from "./call.transcription.service";
 export * from "./contact.service";
+export * from "./contact-lists";
 export * from "./caller.id.service";
 export * from "./caller-id-rotation/caller-id-rotation.service";
 export * from "./number.purchased.service";

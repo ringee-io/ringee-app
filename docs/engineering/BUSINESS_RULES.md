@@ -969,6 +969,65 @@ that picked it.
 
 ---
 
+## Contact lists (`LIST`)
+
+A list is a named set of workspace contacts that one person works through.
+`ContactList.userId` is who created it, `assignedToId` who works it.
+
+### LIST-001 — A member sees only the lists assigned to them
+
+Whoever runs the workspace — a freelancer, an org admin — sees every list in
+it. An `org:member` sees, searches and opens only the lists assigned to them; a
+teammate's list answers 404, exactly like one that does not exist, and the
+index ignores any `assignedToId` a member asks for.
+
+- **Source of truth:** `ContactListService.list` / `loadVisible`
+- **Risk if violated:** a member reads the prospect list a teammate works
+
+### LIST-002 — Only an admin hands a list to somebody else
+
+A list is assigned when it is created: to its creator, unless an org admin
+names another member, whose membership in the organization the server checks.
+A member's own lists are always assigned to them, and only an admin reassigns.
+On a list an admin assigned them, a member works it — calls it, adds contacts
+by CSV or by hand — while renaming, removing contacts and deleting stay with
+admins. On a list they created for themselves, a member has full control.
+
+- **Source of truth:** `ContactListService.resolveAssignee` / `permissionsFor`
+  (the `permissions` it returns only drive the UI)
+- **Risk if violated:** work assigned outside the organization; a member
+  deleting the list an admin built for them
+
+### LIST-003 — A list holds workspace contacts, never copies of them
+
+A CSV uploaded to a list goes through the Contacts import
+(`ContactService.parseContactsCsv` → `importParsedContacts`): same columns,
+same validation, and a number the workspace already has reuses that contact.
+Every valid row's contact then enters the list once, in the file's order
+(`ContactListEntry.sequence`, the order the list is worked in). A number typed
+by hand is matched the same way, and contacts added by id must belong to the
+workspace. A file that cannot be imported at all is refused before a new list
+is created.
+
+- **Source of truth:** `ContactListService.importCsv` / `addNewContact` /
+  `addContacts`
+- **Risk if violated:** two contacts for one number; a list pointing into
+  another workspace
+
+### LIST-004 — Removing a list or an entry never removes a contact
+
+Deleting a list deletes its entries and taking a contact out deletes one; the
+contacts stay in Contacts. A soft-deleted contact drops out of every list's
+count and pages. Deleting the organization deletes its lists instead of handing
+them to their creators, whose personal workspaces would not hold the contacts.
+
+- **Source of truth:** `ContactListRepository.delete` / `removeEntry`,
+  `ContactList.organization` (`onDelete: Cascade`)
+- **Risk if violated:** contacts lost while tidying lists; a personal list
+  showing another workspace's contacts
+
+---
+
 ## Call sessions / magic links (`SESS`)
 
 ### SESS-001 — Only the hash of a magic-link token is stored

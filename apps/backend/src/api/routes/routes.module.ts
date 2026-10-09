@@ -22,6 +22,7 @@ import { CallController } from "./call.controller";
 import { WebRTCController } from "./webrtc.controller";
 import { TelephonyController } from "./telephony.controller";
 import { ContactController } from "./contact.controller";
+import { ContactListController } from "./contact-list.controller";
 import { StripeController } from "./stripe.controller";
 import { CreditController } from "./credit.controller";
 import { DashboardController } from "./dashboard.controller";
@@ -98,6 +99,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     WebRTCController,
     TelephonyController,
     ContactController,
+    ContactListController,
     StripeController,
     CreditController,
     DashboardController,

@@ -117,6 +117,15 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`                           |
 | Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                        |
 
+## Contacts and lists
+
+| Responsibility                            | Owner                                                                                                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reading a contacts CSV                    | `ContactService.parseContactsCsv` (columns: `platform/src/dtos/csv-import.schema.ts`)                                                           |
+| Writing CSV rows as contacts              | `ContactService.importContacts` (Contacts page), `importParsedContacts` (also returns each row's contact id). Campaign leads still keep a copy. |
+| Contact lists: visibility and permissions | `ContactListService` — `services/contact-lists/` (LIST-001..LIST-004)                                                                           |
+| Contacts in a list, in work order         | `ContactListRepository.listEntries` (`ContactListEntry.sequence`)                                                                               |
+
 ## Phone numbers
 
 | Responsibility                             | Owner                                                                                                                                                    |

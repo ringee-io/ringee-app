@@ -382,6 +382,16 @@ export class ContactRepository {
     return contacts.map((c) => c.id);
   }
 
+  /** The ids among `ids` that are live contacts of the workspace. */
+  async findOwnedIds(ctx: OwnershipContext, ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const contacts = await this.prisma.contact.findMany({
+      where: { ...buildOwnershipFilter(ctx), id: { in: ids }, deletedAt: null },
+      select: { id: true },
+    });
+    return contacts.map((c) => c.id);
+  }
+
   /**
    * Find contacts matching any of the given identity keys. Used by the
    * prospecting agent to detect leads Ringee already has BEFORE spending
