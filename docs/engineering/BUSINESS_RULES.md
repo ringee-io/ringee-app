@@ -490,6 +490,40 @@ reaches it on hangup.
   one disappears — a workspace whose outcomes never reached the row
   (external-carrier calls, 2026-10) read 0 answered out of 35 connected calls
 
+### CALL-013 — "My day" never offers a call that something else will place
+
+The Call page's queue (`GET /my-day/queue`) is manual calling only. It leaves
+out campaign callbacks — when one comes due the campaign re-queues its lead —
+and the callbacks an AI voice agent scheduled, which the agent places itself.
+An item leaves the queue once it is handled: a missed call when anyone in the
+workspace has called the number since, a follow-up when its owner has called
+the contact after it was raised, a callback only when it is completed or
+cancelled (calling it from the queue completes it, as the callbacks list
+always did).
+
+- **Source of truth:** `packages/services/src/services/my-day/`
+- **Risk if violated:** a person and the dialer — or an agent — reach the same
+  contact twice; and "Call next" offers the person who was just called.
+- **Do not** add a source to the queue without deciding who else dials it.
+
+### CALL-014 — "My day" shows the person their own day, never a teammate's
+
+Everything on the Call page is the signed-in person's, in the workspace they
+are in: their personal workspace, or their own share of the organization. The
+queue holds their callbacks and follow-ups, and only the missed calls on their
+lines or assigned to them; the day summary counts their calls and their
+bookings; a number's answer rate counts only the calls they placed from it.
+That holds for admins too — the team's numbers live on the dashboard and the
+rotation report. The balance and its top-up are shown only to whoever may
+manage them (a personal workspace's owner, an organization admin).
+
+- **Source of truth:** `packages/services/src/services/my-day/`,
+  `DashboardRepository.getMyDaySummary`,
+  `CallerIdRotationService.getNumberPerformance`
+- **Related:** `WRK-003`; `WRK-005` — hiding the balance is UX. The server
+  enforces who may top up (the Stripe checkout routes are `@OrgAdminOnly()`),
+  but `GET /credits/balance` still answers any member.
+
 ---
 
 ## Numbers & caller ID (`NUM`)

@@ -5,7 +5,7 @@ import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDisposeLead } from '../hooks/use-dispose-lead';
-import { shortcutAllowed } from '../lib/shortcuts';
+import { shortcutAllowed } from '@ringee/frontend-shared/lib/shortcuts';
 import { DispositionGrid } from './disposition-grid';
 import { VoicemailDropSlot } from '@/features/voicemail';
 import { Button } from '@ringee/frontend-shared/components/ui/button';

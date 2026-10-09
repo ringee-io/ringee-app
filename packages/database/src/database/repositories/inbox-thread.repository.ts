@@ -27,6 +27,23 @@ export interface ListThreadsOptions {
   assignedToId?: string | null;
 }
 
+/** A thread whose latest event is a call nobody picked up. */
+export interface MissedCallThread {
+  id: string;
+  participantNumber: string;
+  participantNumberE164: string | null;
+  lastEventAt: Date;
+  lastEventKind: InboxEventKind | null;
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
+    timezone: string | null;
+    deletedAt: Date | null;
+  } | null;
+}
+
 @Injectable()
 export class InboxThreadRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -203,6 +220,55 @@ export class InboxThreadRepository {
       }),
     ]);
     return { all, unread, missed, voicemails, sms };
+  }
+
+  /**
+   * Open threads whose latest event is a missed call or a voicemail since
+   * `since`, newest first. In an organization, only the caller's own: those
+   * assigned to them, and unassigned ones on a line of theirs (the thread's
+   * user) — the rest of the team's missed calls stay in the shared inbox.
+   */
+  async listMissedCallThreads(
+    ctx: OwnershipContext,
+    options: { since: Date; limit: number },
+  ): Promise<MissedCallThread[]> {
+    return this.prisma.inboxThread.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        status: { in: [InboxThreadStatus.open, InboxThreadStatus.pending] },
+        lastEventKind: {
+          in: [InboxEventKind.missed_call, InboxEventKind.voicemail_received],
+        },
+        lastEventAt: { gte: options.since },
+        ...(ctx.organizationId
+          ? {
+              OR: [
+                { assignedToId: ctx.userId },
+                { assignedToId: null, userId: ctx.userId },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        participantNumber: true,
+        participantNumberE164: true,
+        lastEventAt: true,
+        lastEventKind: true,
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            company: true,
+            timezone: true,
+            deletedAt: true,
+          },
+        },
+      },
+      orderBy: { lastEventAt: "desc" },
+      take: options.limit,
+    });
   }
 
   /** Number of threads with at least one unread event (drives the nav badge). */

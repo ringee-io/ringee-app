@@ -57,11 +57,6 @@
     "navigation": "Navigatie",
     "goTo": "Ga naar {page}"
   },
-  "tabs": {
-    "dialer": "Dialer",
-    "contact": "Contact",
-    "history": "Geschiedenis"
-  },
   "communitySupport": {
     "label": "Community-support",
     "tooltipTitle": "Community-support",

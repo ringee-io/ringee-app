@@ -69,6 +69,7 @@ import {
   OfferAnalyticsService,
 } from "./offers";
 import { MeetingService } from "./meeting.service";
+import { MyDayService } from "./my-day";
 import {
   AppointmentBookingBlueprint,
   CompanyProfileService,
@@ -247,6 +248,8 @@ const servicesProviders = [
   OfferAnalyticsService,
   MeetingService,
   CalendarService,
+  // "My day" on the Call page (today queue + day summary)
+  MyDayService,
   // Outbound system services
   ComplianceService,
   DispositionService,

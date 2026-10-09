@@ -22,9 +22,12 @@ export default function Header({ useMock }: { useMock?: boolean }) {
   const router = useRouter();
   const mobile = useIsMobile();
   const pendingActionsBadge = usePendingActionsBadge();
-  const { canAccessAdminFeatures } = useMock
-    ? { canAccessAdminFeatures: true }
+  const { canAccessAdminFeatures, isLoaded } = useMock
+    ? { canAccessAdminFeatures: true, isLoaded: true }
     : useOrgRole();
+  // Not before the role is known: until Clerk loads the organization, every
+  // user reads as admin, and a member must never see the balance.
+  const showAdminTools = isLoaded && canAccessAdminFeatures;
 
   return (
     <header className='flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
@@ -79,8 +82,8 @@ export default function Header({ useMock }: { useMock?: boolean }) {
             </span>
           )}
         </Button>
-        {canAccessAdminFeatures && <NumberRotationHeaderButton />}
-        {canAccessAdminFeatures && <CreditPopover useMock={useMock} />}
+        {showAdminTools && <NumberRotationHeaderButton />}
+        {showAdminTools && <CreditPopover useMock={useMock} />}
         {/* <div className='hidden sm:flex'>
           <SearchInput />
         </div> */}

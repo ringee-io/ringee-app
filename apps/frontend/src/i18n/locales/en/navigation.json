@@ -24,11 +24,6 @@
     "rate": "Rate",
     "buyNumber": "Buy Number"
   },
-  "tabs": {
-    "dialer": "Dialer",
-    "contact": "Contact",
-    "history": "History"
-  },
   "userMenu": {
     "profile": "Profile",
     "history": "History",

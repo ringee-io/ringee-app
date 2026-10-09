@@ -57,11 +57,6 @@
     "navigation": "Navigazione",
     "goTo": "Vai a {page}"
   },
-  "tabs": {
-    "dialer": "Dialer",
-    "contact": "Contatto",
-    "history": "Cronologia"
-  },
   "communitySupport": {
     "label": "Supporto community",
     "tooltipTitle": "Supporto community",

@@ -57,11 +57,6 @@
     "navigation": "Navigation",
     "goTo": "Aller à {page}"
   },
-  "tabs": {
-    "dialer": "Composeur",
-    "contact": "Contact",
-    "history": "Historique"
-  },
   "communitySupport": {
     "label": "Support communauté",
     "tooltipTitle": "Support communauté",

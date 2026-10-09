@@ -1,18 +1,19 @@
 /**
- * Keyboard shortcuts for the campaign workspace — digits pick an outcome,
- * Enter saves it or dials, S skips. None of them ever hangs up: a live call
+ * When a calling screen's keyboard shortcuts may act: the campaign workspace
+ * (digits pick an outcome, Enter saves it or dials, S skips) and the Call
+ * page (N calls the next person). None of them ever hangs up: a live call
  * ends by the hang-up button or the other party, and by nothing else.
  */
 
-const TYPING_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 const ACTIVATION_ROLES = new Set([
-  'button',
-  'link',
-  'menuitem',
-  'option',
-  'combobox',
-  'checkbox',
-  'tab'
+  "button",
+  "link",
+  "menuitem",
+  "option",
+  "combobox",
+  "checkbox",
+  "tab",
 ]);
 
 /** The key belongs to a field the agent is typing in. */
@@ -30,9 +31,9 @@ function isTypingTarget(target: EventTarget | null): boolean {
 function isActivationTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (isTypingTarget(target)) return true;
-  if (target.closest('[data-shortcut-passthrough]')) return false;
-  if (target.tagName === 'BUTTON' || target.tagName === 'A') return true;
-  const role = target.getAttribute('role');
+  if (target.closest("[data-shortcut-passthrough]")) return false;
+  if (target.tagName === "BUTTON" || target.tagName === "A") return true;
+  const role = target.getAttribute("role");
   return role !== null && ACTIVATION_ROLES.has(role);
 }
 
@@ -43,7 +44,7 @@ function isActivationTarget(target: EventTarget | null): boolean {
  */
 export function shortcutAllowed(
   event: KeyboardEvent,
-  kind: 'digit' | 'activation'
+  kind: "digit" | "activation",
 ): boolean {
   if (event.defaultPrevented || event.repeat) return false;
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
@@ -57,7 +58,7 @@ export function shortcutAllowed(
   ) {
     return false;
   }
-  return kind === 'digit'
+  return kind === "digit"
     ? !isTypingTarget(event.target)
     : !isActivationTarget(event.target);
 }

@@ -191,6 +191,12 @@ const UNANSWERED_OUTCOMES: CallOutcome[] = [
   CallOutcome.voicemail,
 ];
 
+/** Answered calls that still never reached the person they were for. */
+const NO_CONVERSATION_OUTCOMES: CallOutcome[] = [
+  ...UNANSWERED_OUTCOMES,
+  CallOutcome.wrong_number,
+];
+
 @Injectable()
 export class DashboardRepository {
   constructor(private prisma: PrismaService) {}
@@ -572,6 +578,91 @@ export class DashboardRepository {
         call: { select: { id: true, outcome: true } },
       },
     });
+  }
+
+  /**
+   * One person's own day in the workspace they are in — personal, or theirs
+   * inside the organization, never a teammate's: the outbound calls they
+   * placed and the ones that reached a person, the meetings they booked (an AI
+   * voice agent's calls and bookings are not theirs), and their next meeting
+   * still to come or under way.
+   */
+  async getMyDaySummary(
+    owner: { userId: string; organizationId: string | null },
+    range: { start: Date; end: Date },
+    now: Date,
+  ) {
+    const callWhere: Prisma.CallWhereInput = {
+      userId: owner.userId,
+      organizationId: owner.organizationId,
+      direction: "outbound",
+      createdAt: { gte: range.start, lte: range.end },
+      OR: [{ source: null }, { source: { not: "ai_voice_agent" } }],
+    };
+    const meetingOwner: Prisma.MeetingWhereInput = {
+      userId: owner.userId,
+      organizationId: owner.organizationId,
+    };
+
+    const [calls, conversations, meetingsBooked, upcoming] = await Promise.all([
+      this.prisma.call.count({ where: callWhere }),
+      this.prisma.call.count({
+        where: {
+          AND: [
+            callWhere,
+            { answeredAt: { not: null } },
+            {
+              OR: [
+                { outcome: null },
+                { outcome: { notIn: NO_CONVERSATION_OUTCOMES } },
+              ],
+            },
+          ],
+        },
+      }),
+      this.prisma.meeting.count({
+        where: {
+          ...meetingOwner,
+          createdAt: { gte: range.start, lte: range.end },
+          status: { not: MeetingStatus.cancelled },
+          // One an AI voice agent booked is the agent's work, not theirs.
+          aiVoiceAgentCalls: { none: {} },
+        },
+      }),
+      // A meeting that already started is still "next" until it ends; none
+      // here runs longer than a working day.
+      this.prisma.meeting.findMany({
+        where: {
+          ...meetingOwner,
+          status: {
+            in: [MeetingStatus.scheduled, MeetingStatus.rescheduled],
+          },
+          scheduledAt: {
+            gte: new Date(now.getTime() - 12 * 60 * 60 * 1000),
+            lte: range.end,
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          scheduledAt: true,
+          duration: true,
+          location: true,
+          contact: { select: { id: true, name: true, phoneNumber: true } },
+        },
+      }),
+    ]);
+
+    const nextMeeting =
+      upcoming.find(
+        (meeting) =>
+          meeting.scheduledAt.getTime() + meeting.duration * 60_000 >
+          now.getTime(),
+      ) ?? null;
+
+    return { calls, conversations, meetingsBooked, nextMeeting };
   }
 
   /**

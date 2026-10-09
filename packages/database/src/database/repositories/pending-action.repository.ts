@@ -73,6 +73,23 @@ export interface PendingActionDisplay extends PendingAction {
   campaign: { id: string; name: string } | null;
 }
 
+/** An open action that asks for a call, with who to call. */
+export interface CallablePendingAction {
+  id: string;
+  type: PendingActionType;
+  priority: PendingActionPriority;
+  title: string;
+  dueAt: Date | null;
+  createdAt: Date;
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
+    timezone: string | null;
+  } | null;
+}
+
 function endOfToday(): Date {
   const d = new Date();
   d.setHours(23, 59, 59, 999);
@@ -261,6 +278,72 @@ export class PendingActionRepository {
         },
       ],
     };
+  }
+
+  /**
+   * One user's open actions of `types` about a contact, due by `dueBy` or
+   * undated. Snoozed and expired ones are left out, as the badge does, and so
+   * are campaign ones: a campaign works its own leads.
+   */
+  async listOpenForCalling(
+    owner: PendingActionOwnerFilter,
+    options: {
+      types: PendingActionType[];
+      dueBy: Date;
+      now: Date;
+      limit: number;
+    },
+  ): Promise<CallablePendingAction[]> {
+    const actions = await this.prisma.pendingAction.findMany({
+      where: {
+        AND: [
+          {
+            userId: owner.userId,
+            organizationId: owner.organizationId ?? null,
+          },
+          { status: PendingActionStatus.pending },
+          { type: { in: options.types } },
+          { contactId: { not: null } },
+          { campaignId: null },
+          {
+            OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: options.now } }],
+          },
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: options.now } }] },
+          { OR: [{ dueAt: null }, { dueAt: { lte: options.dueBy } }] },
+        ],
+      },
+      select: {
+        id: true,
+        type: true,
+        priority: true,
+        title: true,
+        dueAt: true,
+        createdAt: true,
+        contactId: true,
+      },
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      take: options.limit,
+    });
+
+    const contactIds = unique(actions.map((a) => a.contactId));
+    const contacts = contactIds.length
+      ? await this.prisma.contact.findMany({
+          where: { id: { in: contactIds }, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            company: true,
+            timezone: true,
+          },
+        })
+      : [];
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+
+    return actions.map(({ contactId, ...action }) => ({
+      ...action,
+      contact: contactId ? (contactMap.get(contactId) ?? null) : null,
+    }));
   }
 
   badgeCount(

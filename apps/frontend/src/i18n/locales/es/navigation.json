@@ -24,11 +24,6 @@
     "rate": "Tarifas",
     "buyNumber": "Comprar número"
   },
-  "tabs": {
-    "dialer": "Marcador",
-    "contact": "Contacto",
-    "history": "Historial"
-  },
   "userMenu": {
     "profile": "Perfil",
     "history": "Historial",

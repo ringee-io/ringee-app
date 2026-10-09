@@ -541,6 +541,39 @@ export class CallRepository {
     return this.prisma.call.findMany({ where: { id: { in: ids } } });
   }
 
+  /**
+   * The workspace's latest outbound call to each of `toNumbers` since
+   * `since`, per user who placed it.
+   */
+  async latestOutboundTo(
+    ctx: OwnershipContext,
+    toNumbers: string[],
+    since: Date,
+  ): Promise<{ toNumber: string; userId: string | null; at: Date }[]> {
+    if (toNumbers.length === 0) return [];
+    const rows = await this.prisma.call.groupBy({
+      by: ["toNumber", "userId"],
+      where: {
+        ...buildOwnershipFilter(ctx),
+        direction: "outbound",
+        toNumber: { in: toNumbers },
+        createdAt: { gte: since },
+      },
+      _max: { createdAt: true },
+    });
+    return rows.flatMap((row) =>
+      row._max.createdAt
+        ? [
+            {
+              toNumber: row.toNumber,
+              userId: row.userId,
+              at: row._max.createdAt,
+            },
+          ]
+        : [],
+    );
+  }
+
   async findBySessionId(callSessionId: string): Promise<Call[]> {
     return this.prisma.call.findMany({
       where: {

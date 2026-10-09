@@ -1,6 +1,6 @@
 # Plan de evolución UI/UX de la aplicación Ringee
 
-Fecha: 28 de septiembre de 2026. Estado: propuesta para diseño y validación; no implementada.
+Investigación: 28 de septiembre de 2026. Revisión final: 29 de septiembre de 2026. Estado: propuesta para diseño y validación; no implementada.
 
 ## Decisión recomendada
 
@@ -107,19 +107,21 @@ Conservar URLs existentes y accesos directos durante la transición. No fusionar
 
 **Estilo:** herramienta de trabajo sobria, con superficies distinguibles, texto legible y color funcional. Mantener Inter, ya presente. Dar identidad a Ringee mediante un acento teal consistente, iconografía y comportamiento, en vez de depender de un botón de saldo con brillo.
 
-| Elemento           | Especificación inicial para prototipo                                                                                       |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Tema claro         | Fondo gris muy suave, áreas de trabajo blancas, texto oscuro y separadores visibles                                         |
-| Tema oscuro        | Fondo carbón, superficie elevada diferenciada y texto secundario legible; evitar que todo se funda en negro                 |
-| Acento             | Teal oscuro para acción principal en claro, variante clara en oscuro; validar contraste de cada combinación                 |
-| Semántica          | Verde conectado/completado; ámbar requiere atención; rojo error/destrucción; azul información. Siempre con etiqueta o icono |
-| Texto              | 14–16 px para contenido operativo; 12–13 px sólo metadatos; 16 px en campos móviles; títulos 22–28 px                       |
-| Espaciado          | Escala 4/8/12/16/24/32 px; relaciones por proximidad; menos separación entre información que se usa junta                   |
-| Controles          | Altura habitual 36–40 px en escritorio; objetivos táctiles de 44 px en acciones importantes                                 |
-| Densidad           | Cómoda y compacta; cambiar padding y altura de fila, conservar tamaño legible de texto                                      |
-| Filas              | 44–56 px como punto de partida; cabecera estable, foco, selección y acciones claras                                         |
-| Bordes y elevación | Radios 8–12 px; separadores para grupos; sombras discretas para capas flotantes                                             |
-| Movimiento         | 120–180 ms en feedback local; respetar movimiento reducido; estados de llamada cambian inmediatamente                       |
+| Elemento           | Especificación inicial para prototipo                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tema claro         | Fondo gris muy suave, áreas de trabajo blancas, texto oscuro y separadores visibles                                                                                        |
+| Tema oscuro        | Fondo carbón, superficie elevada diferenciada y texto secundario legible; evitar que todo se funda en negro                                                                |
+| Acento             | Teal oscuro para acción principal en claro, variante clara en oscuro; validar contraste de cada combinación                                                                |
+| Semántica          | Teal/verde para conexión y acciones confirmadas, neutro para finalización; ámbar requiere atención; rojo error/destrucción; azul información. Siempre con etiqueta o icono |
+| Texto              | 14–16 px para contenido operativo; 12–13 px sólo metadatos; 16 px en campos móviles; títulos 22–28 px                                                                      |
+| Espaciado          | Escala 4/8/12/16/24/32 px; relaciones por proximidad; menos separación entre información que se usa junta                                                                  |
+| Controles          | Altura habitual 36–40 px en escritorio; objetivos táctiles de 44 px en acciones importantes                                                                                |
+| Densidad           | Cómoda y compacta; cambiar padding y altura de fila, conservar tamaño legible de texto                                                                                     |
+| Filas              | 44–56 px como punto de partida; cabecera estable, foco, selección y acciones claras                                                                                        |
+| Bordes y elevación | Radios 8–12 px; separadores para grupos; sombras discretas para capas flotantes                                                                                            |
+| Movimiento         | 120–180 ms en feedback local; respetar movimiento reducido; estados de llamada cambian inmediatamente                                                                      |
+
+Estado técnico y resultado comercial se muestran por separado: “Finalizada” describe la llamada; “Sin interés” describe su resultado; “Reunión confirmada” requiere una reserva confirmada. Una llamada finalizada no se representa automáticamente como éxito.
 
 Una pantalla con pocos elementos puede conservar espacio vacío. Añadir información sólo si ayuda a decidir o completar una tarea. Evitar llenar ese espacio con KPI redundantes, ilustraciones o tarjetas decorativas.
 
@@ -131,7 +133,7 @@ Distribución escritorio: navegación persistente a la izquierda, cabecera de co
 
 ### A. Hoy: empezar con trabajo accionable
 
-Primera pantalla: fecha y zona horaria, ámbito Mi trabajo / Equipo cuando esté autorizado, y una lista priorizada. Orden inicial determinista: devoluciones vencidas, interacciones pendientes, compromisos próximos y campañas disponibles. Mostrar el motivo de prioridad: “Venció hace 20 min”, “Sin responsable” o “Reunión en 30 min”.
+Primera pantalla: fecha y zona horaria, ámbito Mi trabajo / Equipo cuando esté autorizado, y una lista priorizada. Hipótesis inicial de orden: compromisos inminentes, devoluciones vencidas, interacciones pendientes y campañas disponibles. Desempatar por fecha del compromiso y luego por antigüedad, conservando un orden estable. Definir y validar qué intervalo constituye “inminente”; no inferir urgencia de texto libre. Mantener los entrantes en vivo en su superficie propia. Mostrar el motivo de prioridad: “Venció hace 20 min”, “Sin responsable” o “Reunión en 30 min”. Trabajo sin responsable sólo se incluye cuando esté autorizado y se puede filtrar explícitamente.
 
 Cada fila incluye persona, motivo, hora, responsable y siguiente acción. Seleccionar abre el contexto sin perder la lista. Si no hay pendientes, confirmar que está al día y ofrecer una acción relevante. No presentar una pantalla de onboarding eterna a un usuario activo.
 
@@ -217,7 +219,7 @@ El principio es facilitar el reconocimiento de opciones y contexto, reduciendo l
 
 ## 8. Orden de ejecución
 
-Estimación orientativa: 7–9 semanas con una persona de diseño/producto, dos de frontend y apoyo de backend/QA. Depende de contratos, disponibilidad y hallazgos. Las capacidades nuevas de agregación, búsqueda o publicación de agentes se estiman aparte después de revisar el backend. Cada fase puede entregarse incrementalmente.
+Estimación orientativa para diseño y mejoras sobre capacidades existentes: 7–9 semanas con una persona de diseño/producto, dos de frontend y apoyo de backend/QA. Depende de contratos, disponibilidad y hallazgos. Las capacidades nuevas de agregación, búsqueda, filtros combinables o publicación de agentes se estiman aparte después de revisar el backend; no están comprometidas dentro de ese plazo. Cada fase puede entregarse incrementalmente.
 
 | Fase                       | Tiempo orientativo | Entrega revisable                                                                                    | Criterio de salida                                                                   |
 | -------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -228,7 +230,17 @@ Estimación orientativa: 7–9 semanas con una persona de diseño/producto, dos 
 | 4. Operación y activación  | 1–2 semanas        | Campañas, organización del editor IA, números, onboarding y ajustes                                  | Usuario distingue disponible/bloqueado/pendiente y resuelve la causa                 |
 | 5. Validación y despliegue | 1 semana           | QA por rol/dispositivo/idioma, piloto, métricas y correcciones                                       | Sin regresiones críticas; mejora de tareas respecto al baseline; rollback listo      |
 
-**Primer lote concreto, antes del cambio estructural:** estado inicial del marcador, Llamar/Ver visibles en contactos, paginación honesta, textos coherentes, acceso reconocible a configuración/números, enlaces nativos en campañas y jerarquía de acciones/saldo. Mantenerlo acotado para poder comprobar su efecto.
+**Primer lanzamiento acotado, antes del cambio estructural:** los siguientes cambios tienen criterios verificables y se entregan sobre los flujos actuales. Hoy, agregación de tareas, reorganización completa del menú y publicación de agentes pertenecen a entregas posteriores.
+
+| Cambio                      | Criterio de aceptación                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Estado inicial del marcador | Sin destino introducido, invita a buscar/escribir; no afirma que faltan contactos                              |
+| Acciones de contactos       | Abrir ficha y preparar llamada son visibles y accesibles por teclado, conservando el flujo canónico de llamada |
+| Paginación y selección      | Muestra rango y total autorizado del servidor; aclara página frente a conjunto completo                        |
+| Lenguaje coherente          | Los controles del sistema respetan idioma; títulos personalizados se conservan                                 |
+| Acceso a ajustes y números  | Una entrada persistente abre las superficies existentes, según permisos                                        |
+| Enlaces de campañas         | Título accesible con enlace nativo; menús de acciones conservan su comportamiento                              |
+| Jerarquía de acción y saldo | La acción principal destaca; alertas de crédito siguen siendo visibles cuando afectan al trabajo               |
 
 ## 9. Dependencias y responsables técnicos
 
@@ -252,7 +264,7 @@ Reglas especialmente relevantes: WRK-001/003/005, CALL-001/010, CMP-003/004/005/
 
 ## 10. Validación y medición
 
-Reclutar inicialmente 6–8 participantes repartidos entre profesionales individuales, miembros y administradores; ampliar las rondas donde falte representación o aparezcan problemas distintos. Es una muestra cualitativa para detectar fricción, no para demostrar estadísticamente una mejora.
+Reclutar inicialmente 6–8 participantes repartidos entre profesionales individuales, miembros, administradores y responsables que configuran y prueban agentes de voz; ampliar las rondas donde falte representación o aparezcan problemas distintos. Es una muestra cualitativa para detectar fricción, no para demostrar estadísticamente una mejora.
 
 Tareas: encontrar a quién devolver la llamada; preparar audio y origen; consultar notas durante una llamada; registrar resultado y programar callback; retomar el trabajo después de consultar un contacto; explicar por qué una campaña no avanza; localizar enrutamiento; probar y entender el estado de un agente. Añadir recuperación de error y flujo en móvil/teclado.
 

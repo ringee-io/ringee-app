@@ -629,5 +629,108 @@
     "call": "Call",
     "callAndDontWarn": "Call and don't warn me again",
     "buyNumber": "Buy a number"
+  },
+  "myDay": {
+    "title": "Call",
+    "asideLabel": "Your line and your day",
+    "tabs": {
+      "label": "Call sources",
+      "myDay": "My day",
+      "campaigns": "Campaigns",
+      "campaignsSoon": "Campaign sessions are coming to this page soon."
+    },
+    "search": {
+      "label": "Search a contact or type a number",
+      "placeholder": "Search a contact or type a number",
+      "callNumber": "Call {number}",
+      "incompleteNumber": "Keep typing — include the country code, like +34",
+      "recent": "Recent calls",
+      "searching": "Searching…",
+      "noMatches": "No contacts match “{query}”",
+      "inbound": "Incoming call",
+      "outbound": "Outgoing call",
+      "clear": "Clear the search"
+    },
+    "keypad": {
+      "button": "Keypad",
+      "title": "Keypad"
+    },
+    "next": {
+      "label": "Next call",
+      "callNext": "Call next",
+      "calling": "Calling…",
+      "onCall": "You're on a call. Hang up to call the next person.",
+      "from": "From {number}",
+      "fromAuto": "From a local number, picked per call",
+      "fromPublic": "From the public number",
+      "caughtUp": "You're all caught up",
+      "caughtUpHint": "Search a contact or type a number to make a call.",
+      "nothingDue": "Nothing due right now",
+      "nothingDueHint": "Next up: {name} at {time}."
+    },
+    "queue": {
+      "title": "Today's queue",
+      "count": "{count, plural, one {# to call} other {# to call}}",
+      "stableHint": "the order stays put while you work",
+      "groups": {
+        "now": "Now",
+        "later": "Later today",
+        "anytime": "Anytime today"
+      },
+      "nextBadge": "Next",
+      "doNotCall": "Do not call",
+      "call": "Call",
+      "callBack": "Call back",
+      "more": "More actions for {name}",
+      "viewContact": "Open contact",
+      "cancelCallback": "Cancel callback",
+      "cancelFailed": "The callback couldn't be cancelled. Try again.",
+      "incoming": "{count, plural, one {# new person to call since you started} other {# new people to call since you started}}",
+      "addIncoming": "Add to the queue",
+      "emptyTitle": "Nobody to call yet today",
+      "emptyDescription": "Callbacks you owe, missed calls and follow-ups show up here as they come due.",
+      "failedTitle": "Today's queue didn't load",
+      "retry": "Try again",
+      "localTime": "{time} there",
+      "unknownCaller": "Unknown caller"
+    },
+    "reasons": {
+      "callbackAt": "Callback at {time}",
+      "missedCall": "Missed call {when}",
+      "voicemail": "Voicemail {when}",
+      "followUpDue": "{action} · due {time}"
+    },
+    "line": {
+      "title": "Your line",
+      "performance": "Answered {rate}% of your {calls} calls · last {days} days",
+      "performanceLow": "Too few of your calls to rate yet · {calls} in the last {days} days",
+      "performanceHint": "Picked up by a person or by voicemail.",
+      "resting": "Resting until {date}: rotation skips it for now",
+      "balance": "Balance",
+      "addCredit": "Add credit"
+    },
+    "today": {
+      "title": "Today",
+      "calls": "{count, plural, one {call} other {calls}}",
+      "conversations": "{count, plural, one {conversation} other {conversations}}",
+      "meetingsBooked": "{count, plural, one {meeting booked} other {meetings booked}}",
+      "statsHint": "Only your own calls today, in this workspace. A conversation is one that reached a person.",
+      "nextMeeting": "Next meeting",
+      "noMeeting": "No more meetings today",
+      "meetingWith": "Meeting with {name}",
+      "duration": "{time} · {minutes} min",
+      "join": "Join",
+      "failed": "Today's numbers didn't load."
+    },
+    "shortcuts": {
+      "title": "Shortcuts",
+      "callNext": "Call next",
+      "search": "Search or type a number",
+      "keypad": "Open the keypad",
+      "move": "Move through results",
+      "callResult": "Call the highlighted result",
+      "clear": "Clear the search",
+      "hint": "They don't fire while you type, or while a call or a dialog is open."
+    }
   }
 }

@@ -25,6 +25,7 @@ import { ContactController } from "./contact.controller";
 import { StripeController } from "./stripe.controller";
 import { CreditController } from "./credit.controller";
 import { DashboardController } from "./dashboard.controller";
+import { MyDayController } from "./my-day.controller";
 import { DashboardLayoutController } from "./dashboard-layout.controller";
 import { UserController } from "./user.controller";
 import { RecordingsController } from "./recordings.controller";
@@ -100,6 +101,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     StripeController,
     CreditController,
     DashboardController,
+    MyDayController,
     DashboardLayoutController,
     UserController,
     RecordingsController,

@@ -41,6 +41,20 @@ export class AiVoiceAgentCallRepository {
     return this.prisma.aiVoiceAgentCall.findUnique({ where: { callId } });
   }
 
+  /**
+   * Which of `ids` are agent calls. A callback an agent scheduled reuses its
+   * call's id (`CallbackService.scheduleFromVoiceAgent`), so this tells the
+   * callbacks the agent will place itself from the ones a person owes.
+   */
+  async findExistingIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await this.prisma.aiVoiceAgentCall.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    return new Set(rows.map((row) => row.id));
+  }
+
   markInboundStarted(id: string, conversationId: string | null) {
     return this.prisma.aiVoiceAgentCall.updateMany({
       where: { id, status: AiVoiceAgentCallStatus.initiating },
