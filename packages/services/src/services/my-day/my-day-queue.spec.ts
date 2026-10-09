@@ -11,7 +11,11 @@ import {
   PendingActionPriority,
   PendingActionType,
 } from "@ringee/database";
-import { buildMyDayQueue, MyDayQueueSources } from "./my-day-queue";
+import {
+  buildMyDayQueue,
+  myDayQueueContactIds,
+  MyDayQueueSources,
+} from "./my-day-queue";
 
 const NOW = new Date("2026-10-08T15:00:00.000Z");
 const at = (iso: string) => new Date(`2026-10-08T${iso}:00.000Z`);
@@ -83,6 +87,7 @@ function build(sources: Partial<MyDayQueueSources>) {
     followUps: [],
     outbound: [],
     doNotCall: new Set(),
+    lists: new Map(),
     ...sources,
   });
 }
@@ -257,5 +262,47 @@ describe("buildMyDayQueue", () => {
       queue.map((item) => [item.key, item.contact.id]),
       [["phone:+14155550102", null]],
     );
+  });
+
+  it("names the person's lists a contact is in, and none for an unknown caller", () => {
+    const fintech = { id: "list-1", name: "Fintech NYC" };
+    const queue = build({
+      callbacks: [callback("cb-1", at("10:30"))],
+      missedCalls: [missedCall("t-1", at("14:00"), "+14155550109")],
+      lists: new Map([["c-1", [fintech]]]),
+    });
+
+    assert.deepEqual(
+      queue.map((item) => [item.key, item.lists]),
+      [
+        ["contact:c-1", [fintech]],
+        ["phone:+14155550109", []],
+      ],
+    );
+  });
+});
+
+describe("myDayQueueContactIds", () => {
+  it("collects every saved, live contact once", () => {
+    const deleted = {
+      ...contact("c-9", "+14155550109"),
+      deletedAt: at("08:00"),
+    };
+    const ids = myDayQueueContactIds({
+      callbacks: [callback("cb-1", at("10:30"))],
+      missedCalls: [
+        missedCall(
+          "t-1",
+          at("14:00"),
+          "+14155550101",
+          contact("c-1", "+14155550101"),
+        ),
+        missedCall("t-2", at("14:05"), "+14155550102"),
+        missedCall("t-3", at("14:10"), "+14155550109", deleted),
+      ],
+      followUps: [followUp("fu-1", null)],
+    });
+
+    assert.deepEqual(ids, ["c-1", "c-3"]);
   });
 });

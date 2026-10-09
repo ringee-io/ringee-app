@@ -227,6 +227,35 @@ export class CallbackTaskRepository {
     });
   }
 
+  /**
+   * Which of `contactIds` have a callback still open in the workspace —
+   * anyone's, whenever it is scheduled, campaign and voice agent ones
+   * included, and one being placed right now: the next call to them is
+   * already agreed.
+   */
+  async findContactsWithOpenCallback(
+    workspace: { userId?: string; organizationId?: string | null },
+    contactIds: string[],
+  ): Promise<Set<string>> {
+    if (contactIds.length === 0) return new Set();
+    const rows = await this.prisma.callbackTask.findMany({
+      where: {
+        ...workspace,
+        contactId: { in: contactIds },
+        status: {
+          in: [
+            CallbackStatus.scheduled,
+            CallbackStatus.due,
+            CallbackStatus.in_progress,
+          ],
+        },
+      },
+      select: { contactId: true },
+      distinct: ["contactId"],
+    });
+    return new Set(rows.map((row) => row.contactId));
+  }
+
   async findDue(): Promise<CallbackTask[]> {
     return this.prisma.callbackTask.findMany({
       where: {

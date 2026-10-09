@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -8,15 +8,22 @@ import type { CountryCode } from '@ringee/dialer-core/phone';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useRotationEnabled } from '@/features/number-rotation';
 import { useCallFinished } from '../../hooks/use.call.finished';
+import { useCallList } from '../../hooks/use.call.list';
 import { useCallPageShortcuts } from '../../hooks/use.call.page.shortcuts';
 import { useDial } from '../../hooks/use.dial';
 import { isCallableNow, useMyDayQueue } from '../../hooks/use.my.day.queue';
 import { useMyDaySummary } from '../../hooks/use.my.day.summary';
 import { useQueueDial } from '../../hooks/use.queue.dial';
 import { useNumbersStore } from '../../store/number.selector.store';
+import type {
+  MyDayList,
+  MyDayListEntry,
+  MyDayQueueItem
+} from '../../types/my-day';
 import { CallSearch, type CallSearchHandle } from './call-search';
 import { KeypadButton } from './keypad-button';
-import { NextCallPanel } from './next-call-panel';
+import { ListPicker } from './list-picker';
+import { NextCallPanel, type NextCall } from './next-call-panel';
 import { ShortcutsCard } from './shortcuts-card';
 import { TodayCard } from './today-card';
 import { TodayQueue } from './today-queue';
@@ -49,7 +56,24 @@ function useDialRegion(): CountryCode {
   return browserRegion ?? 'US';
 }
 
-/** "My day": the next call, today's queue, and the line it goes out on. */
+/** A list's next contact, in the shape the call surfaces take. */
+function listEntryItem(list: MyDayList, entry: MyDayListEntry): MyDayQueueItem {
+  return {
+    key: `list-entry:${entry.entryId}`,
+    group: 'anytime',
+    dueAt: null,
+    contact: entry.contact,
+    doNotCall: false,
+    reasons: [],
+    lists: [{ id: list.id, name: list.name }]
+  };
+}
+
+/**
+ * "My day": the next call, today's queue, and the line it goes out on. Once
+ * nobody in the queue is due, "Call next" goes through the list the user
+ * picked.
+ */
 export function MyDayView() {
   const t = useTranslations('calls.myDay');
   const api = useApi();
@@ -65,16 +89,26 @@ export function MyDayView() {
   const searchRef = useRef<CallSearchHandle>(null);
   const [query, setQuery] = useState('');
   const [keypadOpen, setKeypadOpen] = useState(false);
+  const callList = useCallList();
+  const [listPickerOpen, setListPickerOpen] = useState(false);
 
   const refreshQueue = queue.refresh;
   const refreshSummary = summary.refresh;
+  const refreshListNext = callList.refreshNext;
   const refreshAll = useCallback(() => {
     void refreshQueue();
     void refreshSummary();
-  }, [refreshQueue, refreshSummary]);
+    void refreshListNext();
+  }, [refreshQueue, refreshSummary, refreshListNext]);
 
   const { callItem, dialingKey, busy } = useQueueDial(refreshAll);
   useCallFinished(refreshAll);
+
+  // What is left in each list moves with every call: re-read it on opening.
+  const refreshLists = callList.refreshLists;
+  useEffect(() => {
+    if (listPickerOpen) void refreshLists();
+  }, [listPickerOpen, refreshLists]);
 
   // A link can bring a number to call (`?phoneNumber=14155552671`).
   useEffect(() => {
@@ -82,11 +116,23 @@ export function MyDayView() {
     if (phoneNumber) setQuery(`+${phoneNumber.replace(/^\+/, '')}`);
   }, [searchParams]);
 
-  const next = queue.items.find((item) => isCallableNow(item, now)) ?? null;
-  const upcoming = next
+  const dueNow = queue.items.find((item) => isCallableNow(item, now)) ?? null;
+  const upcoming = dueNow
     ? null
     : (queue.items.find((item) => item.group === 'later' && !item.doNotCall) ??
       null);
+  const listNext = callList.next;
+  // Today's queue first; the list only once nobody in it is due.
+  const next = useMemo<NextCall | null>(() => {
+    if (dueNow) return { source: 'queue', item: dueNow };
+    if (!listNext?.next) return null;
+    return {
+      source: 'list',
+      item: listEntryItem(listNext.list, listNext.next),
+      entry: listNext.next,
+      list: listNext.list
+    };
+  }, [dueNow, listNext]);
 
   const dialFromSearch = useCallback(
     async (phoneNumber: string) => {
@@ -113,12 +159,24 @@ export function MyDayView() {
     [api, refreshQueue, t]
   );
 
+  const skipListEntry = callList.skip;
+  const skip = useCallback(
+    (entryId: string) => {
+      if (!busy) void skipListEntry(entryId);
+    },
+    [busy, skipListEntry]
+  );
+
   useCallPageShortcuts({
     onCallNext: () => {
-      if (next) void callItem(next);
+      if (next && !callList.skipping) void callItem(next.item);
     },
     onFocusSearch: () => searchRef.current?.focus(),
-    onToggleKeypad: () => setKeypadOpen((open) => !open)
+    onToggleKeypad: () => setKeypadOpen((open) => !open),
+    onToggleListPicker: () => setListPickerOpen((open) => !open),
+    onSkip: () => {
+      if (next?.source === 'list') skip(next.entry.entryId);
+    }
   });
 
   const selected = useNumbersStore((s) => s.selectedNumber);
@@ -154,17 +212,42 @@ export function MyDayView() {
             onCountryChange={setPickedCountry}
             onDial={dialFromSearch}
           />
+          <ListPicker
+            open={listPickerOpen}
+            onOpenChange={setListPickerOpen}
+            lists={callList.lists}
+            loading={callList.listsLoading}
+            failed={callList.listsFailed}
+            onRetry={() => void refreshLists()}
+            selectedId={callList.selectedId}
+            selected={callList.selected}
+            onSelect={callList.select}
+          />
         </div>
 
         <NextCallPanel
-          item={next}
+          next={next}
           upcoming={upcoming}
+          picked={
+            callList.selectedId
+              ? {
+                  list: callList.selected,
+                  loading: callList.nextLoading,
+                  failed: callList.nextFailed,
+                  onRetry: () => void refreshListNext()
+                }
+              : null
+          }
+          hasLists={callList.lists.length > 0}
+          onChooseList={() => setListPickerOpen(true)}
           loading={queue.loading}
           now={now}
           fromLabel={fromLabel}
-          dialing={next !== null && dialingKey === next.key}
+          dialing={next !== null && dialingKey === next.item.key}
           busy={busy}
+          skipping={callList.skipping}
           onCall={(item) => void callItem(item)}
+          onSkip={skip}
         />
 
         <TodayQueue
@@ -173,9 +256,17 @@ export function MyDayView() {
           loading={queue.loading}
           failed={queue.failed}
           now={now}
-          nextKey={next?.key ?? null}
+          nextKey={next?.source === 'queue' ? next.item.key : null}
           dialingKey={dialingKey}
           busy={busy}
+          pickedList={
+            callList.selectedId
+              ? {
+                  id: callList.selectedId,
+                  name: callList.selected?.name ?? null
+                }
+              : null
+          }
           onCall={(item) => void callItem(item)}
           onCancelCallback={(callbackId) => void cancelCallback(callbackId)}
           onAcceptIncoming={queue.acceptIncoming}

@@ -8,6 +8,8 @@ export function ShortcutsCard() {
     { label: t('callNext'), keys: ['N'] },
     { label: t('search'), keys: ['/'] },
     { label: t('keypad'), keys: ['K'] },
+    { label: t('list'), keys: ['L'] },
+    { label: t('skip'), keys: ['S'] },
     { label: t('move'), keys: ['↑', '↓'] },
     { label: t('callResult'), keys: ['Enter'] },
     { label: t('clear'), keys: ['Esc'] }

@@ -1384,6 +1384,10 @@ model ContactEmail {
 model Company {
   id               String   @id @default(uuid()) @db.Uuid
   name             String
+  /// `name` trimmed, inner whitespace collapsed, lower-cased. Unique among a
+  /// workspace's active companies through partial unique indexes Prisma cannot
+  /// express (`20261009190000_company_active_name_unique`); the CSV import's
+  /// upsert and the CRM sync's name-conflict check both rely on them.
   normalizedName   String?
   legalName        String?
   domain           String?
@@ -1897,6 +1901,13 @@ model ContactListEntry {
   /// Who added it.
   addedById String?  @db.Uuid
   createdAt DateTime @default(now())
+  /// When a call to the contact was found after it joined the list — placed by
+  /// anyone in the workspace, from any surface. The list records it from the
+  /// workspace's calls (LIST-005); null while the contact is still to call.
+  calledAt  DateTime?
+  /// When the person working the list last skipped the contact. A skipped
+  /// contact goes to the back of the list and comes back after everyone else.
+  skippedAt DateTime?
 
   list    ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
   contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)

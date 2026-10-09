@@ -10,6 +10,10 @@ interface CallPageShortcuts {
   onFocusSearch: () => void;
   /** K */
   onToggleKeypad: () => void;
+  /** L */
+  onToggleListPicker: () => void;
+  /** S — only while "Call next" offers a list's contact. */
+  onSkip: () => void;
 }
 
 /**
@@ -23,8 +27,8 @@ export function useCallPageShortcuts(actions: CallPageShortcuts) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      // Letters only: a focused button has no use for N or K, and after a
-      // call the focus is usually back on the button that started it.
+      // Letters only: a focused button has no use for N, K, L or S, and
+      // after a call the focus is usually back on the button that started it.
       if (!shortcutAllowed(event, 'digit')) return;
       // A select's options take letters for type-ahead.
       if (
@@ -44,6 +48,12 @@ export function useCallPageShortcuts(actions: CallPageShortcuts) {
       } else if (event.code === 'KeyK' && !event.shiftKey) {
         event.preventDefault();
         actionsRef.current.onToggleKeypad();
+      } else if (event.code === 'KeyL' && !event.shiftKey) {
+        event.preventDefault();
+        actionsRef.current.onToggleListPicker();
+      } else if (event.code === 'KeyS' && !event.shiftKey) {
+        event.preventDefault();
+        actionsRef.current.onSkip();
       }
     };
     window.addEventListener('keydown', onKeyDown);

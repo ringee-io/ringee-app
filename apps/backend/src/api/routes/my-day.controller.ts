@@ -1,4 +1,14 @@
-import { BadRequestException, Controller, Get, Query } from "@nestjs/common";
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from "@nestjs/common";
 import {
   CurrentUser,
   CurrentUserData,
@@ -41,6 +51,36 @@ export class MyDayController {
     return this.myDay.getSummary(
       createOwnershipContext(user),
       start && end ? { from: start, to: end } : undefined,
+    );
+  }
+
+  /** The lists assigned to the caller, to work from the Call page. */
+  @Get("lists")
+  async lists(@CurrentUser() user: CurrentUserData) {
+    return this.myDay.getLists(createOwnershipContext(user));
+  }
+
+  /** Who to call next from one of those lists. */
+  @Get("lists/:listId/next")
+  async listNext(
+    @CurrentUser() user: CurrentUserData,
+    @Param("listId", ParseUUIDPipe) listId: string,
+  ) {
+    return this.myDay.getListNext(createOwnershipContext(user), listId);
+  }
+
+  /** Sends a contact to the back of the list; answers with who comes next. */
+  @Post("lists/:listId/entries/:entryId/skip")
+  @HttpCode(HttpStatus.OK)
+  async skipListEntry(
+    @CurrentUser() user: CurrentUserData,
+    @Param("listId", ParseUUIDPipe) listId: string,
+    @Param("entryId", ParseUUIDPipe) entryId: string,
+  ) {
+    return this.myDay.skipListEntry(
+      createOwnershipContext(user),
+      listId,
+      entryId,
     );
   }
 }

@@ -37,6 +37,12 @@ export interface MyDayContact {
   country: string | null;
 }
 
+/** A contact list, as My day names it. */
+export interface MyDayListRef {
+  id: string;
+  name: string;
+}
+
 export interface MyDayQueueItem {
   /** Stable across refreshes: the contact, or the number when there is none. */
   key: string;
@@ -48,6 +54,8 @@ export interface MyDayQueueItem {
   doNotCall: boolean;
   /** Every reason to call, the most pressing first. */
   reasons: MyDayReason[];
+  /** The person's own lists the contact is in (LIST-005). */
+  lists: MyDayListRef[];
 }
 
 export interface MyDayQueueSources {
@@ -61,6 +69,8 @@ export interface MyDayQueueSources {
   outbound: { toNumber: string; userId: string | null; at: Date }[];
   /** Numbers on the workspace's Do Not Call list. */
   doNotCall: Set<string>;
+  /** The lists assigned to the person that hold each contact, by contact id. */
+  lists: Map<string, MyDayListRef[]>;
 }
 
 const GROUP_ORDER: Record<MyDayGroup, number> = {
@@ -293,6 +303,9 @@ export function buildMyDayQueue(sources: MyDayQueueSources): MyDayQueueItem[] {
       },
       doNotCall: sources.doNotCall.has(draft.contact.phoneNumber),
       reasons,
+      lists: draft.contact.id
+        ? (sources.lists.get(draft.contact.id) ?? [])
+        : [],
     };
   });
 
@@ -325,4 +338,19 @@ export function myDayQueuePhones(
   );
   sources.followUps.forEach((action) => addPhone(action.contact?.phoneNumber));
   return [...phones];
+}
+
+/** Every saved contact the queue could hold, for the lists lookup. */
+export function myDayQueueContactIds(
+  sources: Pick<MyDayQueueSources, "callbacks" | "missedCalls" | "followUps">,
+): string[] {
+  const ids = new Set<string>();
+  sources.callbacks.forEach((callback) => ids.add(callback.contact.id));
+  sources.missedCalls.forEach((thread) => {
+    if (thread.contact && !thread.contact.deletedAt) ids.add(thread.contact.id);
+  });
+  sources.followUps.forEach((action) => {
+    if (action.contact) ids.add(action.contact.id);
+  });
+  return [...ids];
 }

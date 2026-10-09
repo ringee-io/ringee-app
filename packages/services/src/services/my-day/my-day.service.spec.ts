@@ -4,8 +4,12 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BadRequestException } from "@nestjs/common";
-import { OwedCallback } from "@ringee/database";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  ContactListEntryToCall,
+  OwedCallback,
+  WorkedContactList,
+} from "@ringee/database";
 import { MyDayService } from "./my-day.service";
 
 const NOW = new Date("2026-10-08T15:00:00.000Z");
@@ -26,17 +30,67 @@ function owed(id: string, phoneNumber: string): OwedCallback {
   };
 }
 
+const LIST: WorkedContactList = {
+  id: "list-1",
+  name: "Fintech NYC",
+  description: null,
+  _count: { entries: 3 },
+};
+
+function listEntry(
+  id: string,
+  phoneNumber: string,
+  skippedAt: Date | null = null,
+): ContactListEntryToCall {
+  return {
+    id,
+    sequence: BigInt(id.replace(/\D/g, "")),
+    createdAt: new Date("2026-10-08T09:00:00.000Z"),
+    skippedAt,
+    contact: {
+      id: `contact-${id}`,
+      name: `Contact ${id}`,
+      firstName: null,
+      lastName: null,
+      company: null,
+      phoneNumber,
+      timezone: null,
+    },
+  };
+}
+
 function build(
-  options: { callbacks?: OwedCallback[]; agentCallIds?: string[] } = {},
+  options: {
+    callbacks?: OwedCallback[];
+    agentCallIds?: string[];
+    /** The lists assigned to the caller, by id. */
+    assigned?: WorkedContactList[];
+    /** Entries still to call: never skipped, then skipped. */
+    toCall?: {
+      fresh: ContactListEntryToCall[];
+      skipped: ContactListEntryToCall[];
+    };
+    outbound?: { toNumber: string; userId: string | null; at: Date }[];
+    openCallbacks?: string[];
+    listed?: { contactId: string; list: { id: string; name: string } }[];
+  } = {},
 ) {
   const scheduledTo: Date[] = [];
   const summaries: Array<{ start: Date; end: Date }> = [];
+  const marked: { id: string; at: Date }[] = [];
+  const skips: Array<{ listId: string; entryId: string }> = [];
+  const listLookups: Array<{ userId: string; listId?: string }> = [];
   const service = new MyDayService(
     {
       listOwedByUser: async (_owner: unknown, opts: { scheduledTo: Date }) => {
         scheduledTo.push(opts.scheduledTo);
         return options.callbacks ?? [];
       },
+      findContactsWithOpenCallback: async (
+        _workspace: unknown,
+        contactIds: string[],
+      ) =>
+        new Set(contactIds.filter((id) => options.openCallbacks?.includes(id))),
     } as never,
     { listMissedCallThreads: async () => [] } as never,
     { listOpenForCalling: async () => [] } as never,
@@ -44,7 +98,7 @@ function build(
       findExistingIds: async (ids: string[]) =>
         new Set(ids.filter((id) => options.agentCallIds?.includes(id))),
     } as never,
-    { latestOutboundTo: async () => [] } as never,
+    { latestOutboundTo: async () => options.outbound ?? [] } as never,
     { findListedPhones: async () => new Set<string>() } as never,
     {
       getMyDaySummary: async (
@@ -60,8 +114,40 @@ function build(
         };
       },
     } as never,
+    {
+      listsHolding: async (_ctx: unknown, userId: string) => {
+        listLookups.push({ userId });
+        return options.listed ?? [];
+      },
+      listAssignedTo: async (_ctx: unknown, userId: string) => {
+        listLookups.push({ userId });
+        return options.assigned ?? [];
+      },
+      findAssignedTo: async (_ctx: unknown, listId: string, userId: string) => {
+        listLookups.push({ userId, listId });
+        return options.assigned?.find((list) => list.id === listId) ?? null;
+      },
+      countToCall: async (listIds: string[]) =>
+        new Map(listIds.map((id) => [id, 2])),
+      listToCall: async (
+        _listId: string,
+        opts: { skipped: boolean; after?: unknown },
+      ) => {
+        if (opts.after) return [];
+        return opts.skipped
+          ? (options.toCall?.skipped ?? [])
+          : (options.toCall?.fresh ?? []);
+      },
+      markCalled: async (entries: { id: string; at: Date }[]) => {
+        marked.push(...entries);
+      },
+      skipEntry: async (listId: string, entryId: string) => {
+        skips.push({ listId, entryId });
+        return true;
+      },
+    } as never,
   );
-  return { service, scheduledTo, summaries };
+  return { service, scheduledTo, summaries, marked, skips, listLookups };
 }
 
 const ctx = { userId: "me", organizationId: "org-1" };
@@ -100,6 +186,118 @@ describe("MyDayService.getQueue", () => {
       NOW,
       new Date("2026-10-08T21:59:59.999Z"),
     ]);
+  });
+
+  it("names only the caller's own lists on each person", async () => {
+    const { service, listLookups } = build({
+      callbacks: [owed("cb-1", "+14155550101")],
+      listed: [
+        { contactId: "contact-cb-1", list: { id: "l-1", name: "Fintech" } },
+        { contactId: "contact-cb-1", list: { id: "l-2", name: "Retail" } },
+      ],
+    });
+
+    const queue = await service.getQueue(ctx, undefined, NOW);
+
+    assert.deepEqual(queue.items[0]!.lists, [
+      { id: "l-1", name: "Fintech" },
+      { id: "l-2", name: "Retail" },
+    ]);
+    assert.deepEqual(listLookups, [{ userId: "me" }]);
+  });
+});
+
+describe("MyDayService lists", () => {
+  it("offers the lists assigned to the caller, with what is left to call", async () => {
+    const { service, listLookups } = build({ assigned: [LIST] });
+
+    const lists = await service.getLists(ctx);
+
+    assert.deepEqual(lists, {
+      data: [
+        {
+          id: "list-1",
+          name: "Fintech NYC",
+          description: null,
+          contactCount: 3,
+          remaining: 2,
+        },
+      ],
+    });
+    assert.deepEqual(listLookups, [{ userId: "me" }]);
+  });
+
+  it("answers 404 for a list that is not assigned to the caller", async () => {
+    const { service } = build({ assigned: [] });
+
+    await assert.rejects(service.getListNext(ctx, "list-1"), NotFoundException);
+    await assert.rejects(
+      service.skipListEntry(ctx, "list-1", "e-1"),
+      NotFoundException,
+    );
+  });
+
+  it("offers the next contact, recording the ones already called", async () => {
+    const { service, marked } = build({
+      assigned: [LIST],
+      toCall: {
+        fresh: [
+          listEntry("e-1", "+14155550101"),
+          listEntry("e-2", "+14155550102"),
+          listEntry("e-3", "+14155550103"),
+        ],
+        skipped: [],
+      },
+      outbound: [
+        {
+          toNumber: "+14155550101",
+          userId: "teammate",
+          at: new Date("2026-10-08T10:00:00.000Z"),
+        },
+      ],
+      openCallbacks: ["contact-e-2"],
+    });
+
+    const result = await service.getListNext(ctx, "list-1");
+
+    assert.equal(result.next?.entryId, "e-3");
+    assert.equal(result.list.remaining, 2);
+    assert.deepEqual(marked, [
+      { id: "e-1", at: new Date("2026-10-08T10:00:00.000Z") },
+    ]);
+  });
+
+  it("comes back to skipped contacts once nobody else is left", async () => {
+    const { service } = build({
+      assigned: [LIST],
+      toCall: {
+        fresh: [],
+        skipped: [
+          listEntry(
+            "e-7",
+            "+14155550107",
+            new Date("2026-10-08T11:00:00.000Z"),
+          ),
+        ],
+      },
+    });
+
+    const result = await service.getListNext(ctx, "list-1");
+
+    assert.equal(result.next?.entryId, "e-7");
+    assert.equal(result.next?.skipped, true);
+  });
+
+  it("skips within the caller's own list and answers with who is next", async () => {
+    const { service, skips } = build({
+      assigned: [LIST],
+      toCall: { fresh: [listEntry("e-2", "+14155550102")], skipped: [] },
+    });
+
+    const result = await service.skipListEntry(ctx, "list-1", "e-1");
+
+    assert.deepEqual(skips, [{ listId: "list-1", entryId: "e-1" }]);
+    assert.equal(result.next?.entryId, "e-2");
   });
 });
 

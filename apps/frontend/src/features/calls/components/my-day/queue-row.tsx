@@ -17,6 +17,7 @@ import {
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { getInitials } from '../../lib/initials';
 import type { MyDayQueueItem } from '../../types/my-day';
+import { ListTag } from './list-tag';
 import { callbackNote, ReasonChips } from './reason-chips';
 import { useMyDayFormat } from './use-my-day-format';
 
@@ -60,6 +61,8 @@ interface QueueRowProps {
   dialing: boolean;
   /** A call is live or starting: offer no second one. */
   busy: boolean;
+  /** The list "Call next" goes through, named first among the person's. */
+  preferredListId: string | null;
   onCall: (item: MyDayQueueItem) => void;
   onCancelCallback: (callbackId: string) => void;
 }
@@ -70,6 +73,7 @@ export function QueueRow({
   isNext,
   dialing,
   busy,
+  preferredListId,
   onCall,
   onCancelCallback
 }: QueueRowProps) {
@@ -117,6 +121,7 @@ export function QueueRow({
               {item.contact.company}
             </span>
           ) : null}
+          <ListTag lists={item.lists} preferredId={preferredListId} />
           {isNext ? (
             <span className='inline-flex h-5 items-center rounded-full bg-emerald-100 px-2 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'>
               {t('nextBadge')}

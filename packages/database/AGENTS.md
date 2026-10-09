@@ -35,6 +35,13 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   second `SELECT … FOR UPDATE` on `User`/`Organization`.
 - Soft deletes use `deletedAt` (contacts, tags, caller IDs, call sessions).
   Respect it in queries.
+- Partial unique indexes (`WHERE …`) cannot be written in `schema.prisma`, so
+  they exist only in migration SQL — `DNCEntry` (org / personal phone) and
+  `Company.normalizedName` (one active name per workspace). Code that relies on
+  one (`ON CONFLICT … WHERE`, a P2002 check) needs its migration written in the
+  same change, and a database built with `prisma db push` lacks them until that
+  SQL is applied by hand: `upsertActiveByName` failed with 42P10 for a month
+  because its migration folder was left empty.
 - Enums are public contracts — the frontend, MCP tools, the SDK and Custom
   Integration payloads all read them. Adding a value is safe; renaming or
   removing one breaks consumers.

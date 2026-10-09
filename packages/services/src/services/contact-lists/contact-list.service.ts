@@ -150,7 +150,8 @@ export class ContactListService {
   /**
    * Creates a list and, given a CSV, fills it in the same step. A file that
    * cannot be imported at all is refused before the list exists, so a typo in
-   * a header does not leave an empty list behind.
+   * a header does not leave an empty list behind; one that fails while it is
+   * being filed takes the new list away with it.
    */
   async create(
     actor: ContactListActor,
@@ -175,7 +176,16 @@ export class ContactListService {
     });
     if (!parsed) return { list: this.toView(actor, created), import: null };
 
-    const summary = await this.fileRows(actor, created.id, parsed);
+    let summary: ContactListImportSummary;
+    try {
+      summary = await this.fileRows(actor, created.id, parsed);
+    } catch (error) {
+      // The list was made for this file: left behind, it would be an empty
+      // list named after a failed upload. Contacts the file already wrote
+      // stay, as they would after any import (LIST-004).
+      await this.lists.delete(created.id).catch(() => undefined);
+      throw error;
+    }
     const filled = await this.lists.findInWorkspace(actor, created.id);
     return { list: this.toView(actor, filled ?? created), import: summary };
   }

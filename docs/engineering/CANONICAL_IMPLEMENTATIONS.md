@@ -125,6 +125,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Writing CSV rows as contacts              | `ContactService.importContacts` (Contacts page), `importParsedContacts` (also returns each row's contact id). Campaign leads still keep a copy. |
 | Contact lists: visibility and permissions | `ContactListService` — `services/contact-lists/` (LIST-001..LIST-004)                                                                           |
 | Contacts in a list, in work order         | `ContactListRepository.listEntries` (`ContactListEntry.sequence`)                                                                               |
+| Working a list from the Call page         | `MyDayService.getListNext` / `skipListEntry`, `pickListNext` — `services/my-day/` (LIST-005)                                                    |
 
 ## Phone numbers
 

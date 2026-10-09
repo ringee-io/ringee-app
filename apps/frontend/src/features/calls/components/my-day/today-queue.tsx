@@ -18,6 +18,8 @@ interface TodayQueueProps {
   nextKey: string | null;
   dialingKey: string | null;
   busy: boolean;
+  /** The list "Call next" goes through once nobody here is due. */
+  pickedList: { id: string; name: string | null } | null;
   onCall: (item: MyDayQueueItem) => void;
   onCancelCallback: (callbackId: string) => void;
   onAcceptIncoming: () => void;
@@ -34,6 +36,7 @@ export function TodayQueue({
   nextKey,
   dialingKey,
   busy,
+  pickedList,
   onCall,
   onCancelCallback,
   onAcceptIncoming,
@@ -76,7 +79,9 @@ export function TodayQueue({
           <CalendarCheck className='text-muted-foreground mb-3 size-9' />
           <p className='text-sm font-semibold'>{t('emptyTitle')}</p>
           <p className='text-muted-foreground mt-1 max-w-sm text-[13px]'>
-            {t('emptyDescription')}
+            {pickedList?.name
+              ? t('emptyWithList', { list: pickedList.name })
+              : t('emptyDescription')}
           </p>
         </div>
       ) : (
@@ -100,6 +105,7 @@ export function TodayQueue({
                     isNext={item.key === nextKey}
                     dialing={item.key === dialingKey}
                     busy={busy}
+                    preferredListId={pickedList?.id ?? null}
                     onCall={onCall}
                     onCancelCallback={onCancelCallback}
                   />

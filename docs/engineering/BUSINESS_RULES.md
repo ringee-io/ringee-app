@@ -499,7 +499,9 @@ An item leaves the queue once it is handled: a missed call when anyone in the
 workspace has called the number since, a follow-up when its owner has called
 the contact after it was raised, a callback only when it is completed or
 cancelled (calling it from the queue completes it, as the callbacks list
-always did).
+always did). Once nothing in the queue can be called now, "Call next" goes
+through the list the person picked (`LIST-005`), which sets aside anyone
+called since they joined it and anyone with a callback open.
 
 - **Source of truth:** `packages/services/src/services/my-day/`
 - **Risk if violated:** a person and the dialer — or an agent — reach the same
@@ -512,9 +514,10 @@ Everything on the Call page is the signed-in person's, in the workspace they
 are in: their personal workspace, or their own share of the organization. The
 queue holds their callbacks and follow-ups, and only the missed calls on their
 lines or assigned to them; the day summary counts their calls and their
-bookings; a number's answer rate counts only the calls they placed from it.
-That holds for admins too — the team's numbers live on the dashboard and the
-rotation report. The balance and its top-up are shown only to whoever may
+bookings; a number's answer rate counts only the calls they placed from it;
+the lists they can pick, and the list names on the queue, are only the lists
+assigned to them (`LIST-005`). That holds for admins too — the team's numbers
+live on the dashboard and the rotation report. The balance and its top-up are shown only to whoever may
 manage them (a personal workspace's owner, an organization admin).
 
 - **Source of truth:** `packages/services/src/services/my-day/`,
@@ -1007,7 +1010,8 @@ Every valid row's contact then enters the list once, in the file's order
 (`ContactListEntry.sequence`, the order the list is worked in). A number typed
 by hand is matched the same way, and contacts added by id must belong to the
 workspace. A file that cannot be imported at all is refused before a new list
-is created.
+is created, and a new list whose file fails while it is being filed is removed
+again; the contacts it already wrote stay.
 
 - **Source of truth:** `ContactListService.importCsv` / `addNewContact` /
   `addContacts`
@@ -1025,6 +1029,32 @@ them to their creators, whose personal workspaces would not hold the contacts.
   `ContactList.organization` (`onDelete: Cascade`)
 - **Risk if violated:** contacts lost while tidying lists; a personal list
   showing another workspace's contacts
+
+### LIST-005 — The Call page works a list for the person it is assigned to
+
+On the Call page a person picks only among the lists assigned to them in the
+workspace they are in — an admin too, who sees every list on the Lists page
+but calls only their own (`CALL-014`). Once nothing in today's queue can be
+called now, "Call next" offers the list's next contact: the first entry, in
+`sequence` order, whose contact nobody in the workspace has called since it
+joined the list — from any surface, a campaign or a voice agent included —
+whose number is not on the Do Not Call list (the flag or the workspace list)
+and who has no callback open, anyone's, since the next call to them is already
+agreed. Skipping sends a contact to the back of the list: the skipped come
+back, longest skipped first, once nobody else is left.
+
+The list learns of calls from the workspace's own `Call` rows and records them
+on the entry (`calledAt`) as it reads, so no dial surface writes to it, and a
+dial that never reached the carrier does not move it on. Today's queue names,
+on each person, the caller's own lists that hold them — never a teammate's.
+
+- **Source of truth:** `MyDayService.getLists` / `getListNext` /
+  `skipListEntry`, `pickListNext` (`services/my-day/my-day-list.ts`),
+  `ContactListRepository.listToCall` / `listsHolding`
+- **Not covered:** a contact still waiting in an active campaign is not set
+  aside; once the campaign calls them, the list counts the call.
+- **Risk if violated:** an agent works a teammate's list; one person reached
+  twice by two surfaces; a Do Not Call number offered as the next call.
 
 ---
 

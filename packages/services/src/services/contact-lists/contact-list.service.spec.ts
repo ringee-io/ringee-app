@@ -193,7 +193,7 @@ function build() {
     contactRepo as never,
     organizations as never,
   );
-  return { service, lists, entries };
+  return { service, lists, entries, contacts };
 }
 
 describe("ContactListService — who a list goes to (LIST-002)", () => {
@@ -367,6 +367,17 @@ describe("ContactListService — filling a list", () => {
     await assert.rejects(
       ctx.service.create(ana, { name: "Broken" }, "phone,whatever\n1,2"),
       BadRequestException,
+    );
+    assert.equal(ctx.lists.size, 0);
+  });
+
+  it("takes the new list away when its file fails while being filed", async () => {
+    ctx.contacts.importParsedContacts = async () => {
+      throw new Error("database unavailable");
+    };
+    await assert.rejects(
+      ctx.service.create(ana, { name: "Half" }, "phoneNumber,name\n..."),
+      /database unavailable/,
     );
     assert.equal(ctx.lists.size, 0);
   });

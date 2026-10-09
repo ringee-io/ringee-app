@@ -1,18 +1,28 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   AiVoiceAgentCallRepository,
   CallbackTaskRepository,
   CallRepository,
+  ContactListEntryToCall,
+  ContactListRepository,
   DashboardRepository,
   DNCEntryRepository,
   InboxThreadRepository,
   PendingActionRepository,
   PendingActionType,
+  WorkedContactList,
 } from "@ringee/database";
-import { OwnershipContext } from "@ringee/platform";
+import { buildOwnershipFilter, OwnershipContext } from "@ringee/platform";
+import { listEntryPhones, MyDayListEntry, pickListNext } from "./my-day-list";
 import {
   buildMyDayQueue,
+  myDayQueueContactIds,
   myDayQueuePhones,
+  MyDayListRef,
   MyDayQueueItem,
 } from "./my-day-queue";
 
@@ -29,6 +39,16 @@ const MISSED_CALL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** The longest a caller's "today" can be, whatever time zone they are in. */
 const MAX_DAY_MS = 36 * 60 * 60 * 1000;
+
+/** The most lists the Call page offers to pick from. */
+const LIST_LIMIT = 100;
+
+/**
+ * Entries a "Call next" lookup reads at a time, and how many pages it reads
+ * at most before saying the list has no one to call now.
+ */
+const LIST_PAGE_SIZE = 50;
+const LIST_MAX_PAGES = 10;
 
 /**
  * The follow-ups that are done by calling the contact. Sending a message or
@@ -47,6 +67,21 @@ export interface MyDayQueue {
   generatedAt: Date;
 }
 
+/** A list the person works from the Call page (LIST-005). */
+export interface MyDayList extends MyDayListRef {
+  description: string | null;
+  /** Contacts in the list. */
+  contactCount: number;
+  /** Contacts still to call: nobody has called them since they joined it. */
+  remaining: number;
+}
+
+export interface MyDayListNext {
+  list: MyDayList;
+  /** Null when nobody in the list can be called now. */
+  next: MyDayListEntry | null;
+}
+
 /**
  * "My day" on the Call page: who to call today, and how the day is going.
  * Composes sources that already exist — callbacks, the inbox, pending actions
@@ -62,6 +97,7 @@ export class MyDayService {
     private readonly calls: CallRepository,
     private readonly dnc: DNCEntryRepository,
     private readonly dashboard: DashboardRepository,
+    private readonly lists: ContactListRepository,
   ) {}
 
   /**
@@ -104,36 +140,82 @@ export class MyDayService {
     );
     const owed = callbacks.filter((callback) => !agentPlaced.has(callback.id));
 
-    const phones = myDayQueuePhones({
-      callbacks: owed,
-      missedCalls,
-      followUps,
-    });
+    const sources = { callbacks: owed, missedCalls, followUps };
+    const phones = myDayQueuePhones(sources);
     const oldestReason = Math.min(
       now.getTime(),
       ...missedCalls.map((thread) => thread.lastEventAt.getTime()),
       ...followUps.map((action) => action.createdAt.getTime()),
     );
-    const [outbound, doNotCall] = await Promise.all([
+    const [outbound, doNotCall, listed] = await Promise.all([
       missedCalls.length > 0 || followUps.length > 0
         ? this.calls.latestOutboundTo(ctx, phones, new Date(oldestReason))
         : Promise.resolve([]),
       this.dnc.findListedPhones(owner, phones),
+      // Only the person's own lists: a teammate's list is not theirs to see.
+      this.lists.listsHolding(ctx, ctx.userId, myDayQueueContactIds(sources)),
     ]);
+
+    const lists = new Map<string, MyDayListRef[]>();
+    for (const { contactId, list } of listed) {
+      lists.set(contactId, [...(lists.get(contactId) ?? []), list]);
+    }
 
     return {
       items: buildMyDayQueue({
         userId: ctx.userId,
         now,
-        callbacks: owed,
-        missedCalls,
-        followUps,
+        ...sources,
         outbound,
         doNotCall,
+        lists,
       }),
       until: dayEnd,
       generatedAt: now,
     };
+  }
+
+  /**
+   * The lists the person may work from the Call page: the ones assigned to
+   * them in this workspace — an admin's included, never a teammate's
+   * (LIST-005, CALL-014).
+   */
+  async getLists(ctx: OwnershipContext): Promise<{ data: MyDayList[] }> {
+    const lists = await this.lists.listAssignedTo(ctx, ctx.userId, LIST_LIMIT);
+    const remaining = await this.lists.countToCall(
+      lists.map((list) => list.id),
+    );
+    return {
+      data: lists.map((list) => toMyDayList(list, remaining.get(list.id) ?? 0)),
+    };
+  }
+
+  /**
+   * Who to call next from one of the person's lists, once nothing in today's
+   * queue is due (LIST-005). Contacts found to have been called since they
+   * joined the list are recorded on the way, so the list keeps up with calls
+   * placed from anywhere without the dialer writing to it.
+   */
+  async getListNext(
+    ctx: OwnershipContext,
+    listId: string,
+  ): Promise<MyDayListNext> {
+    return this.listNext(ctx, await this.loadAssignedList(ctx, listId));
+  }
+
+  /**
+   * Sends a contact to the back of the list and answers with who comes next.
+   * One that is no longer to call — called in the meantime — is left as it is.
+   */
+  async skipListEntry(
+    ctx: OwnershipContext,
+    listId: string,
+    entryId: string,
+    now = new Date(),
+  ): Promise<MyDayListNext> {
+    const list = await this.loadAssignedList(ctx, listId);
+    await this.lists.skipEntry(list.id, entryId, now);
+    return this.listNext(ctx, list);
   }
 
   /**
@@ -162,6 +244,73 @@ export class MyDayService {
     );
   }
 
+  /** A list of the workspace assigned to the person; anything else is a 404. */
+  private async loadAssignedList(
+    ctx: OwnershipContext,
+    listId: string,
+  ): Promise<WorkedContactList> {
+    const list = await this.lists.findAssignedTo(ctx, listId, ctx.userId);
+    if (!list) throw new NotFoundException("List not found");
+    return list;
+  }
+
+  private async listNext(
+    ctx: OwnershipContext,
+    list: WorkedContactList,
+  ): Promise<MyDayListNext> {
+    const next = await this.findListNext(ctx, list.id);
+    const remaining = await this.lists.countToCall([list.id]);
+    return {
+      list: toMyDayList(list, remaining.get(list.id) ?? 0),
+      next,
+    };
+  }
+
+  /** Never skipped contacts first, in the list's order; then the skipped. */
+  private async findListNext(
+    ctx: OwnershipContext,
+    listId: string,
+  ): Promise<MyDayListEntry | null> {
+    for (const skipped of [false, true]) {
+      let after: ContactListEntryToCall | undefined;
+      for (let page = 0; page < LIST_MAX_PAGES; page++) {
+        const entries = await this.lists.listToCall(listId, {
+          skipped,
+          after,
+          limit: LIST_PAGE_SIZE,
+        });
+        if (entries.length === 0) break;
+
+        const phones = listEntryPhones(entries);
+        const oldest = Math.min(
+          ...entries.map((entry) => entry.createdAt.getTime()),
+        );
+        const [outbound, doNotCall, openCallbacks] = await Promise.all([
+          this.calls.latestOutboundTo(ctx, phones, new Date(oldest)),
+          this.dnc.findListedPhones(
+            { userId: ctx.userId, organizationId: ctx.organizationId ?? null },
+            phones,
+          ),
+          this.callbacks.findContactsWithOpenCallback(
+            buildOwnershipFilter(ctx),
+            entries.map((entry) => entry.contact.id),
+          ),
+        ]);
+        const pick = pickListNext({
+          entries,
+          outbound,
+          doNotCall,
+          openCallbacks,
+        });
+        await this.lists.markCalled(pick.called);
+        if (pick.next) return pick.next;
+        if (entries.length < LIST_PAGE_SIZE) break;
+        after = entries[entries.length - 1];
+      }
+    }
+    return null;
+  }
+
   /** The caller's end of day, kept within a day from now. */
   private resolveDayEnd(until: Date | undefined, now: Date): Date {
     if (!until) return this.utcDay(now).end;
@@ -175,4 +324,14 @@ export class MyDayService {
     );
     return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1) };
   }
+}
+
+function toMyDayList(list: WorkedContactList, remaining: number): MyDayList {
+  return {
+    id: list.id,
+    name: list.name,
+    description: list.description,
+    contactCount: list._count.entries,
+    remaining,
+  };
 }
