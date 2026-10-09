@@ -78,7 +78,7 @@ export const SAME_AS = [
 
 /** Short, repeated calls to action. */
 export const CTA = {
-  primary: { label: 'Request demo', href: REQUEST_DEMO_URL },
+  primary: { label: 'Get free access', href: REQUEST_DEMO_URL },
   secondary: { label: 'View pricing', href: '/pricing' },
   login: { label: 'Log in', href: SIGN_IN_URL }
 } as const;
@@ -441,7 +441,7 @@ const SITE_TEXT_ES: Record<string, string> = {
   'Screen recording of the Ringee manual dialer placing a call':
     'Grabación del marcador manual de Ringee haciendo una llamada',
 
-  'Request demo': 'Solicitar demo',
+  'Get free access': 'Obtener acceso gratis',
   'View pricing': 'Ver precios',
   'Log in': 'Entrar',
   'AI Voice Agents': 'Agentes de voz con IA',

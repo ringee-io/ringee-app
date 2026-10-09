@@ -411,7 +411,7 @@ export function RequestDemoForm() {
           </>
         ) : (
           <>
-            Request Demo
+            Get free access
             <ArrowRight className='h-4 w-4' aria-hidden />
           </>
         )}

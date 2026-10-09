@@ -608,7 +608,7 @@ function EverywhereNote({ className }: { className?: string }) {
         href={REQUEST_DEMO_URL}
         className='focus-visible:ring-offset-background inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-700/90 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]'
       >
-        Request demo
+        Get free access
         <ArrowRight className='h-4 w-4' aria-hidden />
       </Link>
     </div>

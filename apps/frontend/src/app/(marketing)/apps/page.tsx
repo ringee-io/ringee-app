@@ -165,7 +165,6 @@ export default function AppsPage() {
         <CtaSection
           title='Start calling — wherever you are'
           description='Create a free Ringee account, add the Chrome extension, and grab the mobile apps. One account works everywhere.'
-          primaryLabel='Request Demo'
           secondaryHref={CHROME_EXTENSION_URL}
           secondaryLabel='Add to Chrome'
         />

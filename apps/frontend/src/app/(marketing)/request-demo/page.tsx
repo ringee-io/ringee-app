@@ -12,7 +12,7 @@ import { RequestDemoForm } from '@/features/marketing/components/request-demo-fo
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Request a Demo — Get Your Ringee Account | Ringee',
+  title: 'Get Free Access — Your Ringee Account | Ringee',
   description:
     'Request access to Ringee calling infrastructure for human teams and AI voice agents. See browser calling, campaigns, recordings, automation, and AI-led conversations.',
   path: '/request-demo'
@@ -33,7 +33,7 @@ export default function RequestDemoPage() {
           {/* Pitch */}
           <div className='flex flex-col gap-6'>
             <div className='flex flex-col gap-4'>
-              <Eyebrow>Request a demo</Eyebrow>
+              <Eyebrow>Get free access</Eyebrow>
               <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
                 See Ringee in action
               </h1>

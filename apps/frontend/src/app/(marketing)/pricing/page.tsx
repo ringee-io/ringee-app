@@ -30,7 +30,7 @@ const PLANS = [
     price: PRICING.freelancer.price,
     period: 'forever',
     description: PRICING.freelancer.blurb,
-    cta: 'Request Demo',
+    cta: 'Get free access',
     highlighted: false,
     tagline: 'Human calling and automation for one person.',
     features: [
@@ -50,7 +50,7 @@ const PLANS = [
     price: PRICING.organization.price,
     period: 'per organization / month',
     description: PRICING.organization.blurb,
-    cta: 'Request Demo',
+    cta: 'Get free access',
     highlighted: true,
     tagline: 'For teams that run outbound together.',
     features: [
