@@ -67,10 +67,11 @@ export default async function HomePage() {
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
 
-      {/* Product tour — the whole stack in one 30-second video. The video is
-          English, so its copy has only English messages. The container is
-          wider than the page's so the video reads at full size; the heading
-          keeps its own narrow column. */}
+      {/* Product tour — the 40-second commercial: 180+ countries, numbers,
+          the manual and power dialer, AI voice agents, MCP/CLI/API and the
+          team price. The video is English, so its copy has only English
+          messages. The container is wider than the page's so the video reads
+          at full size; the heading keeps its own narrow column. */}
       <Section id='product-tour' className='py-16 sm:py-20'>
         <Container className='max-w-7xl'>
           <SectionHeading
@@ -81,7 +82,7 @@ export default async function HomePage() {
           {/* Never taller than the screen under the navbar, so the whole
               frame and its controls stay in view on a short laptop. */}
           <MarketingVideo
-            id='ringee-overview'
+            id='ringee-commercial'
             className='mx-auto mt-10 max-w-[calc((100svh_-_8rem)*16/9)]'
           />
         </Container>

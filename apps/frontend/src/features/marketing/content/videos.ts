@@ -23,8 +23,19 @@ export type MarketingVideo = {
 };
 
 export const MARKETING_VIDEOS = {
-  // The home page's product tour. Integrations end on "and more" on purpose:
-  // new ones are added without a re-render.
+  // The home page's product tour. Its counts come from the public number
+  // catalog (`number-pricing.generated.json`: 79 countries sell numbers, so
+  // "75+"), and its agents are the ones `AGENT_MARKS` names, plus "any MCP
+  // client". Re-render when either falls out of date.
+  'ringee-commercial': {
+    src: '/videos/ringee-commercial',
+    version: '2026-10-08',
+    label:
+      'Ringee in 40 seconds: calls to 180+ countries from the browser, numbers in 75+ countries with a local caller ID, a manual dialer and a power dialer, an AI voice agent booking a meeting, ChatGPT, Claude, OpenClaw and Hermes connected through MCP, the CLI and the public API, and one $20/month plan for the whole team'
+  },
+  // Not on a page: the home page's tour until 2026-10-08, replaced there by
+  // `ringee-commercial`. Integrations end on "and more" on purpose: new ones
+  // are added without a re-render.
   'ringee-overview': {
     src: '/videos/ringee-overview',
     version: '2026-10-06',
