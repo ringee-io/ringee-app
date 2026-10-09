@@ -674,7 +674,8 @@
       "gone": "That list is no longer assigned to you.",
       "skipFailed": "The contact couldn't be skipped. Try again.",
       "inLists": "From your list:",
-      "more": "+{count}"
+      "more": "+{count}",
+      "create": "Create a list"
     },
     "next": {
       "label": "Next call",
@@ -700,7 +701,13 @@
       "listFailedHint": "Check your connection and try again.",
       "retry": "Try again",
       "chooseList": "Choose a list",
-      "changeList": "Change list"
+      "changeList": "Change list",
+      "start": {
+        "title": "Line up who to call",
+        "hint": "Upload a file or type a few numbers. Ringee hands you the next person, every time.",
+        "cta": "Start calling",
+        "reward": "+{amount} free credit when you finish"
+      }
     },
     "queue": {
       "title": "Today's queue",

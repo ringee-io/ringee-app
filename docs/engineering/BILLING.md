@@ -1,6 +1,6 @@
 # Billing and credits
 
-Rules: `BILL-001`..`BILL-019` in [BUSINESS_RULES.md](BUSINESS_RULES.md).
+Rules: `BILL-001`..`BILL-022` in [BUSINESS_RULES.md](BUSINESS_RULES.md).
 
 Ringee is prepaid. Customers buy **credits** (USD) through Stripe and consume them
 per call minute, per message, per transcription minute, per AI token and per
@@ -60,6 +60,7 @@ a failure. Side effects are gated on the returned boolean (`BILL-004`).
 | Recording transcription      | `transcription-recording:<headerId>`                               |
 | Human voice clone            | `voice-clone:<localCloneId>` (source `ai-voice-agent.voice-clone`) |
 | Offer reward                 | `OfferRewardService.idempotencyKey(participationId)`               |
+| First-list onboarding gift   | `onboarding:first-list:<userId>` (source `ONBOARDING_REWARD`)      |
 | Caller-ID verification       | `caller-id-verification:<numberId>:<requestedAt>`                  |
 | Auto-reload (Stripe side)    | `autoreload:<settingsId>:<minute>`                                 |
 | AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation                |

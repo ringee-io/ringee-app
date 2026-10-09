@@ -6,7 +6,10 @@ import { useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { CountryCode } from '@ringee/dialer-core/phone';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useRotationEnabled } from '@/features/number-rotation';
+import { FirstListDialog } from '@/features/onboarding/components/first-list/first-list-dialog';
+import { useFirstListOnboarding } from '@/features/onboarding/hooks/use.first.list.onboarding';
 import { useCallFinished } from '../../hooks/use.call.finished';
 import { useCallList } from '../../hooks/use.call.list';
 import { useCallPageShortcuts } from '../../hooks/use.call.page.shortcuts';
@@ -72,7 +75,8 @@ function listEntryItem(list: MyDayList, entry: MyDayListEntry): MyDayQueueItem {
 /**
  * "My day": the next call, today's queue, and the line it goes out on. Once
  * nobody in the queue is due, "Call next" goes through the list the user
- * picked.
+ * picked. With no list of their own, "Start calling" opens the onboarding
+ * that makes one, picks it, and hands the focus back to the next call.
  */
 export function MyDayView() {
   const t = useTranslations('calls.myDay');
@@ -91,6 +95,10 @@ export function MyDayView() {
   const [keypadOpen, setKeypadOpen] = useState(false);
   const callList = useCallList();
   const [listPickerOpen, setListPickerOpen] = useState(false);
+  const firstList = useFirstListOnboarding();
+  const [listSetupOpen, setListSetupOpen] = useState(false);
+  const [spotlight, setSpotlight] = useState(false);
+  const fetchBalance = useCreditStore((s) => s.fetchBalance);
 
   const refreshQueue = queue.refresh;
   const refreshSummary = summary.refresh;
@@ -159,6 +167,26 @@ export function MyDayView() {
     [api, refreshQueue, t]
   );
 
+  const hasLists = callList.lists.length > 0;
+  const startCalling = useCallback(() => {
+    setListPickerOpen(false);
+    setListSetupOpen(true);
+  }, []);
+
+  // The new list goes to work at once, behind the dialog's last step.
+  const selectList = callList.select;
+  const markFirstListDone = firstList.markCompleted;
+  const listReady = useCallback(
+    (list: { id: string }, rewardGranted: number) => {
+      markFirstListDone();
+      selectList(list.id);
+      void refreshLists();
+      if (rewardGranted > 0) void fetchBalance(api, false, true);
+    },
+    [api, fetchBalance, markFirstListDone, refreshLists, selectList]
+  );
+  const endSpotlight = useCallback(() => setSpotlight(false), []);
+
   const skipListEntry = callList.skip;
   const skip = useCallback(
     (entryId: string) => {
@@ -169,7 +197,11 @@ export function MyDayView() {
 
   useCallPageShortcuts({
     onCallNext: () => {
-      if (next && !callList.skipping) void callItem(next.item);
+      if (next) {
+        if (!callList.skipping) void callItem(next.item);
+      } else if (!hasLists && !callList.listsLoading && !queue.loading) {
+        startCalling();
+      }
     },
     onFocusSearch: () => searchRef.current?.focus(),
     onToggleKeypad: () => setKeypadOpen((open) => !open),
@@ -222,6 +254,7 @@ export function MyDayView() {
             selectedId={callList.selectedId}
             selected={callList.selected}
             onSelect={callList.select}
+            onCreateList={startCalling}
           />
         </div>
 
@@ -238,8 +271,13 @@ export function MyDayView() {
                 }
               : null
           }
-          hasLists={callList.lists.length > 0}
+          hasLists={hasLists}
+          listsLoading={callList.listsLoading}
           onChooseList={() => setListPickerOpen(true)}
+          onStart={startCalling}
+          reward={firstList.reward}
+          spotlight={spotlight}
+          onSpotlightDone={endSpotlight}
           loading={queue.loading}
           now={now}
           fromLabel={fromLabel}
@@ -283,6 +321,16 @@ export function MyDayView() {
         />
         <ShortcutsCard />
       </aside>
+
+      <FirstListDialog
+        open={listSetupOpen}
+        onOpenChange={setListSetupOpen}
+        reward={firstList.reward}
+        firstTime={!firstList.completed && !hasLists}
+        defaultCountry={region}
+        onListReady={listReady}
+        onFinish={() => setSpotlight(true)}
+      />
     </div>
   );
 }

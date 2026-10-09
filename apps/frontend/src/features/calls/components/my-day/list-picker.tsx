@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Check, RotateCw, X } from 'lucide-react';
+import { Check, Plus, RotateCw, X } from 'lucide-react';
 import { IconListDetails } from '@tabler/icons-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
@@ -35,6 +35,8 @@ interface ListPickerProps {
   /** The picked list, once it is known. */
   selected: MyDayList | null;
   onSelect: (listId: string | null) => void;
+  /** Makes a list without leaving the page — the onboarding's dialog. */
+  onCreateList: () => void;
 }
 
 /**
@@ -51,7 +53,8 @@ export function ListPicker({
   onRetry,
   selectedId,
   selected,
-  onSelect
+  onSelect,
+  onCreateList
 }: ListPickerProps) {
   const t = useTranslations('calls.myDay.list');
 
@@ -108,7 +111,11 @@ export function ListPicker({
             <p className='text-muted-foreground mt-1 text-xs'>
               {t('noneHint')}
             </p>
-            <Button asChild variant='outline' size='sm' className='mt-3'>
+            <Button size='sm' className='mt-3' onClick={onCreateList}>
+              <Plus />
+              {t('create')}
+            </Button>
+            <Button asChild variant='link' size='sm' className='h-auto p-1'>
               <Link href='/dashboard/lists'>{t('openLists')}</Link>
             </Button>
           </div>
@@ -145,17 +152,19 @@ export function ListPicker({
                   </CommandItem>
                 ))}
               </CommandGroup>
-              {selectedId ? (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup>
-                    <CommandItem value={t('stop')} onSelect={() => pick(null)}>
-                      <X />
-                      {t('stop')}
-                    </CommandItem>
-                  </CommandGroup>
-                </>
-              ) : null}
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem value={t('create')} onSelect={onCreateList}>
+                  <Plus />
+                  {t('create')}
+                </CommandItem>
+                {selectedId ? (
+                  <CommandItem value={t('stop')} onSelect={() => pick(null)}>
+                    <X />
+                    {t('stop')}
+                  </CommandItem>
+                ) : null}
+              </CommandGroup>
             </CommandList>
           </Command>
         )}

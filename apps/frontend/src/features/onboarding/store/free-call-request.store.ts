@@ -9,8 +9,8 @@ interface FreeCallRequestStore {
 }
 
 /**
- * Controls the free-call request modal so it can be opened both automatically
- * (on first load after signup) and on demand from the onboarding guide step.
+ * Controls the free-call request modal, opened on demand from the onboarding
+ * guide's step.
  */
 export const useFreeCallRequestStore = create<FreeCallRequestStore>((set) => ({
   isOpen: false,

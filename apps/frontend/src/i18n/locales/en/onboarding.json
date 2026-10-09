@@ -77,5 +77,85 @@
     "done": "Done",
     "errorTitle": "Something went wrong",
     "errorDescription": "We couldn't send your request. Please try again in a moment."
+  },
+  "firstList": {
+    "stepOf": "Step {current} of {total}",
+    "rewardChip": "Finish and get {amount} of free credit",
+    "notNow": "Not now",
+    "back": "Back",
+    "choose": {
+      "title": "Who do you want to call?",
+      "description": "Bring the people you'll call. Ringee lines them up and hands you the next one, every time.",
+      "time": "Takes about a minute.",
+      "file": {
+        "title": "Upload a file",
+        "description": "A CSV from your CRM or a spreadsheet.",
+        "badge": "Best for many people"
+      },
+      "typed": {
+        "title": "Type the numbers",
+        "description": "Add a few people by hand.",
+        "badge": "Fastest way to try"
+      },
+      "contacts": {
+        "title": "From your contacts",
+        "description": "People already saved in Ringee.",
+        "badge": "{count, plural, one {# contact saved} other {# contacts saved}}"
+      }
+    },
+    "file": {
+      "title": "Upload your file",
+      "description": "Each row is one person to call, in the file's order."
+    },
+    "typed": {
+      "title": "Type who to call",
+      "description": "A number and, if you like, a name. Enter takes you to the next field.",
+      "phone": "Phone number",
+      "name": "Name",
+      "namePlaceholder": "Name (optional)",
+      "phoneOf": "Phone number, person {index}",
+      "nameOf": "Name, person {index}",
+      "remove": "Remove person {index}",
+      "add": "Add another person",
+      "enterHint": "Enter on a name adds the next person.",
+      "max": "Up to {max} here — add more later from Lists.",
+      "invalid": "This number doesn't look right."
+    },
+    "contacts": {
+      "title": "Pick who to call",
+      "description": "Search and tick the people for this list.",
+      "search": "Search by name, number or company",
+      "selectShown": "Select all shown",
+      "selected": "{count, plural, =0 {Nobody picked yet} one {# picked} other {# picked}}",
+      "full": "{max} picked — the most a list takes at once",
+      "noMatches": "No contact matches your search.",
+      "failed": "Your contacts didn't load.",
+      "retry": "Try again"
+    },
+    "name": {
+      "label": "List name",
+      "first": "My first list",
+      "next": "New list",
+      "hint": "You can rename it any time in Lists."
+    },
+    "create": "Create list",
+    "createCount": "{count, plural, one {Create list with # person} other {Create list with # people}}",
+    "creating": "Creating your list…",
+    "adding": "Adding {done} of {total}…",
+    "failed": "The list couldn't be created. Try again.",
+    "personFailed": "This person couldn't be added.",
+    "nothingAdded": "Nobody could be added to the list. Check these and try again:",
+    "skippedRow": "Row {row}: {message}",
+    "skippedPerson": "{phone}: {message}",
+    "ready": {
+      "title": "You're ready to call",
+      "description": "{count, plural, one {# person in “{name}”, lined up to call.} other {# people in “{name}”, lined up in order.}}",
+      "rewardTitle": "+{amount} free credit",
+      "rewardHint": "Added to your balance — your first calls are on us.",
+      "skipped": "{count, plural, one {# row was left out} other {# rows were left out}}",
+      "why": "See why",
+      "cta": "Start calling",
+      "keyHint": "Press <key>N</key> any time to call whoever's next."
+    }
   }
 }

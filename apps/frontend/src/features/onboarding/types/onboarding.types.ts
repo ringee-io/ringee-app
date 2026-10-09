@@ -21,3 +21,17 @@ export interface OnboardingStepConfig {
   action: () => void;
   requiresAdmin?: boolean; // Only for buy_credits step
 }
+
+/** The Call page's first-list onboarding (`GET /onboarding/first-list`). */
+export interface FirstListOnboarding {
+  completed: boolean;
+  /** USD finishing it now adds; zero when nothing is owed (BILL-022). */
+  reward: number;
+}
+
+/** `POST /onboarding/first-list/:listId`. */
+export interface FirstListCompletion {
+  completed: true;
+  /** USD this completion added to the balance; zero when none was owed. */
+  rewardGranted: number;
+}

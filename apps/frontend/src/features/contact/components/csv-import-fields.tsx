@@ -76,8 +76,18 @@ export function CsvDropzone({
         setIsDragging(false);
       }}
       onClick={() => inputRef.current?.click()}
+      // Reachable without a mouse: Enter or Space opens the file picker.
+      role='button'
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
       className={cn(
-        'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors',
+        'focus-visible:border-ring focus-visible:ring-ring/50 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors outline-none focus-visible:ring-[3px]',
         isDragging
           ? 'border-primary bg-primary/5'
           : 'border-muted-foreground/25 hover:border-primary/50',

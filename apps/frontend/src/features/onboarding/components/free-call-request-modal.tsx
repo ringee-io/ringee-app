@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -16,9 +16,6 @@ import { useTranslations } from 'next-intl';
 import { useFreeCallRequestStore } from '../store/free-call-request.store';
 import { useOnboarding } from '../hooks/use.onboarding';
 
-/** sessionStorage key so the auto-popup shows at most once per browser session. */
-const SHOWN_KEY = 'ringee:free-call-request-shown';
-
 interface FreeTrialRequestState {
   hasRequested: boolean;
   status: string | null;
@@ -27,23 +24,21 @@ interface FreeTrialRequestState {
 /**
  * Modal where a freshly signed-up user requests a free call to try Ringee. The
  * request is reviewed manually by the team (an email is sent on submit) and can
- * only be made once. It auto-opens on first load after signup and can also be
- * reopened from the onboarding guide's first step.
+ * only be made once. It opens from the onboarding guide's first step only: on
+ * arrival the Call page's own onboarding comes first, and nothing pops over it.
  */
 export function FreeCallRequestModal() {
   const t = useTranslations('onboarding.freeCallRequest');
   const api = useApi();
   const { completeStep } = useOnboarding();
-  const { isOpen, open, close } = useFreeCallRequestStore();
+  const { isOpen, close } = useFreeCallRequestStore();
 
   const [requested, setRequested] = useState<boolean | null>(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(false);
-  const autoOpenChecked = useRef(false);
 
-  // Load whether the user has already requested; auto-open once per session
-  // for users who haven't.
+  // Load whether the user has already requested.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -51,18 +46,7 @@ export function FreeCallRequestModal() {
         const data: FreeTrialRequestState = await api.get(
           '/free-trial/request'
         );
-        if (cancelled) return;
-        setRequested(data?.hasRequested ?? false);
-
-        if (autoOpenChecked.current) return;
-        autoOpenChecked.current = true;
-        const alreadyShown =
-          typeof window !== 'undefined' &&
-          window.sessionStorage.getItem(SHOWN_KEY) === '1';
-        if (!data?.hasRequested && !alreadyShown) {
-          window.sessionStorage.setItem(SHOWN_KEY, '1');
-          setTimeout(() => !cancelled && open(), 900);
-        }
+        if (!cancelled) setRequested(data?.hasRequested ?? false);
       } catch {
         // Non-critical: leave the modal dormant if the status can't be loaded.
       }
@@ -70,7 +54,7 @@ export function FreeCallRequestModal() {
     return () => {
       cancelled = true;
     };
-  }, [api, open]);
+  }, [api]);
 
   const handleSubmit = async () => {
     setSubmitting(true);

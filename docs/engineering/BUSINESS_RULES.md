@@ -379,6 +379,24 @@ records the margins it ran with.
   and `country-rate.util.ts` (+ specs)
 - **Risk if violated:** a published price the product does not honour
 
+### BILL-022 — Finishing the first-list onboarding gives $1, once per user, only to an empty balance
+
+The Call page's onboarding ends when the user has a list they created for
+themselves with somebody in it (`POST /onboarding/first-list/:listId` checks
+the list, never the client's word). Finishing it adds `FIRST_LIST_REWARD_USD`
+($1) to the workspace they finished in — only for whoever manages that balance
+(a freelancer, an org admin) and only when it is at $0 to the cent. A workspace
+with credit, one in debt, and an org member get nothing, and the step
+completes all the same; a member's request never reads the organization's
+balance (`CALL-014`). It is a `grantCreditsOnce` keyed
+`onboarding:first-list:<userId>`, so a user is paid once whatever workspace or
+retry they finish from; the step is stamped after the grant, and a stamped
+step is never paid again.
+
+- **Source of truth:** `OnboardingService.completeFirstList` (+ spec)
+- **Risk if violated:** free credit farmed by repeating the onboarding, or paid
+  on top of money a customer already has
+
 ---
 
 ## Telephony — calls (`CALL`)

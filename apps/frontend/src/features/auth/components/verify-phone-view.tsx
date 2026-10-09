@@ -73,7 +73,7 @@ export default function VerifyPhoneView() {
   const [checkingAccess, setCheckingAccess] = useState(false);
 
   const continueToDashboard = useCallback(() => {
-    router.replace('/dashboard/overview');
+    router.replace('/dashboard/call');
     router.refresh();
   }, [router]);
 
