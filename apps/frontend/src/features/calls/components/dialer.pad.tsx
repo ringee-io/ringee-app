@@ -9,6 +9,7 @@ import {
   type CountryCode
 } from '@ringee/dialer-core/phone';
 import { useTranslations } from 'next-intl';
+import { cn } from '@ringee/frontend-shared/lib/utils';
 
 export function DialPad({
   number,
@@ -19,7 +20,8 @@ export function DialPad({
   callingDisabled = false,
   disabledReason,
   showCreditPopover = false,
-  country = DEFAULT_REGION
+  country = DEFAULT_REGION,
+  compact = false
 }: {
   number: string;
   setNumber: (v: string) => void;
@@ -33,6 +35,8 @@ export function DialPad({
   showCreditPopover?: boolean;
   /** Currently selected dialing country — seeds the calling code for taps. */
   country?: CountryCode;
+  /** Smaller keys, for a keypad that opens over the page. */
+  compact?: boolean;
 }) {
   const t = useTranslations('calls.dialer');
   const keys = [
@@ -113,13 +117,19 @@ export function DialPad({
   };
 
   return (
-    <div className='flex flex-col items-center gap-3'>
-      <div className='grid grid-cols-3 gap-3'>
+    <div
+      className={cn('flex flex-col items-center', compact ? 'gap-2' : 'gap-3')}
+    >
+      <div className={cn('grid grid-cols-3', compact ? 'gap-2' : 'gap-3')}>
         {keys.map((k) => (
           <button
             key={k.n}
+            type='button'
             onClick={() => handlePress(k.n)}
-            className='bg-muted/60 hover:bg-accent text-foreground flex h-20 w-32 flex-col items-center justify-center rounded-xl text-xl font-semibold transition-all active:scale-95'
+            className={cn(
+              'bg-muted/60 hover:bg-accent text-foreground flex flex-col items-center justify-center rounded-xl font-semibold transition-all active:scale-95',
+              compact ? 'h-14 w-[4.75rem] text-lg' : 'h-20 w-32 text-xl'
+            )}
           >
             {k.n}
             {k.s && (
@@ -131,13 +141,16 @@ export function DialPad({
         ))}
       </div>
 
-      <div className='mt-2 flex gap-8'>
+      <div className={cn('mt-2 flex', compact ? 'gap-6' : 'gap-8')}>
         {showCreditPopover ? (
           <CreditPopover fetch={false}>
             <button
               aria-label={t('call')}
               title={t('call')}
-              className='flex h-20 w-20 items-center justify-center rounded-xl bg-green-600 transition-all hover:bg-green-700 active:scale-95'
+              className={cn(
+                'flex items-center justify-center rounded-xl bg-green-600 transition-all hover:bg-green-700 active:scale-95',
+                compact ? 'h-14 w-14' : 'h-20 w-20'
+              )}
             >
               <Phone className='h-6 w-6 text-white' />
             </button>
@@ -156,9 +169,11 @@ export function DialPad({
                   ? t('starting')
                   : (disabledReason ?? t('call'))
             }
-            className={`flex h-20 w-20 items-center justify-center rounded-xl bg-green-600 transition-all hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed ${
-              callingDisabled || disabledReason || !number ? 'opacity-50' : ''
-            }`}
+            className={cn(
+              'flex items-center justify-center rounded-xl bg-green-600 transition-all hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed',
+              compact ? 'h-14 w-14' : 'h-20 w-20',
+              (callingDisabled || disabledReason || !number) && 'opacity-50'
+            )}
           >
             {isCalling ? (
               <Loader2 className='h-6 w-6 animate-spin text-white' />
@@ -172,7 +187,10 @@ export function DialPad({
           onClick={onDelete}
           aria-label={t('deleteDigit')}
           title={t('deleteDigit')}
-          className='bg-muted hover:bg-accent flex h-20 w-20 items-center justify-center rounded-xl transition-all active:scale-95'
+          className={cn(
+            'bg-muted hover:bg-accent flex items-center justify-center rounded-xl transition-all active:scale-95',
+            compact ? 'h-14 w-14' : 'h-20 w-20'
+          )}
         >
           <Delete className='text-foreground h-5 w-5' />
         </button>

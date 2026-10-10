@@ -39,6 +39,7 @@ const NAMESPACES = [
   'calls',
   'dialer',
   'contacts',
+  'lists',
   'organizations',
   'team',
   'campaigns',

@@ -22,9 +22,11 @@ import { CallController } from "./call.controller";
 import { WebRTCController } from "./webrtc.controller";
 import { TelephonyController } from "./telephony.controller";
 import { ContactController } from "./contact.controller";
+import { ContactListController } from "./contact-list.controller";
 import { StripeController } from "./stripe.controller";
 import { CreditController } from "./credit.controller";
 import { DashboardController } from "./dashboard.controller";
+import { MyDayController } from "./my-day.controller";
 import { DashboardLayoutController } from "./dashboard-layout.controller";
 import { UserController } from "./user.controller";
 import { RecordingsController } from "./recordings.controller";
@@ -97,9 +99,11 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     WebRTCController,
     TelephonyController,
     ContactController,
+    ContactListController,
     StripeController,
     CreditController,
     DashboardController,
+    MyDayController,
     DashboardLayoutController,
     UserController,
     RecordingsController,

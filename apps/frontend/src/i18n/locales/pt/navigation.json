@@ -7,6 +7,7 @@
   },
   "items": {
     "dashboard": "Painel",
+    "lists": "Listas",
     "contacts": "Contactos",
     "activities": "Atividades",
     "meetings": "Reuniões",
@@ -56,11 +57,6 @@
   "kbar": {
     "navigation": "Navegação",
     "goTo": "Ir para {page}"
-  },
-  "tabs": {
-    "dialer": "Marcador",
-    "contact": "Contacto",
-    "history": "Histórico"
   },
   "communitySupport": {
     "label": "Apoio da comunidade",

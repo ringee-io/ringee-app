@@ -80,6 +80,22 @@ export class OrganizationRepository {
   }
 
   /**
+   * Every resolved member of an organization — admins and members alike —
+   * with their user row and all their emails. Used to notify the whole team.
+   */
+  async findMembersWithEmails(
+    organizationId: string,
+  ): Promise<Array<User & { emails: UserEmail[] }>> {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: { organizationId, userId: { not: null } },
+      include: { user: { include: { emails: true } } },
+    });
+    return memberships
+      .map((m) => m.user)
+      .filter((u): u is User & { emails: UserEmail[] } => u !== null);
+  }
+
+  /**
    * All resolved members of an organization with their user row + primary email.
    * Pending (clerk-only) invitations are excluded. Used by Ringee Infra to seed
    * Team Member nodes.

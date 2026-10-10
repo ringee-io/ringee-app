@@ -7,6 +7,7 @@
   },
   "items": {
     "dashboard": "Tableau de bord",
+    "lists": "Listes",
     "contacts": "Contacts",
     "activities": "Activités",
     "meetings": "Réunions",
@@ -56,11 +57,6 @@
   "kbar": {
     "navigation": "Navigation",
     "goTo": "Aller à {page}"
-  },
-  "tabs": {
-    "dialer": "Composeur",
-    "contact": "Contact",
-    "history": "Historique"
   },
   "communitySupport": {
     "label": "Support communauté",

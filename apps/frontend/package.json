@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test": "node --test scripts/*.test.mjs",
     "dev": "dotenv -e ../../.env -- next dev -p 4200",
     "generate:skills": "node scripts/generate-skills.mjs",
     "prebuild": "node scripts/generate-skills.mjs",

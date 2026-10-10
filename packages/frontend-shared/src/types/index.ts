@@ -7,6 +7,8 @@ export interface NavItem {
   adminOnly?: boolean;
   /** Available only while an organization workspace is active. */
   organizationOnly?: boolean;
+  /** Opened from the user menu rather than the sidebar; still a ⌘K destination. */
+  inUserMenu?: boolean;
   disabled?: boolean;
   external?: boolean;
   shortcut?: [string, string];

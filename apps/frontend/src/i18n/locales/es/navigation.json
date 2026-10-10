@@ -7,6 +7,7 @@
   },
   "items": {
     "dashboard": "Panel",
+    "lists": "Listas",
     "contacts": "Contactos",
     "activities": "Actividades",
     "meetings": "Reuniones",
@@ -23,11 +24,6 @@
     "recordings": "Grabaciones",
     "rate": "Tarifas",
     "buyNumber": "Comprar número"
-  },
-  "tabs": {
-    "dialer": "Marcador",
-    "contact": "Contacto",
-    "history": "Historial"
   },
   "userMenu": {
     "profile": "Perfil",

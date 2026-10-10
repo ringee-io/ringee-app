@@ -27,6 +27,21 @@ export interface CallbackOwnerFilter {
   organizationId?: string | null;
 }
 
+/** A callback one user still owes, with who to call. */
+export interface OwedCallback {
+  id: string;
+  scheduledAt: Date;
+  note: string | null;
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
+    timezone: string | null;
+    deletedAt: Date | null;
+  };
+}
+
 export interface CreateCallbackTaskInput {
   id?: string;
   userId: string;
@@ -172,6 +187,73 @@ export class CallbackTaskRepository {
       data: data as CallbackTaskWithContext[],
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  /**
+   * The callbacks one user still owes in a workspace, scheduled up to
+   * `scheduledTo` — overdue ones included, soonest first. Campaign callbacks
+   * are left out: when one comes due the campaign re-queues its lead, so a
+   * manual call as well would reach the contact twice.
+   */
+  async listOwedByUser(
+    owner: CallbackOwnerFilter,
+    options: { scheduledTo: Date; limit: number },
+  ): Promise<OwedCallback[]> {
+    return this.prisma.callbackTask.findMany({
+      where: {
+        userId: owner.userId,
+        organizationId: owner.organizationId ?? null,
+        status: { in: [CallbackStatus.scheduled, CallbackStatus.due] },
+        campaignLeadId: null,
+        scheduledAt: { lte: options.scheduledTo },
+      },
+      select: {
+        id: true,
+        scheduledAt: true,
+        note: true,
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            company: true,
+            timezone: true,
+            deletedAt: true,
+          },
+        },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: options.limit,
+    });
+  }
+
+  /**
+   * Which of `contactIds` have a callback still open in the workspace —
+   * anyone's, whenever it is scheduled, campaign and voice agent ones
+   * included, and one being placed right now: the next call to them is
+   * already agreed.
+   */
+  async findContactsWithOpenCallback(
+    workspace: { userId?: string; organizationId?: string | null },
+    contactIds: string[],
+  ): Promise<Set<string>> {
+    if (contactIds.length === 0) return new Set();
+    const rows = await this.prisma.callbackTask.findMany({
+      where: {
+        ...workspace,
+        contactId: { in: contactIds },
+        status: {
+          in: [
+            CallbackStatus.scheduled,
+            CallbackStatus.due,
+            CallbackStatus.in_progress,
+          ],
+        },
+      },
+      select: { contactId: true },
+      distinct: ["contactId"],
+    });
+    return new Set(rows.map((row) => row.contactId));
   }
 
   async findDue(): Promise<CallbackTask[]> {

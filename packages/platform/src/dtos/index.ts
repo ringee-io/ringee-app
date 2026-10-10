@@ -1,6 +1,7 @@
 export * from "./chat.auth.dto";
 export * from "./call.dto";
 export * from "./contact.dto";
+export * from "./contact-list.dto";
 export * from "./telephony.dto";
 export * from "./stripe.dto";
 export * from "./free-trial.dto";

@@ -41,6 +41,7 @@ import { navGroups } from '@ringee/frontend-shared/constants/data';
 import type { NavItem } from '@ringee/frontend-shared/types';
 import { useUser, useOrganization } from '@clerk/nextjs';
 import {
+  IconAddressBook,
   IconChevronsDown,
   IconLogout,
   IconMail,
@@ -79,6 +80,7 @@ const GROUP_LABEL_KEYS: Record<string, string> = {
 
 const ITEM_TITLE_KEYS: Record<string, string> = {
   Dashboard: 'items.dashboard',
+  Lists: 'items.lists',
   Contacts: 'items.contacts',
   Activities: 'items.activities',
   Meetings: 'items.meetings',
@@ -299,7 +301,9 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
               >
                 {group.items
                   .filter(
-                    (item: NavItem) => canAccessAdminFeatures || !item.adminOnly
+                    (item: NavItem) =>
+                      !item.inUserMenu &&
+                      (canAccessAdminFeatures || !item.adminOnly)
                   )
                   .map((item: NavItem) => {
                     // @ts-ignore
@@ -485,6 +489,12 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     {/* @ts-ignore */}
                     <Icons.user className='mr-2 h-4 w-4' />
                     {tNav('userMenu.profile')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/contact')}
+                  >
+                    <IconAddressBook className='mr-2 h-4 w-4' />
+                    {tNav('items.contacts')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => router.push('/dashboard/history')}

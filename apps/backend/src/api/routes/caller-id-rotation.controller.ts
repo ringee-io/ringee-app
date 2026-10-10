@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Put,
@@ -270,6 +271,20 @@ export class CallerIdRotationController {
   ) {
     const ctx = createOwnershipContext(user);
     return this.rotationService.updatePoolMember(ctx, numberId, body);
+  }
+
+  /**
+   * How the caller's own calls from a workspace number have been answered
+   * lately. Open to members: it is the number they call from, shown next to
+   * their dialer, and it counts only their calls.
+   */
+  @Get("numbers/:numberId/performance")
+  async getNumberPerformance(
+    @Param("numberId", ParseUUIDPipe) numberId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.rotationService.getNumberPerformance(ctx, numberId);
   }
 
   @OrgAdminOnly()

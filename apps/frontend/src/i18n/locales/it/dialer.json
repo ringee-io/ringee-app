@@ -32,57 +32,6 @@
     "doNotCall": "Non chiamare",
     "callAnyway": "Chiama comunque"
   },
-  "sidePanel": {
-    "workQueue": "Coda di lavoro",
-    "dueCount": "{count} in scadenza",
-    "pendingCount": "{count} in attesa",
-    "tabs": {
-      "callbacks": "Richiami",
-      "today": "Oggi",
-      "recent": "Recenti"
-    },
-    "callbacks": {
-      "emptyTitle": "Nessun richiamo in sospeso",
-      "emptyDescription": "Buon lavoro — la tua coda è vuota.",
-      "createdBy": "Creato da {name}",
-      "unknownUser": "Sconosciuto",
-      "actions": {
-        "call": "Chiama ora",
-        "viewContact": "Vedi contatto",
-        "cancel": "Annulla richiamo",
-        "more": "Altre azioni"
-      }
-    },
-    "today": {
-      "emptyTitle": "Nessuna riunione oggi",
-      "emptyDescription": "Le riunioni programmate per oggi appariranno qui.",
-      "joinLink": "Link riunione",
-      "actions": {
-        "join": "Partecipa alla riunione",
-        "callContact": "Chiama il contatto"
-      }
-    },
-    "recent": {
-      "emptyTitle": "Nessuna chiamata recente",
-      "emptyDescription": "Le chiamate in uscita che effettui appariranno qui per richiamare rapidamente.",
-      "actions": {
-        "redial": "Richiama",
-        "openDetail": "Apri i dettagli della chiamata"
-      },
-      "inbound": "Chiamata in entrata",
-      "outbound": "Chiamata in uscita"
-    },
-    "relative": {
-      "now": "ora",
-      "inMinutes": "tra {count}m",
-      "minutesAgo": "{count}m fa",
-      "inHours": "tra {count}h",
-      "hoursAgo": "{count}h fa",
-      "tomorrowAt": "domani {time}"
-    },
-    "callNext": "Chiama il prossimo",
-    "callNextHint": "Chiama {name}, il tuo richiamo più in ritardo"
-  },
   "workspace": {
     "title": "Sessione di chiamate",
     "metaTitle": "Dialer — Sessione di chiamate | Ringee",

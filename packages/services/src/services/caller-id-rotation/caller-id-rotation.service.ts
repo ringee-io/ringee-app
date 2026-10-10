@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from "@nestjs/common";
 import {
   CallerIdRotationRepository,
@@ -74,6 +75,23 @@ export interface NumberReportRow {
   shortCalls: number;
   answerRate: number;
 }
+
+/** How one person's calls from a number have been answered lately. */
+export interface NumberPerformanceView {
+  numberId: string;
+  windowDays: number;
+  /** Outbound calls the person placed from the number in the window. */
+  calls: number;
+  /** Of those, the ones picked up — by a person or by voicemail. */
+  answered: number;
+  /** The fewest calls an answer rate is worth showing for. */
+  minSample: number;
+  /** While rotation rests the number for a poor answer rate. */
+  restingUntil: Date | null;
+}
+
+const PERFORMANCE_WINDOW_DAYS = 7;
+const PERFORMANCE_MIN_SAMPLE = 20;
 
 const DEFAULT_DAILY_CAP = 50;
 const VALID_STRATEGIES = ["local_presence", "balanced"] as const;
@@ -437,6 +455,47 @@ export class CallerIdRotationService {
         };
       }),
     );
+  }
+
+  /**
+   * How the caller's own calls from one of the workspace's numbers have been
+   * answered over the last week. Only their own: in an organization the same
+   * number also carries teammates' calls, which are not theirs to see (admins
+   * have the pool-wide report). A pick-up is a technical state, not a
+   * conversation, and below `minSample` calls the rate says nothing.
+   */
+  async getNumberPerformance(
+    ctx: OwnershipContext,
+    numberId: string,
+  ): Promise<NumberPerformanceView> {
+    const number = await this.numberRepo.findById(numberId);
+    if (!number || number.deletedAt || !this.ownsMember(ctx, number)) {
+      throw new NotFoundException("Number not found");
+    }
+    const since = new Date(this.today());
+    since.setUTCDate(since.getUTCDate() - (PERFORMANCE_WINDOW_DAYS - 1));
+    const [usage, member, settings] = await Promise.all([
+      this.rotationRepo.usageSince(number.id, since, ctx.userId),
+      this.rotationRepo.findPoolMemberByNumberId(number.id, ctx),
+      this.rotationRepo.findSettings(ctx),
+    ]);
+    // Resting only keeps a number out of rotation; with rotation off it
+    // changes nothing, so it is not worth saying.
+    const resting =
+      settings?.enabled &&
+      member?.rotationStatus === "cooling" &&
+      member.coolingUntil &&
+      member.coolingUntil.getTime() > Date.now()
+        ? member.coolingUntil
+        : null;
+    return {
+      numberId: number.id,
+      windowDays: PERFORMANCE_WINDOW_DAYS,
+      calls: usage.count,
+      answered: usage.answered,
+      minSample: PERFORMANCE_MIN_SAMPLE,
+      restingUntil: resting,
+    };
   }
 
   // ===========================================================================

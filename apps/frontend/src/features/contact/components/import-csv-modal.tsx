@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,23 +9,13 @@ import {
   DialogDescription
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useRouter } from 'next/navigation';
-import {
-  IconUpload,
-  IconFileTypeCsv,
-  IconCheck,
-  IconX,
-  IconLoader2,
-  IconDownload,
-  IconTag,
-  IconChevronDown,
-  IconPlus
-} from '@tabler/icons-react';
+import { IconCheck, IconX, IconLoader2 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { TagMultiSelect, Tag } from './tag-multi-select';
 import { useTranslations } from 'next-intl';
+import { CsvDropzone, CsvFormatHelp } from './csv-import-fields';
 
 interface ImportCsvModalProps {
   open: boolean;
@@ -42,30 +32,9 @@ interface ImportSummary {
 
 type ImportState = 'idle' | 'uploading' | 'success' | 'error';
 
-// CSV configuration constants
-const CSV_CONFIG = {
-  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
-  MAX_ROWS: 10000
-};
-
-const REQUIRED_FIELDS = ['phoneNumber', 'name'];
-const OPTIONAL_FIELDS = [
-  'email',
-  'company',
-  'jobTitle',
-  'state',
-  'website',
-  'linkedinUrl',
-  'companyLinkedinUrl',
-  'revenue',
-  'companySize',
-  'location'
-];
-
 export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   const api = useApi();
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslations('contacts.import');
   const tCommon = useTranslations('common');
 
@@ -73,7 +42,6 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   // Tag selection state
   const [tags, setTags] = useState<Tag[]>([]);
@@ -107,50 +75,6 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
       router.refresh();
     }
   }, [resetState, onOpenChange, router, summary]);
-
-  const validateFile = (file: File): string | null => {
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      return t('onlyCsv');
-    }
-    if (file.size > CSV_CONFIG.MAX_FILE_SIZE) {
-      return t('fileTooLarge', {
-        size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)
-      });
-    }
-    return null;
-  };
-
-  const handleFileSelect = useCallback((selectedFile: File) => {
-    const validationError = validateFile(selectedFile);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    setFile(selectedFile);
-    setError(null);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile) {
-        handleFileSelect(droppedFile);
-      }
-    },
-    [handleFileSelect]
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
 
   const handleTagToggle = (tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -225,20 +149,6 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
     }
   };
 
-  const downloadTemplate = () => {
-    const headers = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].join(',');
-    const example =
-      '+1234567890,John Doe,john@example.com,Acme Inc,Sales Manager,New York,https://acme.com,https://linkedin.com/in/john-doe,https://linkedin.com/company/acme,$10M-$50M,51-200,New York';
-    const csv = `${headers}\n${example}`;
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'contacts_template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const getTagColor = (color?: string | null) => color || '#3B82F6';
 
   return (
@@ -304,55 +214,14 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
           </div>
         ) : (
           <div className='space-y-4'>
-            {/* Drop Zone */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors',
-                isDragging
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/25 hover:border-primary/50',
-                file && 'border-green-500/50 bg-green-500/5'
-              )}
-            >
-              <input
-                ref={fileInputRef}
-                type='file'
-                accept='.csv'
-                className='hidden'
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleFileSelect(f);
-                }}
-              />
-
-              {file ? (
-                <>
-                  <IconFileTypeCsv className='text-primary mb-2 h-10 w-10' />
-                  <span className='font-medium'>{file.name}</span>
-                  <span className='text-muted-foreground text-sm'>
-                    {(file.size / 1024).toFixed(1)} KB
-                  </span>
-                </>
-              ) : (
-                <>
-                  <IconUpload className='text-muted-foreground mb-2 h-10 w-10' />
-                  <span className='font-medium'>{t('dropzoneAlt')}</span>
-                  <span className='text-muted-foreground text-sm'>
-                    {t('maxSize', {
-                      size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)
-                    })}{' '}
-                    •{' '}
-                    {t('maxRows', {
-                      count: CSV_CONFIG.MAX_ROWS.toLocaleString()
-                    })}
-                  </span>
-                </>
-              )}
-            </div>
+            <CsvDropzone
+              file={file}
+              onFileChange={(selected) => {
+                setFile(selected);
+                setError(null);
+              }}
+              onError={setError}
+            />
 
             {/* Tag Selection - using reusable component */}
             {file && (
@@ -373,32 +242,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
               </div>
             )}
 
-            {/* Format Info */}
-            <div className='bg-muted/50 rounded-lg p-3 text-sm'>
-              <div className='mb-2 font-medium'>{t('csvFormat')}</div>
-              <div className='space-y-1 text-xs'>
-                <div>
-                  <span className='text-green-500'>{t('required')}</span>{' '}
-                  {REQUIRED_FIELDS.join(', ')}
-                </div>
-                <div>
-                  <span className='text-muted-foreground'>{t('optional')}</span>{' '}
-                  {OPTIONAL_FIELDS.join(', ')}
-                </div>
-              </div>
-              <Button
-                variant='link'
-                size='sm'
-                className='mt-2 h-auto p-0 text-xs'
-                onClick={(e) => {
-                  e.stopPropagation();
-                  downloadTemplate();
-                }}
-              >
-                <IconDownload className='mr-1 h-3 w-3' />
-                {t('downloadTemplate')}
-              </Button>
-            </div>
+            <CsvFormatHelp />
 
             {/* Actions */}
             <div className='flex gap-2'>

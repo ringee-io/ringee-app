@@ -6,7 +6,7 @@ import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerCall } from '../hooks/use-dialer-call';
-import { shortcutAllowed } from '../lib/shortcuts';
+import { shortcutAllowed } from '@ringee/frontend-shared/lib/shortcuts';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {

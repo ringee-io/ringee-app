@@ -7,6 +7,7 @@
   },
   "items": {
     "dashboard": "Dashboard",
+    "lists": "Liste",
     "contacts": "Contatti",
     "activities": "Attività",
     "meetings": "Riunioni",
@@ -56,11 +57,6 @@
   "kbar": {
     "navigation": "Navigazione",
     "goTo": "Vai a {page}"
-  },
-  "tabs": {
-    "dialer": "Dialer",
-    "contact": "Contatto",
-    "history": "Cronologia"
   },
   "communitySupport": {
     "label": "Supporto community",

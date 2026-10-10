@@ -314,56 +314,5 @@
       "saveContinue": "Save outcome & continue",
       "saveStop": "Save outcome & stop"
     }
-  },
-  "sidePanel": {
-    "workQueue": "Work queue",
-    "dueCount": "{count} due",
-    "pendingCount": "{count} pending",
-    "tabs": {
-      "callbacks": "Callbacks",
-      "today": "Today",
-      "recent": "Recent"
-    },
-    "callbacks": {
-      "emptyTitle": "No pending callbacks",
-      "emptyDescription": "Great job — your queue is clear.",
-      "createdBy": "Created by {name}",
-      "unknownUser": "Unknown",
-      "actions": {
-        "call": "Call now",
-        "viewContact": "View contact",
-        "cancel": "Cancel callback",
-        "more": "More actions"
-      }
-    },
-    "today": {
-      "emptyTitle": "No meetings today",
-      "emptyDescription": "Scheduled meetings for today will appear here.",
-      "joinLink": "Join link",
-      "actions": {
-        "join": "Join meeting",
-        "callContact": "Call contact"
-      }
-    },
-    "recent": {
-      "emptyTitle": "No recent calls",
-      "emptyDescription": "Outbound calls you make will show up here for quick redial.",
-      "actions": {
-        "redial": "Redial",
-        "openDetail": "Open call details"
-      },
-      "inbound": "Inbound call",
-      "outbound": "Outbound call"
-    },
-    "relative": {
-      "now": "now",
-      "inMinutes": "in {count}m",
-      "minutesAgo": "{count}m ago",
-      "inHours": "in {count}h",
-      "hoursAgo": "{count}h ago",
-      "tomorrowAt": "tomorrow {time}"
-    },
-    "callNext": "Call next",
-    "callNextHint": "Call {name}, your most overdue callback"
   }
 }

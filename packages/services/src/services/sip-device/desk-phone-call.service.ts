@@ -21,6 +21,7 @@ import { ContactService } from "../contact.service";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { ComplianceService } from "../outbound/compliance.service";
 import { ConcurrentCallGuardService } from "../security";
+import { InboxTimelineService } from "../inbox/inbox.timeline.service";
 import { SipDeviceService } from "./sip-device.service";
 import { calculateCallCharge } from "../call-cost.util";
 
@@ -66,6 +67,7 @@ export class DeskPhoneCallService {
     private readonly complianceService: ComplianceService,
     private readonly telnyx: TelnyxService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly inboxTimeline: InboxTimelineService,
   ) {}
 
   async handleEvent(event: {
@@ -105,6 +107,18 @@ export class DeskPhoneCallService {
           await this.concurrentCallGuard
             .release(ended.userId, callControlId)
             .catch(() => undefined);
+        }
+        // Like every other call, it goes on the caller's conversation — so a
+        // call to the phone's own number that nobody picked up reaches Today's
+        // queue and its owner's inbox (CALL-015).
+        if (ended) {
+          void this.inboxTimeline
+            .recordEndedCall(ended)
+            .catch((err: Error) =>
+              this.logger.warn(
+                `Inbox recordEndedCall failed for desk-phone call ${ended.id}: ${err.message}`,
+              ),
+            );
         }
         return;
       }

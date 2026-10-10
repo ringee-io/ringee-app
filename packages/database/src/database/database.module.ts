@@ -14,6 +14,7 @@ import { TelnyxRatePerMinuteRepository } from "./repositories/telnyx.rate.per.mi
 import { NumberPurchasedRepository } from "./repositories/number.purchased.repository";
 import { CallerIdRotationRepository } from "./repositories/caller-id-rotation.repository";
 import { ContactRepository } from "./repositories/contact.repository";
+import { ContactListRepository } from "./repositories/contact-list.repository";
 import { CreditRepository } from "./repositories/credit.repository";
 import { CreditAutoReloadRepository } from "./repositories/credit-auto-reload.repository";
 import { CreditTopupRepository } from "./repositories/credit-topup.repository";
@@ -115,6 +116,7 @@ const databaseProviders = [
   NumberPurchasedRepository,
   CallerIdRotationRepository,
   ContactRepository,
+  ContactListRepository,
   CreditRepository,
   CreditAutoReloadRepository,
   CreditTopupRepository,

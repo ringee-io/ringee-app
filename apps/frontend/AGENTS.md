@@ -54,6 +54,10 @@ capability to the UI without the matching server guard.
 - Every list view needs all three states — loading, empty, error. Reuse the
   existing skeletons rather than inventing a spinner.
 - Copy goes through `next-intl` (`useTranslations`), not string literals.
+- `next-intl` runs with `timeZone: 'UTC'` (`i18n/request.ts`), so
+  `useFormatter().dateTime` prints UTC. A time the user reads as theirs — a
+  callback at 10:30 — is formatted with `Intl.DateTimeFormat` in the browser,
+  once the data has loaded on the client.
 
 ## Telephony in the browser
 

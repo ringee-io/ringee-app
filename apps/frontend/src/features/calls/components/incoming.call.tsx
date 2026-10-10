@@ -17,7 +17,7 @@ import {
   releaseInboundOffer,
   useInboundOffer
 } from '../store/inbound-offers.store';
-import { getInitials } from './dialer-side-panel/shared';
+import { getInitials } from '../lib/initials';
 
 /**
  * Rendered by the root `<Toaster />`, which sits outside `ClerkProvider`: a

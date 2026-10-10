@@ -5,6 +5,7 @@ import {
   STALLED_TRANSFER_MS,
 } from "../inbound-routing/inbound-ring.service";
 import { EXTERNAL_PRE_DIAL_TTL_MS } from "../external-carrier/external-carrier.service";
+import { InboxTimelineService } from "../inbox/inbox.timeline.service";
 import {
   CONNECTED_SUSPECT_MS,
   ConcurrentCallGuardService,
@@ -36,6 +37,7 @@ export class StaleCallSweeperService {
     private readonly callRepository: CallRepository,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly inboundRing: InboundRingService,
+    private readonly inboxTimeline: InboxTimelineService,
   ) {}
 
   /** Returns how many ghost calls were closed. */
@@ -74,7 +76,12 @@ export class StaleCallSweeperService {
           );
           return true;
         });
-      if (!live) closed++;
+      if (!live) {
+        closed++;
+        // No hangup came, so nothing else will put the call on its caller's
+        // conversation — and a missed one has to reach somebody (CALL-015).
+        void this.recordEnded(call.id);
+      }
     }
 
     if (closed > 0) {
@@ -83,5 +90,17 @@ export class StaleCallSweeperService {
       );
     }
     return closed + expired;
+  }
+
+  /** Hands a call this sweep closed to the inbox, as its hangup would have. */
+  private async recordEnded(callId: string): Promise<void> {
+    try {
+      const ended = await this.callRepository.findById(callId);
+      if (ended?.endedAt) await this.inboxTimeline.recordEndedCall(ended);
+    } catch (error) {
+      this.logger.warn(
+        `Could not record swept call ${callId} in the inbox: ${(error as Error).message}`,
+      );
+    }
   }
 }

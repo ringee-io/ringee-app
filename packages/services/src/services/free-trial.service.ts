@@ -7,7 +7,10 @@ import {
 import { ResendProvider } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 
-/** Onboarding step id kept in sync with OnboardingService.ALL_STEPS. */
+/**
+ * Stamped on the user when they ask, for the record. No longer one of the
+ * setup guide's steps: the dashboard's request dialog was retired.
+ */
 const REQUEST_STEP = "request_free_call";
 
 /**

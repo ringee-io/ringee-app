@@ -206,6 +206,12 @@ it(
             shortCalls: 0,
           });
           assert.equal((await repo.usageSince(numberId, day)).count, 2);
+          // One person's share of a shared number: theirs, never a teammate's.
+          assert.equal((await repo.usageSince(numberId, day, user)).count, 2);
+          assert.equal(
+            (await repo.usageSince(numberId, day, otherOrg)).count,
+            0,
+          );
           assert.deepEqual(
             (
               await repo.usageForNumbers(

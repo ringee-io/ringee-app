@@ -49,6 +49,9 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Default inbound behavior (no route)   | `legacyInboundDestination` — `inbound-routing/legacy-inbound-fallback.ts`            |
 | Executing a routing decision          | `InboundCallRouterService.routeInboundCall` + one handler per destination            |
 | Ring legs, and who won the call       | `InboundRingService` + `CallRepository.claimInboundAnswer`                           |
+| Whether a call was missed             | `isMissedInboundCall` — `services/inbox/missed-call.ts` (CALL-015)                   |
+| A call ending → inbox, queue, email   | `InboxTimelineService.recordEndedCall` (both webhooks and the stale-call sweep)      |
+| Missed-call email                     | `MissedCallNotificationService` — `services/inbox/`                                  |
 | Route / ring group configuration      | `InboundRouteService`, `RingGroupService`                                            |
 | One call at a time                    | `ConcurrentCallGuardService` — `services/security/`                                  |
 | Stale call cleanup                    | `StaleCallSweeperService` — same folder                                              |
@@ -116,6 +119,16 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)                |
 | Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`                           |
 | Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                        |
+
+## Contacts and lists
+
+| Responsibility                            | Owner                                                                                                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reading a contacts CSV                    | `ContactService.parseContactsCsv` (columns: `platform/src/dtos/csv-import.schema.ts`)                                                           |
+| Writing CSV rows as contacts              | `ContactService.importContacts` (Contacts page), `importParsedContacts` (also returns each row's contact id). Campaign leads still keep a copy. |
+| Contact lists: visibility and permissions | `ContactListService` — `services/contact-lists/` (LIST-001..LIST-004)                                                                           |
+| Contacts in a list, in work order         | `ContactListRepository.listEntries` (`ContactListEntry.sequence`)                                                                               |
+| Working a list from the Call page         | `MyDayService.getListNext` / `skipListEntry`, `pickListNext` — `services/my-day/` (LIST-005)                                                    |
 
 ## Phone numbers
 

@@ -68,6 +68,19 @@ export class DNCEntryRepository {
     });
   }
 
+  /** Which of `phoneNumbers` are on the owner's list. */
+  async findListedPhones(
+    owner: DNCOwnerScope,
+    phoneNumbers: string[],
+  ): Promise<Set<string>> {
+    if (phoneNumbers.length === 0) return new Set();
+    const rows = await this.prisma.dNCEntry.findMany({
+      where: { ...this.ownerWhere(owner), phoneNumber: { in: phoneNumbers } },
+      select: { phoneNumber: true },
+    });
+    return new Set(rows.map((row) => row.phoneNumber));
+  }
+
   async isOnDNC(owner: DNCOwnerScope, phoneNumber: string): Promise<boolean> {
     const count = await this.prisma.dNCEntry.count({
       where: { ...this.ownerWhere(owner), phoneNumber },

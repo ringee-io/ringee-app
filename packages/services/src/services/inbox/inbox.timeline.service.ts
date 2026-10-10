@@ -21,8 +21,11 @@ import {
   InboxEventKind,
   InboxEventStatus,
   InboxThreadStatus,
+  Prisma,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
+import { MissedCallNotificationService } from "./missed-call-notification.service";
+import { isMissedInboundCall, missedCallThreadPatch } from "./missed-call";
 
 const PREVIEW_MAX = 280;
 
@@ -90,6 +93,7 @@ export class InboxTimelineService {
     private readonly contactRepo: ContactRepository,
     private readonly numberRepo: NumberPurchasedRepository,
     private readonly callbackRepo: CallbackTaskRepository,
+    private readonly missedCallNotifications: MissedCallNotificationService,
   ) {}
 
   /**
@@ -207,6 +211,8 @@ export class InboxTimelineService {
     createdByUserId?: string | null;
     /** Affects unreadCount when true and direction === inbound. */
     incrementUnread?: boolean;
+    /** Further changes to the thread, made with its snapshot fields. */
+    threadPatch?: Prisma.InboxThreadUpdateInput;
   }): Promise<InboxEvent> {
     const occurredAt = params.occurredAt ?? new Date();
 
@@ -251,6 +257,7 @@ export class InboxTimelineService {
     // Update the thread's snapshot fields atomically.
     const preview = previewFor(params.kind, params.body);
     await this.threadRepo.update(params.threadId, {
+      ...params.threadPatch,
       lastEventAt: occurredAt,
       lastPreview: preview,
       lastEventKind: params.kind,
@@ -303,8 +310,30 @@ export class InboxTimelineService {
   }
 
   /**
-   * Emits the right event for a finished call: `missed_call` if no human
-   * answered, otherwise `call_completed`. Idempotent per (thread, call, kind).
+   * A call has ended: it goes on its caller's conversation, and a missed one is
+   * emailed to the person whose "My day" queue now lists it (CALL-015). This is
+   * the hangup hook of every webhook that ends calls; a backfill uses
+   * `appendCallEvent` alone, so history it replays is never announced.
+   *
+   * Replay-safe: an event already on the thread is neither added nor
+   * announced again. Returns the event it added.
+   */
+  async recordEndedCall(
+    call: Call & { contact?: Contact | null },
+  ): Promise<InboxEvent | null> {
+    const ctx = InboxTimelineService.buildOwnershipFromCall(call);
+    if (!ctx) return null;
+    const event = await this.appendCallEvent({ ctx, call });
+    if (event?.kind === InboxEventKind.missed_call) {
+      await this.missedCallNotifications.notify(call, event.threadId);
+    }
+    return event;
+  }
+
+  /**
+   * Emits the right event for a finished call: `missed_call` for an inbound
+   * call nobody took (`isMissedInboundCall`), otherwise `call_completed`.
+   * Idempotent per (thread, call, kind).
    */
   async appendCallEvent(params: {
     ctx: OwnershipContext;
@@ -331,10 +360,7 @@ export class InboxTimelineService {
       contactId: call.contactId ?? null,
     });
 
-    const isMissed =
-      !call.answeredAt &&
-      (call.durationSeconds ?? 0) === 0 &&
-      direction === InboxEventDirection.inbound;
+    const isMissed = isMissedInboundCall(call);
 
     const kind = isMissed
       ? InboxEventKind.missed_call
@@ -361,6 +387,7 @@ export class InboxTimelineService {
         durationSeconds: call.durationSeconds,
       },
       incrementUnread: isMissed,
+      ...(isMissed ? { threadPatch: missedCallThreadPatch(thread, call) } : {}),
     });
   }
 
