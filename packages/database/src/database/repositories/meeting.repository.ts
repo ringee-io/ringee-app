@@ -75,6 +75,8 @@ export class MeetingRepository {
    * `scheduledAt`. The ownership predicate still comes from the canonical
    * workspace filter: organization calendars see organization meetings, while
    * personal calendars see only personal rows.
+   * Prisma binds dates as timestamptz, but scheduledAt stores UTC without a
+   * zone; convert parameters explicitly so the session zone cannot shift them.
    */
   async findBusySlots(
     ctx: OwnershipContext,
@@ -91,8 +93,8 @@ export class MeetingRepository {
         "scheduledAt" + ("duration" * INTERVAL '1 minute') AS "end"
       FROM "Meeting"
       WHERE "status" IN ('scheduled', 'rescheduled')
-        AND "scheduledAt" < ${end}
-        AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${start}
+        AND "scheduledAt" < (${end}::timestamptz AT TIME ZONE 'UTC')
+        AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > (${start}::timestamptz AT TIME ZONE 'UTC')
         ${userFilter}
         ${organizationFilter}
         ${calendarFilter}
@@ -183,8 +185,8 @@ export class MeetingRepository {
         SELECT COUNT(*)::int AS "count"
         FROM "Meeting"
         WHERE "status" IN ('scheduled', 'rescheduled')
-          AND "scheduledAt" < ${end}
-          AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${data.scheduledAt}
+          AND "scheduledAt" < (${end}::timestamptz AT TIME ZONE 'UTC')
+          AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > (${data.scheduledAt}::timestamptz AT TIME ZONE 'UTC')
           ${userFilter}
           ${organizationFilter}
           ${calendarFilter}

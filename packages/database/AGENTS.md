@@ -22,6 +22,11 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   requests racing to create the workspace's `Credit` row — is rethrown, so a
   real write is never silently dropped.
 - Concurrent counters use atomic `{ increment }`, never read-modify-write.
+- Unannotated Prisma `DateTime` columns store UTC using the PostgreSQL
+  `timestamp without time zone` type. In raw SQL, normalize bound JavaScript dates with
+  `::timestamptz AT TIME ZONE 'UTC'` before comparing them to those columns;
+  implicit conversion depends on the PostgreSQL session time zone and can
+  miss overlapping meetings.
 - Queue claims use `SELECT FOR UPDATE SKIP LOCKED` (`lockNextLead`).
 
 ## Schema
