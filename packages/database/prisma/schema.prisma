@@ -491,22 +491,48 @@ model FreeTrialCallRequest {
   createdAt DateTime               @default(now())
 }
 
+/// Where a demo request is in its automatic review (LIFE-004).
+enum DemoRequestStatus {
+  /// Stored; the automatic review has not decided yet.
+  received
+  /// The review passed; the account is being created.
+  approved
+  /// The person has a login (`clerkUserId`), made by the review or by the team.
+  account_created
+  /// The review could not verify the profile; the requester is asked for details.
+  needs_info
+  /// Automation stopped short; the team handles it by hand (`statusReason`).
+  manual_review
+}
+
 /// A demo request submitted from the public marketing site (/request-demo).
 /// Not tied to a User — visitors are not signed in when they submit. The
-/// Ringee team and the requester are both emailed on creation; the team vets
-/// the profile and creates the account directly (no meeting).
+/// Ringee team and the requester are both emailed on creation, then the
+/// request is reviewed automatically: a verifiable profile gets its account,
+/// any other is asked for what is missing (LIFE-004).
 model DemoRequest {
-  id             String   @id @default(uuid()) @db.Uuid
-  firstName      String
-  lastName       String
-  email          String
-  phoneNumber    String
-  companyWebsite String
-  numberOfUsers  String
-  referralSource String
+  id               String            @id @default(uuid()) @db.Uuid
+  firstName        String
+  lastName         String
+  email            String
+  phoneNumber      String
+  companyWebsite   String
+  numberOfUsers    String
+  referralSource   String
   /// ISO 3166-1 alpha-2 country detected from the visitor's browser locale.
-  country        String?
-  createdAt      DateTime @default(now())
+  country          String?
+  status           DemoRequestStatus @default(received)
+  /// The automatic review: its decision, the problems found and the facts checked.
+  review           Json?
+  reviewedAt       DateTime?
+  /// Why the request is waiting on the team (`manual_review`).
+  statusReason     String?
+  /// The Clerk user created for this person.
+  clerkUserId      String?
+  accountCreatedAt DateTime?
+  /// When the outcome email (credentials, or the request for details) was accepted.
+  notifiedAt       DateTime?
+  createdAt        DateTime          @default(now())
 
   @@index([email])
   @@index([createdAt])

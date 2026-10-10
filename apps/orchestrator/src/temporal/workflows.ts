@@ -12,6 +12,7 @@ import { proxyActivities } from "@temporalio/workflow";
 import type { Activities } from "./activities";
 import type {
   ProcessCallRecordingInput,
+  ReviewDemoRequestInput,
   TranscribeRecordingInput,
 } from "@ringee/platform";
 
@@ -74,6 +75,32 @@ export async function transcribeRecordingWorkflow(
   input: TranscribeRecordingInput,
 ): Promise<void> {
   await transcriptionJobs.transcribeRecording(input);
+}
+
+/**
+ * Demo-request review (LIFE-004). Its steps are short calls to the AI
+ * provider, the requester's website, Clerk and the email provider, so it takes
+ * the recording pipeline's retry policy for transient failures. Each step is
+ * guarded by the request's own state, so a retry resumes instead of repeating.
+ * When retries run out, the request is handed to the team.
+ */
+export async function reviewDemoRequestWorkflow(
+  input: ReviewDemoRequestInput,
+): Promise<void> {
+  try {
+    await recordingJobs.reviewDemoRequest(input);
+  } catch (error) {
+    await recordingJobs.escalateDemoRequest({
+      demoRequestId: input.demoRequestId,
+      reason: activityFailureReason(error),
+    });
+  }
+}
+
+/** The activity's own error, rather than Temporal's "Activity task failed". */
+function activityFailureReason(error: unknown): string {
+  const failure = error as { message?: string; cause?: { message?: string } };
+  return failure.cause?.message || failure.message || "Unknown error";
 }
 
 // ── Scheduled workflows (fired by Temporal Schedules) ──

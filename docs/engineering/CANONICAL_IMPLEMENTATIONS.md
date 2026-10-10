@@ -16,6 +16,8 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Org-admin gate                        | `@OrgAdminOnly()` / `OrgAdminGuard` — `platform/src/auth/org-admin.guard.ts` |
 | Staff gate                            | `@SuperAdminOnly()` — `apps/backend/src/api/guards/super-admin.guard.ts`     |
 | Client-side role state                | `useOrgRole()` — `packages/frontend-shared/src/hooks/use-org-role.ts`        |
+| Creating a login (+ emailed password) | `AccountProvisioningService` — `services/accounts/` (LIFE-005)               |
+| Vetting a demo request                | `DemoRequestReviewService` — `services/demo-requests/` (LIFE-004)            |
 
 ## Money
 
@@ -117,7 +119,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | The workspace's global calendar       | `CalendarService.ensureGlobalCalendar`                                               |
 | Recurring booking hours and capacity  | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository`      |
 | Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)                |
-| Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`                           |
+| Fetching a user-supplied web page     | `requirePublicUrl` (+ `htmlToText`) — `services/voice-agents/public-url.ts`          |
 | Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                        |
 
 ## Contacts and lists
@@ -214,5 +216,6 @@ Adding a provider means registering it, not branching on a string:
 - Enrichment — `platform/src/enrichment/registry.ts` + `providers/*`
 - AI — `platform/src/ai-agents/ai-provider.registry.ts` + `providers/*`
 - Storage — `platform/src/upload/upload.factory.ts`
-- Email — `platform/src/email/email.interface.ts` + providers
+- Email — `platform/src/email/email.interface.ts` + providers; whether a send
+  was accepted is `wasEmailAccepted` (`email/email-result.ts`)
 - Telephony — `TelephonyService.getServiceProvider()`

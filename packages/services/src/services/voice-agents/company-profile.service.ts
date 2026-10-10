@@ -13,7 +13,7 @@ import {
   type OwnershipContext,
 } from "@ringee/platform";
 import { CreditService, incurredCostDebitRef } from "../credit.service";
-import { fetchPublicPage, requirePublicUrl } from "./public-url";
+import { fetchPublicPage, htmlToText, requirePublicUrl } from "./public-url";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
 import type { VoiceAgentCompanyContext } from "./voice-agent.types";
 
@@ -210,7 +210,7 @@ export class CompanyProfileService {
       });
       if (!response?.ok) return null;
       const html = await response.text();
-      return this.stripHtml(html).slice(0, MAX_PAGE_CHARACTERS) || null;
+      return htmlToText(html).slice(0, MAX_PAGE_CHARACTERS) || null;
     } catch (error) {
       this.logger.warn(
         `Could not fetch ${url.href}: ${
@@ -219,16 +219,6 @@ export class CompanyProfileService {
       );
       return null;
     }
-  }
-
-  private stripHtml(html: string): string {
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
   }
 
   /**

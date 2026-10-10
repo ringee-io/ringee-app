@@ -57,7 +57,8 @@ import { TagService } from "./tag.service";
 import { CallScriptService } from "./call-script.service";
 import { OnboardingService } from "./onboarding.service";
 import { FreeTrialService } from "./free-trial.service";
-import { DemoRequestService } from "./demo-request.service";
+import { DemoRequestReviewService, DemoRequestService } from "./demo-requests";
+import { AccountProvisioningService } from "./accounts";
 import {
   OfferService,
   OfferAdminService,
@@ -243,6 +244,8 @@ const servicesProviders = [
   OnboardingService,
   FreeTrialService,
   DemoRequestService,
+  DemoRequestReviewService,
+  AccountProvisioningService,
   OfferService,
   OfferAdminService,
   OfferContextBuilder,

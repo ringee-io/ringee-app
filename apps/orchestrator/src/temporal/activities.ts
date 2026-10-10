@@ -6,6 +6,7 @@ import {
   CrmBulkSyncService,
   CrmSyncService,
   CustomIntegrationDeliveryService,
+  DemoRequestReviewService,
   EnrichmentDrainService,
   McpUsageService,
   NumberPurchasedService,
@@ -21,7 +22,9 @@ import {
 } from "@ringee/services";
 import { CampaignLeadRepository, CampaignRepository } from "@ringee/database";
 import type {
+  EscalateDemoRequestInput,
   ProcessCallRecordingInput,
+  ReviewDemoRequestInput,
   TranscribeRecordingInput,
 } from "@ringee/platform";
 
@@ -58,6 +61,7 @@ export function createActivities(app: INestApplicationContext) {
   const voiceAgentBilling = app.get(VoiceAgentBillingService);
   const voiceAgentTestSessions = app.get(VoiceAgentTestSessionService);
   const mcpUsage = app.get(McpUsageService);
+  const demoRequestReview = app.get(DemoRequestReviewService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -68,6 +72,14 @@ export function createActivities(app: INestApplicationContext) {
 
     async transcribeRecording(input: TranscribeRecordingInput) {
       await transcriptionService.runRecordingTranscription(input.callId);
+    },
+
+    async reviewDemoRequest(input: ReviewDemoRequestInput) {
+      await demoRequestReview.review(input.demoRequestId);
+    },
+
+    async escalateDemoRequest(input: EscalateDemoRequestInput) {
+      await demoRequestReview.escalate(input.demoRequestId, input.reason);
     },
 
     // ── Periodic jobs (fired by Temporal Schedules — see schedules.ts) ──

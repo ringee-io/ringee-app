@@ -6,10 +6,11 @@ import { isIP } from "node:net";
  * Parsing and fetching a user-supplied web address that Ringee retrieves on
  * their behalf.
  *
- * Two places do this — drafting company context from a website, and crawling a
- * page into a knowledge base — and both take the address from the browser and
- * make a server-side request with it. Without this the API is a request
- * forwarder aimed at Ringee's own network.
+ * Three places do this — drafting company context from a website, crawling a
+ * page into a knowledge base, and reviewing a demo request's company website —
+ * and all take the address from someone outside and make a server-side request
+ * with it. Without this the API is a request forwarder aimed at Ringee's own
+ * network.
  *
  * A hostname check alone is not enough, so this module enforces three things:
  * only http(s); the host must not *resolve* to a reserved address (a public
@@ -86,6 +87,17 @@ export async function fetchPublicPage(
   }
 
   return null;
+}
+
+/** A fetched page as plain text, for a model to read: no scripts, styles or tags. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isRedirect(status: number): boolean {

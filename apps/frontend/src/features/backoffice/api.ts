@@ -103,6 +103,18 @@ export interface AgentUsageStats {
   }[];
 }
 
+/** POST /backoffice/accounts — a login made from a name and an email. */
+export interface CreatedAccount {
+  /** The Ringee user; null until the Clerk webhook writes it. */
+  userId: string | null;
+  clerkUserId: string;
+  email: string;
+  /** Whether the credentials email (cc edison@getringee.com) went out. */
+  emailSent: boolean;
+  /** Only when the email failed, so it can be handed over by hand. */
+  temporaryPassword: string | null;
+}
+
 export interface AccountListItem {
   id: string;
   type: AccountType;
@@ -526,6 +538,13 @@ export function useBackofficeApi() {
 
       getAccount: (type: AccountType, id: string) =>
         api.get<AccountDetail>(`${BASE}/accounts/${type}/${id}`),
+
+      /** Generates the password server-side and emails the credentials. */
+      createAccount: (body: {
+        firstName: string;
+        lastName: string;
+        email: string;
+      }) => api.post<CreatedAccount>(`${BASE}/accounts`, body),
 
       setCredit: (
         type: AccountType,

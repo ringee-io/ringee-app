@@ -45,6 +45,13 @@ legitimately, in six groups:
 Before adding `@Public()`, answer in one sentence what proves the caller is
 allowed. If you cannot, do not add it.
 
+The demo-request form is the one public route that can end in an account
+(`LIFE-004`). What authorizes that account is not the form, and not the AI
+review — it reads text the requester controls and may only refuse — but the
+automatic checks: the credentials are emailed to a mailbox at the company's
+own live website, so only someone who controls that company's email can use
+them.
+
 ## Signature verification
 
 - **Telnyx** — Ed25519 over `<timestamp>|<rawBody>`, with
