@@ -49,6 +49,9 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Default inbound behavior (no route)   | `legacyInboundDestination` — `inbound-routing/legacy-inbound-fallback.ts`            |
 | Executing a routing decision          | `InboundCallRouterService.routeInboundCall` + one handler per destination            |
 | Ring legs, and who won the call       | `InboundRingService` + `CallRepository.claimInboundAnswer`                           |
+| Whether a call was missed             | `isMissedInboundCall` — `services/inbox/missed-call.ts` (CALL-015)                   |
+| A call ending → inbox, queue, email   | `InboxTimelineService.recordEndedCall` (both webhooks and the stale-call sweep)      |
+| Missed-call email                     | `MissedCallNotificationService` — `services/inbox/`                                  |
 | Route / ring group configuration      | `InboundRouteService`, `RingGroupService`                                            |
 | One call at a time                    | `ConcurrentCallGuardService` — `services/security/`                                  |
 | Stale call cleanup                    | `StaleCallSweeperService` — same folder                                              |

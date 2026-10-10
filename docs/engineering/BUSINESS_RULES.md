@@ -555,6 +555,36 @@ manage them (a personal workspace's owner, an organization admin).
   enforces who may top up (the Stripe checkout routes are `@OrgAdminOnly()`),
   but `GET /credits/balance` still answers any member.
 
+### CALL-015 — A missed inbound call always reaches someone: in "My day", and by email
+
+An inbound call is missed when nobody took it: no `answeredAt` and no member's
+claim (`answeredByUserId`). How long it rang is no signal — `durationSeconds`
+runs from the first ring. Every path that ends a call — the main webhook, the
+desk phones' webhook, and the stale-call sweep when a hangup never arrived —
+puts it on its caller's conversation; a missed one reopens a resolved or
+archived conversation and, in an organization, moves an unassigned one onto
+the line of the person the call rang for (`Call.userId`, `NUM-010`). That is
+what lists it in "My day" (`CALL-013`, `CALL-014`).
+
+It is emailed once per call, and someone always gets it: the person whose queue
+lists it (the conversation's assignee when it has one, otherwise the line's
+owner); in an organization, when that person cannot be emailed — they left the
+workspace, or have no address — every member of the team; in a personal
+workspace, its owner. The email carries who called, the line and workspace,
+the contact's details and latest notes, and a link back to the caller. A caller
+who hid their number is announced too, without the link. The missed-call
+notification preference does not stop it (it is the mobile app's push switch,
+as for reminders). A refused send is retried twice and then logged; a backfill
+of past calls files missed calls but announces none.
+
+- **Source of truth:** `isMissedInboundCall` / `missedCallThreadPatch`
+  (`services/inbox/missed-call.ts`), `InboxTimelineService.recordEndedCall`,
+  `MissedCallNotificationService`, `StaleCallSweeperService`
+- **Risk if violated:** a call that rang unanswered is filed as completed and
+  never reaches anyone's queue (every one that rang for a second or more was,
+  until 2026-10); a missed call nobody is told about; a webhook redelivery
+  emails twice; a former member receives a workspace's contact notes.
+
 ---
 
 ## Numbers & caller ID (`NUM`)

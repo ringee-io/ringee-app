@@ -2175,26 +2175,25 @@ export class CallService implements OnModuleDestroy {
             );
           // Custom Integrations outbound — choose the most specific event.
           void this.customIntegrationOutbound.enqueueCallTerminal(hangupCall);
-          // Inbox timeline hook (best-effort, never block hangup processing)
-          const ctx = InboxTimelineService.buildOwnershipFromCall(hangupCall);
-          if (ctx) {
-            void this.inboxTimelineService
-              .appendCallEvent({ ctx, call: hangupCall })
-              .then((event) => {
-                if (event) {
-                  this.logger.log(
-                    `Inbox event ${event.id} (${event.kind}) appended for call ${hangupCall.id}`,
-                  );
-                }
-              })
-              .catch((err) =>
-                this.logger.error(
-                  `Inbox appendCallEvent failed for call=${hangupCall.id} ` +
-                    `userId=${hangupCall.userId} orgId=${hangupCall.organizationId}: ${err.message}`,
-                  err.stack,
-                ),
-              );
-          }
+          // Inbox timeline hook (best-effort, never block hangup processing).
+          // A missed call reaches Today's queue and its email from here
+          // (CALL-015).
+          void this.inboxTimelineService
+            .recordEndedCall(hangupCall)
+            .then((event) => {
+              if (event) {
+                this.logger.log(
+                  `Inbox event ${event.id} (${event.kind}) appended for call ${hangupCall.id}`,
+                );
+              }
+            })
+            .catch((err) =>
+              this.logger.error(
+                `Inbox recordEndedCall failed for call=${hangupCall.id} ` +
+                  `userId=${hangupCall.userId} orgId=${hangupCall.organizationId}: ${err.message}`,
+                err.stack,
+              ),
+            );
         }
         break;
       }
