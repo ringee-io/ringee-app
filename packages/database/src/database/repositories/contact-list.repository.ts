@@ -208,8 +208,10 @@ export class ContactListRepository {
   }
 
   /** Removes the list and its entries. The contacts themselves stay. */
-  async delete(id: string): Promise<void> {
-    await this.prisma.contactList.deleteMany({ where: { id } });
+  async delete(id: string, onlyIfEmpty = false): Promise<void> {
+    await this.prisma.contactList.deleteMany({
+      where: { id, ...(onlyIfEmpty ? { entries: { none: {} } } : {}) },
+    });
   }
 
   /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
@@ -71,9 +71,14 @@ function fileSkips(summary: ContactListImportSummary | null): SkippedPerson[] {
 export function useFirstListBuilder() {
   const api = useApi();
   const t = useTranslations('onboarding.firstList');
+  const [completionPending, setCompletionPending] = useState(false);
   const made = useRef<{ id: string; name: string; filled: boolean } | null>(
     null
   );
+  const prepared = useRef<Omit<
+    Extract<FirstListResult, { ok: true }>,
+    'rewardGranted'
+  > | null>(null);
 
   const build = useCallback(
     async (
@@ -81,6 +86,15 @@ export function useFirstListBuilder() {
       people: FirstListPeople,
       onProgress?: (done: number, total: number) => void
     ): Promise<FirstListResult> => {
+      const complete = async () => {
+        const result = prepared.current!;
+        const done = await api.post<FirstListCompletion>(
+          `/onboarding/first-list/${result.list.id}`
+        );
+        return { ...result, rewardGranted: done.rewardGranted };
+      };
+      // Completion retries never import a CSV or add the typed contacts again.
+      if (prepared.current) return complete();
       let list = made.current;
       let count: number | null = null;
       let skipped: SkippedPerson[] = [];
@@ -158,22 +172,14 @@ export function useFirstListBuilder() {
       if (count === 0) return { ok: false, skipped };
 
       list.filled = true;
-      let rewardGranted = 0;
-      try {
-        const done = await api.post<FirstListCompletion>(
-          `/onboarding/first-list/${list.id}`
-        );
-        rewardGranted = done.rewardGranted;
-      } catch {
-        // The list stands either way; only the gift is missed.
-      }
-      return {
+      prepared.current = {
         ok: true,
         list: { id: list.id, name: list.name },
         count,
-        skipped,
-        rewardGranted
+        skipped
       };
+      setCompletionPending(true);
+      return complete();
     },
     [api, t]
   );
@@ -182,10 +188,16 @@ export function useFirstListBuilder() {
   const discard = useCallback(async () => {
     const list = made.current;
     made.current = null;
+    prepared.current = null;
+    setCompletionPending(false);
     if (list && !list.filled) {
-      await api.delete(`/contact-lists/${list.id}`).catch(() => undefined);
+      // The server checks emptiness in the delete itself. A failed count read
+      // or a lost response from adding contacts cannot turn into data loss.
+      await api
+        .delete(`/contact-lists/${list.id}/empty`)
+        .catch(() => undefined);
     }
   }, [api]);
 
-  return { build, discard };
+  return { build, discard, completionPending };
 }

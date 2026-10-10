@@ -6,6 +6,7 @@ import {
 import {
   AiVoiceAgentCallRepository,
   CallbackTaskRepository,
+  CallablePendingAction,
   CallRepository,
   ContactListEntryToCall,
   ContactListRepository,
@@ -44,11 +45,10 @@ const MAX_DAY_MS = 36 * 60 * 60 * 1000;
 const LIST_LIMIT = 100;
 
 /**
- * Entries a "Call next" lookup reads at a time, and how many pages it reads
- * at most before saying the list has no one to call now.
+ * Entries a "Call next" lookup reads at a time. Keep paging until a callable
+ * entry is found or the list is exhausted, including blocked prefixes.
  */
 const LIST_PAGE_SIZE = 50;
-const LIST_MAX_PAGES = 10;
 
 /**
  * The follow-ups that are done by calling the contact. Sending a message or
@@ -125,12 +125,7 @@ export class MyDayService {
         since: new Date(now.getTime() - MISSED_CALL_WINDOW_MS),
         limit: MISSED_CALL_LIMIT,
       }),
-      this.pendingActions.listOpenForCalling(owner, {
-        types: CALL_FOLLOW_UP_TYPES,
-        dueBy: dayEnd,
-        now,
-        limit: SOURCE_LIMIT,
-      }),
+      this.loadFollowUps(ctx, dayEnd, now),
     ]);
 
     // A voice agent places the callbacks it scheduled itself; a person
@@ -188,6 +183,47 @@ export class MyDayService {
     return {
       data: lists.map((list) => toMyDayList(list, remaining.get(list.id) ?? 0)),
     };
+  }
+
+  /** Calling a follow-up does not complete its action: page past those calls. */
+  private async loadFollowUps(
+    ctx: OwnershipContext,
+    dueBy: Date,
+    now: Date,
+  ): Promise<CallablePendingAction[]> {
+    const eligible: CallablePendingAction[] = [];
+    let after: string | undefined;
+    while (eligible.length < SOURCE_LIMIT) {
+      const page = await this.pendingActions.listOpenForCalling(
+        { userId: ctx.userId, organizationId: ctx.organizationId ?? null },
+        { types: CALL_FOLLOW_UP_TYPES, dueBy, now, limit: SOURCE_LIMIT, after },
+      );
+      if (page.length === 0) break;
+      const sources = { callbacks: [], missedCalls: [], followUps: page };
+      const outbound = await this.calls.latestOutboundTo(
+        ctx,
+        myDayQueuePhones(sources),
+        new Date(Math.min(...page.map((action) => action.createdAt.getTime()))),
+      );
+      const ids = new Set(
+        buildMyDayQueue({
+          ...sources,
+          userId: ctx.userId,
+          now,
+          outbound,
+          doNotCall: new Set(),
+          lists: new Map(),
+        }).flatMap((item) =>
+          item.reasons.flatMap((reason) =>
+            reason.kind === "follow_up" ? [reason.actionId] : [],
+          ),
+        ),
+      );
+      eligible.push(...page.filter((action) => ids.has(action.id)));
+      if (page.length < SOURCE_LIMIT) break;
+      after = page[page.length - 1]!.id;
+    }
+    return eligible.slice(0, SOURCE_LIMIT);
   }
 
   /**
@@ -273,7 +309,7 @@ export class MyDayService {
   ): Promise<MyDayListEntry | null> {
     for (const skipped of [false, true]) {
       let after: ContactListEntryToCall | undefined;
-      for (let page = 0; page < LIST_MAX_PAGES; page++) {
+      while (true) {
         const entries = await this.lists.listToCall(listId, {
           skipped,
           after,

@@ -126,6 +126,9 @@
       "why": "See why",
       "cta": "Start calling",
       "keyHint": "Press <key>N</key> any time to call whoever's next."
-    }
+    },
+    "completionPending": "Your first list is saved. Finish setup to apply any eligible calling credit.",
+    "completionFailed": "Your list is saved, but setup could not be completed. Please try again.",
+    "finishSetup": "Finish setup"
   }
 }

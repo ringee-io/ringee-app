@@ -32,6 +32,8 @@ export interface FirstListOnboardingDto {
    * organization's balance.
    */
   reward: number;
+  /** An owned first list whose completion can be retried after a reload. */
+  pendingListId?: string;
 }
 
 export interface FirstListCompletionDto {
@@ -139,11 +141,28 @@ export class OnboardingService {
     if (await this.hasCompletedFirstList(actor)) {
       return { completed: true, reward: 0 };
     }
-    // A workspace that already has a list would only be making another one.
-    const owed =
-      (await this.contactLists.firstListInWorkspace(actor)) === null &&
-      (await this.rewardOwed(actor));
-    return { completed: false, reward: owed ? FIRST_LIST_REWARD_USD : 0 };
+    const firstId = await this.contactLists.firstListInWorkspace(actor);
+    if (firstId) {
+      // Keep the original list available for an explicit completion retry.
+      // Never expose a teammate's list or make another list gift-eligible.
+      try {
+        const list = await this.contactLists.get(actor, firstId);
+        if (
+          list.createdBy.id === actor.userId &&
+          list.assignedTo?.id === actor.userId &&
+          list.contactCount > 0
+        ) {
+          return { completed: false, reward: 0, pendingListId: list.id };
+        }
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) throw error;
+      }
+      return { completed: false, reward: 0 };
+    }
+    return {
+      completed: false,
+      reward: (await this.rewardOwed(actor)) ? FIRST_LIST_REWARD_USD : 0,
+    };
   }
 
   /**

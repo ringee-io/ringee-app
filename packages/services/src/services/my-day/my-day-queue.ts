@@ -44,7 +44,7 @@ export interface MyDayListRef {
 }
 
 export interface MyDayQueueItem {
-  /** Stable across refreshes: the contact, or the number when there is none. */
+  /** Stable across refreshes, including separate numbers of one contact. */
   key: string;
   group: MyDayGroup;
   /** When a "later" item comes due; null in the other groups. */
@@ -170,7 +170,7 @@ function itemSortKey(item: MyDayQueueItem): [number, number] {
  * Today's calls for one person, in the order to make them: everything due
  * now (callbacks owed, missed calls not returned yet, follow-ups due), then
  * what comes due later today, then follow-ups with no time. A person with
- * several reasons is one item carrying all of them.
+ * several reasons at the same number is one item carrying all of them.
  *
  * A missed call counts as returned once anyone in the workspace has called
  * the number since; a follow-up leaves the queue once its owner has called the
@@ -193,13 +193,12 @@ export function buildMyDayQueue(sources: MyDayQueueSources): MyDayQueueItem[] {
   }
 
   const drafts: Draft[] = [];
-  const byContact = new Map<string, Draft>();
   const byPhone = new Map<string, Draft>();
 
   const add = (contact: DraftContact, reason: MyDayReason) => {
-    let draft =
-      (contact.id ? byContact.get(contact.id) : undefined) ??
-      byPhone.get(contact.phoneNumber);
+    // One contact can owe calls at different numbers. Completing a call at
+    // one must not consume the reasons belonging to the other.
+    let draft = byPhone.get(contact.phoneNumber);
     if (!draft) {
       draft = { contact, reasons: [] };
       drafts.push(draft);
@@ -208,7 +207,6 @@ export function buildMyDayQueue(sources: MyDayQueueSources): MyDayQueueItem[] {
       draft.contact = { ...contact, phoneNumber: draft.contact.phoneNumber };
     }
     draft.reasons.push(reason);
-    if (contact.id) byContact.set(contact.id, draft);
     byPhone.set(contact.phoneNumber, draft);
   };
 
@@ -291,7 +289,7 @@ export function buildMyDayQueue(sources: MyDayQueueSources): MyDayQueueItem[] {
     const group = reasonGroup(reasons[0]!, now);
     return {
       key: draft.contact.id
-        ? `contact:${draft.contact.id}`
+        ? `contact:${draft.contact.id}:${draft.contact.phoneNumber}`
         : `phone:${draft.contact.phoneNumber}`,
       group,
       dueAt: group === "later" ? new Date(reasonTime(reasons[0]!)!) : null,

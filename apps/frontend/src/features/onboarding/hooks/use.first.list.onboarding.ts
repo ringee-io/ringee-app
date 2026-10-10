@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import type { FirstListOnboarding } from '../types/onboarding.types';
+import type {
+  FirstListCompletion,
+  FirstListOnboarding
+} from '../types/onboarding.types';
 
 /**
  * Whether the user has made their first list from the Call page, and the
@@ -12,6 +15,7 @@ import type { FirstListOnboarding } from '../types/onboarding.types';
 export function useFirstListOnboarding() {
   const api = useApi();
   const [state, setState] = useState<FirstListOnboarding | null>(null);
+  const [completing, setCompleting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -25,14 +29,31 @@ export function useFirstListOnboarding() {
     void refresh();
   }, [refresh]);
 
-  /** Once a list is made, the gift is spent whether or not it was owed. */
+  /** Only called after the server confirms completion. */
   const markCompleted = useCallback(() => {
     setState({ completed: true, reward: 0 });
   }, []);
 
+  const completePending = useCallback(async () => {
+    if (!state?.pendingListId || completing) return;
+    setCompleting(true);
+    try {
+      await api.post<FirstListCompletion>(
+        `/onboarding/first-list/${state.pendingListId}`
+      );
+      markCompleted();
+    } finally {
+      setCompleting(false);
+    }
+  }, [api, state?.pendingListId, completing, markCompleted]);
+
   return {
     completed: state?.completed ?? false,
     reward: state?.reward ?? 0,
-    markCompleted
+    markCompleted,
+    pendingListId: state?.pendingListId ?? null,
+    completing,
+    completePending,
+    refresh
   };
 }

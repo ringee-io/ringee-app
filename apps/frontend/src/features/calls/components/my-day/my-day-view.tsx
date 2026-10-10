@@ -6,6 +6,7 @@ import { useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { CountryCode } from '@ringee/dialer-core/phone';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useRotationEnabled } from '@/features/number-rotation';
 import { FirstListDialog } from '@/features/onboarding/components/first-list/first-list-dialog';
@@ -80,6 +81,7 @@ function listEntryItem(list: MyDayList, entry: MyDayListEntry): MyDayQueueItem {
  */
 export function MyDayView() {
   const t = useTranslations('calls.myDay');
+  const onboarding = useTranslations('onboarding.firstList');
   const api = useApi();
   const fmt = useMyDayFormat();
   const now = useNow({ updateInterval: 30_000 });
@@ -177,11 +179,12 @@ export function MyDayView() {
   const selectList = callList.select;
   const markFirstListDone = firstList.markCompleted;
   const listReady = useCallback(
-    (list: { id: string }, rewardGranted: number) => {
+    (list: { id: string }) => {
       markFirstListDone();
       selectList(list.id);
       void refreshLists();
-      if (rewardGranted > 0) void fetchBalance(api, false, true);
+      // A retried completion can report zero after the first response was lost.
+      void fetchBalance(api, false, true);
     },
     [api, fetchBalance, markFirstListDone, refreshLists, selectList]
   );
@@ -258,6 +261,29 @@ export function MyDayView() {
           />
         </div>
 
+        {firstList.pendingListId && (
+          <div
+            role='status'
+            className='flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4'
+          >
+            <p className='text-sm'>{onboarding('completionPending')}</p>
+            <Button
+              variant='outline'
+              disabled={firstList.completing}
+              onClick={async () => {
+                try {
+                  await firstList.completePending();
+                  await fetchBalance(api, false, true);
+                } catch {
+                  toast.error(onboarding('completionFailed'));
+                }
+              }}
+            >
+              {onboarding('finishSetup')}
+            </Button>
+          </div>
+        )}
+
         <NextCallPanel
           next={next}
           upcoming={upcoming}
@@ -324,7 +350,13 @@ export function MyDayView() {
 
       <FirstListDialog
         open={listSetupOpen}
-        onOpenChange={setListSetupOpen}
+        onOpenChange={(open) => {
+          setListSetupOpen(open);
+          if (!open) {
+            void firstList.refresh();
+            void refreshLists();
+          }
+        }}
         reward={firstList.reward}
         firstTime={!firstList.completed && !hasLists}
         defaultCountry={region}

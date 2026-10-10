@@ -400,7 +400,9 @@ Finishing adds `FIRST_LIST_REWARD_USD` ($1) only when all of these hold:
 It is a `grantCreditsOnce` keyed `onboarding:first-list:<org:id|user:id>`, so a
 workspace is paid once whoever finishes it and however often it is retried;
 the step is stamped on the user per workspace (`first_list`,
-`first_list:<orgId>`) after the grant.
+`first_list:<orgId>`) after the grant. A failed completion stays retryable on
+that original list, including after a reload; the UI only marks it complete
+after the server confirms it. Draft cleanup deletes only a still-empty list.
 
 - **Source of truth:** `OnboardingService.completeFirstList` (+ spec)
 - **Risk if violated:** free credit farmed by repeating the onboarding or by
@@ -527,7 +529,10 @@ An item leaves the queue once it is handled: a missed call when anyone in the
 workspace has called the number since, a follow-up when its owner has called
 the contact after it was raised, a callback only when it is completed or
 cancelled (calling it from the queue completes it, as the callbacks list
-always did). Once nothing in the queue can be called now, "Call next" goes
+always did). An authorization row without a carrier leg is not a placed call.
+A note or message added to an inbox thread does not return its missed call.
+Reasons at different numbers of one contact remain separate queue items.
+Once nothing in the queue can be called now, "Call next" goes
 through the list the person picked (`LIST-005`), which sets aside anyone
 called since they joined it and anyone with a callback open.
 

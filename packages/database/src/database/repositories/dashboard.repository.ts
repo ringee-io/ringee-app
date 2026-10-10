@@ -643,7 +643,6 @@ export class DashboardRepository {
           },
         },
         orderBy: { scheduledAt: "asc" },
-        take: 10,
         select: {
           id: true,
           title: true,

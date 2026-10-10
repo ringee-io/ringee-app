@@ -292,6 +292,7 @@ export class PendingActionRepository {
       dueBy: Date;
       now: Date;
       limit: number;
+      after?: string;
     },
   ): Promise<CallablePendingAction[]> {
     const actions = await this.prisma.pendingAction.findMany({
@@ -321,7 +322,8 @@ export class PendingActionRepository {
         createdAt: true,
         contactId: true,
       },
-      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      ...(options.after ? { cursor: { id: options.after }, skip: 1 } : {}),
       take: options.limit,
     });
 

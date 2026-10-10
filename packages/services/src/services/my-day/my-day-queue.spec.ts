@@ -109,11 +109,11 @@ describe("buildMyDayQueue", () => {
     assert.deepEqual(
       queue.map((item) => [item.key, item.group]),
       [
-        ["contact:c-1", "now"],
+        ["contact:c-1:+14155550101", "now"],
         ["phone:+14155550102", "now"],
-        ["contact:c-3", "now"],
-        ["contact:c-4", "later"],
-        ["contact:c-5", "anytime"],
+        ["contact:c-3:+14155550103", "now"],
+        ["contact:c-4:+14155550104", "later"],
+        ["contact:c-5:+14155550105", "anytime"],
       ],
     );
     assert.deepEqual(queue[3]!.dueAt, at("18:30"));
@@ -137,6 +137,24 @@ describe("buildMyDayQueue", () => {
     );
   });
 
+  it("keeps a secondary missed number separate from the primary callback", () => {
+    const ana = contact("c-1", "+14155550101");
+    const queue = build({
+      callbacks: [callback("cb-later", at("18:30"), ana)],
+      missedCalls: [missedCall("secondary", at("14:00"), "+14155550102", ana)],
+    });
+    assert.equal(queue.length, 2);
+    assert.equal(queue[0]!.contact.phoneNumber, "+14155550102");
+    assert.equal(queue[0]!.group, "now");
+    assert.deepEqual(
+      queue[0]!.reasons.map((reason) => reason.kind),
+      ["missed_call"],
+    );
+    assert.equal(queue[1]!.contact.phoneNumber, "+14155550101");
+    assert.equal(queue[1]!.group, "later");
+    assert.notEqual(queue[0]!.key, queue[1]!.key);
+  });
+
   it("names an unknown caller once they turn out to be a contact", () => {
     const queue = build({
       missedCalls: [
@@ -151,7 +169,7 @@ describe("buildMyDayQueue", () => {
     });
 
     assert.equal(queue.length, 1);
-    assert.equal(queue[0]!.key, "contact:c-1");
+    assert.equal(queue[0]!.key, "contact:c-1:+14155550101");
     assert.equal(queue[0]!.reasons.length, 2);
   });
 
@@ -188,7 +206,7 @@ describe("buildMyDayQueue", () => {
 
     assert.deepEqual(
       queue.map((item) => item.key),
-      ["contact:c-2"],
+      ["contact:c-2:+14155550102"],
     );
   });
 
@@ -229,7 +247,7 @@ describe("buildMyDayQueue", () => {
 
     assert.deepEqual(
       queue.map((item) => item.key),
-      ["contact:c-2", "contact:c-1"],
+      ["contact:c-2:+14155550102", "contact:c-1:+14155550101"],
     );
   });
 
@@ -275,7 +293,7 @@ describe("buildMyDayQueue", () => {
     assert.deepEqual(
       queue.map((item) => [item.key, item.lists]),
       [
-        ["contact:c-1", [fintech]],
+        ["contact:c-1:+14155550101", [fintech]],
         ["phone:+14155550109", []],
       ],
     );

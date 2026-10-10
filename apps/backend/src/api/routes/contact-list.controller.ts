@@ -115,6 +115,16 @@ export class ContactListController {
     return { success: true };
   }
 
+  /** Draft cleanup has its own route: an older server must fail closed. */
+  @Delete(":id/empty")
+  async removeEmpty(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    await this.lists.remove(actorOf(user), id, { onlyIfEmpty: true });
+    return { success: true };
+  }
+
   @Get(":id/contacts")
   listContacts(
     @CurrentUser() user: CurrentUserData,

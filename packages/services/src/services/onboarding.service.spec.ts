@@ -197,6 +197,27 @@ describe("OnboardingService — first list gift (BILL-022)", () => {
     assert.equal((await service.getFirstList(ana)).reward, 0);
   });
 
+  it("keeps the original first list available for completion after a reload", async () => {
+    const { service, grants } = build({ lists: [listOf("first", ana)] });
+    assert.equal((await service.getFirstList(ana)).pendingListId, "first");
+    assert.equal(grants.length, 0);
+    await service.completeFirstList(ana, "first");
+    assert.equal((await service.getFirstList(ana)).pendingListId, undefined);
+    await service.completeFirstList(ana, "first");
+    assert.equal(grants.length, 1);
+  });
+
+  it("does not offer an empty, reassigned or teammate's list for recovery", async () => {
+    for (const list of [
+      listOf("empty", ana, 0),
+      { ...listOf("reassigned", ana), assignedTo: "bea" },
+      listOf("teammates", bea),
+    ]) {
+      const { service } = build({ lists: [list] });
+      assert.equal((await service.getFirstList(ana)).pendingListId, undefined);
+    }
+  });
+
   it("offers nothing once it is done here", async () => {
     const { service } = build({ steps: { ana: ["first_list"] } });
 

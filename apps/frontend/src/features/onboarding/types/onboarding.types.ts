@@ -26,6 +26,8 @@ export interface FirstListOnboarding {
   completed: boolean;
   /** USD finishing it now adds; zero when nothing is owed (BILL-022). */
   reward: number;
+  /** Original first list retained when completion has not succeeded. */
+  pendingListId?: string;
 }
 
 /** `POST /onboarding/first-list/:listId`. */

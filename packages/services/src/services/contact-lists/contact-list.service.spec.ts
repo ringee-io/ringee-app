@@ -121,7 +121,8 @@ function build() {
       lists.set(id, list);
       return list;
     },
-    delete: async (id: string) => {
+    delete: async (id: string, onlyIfEmpty = false) => {
+      if (onlyIfEmpty && entries.get(id)?.length) return;
       lists.delete(id);
       entries.delete(id);
     },
@@ -426,5 +427,22 @@ describe("ContactListService — filling a list", () => {
     assert.equal(fresh.contact.id, "c-new");
     assert.equal(fresh.created, true);
     assert.deepEqual(ctx.entries.get(list.id), ["c1", "c-new"]);
+  });
+});
+
+describe("ContactListService onboarding cleanup", () => {
+  it("preserves a populated list but removes an empty draft", async () => {
+    const { service, lists, entries } = build();
+    const { list } = await service.create(ana, { name: "Saved contacts" });
+    entries.set(list.id, ["contact-1"]);
+    await service.remove(ana, list.id, { onlyIfEmpty: true });
+    assert.ok(lists.has(list.id));
+    const { list: empty } = await service.create(ana, { name: "Empty draft" });
+    await service.remove(ana, empty.id, { onlyIfEmpty: true });
+    assert.equal(lists.has(empty.id), false);
+    await assert.rejects(
+      service.remove(bruno, list.id, { onlyIfEmpty: true }),
+      NotFoundException,
+    );
   });
 });

@@ -148,8 +148,8 @@ export const CallSearch = forwardRef<CallSearchHandle, CallSearchProps>(
 
     const searching = searchable && results?.term !== term;
     const hits = useMemo(
-      () => (searchable ? (results?.hits ?? []) : []),
-      [searchable, results]
+      () => (searchable && results?.term === term ? results.hits : []),
+      [searchable, results, term]
     );
 
     const options = useMemo<SearchOption[]>(() => {

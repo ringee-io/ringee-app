@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import {
+  CallablePendingAction,
   ContactListEntryToCall,
   OwedCallback,
   WorkedContactList,
@@ -62,6 +63,7 @@ function listEntry(
 function build(
   options: {
     callbacks?: OwedCallback[];
+    followUps?: CallablePendingAction[];
     agentCallIds?: string[];
     /** The lists assigned to the caller, by id. */
     assigned?: WorkedContactList[];
@@ -93,7 +95,18 @@ function build(
         new Set(contactIds.filter((id) => options.openCallbacks?.includes(id))),
     } as never,
     { listMissedCallThreads: async () => [] } as never,
-    { listOpenForCalling: async () => [] } as never,
+    {
+      listOpenForCalling: async (
+        _owner: unknown,
+        opts: { after?: string; limit: number },
+      ) => {
+        const all = options.followUps ?? [];
+        const start = opts.after
+          ? all.findIndex((a) => a.id === opts.after) + 1
+          : 0;
+        return all.slice(start, start + opts.limit);
+      },
+    } as never,
     {
       findExistingIds: async (ids: string[]) =>
         new Set(ids.filter((id) => options.agentCallIds?.includes(id))),
@@ -131,12 +144,19 @@ function build(
         new Map(listIds.map((id) => [id, 2])),
       listToCall: async (
         _listId: string,
-        opts: { skipped: boolean; after?: unknown },
+        opts: {
+          skipped: boolean;
+          after?: ContactListEntryToCall;
+          limit: number;
+        },
       ) => {
-        if (opts.after) return [];
-        return opts.skipped
+        const all = opts.skipped
           ? (options.toCall?.skipped ?? [])
           : (options.toCall?.fresh ?? []);
+        const start = opts.after
+          ? all.findIndex((entry) => entry.id === opts.after!.id) + 1
+          : 0;
+        return all.slice(start, start + opts.limit);
       },
       markCalled: async (entries: { id: string; at: Date }[]) => {
         marked.push(...entries);
@@ -153,6 +173,41 @@ function build(
 const ctx = { userId: "me", organizationId: "org-1" };
 
 describe("MyDayService.getQueue", () => {
+  it("pages past 100 called follow-ups without completing their actions", async () => {
+    const followUps: CallablePendingAction[] = Array.from(
+      { length: 102 },
+      (_, i) => ({
+        id: `action-${i}`,
+        type: "book_meeting",
+        priority: "medium",
+        title: "Follow up",
+        dueAt: NOW,
+        createdAt: new Date(NOW.getTime() - 60_000),
+        contact: owed(`cb-${i}`, `+1415555${String(i).padStart(4, "0")}`)
+          .contact,
+      }),
+    );
+    const { service } = build({
+      followUps,
+      outbound: followUps.slice(0, 100).map((action) => ({
+        toNumber: action.contact!.phoneNumber,
+        userId: "me",
+        at: NOW,
+      })),
+    });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const queue = await service.getQueue(ctx, undefined, NOW);
+      assert.deepEqual(
+        queue.items.flatMap((item) =>
+          item.reasons.map((reason) =>
+            reason.kind === "follow_up" ? reason.actionId : null,
+          ),
+        ),
+        ["action-100", "action-101"],
+      );
+    }
+  });
+
   it("leaves out the callbacks a voice agent will place itself", async () => {
     const { service } = build({
       callbacks: [owed("human", "+14155550101"), owed("agent", "+14155550102")],
@@ -208,6 +263,38 @@ describe("MyDayService.getQueue", () => {
 });
 
 describe("MyDayService lists", () => {
+  it("reaches callable entries after 500 contacts with open callbacks", async () => {
+    const fresh = Array.from({ length: 501 }, (_, i) =>
+      listEntry(`e-${i + 1}`, `+1415555${String(i).padStart(4, "0")}`),
+    );
+    const { service } = build({
+      assigned: [LIST],
+      toCall: { fresh, skipped: [] },
+      openCallbacks: fresh.slice(0, 500).map((entry) => entry.contact.id),
+    });
+    assert.equal(
+      (await service.getListNext(ctx, LIST.id)).next?.entryId,
+      "e-501",
+    );
+    assert.equal(
+      (await service.getListNext(ctx, LIST.id)).next?.entryId,
+      "e-501",
+    );
+  });
+
+  it("exhausts a fully blocked list without advancing its entries", async () => {
+    const fresh = Array.from({ length: 501 }, (_, i) =>
+      listEntry(`e-${i + 1}`, "+14155550101"),
+    );
+    const { service, marked } = build({
+      assigned: [LIST],
+      toCall: { fresh, skipped: [] },
+      openCallbacks: fresh.map((entry) => entry.contact.id),
+    });
+    assert.equal((await service.getListNext(ctx, LIST.id)).next, null);
+    assert.deepEqual(marked, []);
+  });
+
   it("offers the lists assigned to the caller, with what is left to call", async () => {
     const { service, listLookups } = build({ assigned: [LIST] });
 

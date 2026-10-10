@@ -191,17 +191,20 @@ export function FirstListDialog({
         : null;
   const canCreate =
     !busy &&
-    (source === 'file'
-      ? file !== null
-      : source === 'typed'
-        ? filledRows.length > 0
-        : picked.size > 0);
+    (builder.completionPending ||
+      (source === 'file'
+        ? file !== null
+        : source === 'typed'
+          ? filledRows.length > 0
+          : picked.size > 0));
 
   const create = async () => {
     if (!source || !canCreate) return;
 
     let input: FirstListPeople;
-    if (source === 'file') {
+    if (builder.completionPending) {
+      input = { source: 'contacts', contactIds: [] };
+    } else if (source === 'file') {
       input = { source, file: file! };
     } else if (source === 'typed') {
       const checked = rows.map((row) => ({
@@ -369,6 +372,7 @@ export function FirstListDialog({
                       <CsvDropzone
                         file={file}
                         onFileChange={(picked) => {
+                          if (busy || builder.completionPending) return;
                           setFile(picked);
                           setFileError(null);
                           setProblem(null);
@@ -394,13 +398,13 @@ export function FirstListDialog({
                       rows={rows}
                       onRowsChange={setRows}
                       defaultCountry={defaultCountry}
-                      disabled={busy}
+                      disabled={busy || builder.completionPending}
                     />
                   ) : (
                     <ContactPicker
                       picked={picked}
                       onPickedChange={setPicked}
-                      disabled={busy}
+                      disabled={busy || builder.completionPending}
                     />
                   )}
 
@@ -415,7 +419,7 @@ export function FirstListDialog({
                       }}
                       placeholder={defaultName}
                       maxLength={NAME_MAX}
-                      disabled={busy}
+                      disabled={busy || builder.completionPending}
                       className='h-10'
                     />
                     <p className='text-muted-foreground text-xs'>
@@ -431,7 +435,9 @@ export function FirstListDialog({
                     >
                       <p className='text-destructive flex items-start gap-2 font-medium'>
                         <AlertTriangle className='mt-0.5 size-4 shrink-0' />
-                        {problem.title}
+                        {builder.completionPending
+                          ? t('completionFailed')
+                          : problem.title}
                       </p>
                       {problem.skipped.length > 0 ? (
                         <ul className='text-muted-foreground mt-2 max-h-28 space-y-0.5 overflow-y-auto pl-6 text-xs'>
@@ -463,7 +469,7 @@ export function FirstListDialog({
                       setProblem(null);
                       setStep('choose');
                     }}
-                    disabled={busy}
+                    disabled={busy || builder.completionPending}
                     className='-ml-2 gap-1.5'
                   >
                     <ArrowLeft className='size-4' />
@@ -486,6 +492,8 @@ export function FirstListDialog({
                             })
                           : t('creating')}
                       </>
+                    ) : builder.completionPending ? (
+                      t('finishSetup')
                     ) : people ? (
                       t('createCount', { count: people })
                     ) : (

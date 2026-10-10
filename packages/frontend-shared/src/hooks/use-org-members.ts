@@ -35,35 +35,48 @@ export function useOrgMembers(): { members: OrgMember[]; isLoaded: boolean } {
       return;
     }
     let active = true;
-    organization
-      .getMemberships()
-      .then(async (res) => {
+    setIsLoaded(false);
+    setMembers([]);
+    const loadMembers = async () => {
+      const resolved: OrgMember[] = [];
+      const pageSize = 100;
+      for (let initialPage = 1; active; initialPage++) {
+        const res = await organization.getMemberships({
+          initialPage,
+          pageSize,
+        });
         const clerkIds = res.data
           .map((m) => m.publicUserData?.userId)
           .filter(Boolean) as string[];
-        if (clerkIds.length === 0) return [];
+        if (res.data.length === 0) break;
         const map = await api.get<{ clerkId: string; id: string }[]>(
           `/user/by-clerk-ids?ids=${clerkIds.join(",")}`,
         );
         const lookup = new Map(map.map((u) => [u.clerkId, u.id]));
-        return res.data
-          .map((m) => {
-            const clerkId = m.publicUserData?.userId || "";
-            const name =
-              `${m.publicUserData?.firstName || ""} ${
-                m.publicUserData?.lastName || ""
-              }`.trim() ||
-              m.publicUserData?.identifier ||
-              null;
-            return {
-              id: lookup.get(clerkId) || "",
-              name,
-              imageUrl: m.publicUserData?.imageUrl || null,
-              isCurrentUser: !!clerkId && clerkId === currentClerkId,
-            };
-          })
-          .filter((m) => m.id);
-      })
+        resolved.push(
+          ...res.data
+            .map((m) => {
+              const clerkId = m.publicUserData?.userId || "";
+              const name =
+                `${m.publicUserData?.firstName || ""} ${
+                  m.publicUserData?.lastName || ""
+                }`.trim() ||
+                m.publicUserData?.identifier ||
+                null;
+              return {
+                id: lookup.get(clerkId) || "",
+                name,
+                imageUrl: m.publicUserData?.imageUrl || null,
+                isCurrentUser: !!clerkId && clerkId === currentClerkId,
+              };
+            })
+            .filter((m) => m.id),
+        );
+        if (initialPage * pageSize >= res.total_count) break;
+      }
+      return resolved;
+    };
+    void loadMembers()
       .then((resolved) => {
         if (active) setMembers(resolved);
       })

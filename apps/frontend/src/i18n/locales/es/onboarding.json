@@ -126,6 +126,9 @@
       "why": "Ver por qué",
       "cta": "Empezar a llamar",
       "keyHint": "Pulsa <key>N</key> cuando quieras para llamar a quien sigue."
-    }
+    },
+    "completionPending": "Tu primera lista está guardada. Finaliza la configuración para recibir el crédito para llamadas que te corresponda.",
+    "completionFailed": "Tu lista está guardada, pero no se pudo finalizar la configuración. Inténtalo de nuevo.",
+    "finishSetup": "Finalizar configuración"
   }
 }

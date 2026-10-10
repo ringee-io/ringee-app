@@ -27,7 +27,7 @@ export interface ListThreadsOptions {
   assignedToId?: string | null;
 }
 
-/** A thread whose latest event is a call nobody picked up. */
+/** A thread with a missed call; timestamps describe its latest missed event. */
 export interface MissedCallThread {
   id: string;
   participantNumber: string;
@@ -223,7 +223,7 @@ export class InboxThreadRepository {
   }
 
   /**
-   * Open threads whose latest event is a missed call or a voicemail since
+   * Open threads with a missed call or a voicemail since
    * `since`, newest first. In an organization, only the caller's own: those
    * assigned to them, and unassigned ones on a line of theirs (the thread's
    * user) — the rest of the team's missed calls stay in the shared inbox.
@@ -232,14 +232,17 @@ export class InboxThreadRepository {
     ctx: OwnershipContext,
     options: { since: Date; limit: number },
   ): Promise<MissedCallThread[]> {
-    return this.prisma.inboxThread.findMany({
+    const missed: Prisma.InboxEventWhereInput = {
+      kind: {
+        in: [InboxEventKind.missed_call, InboxEventKind.voicemail_received],
+      },
+      occurredAt: { gte: options.since },
+    };
+    const threads = await this.prisma.inboxThread.findMany({
       where: {
         ...buildOwnershipFilter(ctx),
         status: { in: [InboxThreadStatus.open, InboxThreadStatus.pending] },
-        lastEventKind: {
-          in: [InboxEventKind.missed_call, InboxEventKind.voicemail_received],
-        },
-        lastEventAt: { gte: options.since },
+        events: { some: missed },
         ...(ctx.organizationId
           ? {
               OR: [
@@ -253,8 +256,12 @@ export class InboxThreadRepository {
         id: true,
         participantNumber: true,
         participantNumberE164: true,
-        lastEventAt: true,
-        lastEventKind: true,
+        events: {
+          where: missed,
+          orderBy: [{ occurredAt: "desc" }, { sequence: "desc" }],
+          take: 1,
+          select: { occurredAt: true, kind: true },
+        },
         contact: {
           select: {
             id: true,
@@ -268,6 +275,18 @@ export class InboxThreadRepository {
       },
       orderBy: { lastEventAt: "desc" },
       take: options.limit,
+    });
+    return threads.flatMap(({ events, ...thread }) => {
+      const latest = events[0];
+      return latest
+        ? [
+            {
+              ...thread,
+              lastEventAt: latest.occurredAt,
+              lastEventKind: latest.kind,
+            },
+          ]
+        : [];
     });
   }
 

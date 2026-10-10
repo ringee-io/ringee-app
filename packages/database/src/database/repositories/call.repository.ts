@@ -557,6 +557,9 @@ export class CallRepository {
         ...buildOwnershipFilter(ctx),
         direction: "outbound",
         toNumber: { in: toNumbers },
+        // Authorization creates a pending row before a carrier leg exists.
+        // A failed preflight must not consume a list entry or a follow-up.
+        callControlId: { not: null },
         createdAt: { gte: since },
       },
       _max: { createdAt: true },

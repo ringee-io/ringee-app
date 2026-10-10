@@ -236,12 +236,16 @@ export class ContactListService {
   }
 
   /** Deletes the list. Its contacts stay in the workspace (LIST-004). */
-  async remove(actor: ContactListActor, listId: string): Promise<void> {
+  async remove(
+    actor: ContactListActor,
+    listId: string,
+    options: { onlyIfEmpty?: boolean } = {},
+  ): Promise<void> {
     const list = await this.loadVisible(actor, listId);
     if (!this.permissionsFor(actor, list).canManage) {
       throw new ForbiddenException("Only an admin can delete this list");
     }
-    await this.lists.delete(list.id);
+    await this.lists.delete(list.id, options.onlyIfEmpty);
   }
 
   /** The list's contacts, in the order it is worked in. */
