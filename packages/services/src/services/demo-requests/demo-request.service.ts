@@ -1,6 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { DemoRequestRepository } from "@ringee/database";
-import { OrchestratorService, ResendProvider } from "@ringee/platform";
+import {
+  OrchestratorService,
+  ResendProvider,
+  wasEmailAccepted,
+} from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   DEMO_REQUEST_TEAM_EMAIL,
@@ -97,7 +101,12 @@ export class DemoRequestService {
     const reviewing = await this.startReview(request.id);
 
     try {
-      await this.notifyTeam(data, reviewing);
+      const told = await this.notifyTeam(data, reviewing);
+      // With no review running, this email is how the team learns the
+      // request is theirs (LIFE-004).
+      if (told && !reviewing) {
+        await this.demoRequestRepository.markTeamNotified(request.id);
+      }
     } catch (error) {
       this.logger.error(
         `Failed to send team email for demo request ${request.id}`,
@@ -123,16 +132,21 @@ export class DemoRequestService {
       );
       await this.demoRequestRepository
         .markManualReview(id, "The automatic review could not start")
-        .catch(() => undefined);
+        .catch((markError: Error) =>
+          this.logger.error(
+            `Could not mark demo request ${id} for manual review; it stays "received"`,
+            markError,
+          ),
+        );
       return false;
     }
   }
 
-  /** Full-detail email to the team inbox. */
+  /** Full-detail email to the team inbox. True once the provider took it. */
   private async notifyTeam(
     data: Omit<CreateDemoRequestInput, "fax">,
     reviewing: boolean,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const fullName = `${data.firstName} ${data.lastName}`.trim();
     const next = reviewing
       ? "Ringee is reviewing this profile automatically. You will be copied on the outcome: their account and credentials, or the details they are asked for."
@@ -148,7 +162,7 @@ export class DemoRequestService {
       </div>
     `;
 
-    await this.email.sendEmail(
+    const result: unknown = await this.email.sendEmail(
       DEMO_REQUEST_TEAM_EMAIL,
       `New demo request — ${fullName}`,
       html,
@@ -156,6 +170,7 @@ export class DemoRequestService {
       apiConfiguration.EMAIL_FROM_ADDRESS,
       data.email,
     );
+    return wasEmailAccepted(result);
   }
 
   /** Confirmation email to the requester, echoing what they submitted. */

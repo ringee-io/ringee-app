@@ -89,11 +89,17 @@ export async function fetchPublicPage(
   return null;
 }
 
-/** A fetched page as plain text, for a model to read: no scripts, styles or tags. */
+/**
+ * A fetched page as plain text, for a model to read: no comments, scripts,
+ * styles or tags. Never rendered — but end tags are matched the way browsers
+ * accept them (`</script >`, `</script foo>`, comments closed by `--!>`), so
+ * the page cannot hide script source in the text by writing them oddly.
+ */
 export function htmlToText(html: string): string {
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<!--[\s\S]*?--!?>/g, " ")
+    .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")

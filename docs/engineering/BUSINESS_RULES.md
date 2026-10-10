@@ -1693,11 +1693,13 @@ a Temporal workflow (`reviewDemoRequestWorkflow`): automatic checks first, then
 an AI verdict. The account is created automatically only when **all** of these
 hold:
 
-- the email is not at a personal or temporary provider, and its domain
-  receives email;
-- the company website is a public address, not a social profile, answers,
-  and is on the email's domain (equal, or one a subdomain of the other — also
-  after its redirects);
+- the email is not at a personal or temporary provider — the maintained lists
+  of `free-email-domains` and `disposable-email-domains-js`, checked against
+  the domain and the domain it is registered under — and its domain receives
+  email;
+- the company website is a public address, not a social profile nor a mailbox
+  provider's own site, answers, and shares the email's registrable domain
+  under the Public Suffix List (also after its redirects);
 - the phone number is valid;
 - the AI review approves: a real person's name, an operating business that
   fits the domain, and nothing pointing to a use the Terms prohibit.
@@ -1712,7 +1714,9 @@ team takes over from the reply. Both outcome emails copy
 `edison@getringee.com`. A request automation cannot finish — the AI
 unavailable with no check failing, an email that already has a login, retries
 exhausted, the workflow unable to start — becomes `manual_review` and the team
-is emailed why. The requester keeps the usual confirmation email either way.
+is emailed why. That alert is recorded apart from the hand-over
+(`teamNotifiedAt`) and retried until the email provider accepts it. The
+requester keeps the usual confirmation email either way.
 
 - **States:** `received → approved → account_created`,
   `received → needs_info`, and `manual_review` from any state whose outcome
@@ -1741,8 +1745,9 @@ verification at first sign-in still applies (`phoneRequired`).
   the earlier one never reached anybody. A login the email already had is
   never modified.
 - Creating an account from the backoffice for an email with an open demo
-  request closes that request (`account_created`) and the email thanks them
-  for it.
+  request closes that request (`account_created`, notified) and the email
+  thanks them for it. Staff own handing that login over from then on, so the
+  review never resets its password — even when the email failed.
 - **Source of truth:** `packages/services/src/services/accounts/` (+ spec),
   `ClerkUserRepository.createUser`
 - **Risk if violated:** a password readable from the database or the logs; a

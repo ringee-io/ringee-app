@@ -73,14 +73,11 @@ export class DemoRequestRepository {
   }
 
   /**
-   * The team created this person's login by hand. `notified` says whether the
-   * credentials email went out with it.
+   * The team created this person's login by hand, and with it took over
+   * handing it over — by the email, or themselves when it failed. Marked
+   * notified either way, so the review never resets the password they gave.
    */
-  async recordManualAccount(
-    id: string,
-    clerkUserId: string,
-    notified: boolean,
-  ): Promise<boolean> {
+  async recordManualAccount(id: string, clerkUserId: string): Promise<boolean> {
     const now = new Date();
     const { count } = await this.prisma.demoRequest.updateMany({
       where: { id, clerkUserId: null },
@@ -89,7 +86,7 @@ export class DemoRequestRepository {
         clerkUserId,
         accountCreatedAt: now,
         statusReason: null,
-        ...(notified ? { notifiedAt: now } : {}),
+        notifiedAt: now,
       },
     });
     return count === 1;
@@ -100,6 +97,15 @@ export class DemoRequestRepository {
     const { count } = await this.prisma.demoRequest.updateMany({
       where: { id, notifiedAt: null },
       data: { notifiedAt: new Date() },
+    });
+    return count === 1;
+  }
+
+  /** The team was told the request is theirs — it is never told again. */
+  async markTeamNotified(id: string): Promise<boolean> {
+    const { count } = await this.prisma.demoRequest.updateMany({
+      where: { id, teamNotifiedAt: null },
+      data: { teamNotifiedAt: new Date() },
     });
     return count === 1;
   }

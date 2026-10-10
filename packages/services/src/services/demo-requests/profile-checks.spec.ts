@@ -55,6 +55,12 @@ describe("domainsMatch", () => {
     assert.equal(domainsMatch("acme.com", "acme.com.evil.io"), false);
     assert.equal(domainsMatch("acme.com", "acme.co"), false);
   });
+
+  it("matches by registrable domain, so a public suffix or shared host owns nothing", () => {
+    assert.equal(domainsMatch("mail.acme.co.uk", "shop.acme.co.uk"), true);
+    assert.equal(domainsMatch("acme.co.uk", "co.uk"), false);
+    assert.equal(domainsMatch("a.github.io", "b.github.io"), false);
+  });
 });
 
 describe("checkProfile", () => {
@@ -80,6 +86,38 @@ describe("checkProfile", () => {
     );
     assert.match(checks.issues[0].problem, /gmail\.com is a personal email/);
     assert.match(checks.issues[0].request, /work email/);
+  });
+
+  it("does not let a mailbox provider pass as the company behind its own homepage", async () => {
+    const web = probes();
+    const checks = await checkProfile(
+      { ...GOOD, email: "x@mail.de", companyWebsite: "mail.de" },
+      web,
+    );
+
+    assert.deepEqual(web.opened, []);
+    assert.equal(checks.facts.personalEmail, true);
+    assert.equal(checks.facts.websiteIsEmailProvider, true);
+    assert.equal(checks.facts.domainMatches, false);
+    assert.deepEqual(
+      checks.issues.map((issue) => issue.field),
+      ["email", "company_website"],
+    );
+    assert.match(
+      checks.issues[1].problem,
+      /mail\.de is an email provider's website/,
+    );
+  });
+
+  it("refuses a mailbox provider's homepage as the website of a work email", async () => {
+    const checks = await checkProfile(
+      { ...GOOD, companyWebsite: "https://www.gmail.com" },
+      probes(),
+    );
+    assert.deepEqual(
+      checks.issues.map((issue) => issue.field),
+      ["company_website"],
+    );
   });
 
   it("refuses a temporary inbox", async () => {

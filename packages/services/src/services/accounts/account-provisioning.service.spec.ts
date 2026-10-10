@@ -35,21 +35,13 @@ function build(
 ) {
   const created: NewClerkUser[] = [];
   const passwordsSet: Array<{ clerkUserId: string; password: string }> = [];
-  const closedRequests: Array<{
-    id: string;
-    clerkUserId: string;
-    notified: boolean;
-  }> = [];
+  const closedRequests: Array<{ id: string; clerkUserId: string }> = [];
   const emails: SentEmail[] = [];
 
   const demoRequests = {
     findLatestWithoutAccount: async () => over.openDemoRequest ?? null,
-    recordManualAccount: async (
-      id: string,
-      clerkUserId: string,
-      notified: boolean,
-    ) => {
-      closedRequests.push({ id, clerkUserId, notified });
+    recordManualAccount: async (id: string, clerkUserId: string) => {
+      closedRequests.push({ id, clerkUserId });
       return true;
     },
   };
@@ -150,7 +142,7 @@ describe("AccountProvisioningService.createAccount", () => {
 
     assert.match(emails[0].html, /Thank you for requesting a Ringee demo/);
     assert.deepEqual(closedRequests, [
-      { id: "request-1", clerkUserId: "user_clerk_1", notified: true },
+      { id: "request-1", clerkUserId: "user_clerk_1" },
     ]);
   });
 

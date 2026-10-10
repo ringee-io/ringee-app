@@ -527,10 +527,13 @@ model DemoRequest {
   reviewedAt       DateTime?
   /// Why the request is waiting on the team (`manual_review`).
   statusReason     String?
+  /// When the team was emailed that the request is theirs (`manual_review`).
+  teamNotifiedAt   DateTime?
   /// The Clerk user created for this person.
   clerkUserId      String?
   accountCreatedAt DateTime?
-  /// When the outcome email (credentials, or the request for details) was accepted.
+  /// When the outcome reached the requester: its email (credentials, or the
+  /// request for details) was accepted, or staff created the login themselves.
   notifiedAt       DateTime?
   createdAt        DateTime          @default(now())
 

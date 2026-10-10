@@ -32,7 +32,11 @@ onlyBuiltDependencies:
 
 # keytar builds against system libsecret, which CI images do not carry. It is
 # only used by the CLI's optional credential store, so it stays unbuilt.
+# free-email-domains' postinstall re-downloads its lists from the internet,
+# which would make an install depend on the network and change what it
+# contains; the list published with the version is the one we use.
 ignoredBuiltDependencies:
+  - free-email-domains
   - keytar
 
 overrides:
@@ -56,6 +60,7 @@ allowBuilds:
   bufferutil: true
   core-js: true
   esbuild: true
+  free-email-domains: false
   keytar: false
   prisma: true
   protobufjs: true

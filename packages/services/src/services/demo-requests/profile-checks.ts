@@ -1,8 +1,11 @@
 import { resolveMx } from "node:dns/promises";
+import { disposableEmailBlocklistSet } from "disposable-email-domains-js";
+import freeEmailDomains from "free-email-domains";
 import {
   parsePhoneNumberFromString,
   type CountryCode,
 } from "libphonenumber-js/max";
+import { getDomain } from "tldts";
 import {
   fetchPublicPage,
   htmlToText,
@@ -68,11 +71,13 @@ export interface ProfileFacts {
   /** The submitted website as Ringee read it; null when it is not a public address. */
   websiteUrl: string | null;
   socialProfile: boolean;
+  /** The website is a mailbox provider's own (mail.de, gmail.com), not a company's. */
+  websiteIsEmailProvider: boolean;
   /** The HTTP status the website answered with; null when nothing answered. */
   websiteStatus: number | null;
   websiteFinalUrl: string | null;
   websiteTitle: string | null;
-  /** The email's domain is the website's (or one is a subdomain of the other). */
+  /** The email and the website share a registrable domain (`domainsMatch`). */
   domainMatches: boolean;
 }
 
@@ -98,114 +103,17 @@ export interface ProfileProbes {
   fetchWebsite(url: URL): Promise<WebsiteProbe>;
 }
 
-/** Free mailbox providers: an address there says nothing about an employer. */
-const PERSONAL_EMAIL_DOMAINS = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "yahoo.com",
-  "yahoo.es",
-  "yahoo.fr",
-  "yahoo.co.uk",
-  "yahoo.com.mx",
-  "yahoo.com.br",
-  "yahoo.com.ar",
-  "ymail.com",
-  "rocketmail.com",
-  "hotmail.com",
-  "hotmail.es",
-  "hotmail.fr",
-  "hotmail.co.uk",
-  "hotmail.it",
-  "outlook.com",
-  "outlook.es",
-  "live.com",
-  "live.com.mx",
-  "msn.com",
-  "icloud.com",
-  "me.com",
-  "mac.com",
-  "aol.com",
-  "proton.me",
-  "protonmail.com",
-  "pm.me",
-  "gmx.com",
-  "gmx.net",
-  "gmx.de",
-  "web.de",
-  "mail.com",
-  "email.com",
-  "zoho.com",
-  "zohomail.com",
-  "yandex.com",
-  "yandex.ru",
-  "mail.ru",
-  "inbox.ru",
-  "qq.com",
-  "163.com",
-  "126.com",
-  "naver.com",
-  "tutanota.com",
-  "tuta.io",
-  "fastmail.com",
-  "hey.com",
-  "hushmail.com",
-  "libero.it",
-  "orange.fr",
-  "free.fr",
-  "laposte.net",
-  "t-online.de",
-  "btinternet.com",
-  "comcast.net",
-  "verizon.net",
-  "att.net",
-  "sbcglobal.net",
-  "uol.com.br",
-  "bol.com.br",
-  "terra.com.br",
-  "prodigy.net.mx",
-]);
-
-/** Throwaway inboxes. */
-const DISPOSABLE_EMAIL_DOMAINS = new Set([
-  "mailinator.com",
-  "guerrillamail.com",
-  "guerrillamail.net",
-  "sharklasers.com",
-  "grr.la",
-  "10minutemail.com",
-  "10minutemail.net",
-  "temp-mail.org",
-  "temp-mail.io",
-  "tempmail.com",
-  "tempmail.net",
-  "tempail.com",
-  "tempr.email",
-  "mytemp.email",
-  "yopmail.com",
-  "yopmail.fr",
-  "trashmail.com",
-  "trashmail.de",
-  "getnada.com",
-  "nada.email",
-  "dispostable.com",
-  "discard.email",
-  "maildrop.cc",
-  "mailnesia.com",
-  "mailcatch.com",
-  "throwawaymail.com",
-  "fakeinbox.com",
-  "emailfake.com",
-  "mintemail.com",
-  "moakt.com",
-  "mohmal.com",
-  "emailondeck.com",
-  "burnermail.io",
-  "inboxkitten.com",
-  "spamgourmet.com",
-  "1secmail.com",
-  "1secmail.net",
-  "mail.tm",
-]);
+/*
+ * Mailbox providers anyone can sign up to, from lists maintained upstream and
+ * refreshed with their packages: free webmail and ISP mail
+ * (`free-email-domains`, which also folds in the throwaway services) and
+ * throwaway inboxes on their own (`disposable-email-domains-js`). An address
+ * at one says nothing about an employer, and the provider's homepage is not a
+ * company website — matching one with the other proves nothing.
+ */
+const DISPOSABLE_EMAIL_DOMAINS: ReadonlySet<string> =
+  disposableEmailBlocklistSet();
+const FREE_EMAIL_DOMAINS: ReadonlySet<string> = new Set(freeEmailDomains);
 
 /** A profile on one of these is the person's, not their company's own website. */
 const SOCIAL_PROFILE_DOMAINS = [
@@ -251,32 +159,35 @@ export async function checkProfile(
   const phone = readPhone(input.phoneNumber, input.country);
   const website = readWebsite(input.companyWebsite);
   const socialProfile = website ? isSocialProfile(website.hostname) : false;
+  const websiteIsEmailProvider = website
+    ? isListed(FREE_EMAIL_DOMAINS, website.hostname) ||
+      isListed(DISPOSABLE_EMAIL_DOMAINS, website.hostname)
+    : false;
+  const companySite = !!website && !socialProfile && !websiteIsEmailProvider;
 
   const [receivesEmail, page] = await Promise.all([
     probes.receivesEmail(emailDomain),
-    website && !socialProfile
-      ? probes.fetchWebsite(website)
-      : Promise.resolve(null),
+    companySite ? probes.fetchWebsite(website) : Promise.resolve(null),
   ]);
 
   // A site that moved to its new name still belongs to the company.
   const finalHost = page?.finalUrl ? hostOf(page.finalUrl) : null;
   const domainMatches =
-    !!website &&
-    !socialProfile &&
+    companySite &&
     (domainsMatch(emailDomain, website.hostname) ||
       (finalHost !== null && domainsMatch(emailDomain, finalHost)));
 
   const facts: ProfileFacts = {
     emailDomain,
-    personalEmail: PERSONAL_EMAIL_DOMAINS.has(emailDomain),
-    disposableEmail: DISPOSABLE_EMAIL_DOMAINS.has(emailDomain),
+    personalEmail: isListed(FREE_EMAIL_DOMAINS, emailDomain),
+    disposableEmail: isListed(DISPOSABLE_EMAIL_DOMAINS, emailDomain),
     receivesEmail,
     phoneValid: phone.valid,
     phoneCountry: phone.country,
     phoneType: phone.type,
     websiteUrl: website?.href ?? null,
     socialProfile,
+    websiteIsEmailProvider,
     websiteStatus: page?.status ?? null,
     websiteFinalUrl: page?.finalUrl ?? null,
     websiteTitle: page?.title ?? null,
@@ -335,6 +246,12 @@ export function profileIssues(facts: ProfileFacts): ProfileIssue[] {
       problem: `${site} is a social profile, so it doesn't show your company's own website.`,
       request: "Your company's own website address.",
     };
+  } else if (facts.websiteIsEmailProvider) {
+    websiteIssue = {
+      field: "company_website",
+      problem: `${site} is an email provider's website, not your company's own.`,
+      request: "Your company's own website address.",
+    };
   } else if (facts.websiteStatus === null || facts.websiteStatus >= 500) {
     websiteIssue = {
       field: "company_website",
@@ -366,15 +283,15 @@ export function profileIssues(facts: ProfileFacts): ProfileIssue[] {
 }
 
 /**
- * Whether an email domain and a website host are the same company's: equal
- * once "www." is dropped, or one a subdomain of the other (mail.acme.com,
- * shop.acme.com). Whole labels only — "evil-acme.com" is not "acme.com".
+ * Whether an email domain and a website host are the same company's: they
+ * share a registrable domain under the Public Suffix List — mail.acme.com and
+ * shop.acme.co.uk are acme.com's and acme.co.uk's. Two sites on a shared host
+ * (a.github.io, b.github.io) are not each other's, a public suffix (co.uk)
+ * belongs to nobody, and "evil-acme.com" is not "acme.com".
  */
 export function domainsMatch(emailDomain: string, host: string): boolean {
-  const a = bareHost(emailDomain);
-  const b = bareHost(host);
-  if (!a || !b) return false;
-  return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+  const registrable = registrableDomain(emailDomain);
+  return registrable !== null && registrable === registrableDomain(host);
 }
 
 export function domainOf(email: string): string {
@@ -391,6 +308,18 @@ function bareHost(host: string): string {
     .toLowerCase()
     .replace(/\.$/, "")
     .replace(/^www\./, "");
+}
+
+/** The domain a company registers, private suffixes included; null for a suffix or an IP. */
+function registrableDomain(host: string): string | null {
+  return getDomain(bareHost(host), { allowPrivateDomains: true });
+}
+
+/** The host, or the domain it is registered under, is on the list. */
+function isListed(list: ReadonlySet<string>, host: string): boolean {
+  const bare = bareHost(host);
+  const registrable = registrableDomain(bare);
+  return list.has(bare) || (registrable !== null && list.has(registrable));
 }
 
 function hostOf(url: string): string | null {

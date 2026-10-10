@@ -185,38 +185,28 @@ export class DemoRequestReviewService {
       await this.openAccount(request);
     } else if (request.status === "needs_info") {
       await this.askForDetails(request);
+    } else if (request.status === "manual_review") {
+      // An earlier attempt handed it over but could not tell the team.
+      await this.alertTeam(request);
     }
   }
 
   /**
-   * Hand the request to the team, with an email saying why. Only the call
-   * that moves it does that, so an escalation repeated by a retry, or one for
-   * a request already finished, sends nothing.
+   * Hand the request to the team, with an email saying why. Handing over and
+   * telling the team are recorded apart: the request moves once, and the
+   * email is sent until the provider takes it — a refused send throws, so the
+   * activity retries it. A request already finished is left as it is.
    */
   async escalate(demoRequestId: string, reason: string): Promise<void> {
-    const request = await this.requests.findById(demoRequestId);
-    if (!request) return;
-
     const why = clampText(reason, MAX_REASON_TEXT) || "Unknown error";
-    if (!(await this.requests.markManualReview(request.id, why))) return;
-    this.logger.warn(`Demo request ${request.id} handed to the team: ${why}`);
-
-    const { subject, html } = buildManualReviewEmail(
-      request,
-      why,
-      storedReview(request.review),
-    );
-    const sent = await this.send(
-      DEMO_REQUEST_TEAM_EMAIL,
-      subject,
-      html,
-      "Ringee Notifications",
-    );
-    if (!sent) {
-      this.logger.error(
-        `Could not email the team about demo request ${request.id}`,
+    if (await this.requests.markManualReview(demoRequestId, why)) {
+      this.logger.warn(
+        `Demo request ${demoRequestId} handed to the team: ${why}`,
       );
     }
+
+    const request = await this.requests.findById(demoRequestId);
+    if (request) await this.alertTeam(request);
   }
 
   /** The automatic checks, then the AI review, merged into one verdict. */
@@ -309,6 +299,29 @@ export class DemoRequestReviewService {
     }
     await this.requests.markNotified(request.id);
     this.logger.log(`Demo request ${request.id}: details requested`);
+  }
+
+  /** Tells the team a handed-over request is theirs, once it is accepted. */
+  private async alertTeam(request: DemoRequest): Promise<void> {
+    if (request.status !== "manual_review" || request.teamNotifiedAt) return;
+
+    const { subject, html } = buildManualReviewEmail(
+      request,
+      request.statusReason || "Unknown error",
+      storedReview(request.review),
+    );
+    const sent = await this.send(
+      DEMO_REQUEST_TEAM_EMAIL,
+      subject,
+      html,
+      "Ringee Notifications",
+    );
+    if (!sent) {
+      throw new Error(
+        `The team alert for demo request ${request.id} was not accepted`,
+      );
+    }
+    await this.requests.markTeamNotified(request.id);
   }
 
   /** Every email about a demo request copies the team. */
@@ -410,13 +423,16 @@ function describeRequest(request: DemoRequest, checks: ProfileChecks): string {
     ? "not a valid public web address"
     : facts.socialProfile
       ? `${facts.websiteUrl} (a social profile; not opened)`
-      : facts.websiteStatus === null
-        ? `${facts.websiteUrl} (could not be reached)`
-        : `${facts.websiteUrl} (answered HTTP ${facts.websiteStatus}${
-            facts.websiteFinalUrl && facts.websiteFinalUrl !== facts.websiteUrl
-              ? `, ended at ${facts.websiteFinalUrl}`
-              : ""
-          })`;
+      : facts.websiteIsEmailProvider
+        ? `${facts.websiteUrl} (an email provider's own site; not opened)`
+        : facts.websiteStatus === null
+          ? `${facts.websiteUrl} (could not be reached)`
+          : `${facts.websiteUrl} (answered HTTP ${facts.websiteStatus}${
+              facts.websiteFinalUrl &&
+              facts.websiteFinalUrl !== facts.websiteUrl
+                ? `, ended at ${facts.websiteFinalUrl}`
+                : ""
+            })`;
   const problems = checks.issues.length
     ? checks.issues
         .map((issue) => `  - ${issue.field}: ${issue.problem}`)

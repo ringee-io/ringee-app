@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { toast } from 'sonner';
 import {
   IconAlertTriangle,
@@ -15,16 +18,39 @@ import {
 } from '@ringee/frontend-shared/components/ui/alert';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
-import { Input } from '@ringee/frontend-shared/components/ui/input';
-import { Label } from '@ringee/frontend-shared/components/ui/label';
+import { Form } from '@ringee/frontend-shared/components/ui/form';
+import { FormInput } from '@ringee/frontend-shared/components/forms/form-input';
+import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { useBackofficeApi, type CreatedAccount } from '../api';
 import { errorMessage } from '../lib/format';
 
 const CC_EMAIL = 'edison@getringee.com';
 
-const EMPTY = { firstName: '', lastName: '', email: '' };
+/** The limits `CreateAccountDto` enforces on the server. */
+const NAME_MAX = 100;
+const EMAIL_MAX = 255;
 
-type Fields = typeof EMPTY;
+const schema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'First name is required.')
+    .max(NAME_MAX, `Use ${NAME_MAX} characters or fewer.`),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required.')
+    .max(NAME_MAX, `Use ${NAME_MAX} characters or fewer.`),
+  email: z
+    .string()
+    .trim()
+    .max(EMAIL_MAX, `Use ${EMAIL_MAX} characters or fewer.`)
+    .email('Enter a valid email address.')
+});
+
+type Fields = z.infer<typeof schema>;
+
+const EMPTY: Fields = { firstName: '', lastName: '', email: '' };
 
 /**
  * Create a login from a name and an email (LIFE-005). The server generates
@@ -33,44 +59,36 @@ type Fields = typeof EMPTY;
  */
 export function CreateAccountForm() {
   const api = useBackofficeApi();
-  const [form, setForm] = useState<Fields>(EMPTY);
+  const form = useForm<Fields>({
+    resolver: zodResolver(schema),
+    defaultValues: EMPTY
+  });
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState<{
     name: string;
     account: CreatedAccount;
   } | null>(null);
 
-  const set = (key: keyof Fields, value: string) =>
-    setForm((current) => ({ ...current, [key]: value }));
-
-  const canSubmit =
-    !!form.firstName.trim() &&
-    !!form.lastName.trim() &&
-    /^\S+@\S+\.\S+$/.test(form.email.trim());
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canSubmit || saving) return;
+  const submit = form.handleSubmit(async (values) => {
     setSaving(true);
     try {
-      const account = await api.createAccount({
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim()
-      });
-      setCreated({
-        name: `${form.firstName.trim()} ${form.lastName.trim()}`,
-        account
-      });
-      setForm(EMPTY);
+      const account = await api.createAccount(values);
+      setCreated({ name: `${values.firstName} ${values.lastName}`, account });
+      form.reset(EMPTY);
       if (account.emailSent) toast.success('Account created.');
       else toast.warning('Account created, but the email was not sent.');
     } catch (error) {
-      toast.error(errorMessage(error, 'Could not create the account.'));
+      const message = errorMessage(error, 'Could not create the account.');
+      // The email already has a login: say so on the field that caused it.
+      if (error instanceof ApiError && error.status === 409) {
+        form.setError('email', { message });
+      } else {
+        toast.error(message);
+      }
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
     <div className='mx-auto max-w-xl space-y-4 sm:space-y-6'>
@@ -88,46 +106,37 @@ export function CreateAccountForm() {
 
       <Card>
         <CardContent>
-          <form onSubmit={submit} className='space-y-4'>
+          <Form form={form} onSubmit={submit} className='space-y-4'>
             <div className='grid gap-4 sm:grid-cols-2'>
-              <div className='grid gap-1.5'>
-                <Label htmlFor='account-first-name'>First name</Label>
-                <Input
-                  id='account-first-name'
-                  autoComplete='off'
-                  value={form.firstName}
-                  onChange={(event) => set('firstName', event.target.value)}
-                />
-              </div>
-              <div className='grid gap-1.5'>
-                <Label htmlFor='account-last-name'>Last name</Label>
-                <Input
-                  id='account-last-name'
-                  autoComplete='off'
-                  value={form.lastName}
-                  onChange={(event) => set('lastName', event.target.value)}
-                />
-              </div>
-            </div>
-            <div className='grid gap-1.5'>
-              <Label htmlFor='account-email'>Email</Label>
-              <Input
-                id='account-email'
-                type='email'
-                autoComplete='off'
-                placeholder='jane@acme.com'
-                value={form.email}
-                onChange={(event) => set('email', event.target.value)}
+              <FormInput
+                control={form.control}
+                name='firstName'
+                label='First name'
+                required
+              />
+              <FormInput
+                control={form.control}
+                name='lastName'
+                label='Last name'
+                required
               />
             </div>
+            <FormInput
+              control={form.control}
+              name='email'
+              type='email'
+              label='Email'
+              placeholder='jane@acme.com'
+              required
+            />
             <Button
               type='submit'
-              disabled={!canSubmit || saving}
+              disabled={saving}
               className='w-full sm:w-auto'
             >
               {saving ? 'Creating…' : 'Create account'}
             </Button>
-          </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

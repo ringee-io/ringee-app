@@ -33,6 +33,7 @@ const VERIFIED: DemoRequest = {
   review: null,
   reviewedAt: null,
   statusReason: null,
+  teamNotifiedAt: null,
   clerkUserId: null,
   accountCreatedAt: null,
   notifiedAt: null,
@@ -70,6 +71,8 @@ function build(
     login?: DemoRequestLogin;
     /** Each credentials send takes the next answer; true once they run out. */
     credentialsAccepted?: boolean[];
+    /** Each email the service sends itself takes the next; accepted after. */
+    emailAccepted?: boolean[];
   } = {},
 ) {
   const rows = new Map<string, DemoRequest>([
@@ -114,6 +117,11 @@ function build(
     markManualReview: async (_id: string, reason: string) => {
       if (row().notifiedAt || row().status === "manual_review") return false;
       update({ status: "manual_review", statusReason: reason });
+      return true;
+    },
+    markTeamNotified: async () => {
+      if (row().teamNotifiedAt) return false;
+      update({ teamNotifiedAt: new Date() });
       return true;
     },
   };
@@ -162,6 +170,8 @@ function build(
   } as unknown as AccountProvisioningService;
 
   const emails: SentEmail[] = [];
+  const emailAnswers = [...(over.emailAccepted ?? [])];
+  const warnings: string[] = [];
   const service = new DemoRequestReviewService(
     repository as never,
     providers as never,
@@ -171,7 +181,7 @@ function build(
     probes: PROBES,
     logger: Object.assign(new Logger("spec"), {
       log: () => {},
-      warn: () => {},
+      warn: (message: string) => warnings.push(message),
       error: () => {},
     }),
     email: {
@@ -184,13 +194,16 @@ function build(
         _replyTo?: string,
         cc?: string[],
       ) => {
+        const accepted = emailAnswers.length ? emailAnswers.shift()! : true;
         emails.push({ to, subject, html, fromName, cc });
-        return { data: { id: "email-1" }, error: null };
+        return accepted
+          ? { data: { id: "email-1" }, error: null }
+          : { data: null, error: { message: "rate limited" } };
       },
     },
   });
 
-  return { service, row, emails, credentials, logins, prompts };
+  return { service, row, emails, credentials, logins, prompts, warnings };
 }
 
 describe("DemoRequestReviewService.review", () => {
@@ -321,6 +334,23 @@ describe("DemoRequestReviewService.review", () => {
     assert.match(emails[0].subject, /needs manual review — Mordechai Luria/);
   });
 
+  it("finishes a team alert an earlier attempt could not send", async () => {
+    const { service, row, emails, credentials } = build({
+      login: { kind: "taken" },
+      emailAccepted: [false],
+    });
+
+    await assert.rejects(service.review(VERIFIED.id), /was not accepted/);
+    assert.equal(row().status, "manual_review");
+
+    await service.review(VERIFIED.id);
+
+    assert.equal(emails.length, 2);
+    assert.equal(emails[1].to, DEMO_REQUEST_TEAM_EMAIL);
+    assert.ok(row().teamNotifiedAt);
+    assert.deepEqual(credentials, []);
+  });
+
   it("does nothing for a request whose outcome email already went out", async () => {
     const { service, emails, credentials, prompts } = build({
       request: {
@@ -358,8 +388,33 @@ describe("DemoRequestReviewService.escalate", () => {
     await service.escalate(VERIFIED.id, "Clerk was unavailable");
 
     assert.equal(row().status, "manual_review");
+    assert.ok(row().teamNotifiedAt);
     assert.equal(emails.length, 1);
     assert.match(emails[0].html, /Clerk was unavailable/);
+  });
+
+  it("retries a refused team alert until it is accepted, handing over once", async () => {
+    const { service, row, emails, warnings } = build({
+      emailAccepted: [false],
+    });
+
+    await assert.rejects(
+      service.escalate(VERIFIED.id, "Clerk was unavailable"),
+      /team alert .* was not accepted/,
+    );
+    assert.equal(row().status, "manual_review");
+    assert.equal(row().teamNotifiedAt, null);
+
+    await service.escalate(VERIFIED.id, "a later failure");
+
+    assert.equal(emails.length, 2);
+    assert.ok(row().teamNotifiedAt);
+    // The alert carries why it was handed over, not the retry's reason.
+    assert.match(emails[1].html, /Clerk was unavailable/);
+    assert.equal(
+      warnings.filter((warning) => /handed to the team/.test(warning)).length,
+      1,
+    );
   });
 
   it("leaves a finished request alone", async () => {

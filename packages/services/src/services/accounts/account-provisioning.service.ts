@@ -122,7 +122,7 @@ export class AccountProvisioningService {
 
     if (demoRequest) {
       await this.demoRequests
-        .recordManualAccount(demoRequest.id, clerkUserId, emailSent)
+        .recordManualAccount(demoRequest.id, clerkUserId)
         .catch((error: Error) =>
           this.logger.warn(
             `Could not close demo request ${demoRequest.id} with the new login: ${error.message}`,
