@@ -22,6 +22,11 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   requests racing to create the workspace's `Credit` row — is rethrown, so a
   real write is never silently dropped.
 - Concurrent counters use atomic `{ increment }`, never read-modify-write.
+- Unannotated Prisma `DateTime` columns store UTC using the PostgreSQL
+  `timestamp without time zone` type. In raw SQL, normalize bound JavaScript dates with
+  `::timestamptz AT TIME ZONE 'UTC'` before comparing them to those columns;
+  implicit conversion depends on the PostgreSQL session time zone and can
+  miss overlapping meetings.
 - Queue claims use `SELECT FOR UPDATE SKIP LOCKED` (`lockNextLead`).
 
 ## Schema
@@ -35,6 +40,13 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   second `SELECT … FOR UPDATE` on `User`/`Organization`.
 - Soft deletes use `deletedAt` (contacts, tags, caller IDs, call sessions).
   Respect it in queries.
+- Partial unique indexes (`WHERE …`) cannot be written in `schema.prisma`, so
+  they exist only in migration SQL — `DNCEntry` (org / personal phone) and
+  `Company.normalizedName` (one active name per workspace). Code that relies on
+  one (`ON CONFLICT … WHERE`, a P2002 check) needs its migration written in the
+  same change, and a database built with `prisma db push` lacks them until that
+  SQL is applied by hand: `upsertActiveByName` failed with 42P10 for a month
+  because its migration folder was left empty.
 - Enums are public contracts — the frontend, MCP tools, the SDK and Custom
   Integration payloads all read them. Adding a value is safe; renaming or
   removing one breaks consumers.

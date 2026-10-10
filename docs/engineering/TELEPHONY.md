@@ -85,6 +85,8 @@ recording / transcription events
         ▼
 call.hangup     ──► status, duration, outcome automation, lease release
                 ──► Temporal: processCallRecordingWorkflow
+                ──► inbox: the caller's conversation; a missed call reaches
+                    "My day" and is emailed to its owner (CALL-015)
         │
         ▼
 call.cost       ──► settle once: margin applied, credits debited, totalCost set

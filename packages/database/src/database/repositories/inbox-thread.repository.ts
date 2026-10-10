@@ -27,6 +27,23 @@ export interface ListThreadsOptions {
   assignedToId?: string | null;
 }
 
+/** A thread with a missed call; timestamps describe its latest missed event. */
+export interface MissedCallThread {
+  id: string;
+  participantNumber: string;
+  participantNumberE164: string | null;
+  lastEventAt: Date;
+  lastEventKind: InboxEventKind | null;
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
+    timezone: string | null;
+    deletedAt: Date | null;
+  } | null;
+}
+
 @Injectable()
 export class InboxThreadRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -203,6 +220,74 @@ export class InboxThreadRepository {
       }),
     ]);
     return { all, unread, missed, voicemails, sms };
+  }
+
+  /**
+   * Open threads with a missed call or a voicemail since
+   * `since`, newest first. In an organization, only the caller's own: those
+   * assigned to them, and unassigned ones on a line of theirs (the thread's
+   * user) — the rest of the team's missed calls stay in the shared inbox.
+   */
+  async listMissedCallThreads(
+    ctx: OwnershipContext,
+    options: { since: Date; limit: number },
+  ): Promise<MissedCallThread[]> {
+    const missed: Prisma.InboxEventWhereInput = {
+      kind: {
+        in: [InboxEventKind.missed_call, InboxEventKind.voicemail_received],
+      },
+      occurredAt: { gte: options.since },
+    };
+    const threads = await this.prisma.inboxThread.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        status: { in: [InboxThreadStatus.open, InboxThreadStatus.pending] },
+        events: { some: missed },
+        ...(ctx.organizationId
+          ? {
+              OR: [
+                { assignedToId: ctx.userId },
+                { assignedToId: null, userId: ctx.userId },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        participantNumber: true,
+        participantNumberE164: true,
+        events: {
+          where: missed,
+          orderBy: [{ occurredAt: "desc" }, { sequence: "desc" }],
+          take: 1,
+          select: { occurredAt: true, kind: true },
+        },
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            company: true,
+            timezone: true,
+            deletedAt: true,
+          },
+        },
+      },
+      orderBy: { lastEventAt: "desc" },
+      take: options.limit,
+    });
+    return threads.flatMap(({ events, ...thread }) => {
+      const latest = events[0];
+      return latest
+        ? [
+            {
+              ...thread,
+              lastEventAt: latest.occurredAt,
+              lastEventKind: latest.kind,
+            },
+          ]
+        : [];
+    });
   }
 
   /** Number of threads with at least one unread event (drives the nav badge). */

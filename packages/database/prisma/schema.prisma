@@ -466,6 +466,9 @@ model User {
   ringGroupMemberships    RingGroupMember[]
   inboundRingAttempts     InboundRingAttempt[]
   answeredCalls           Call[]                     @relation("callAnsweredByUser")
+  contactListsCreated     ContactList[]              @relation("contactListCreator")
+  contactListsAssigned    ContactList[]              @relation("contactListAssignee")
+  contactListEntriesAdded ContactListEntry[]         @relation("contactListEntryAdder")
 
   @@index([clerkId])
 }
@@ -536,6 +539,7 @@ model Organization {
   campaigns              Campaign[]
   dispositions           Disposition[]
   tags                   Tag[]
+  contactLists           ContactList[]
   meetings               Meeting[]
   calendars              Calendar[]
   calendarIntegrations   CalendarIntegration[]
@@ -1312,6 +1316,7 @@ model Contact {
   customIntegrationLinks CustomIntegrationContactLink[]
   callSessionItems       CallSessionItem[]
   aiVoiceAgentCalls      AiVoiceAgentCall[]
+  listEntries            ContactListEntry[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -1379,6 +1384,10 @@ model ContactEmail {
 model Company {
   id               String   @id @default(uuid()) @db.Uuid
   name             String
+  /// `name` trimmed, inner whitespace collapsed, lower-cased. Unique among a
+  /// workspace's active companies through partial unique indexes Prisma cannot
+  /// express (`20261009190000_company_active_name_unique`); the CSV import's
+  /// upsert and the CRM sync's name-conflict check both rely on them.
   normalizedName   String?
   legalName        String?
   domain           String?
@@ -1845,6 +1854,68 @@ model ContactTag {
   @@unique([contactId, tagId])
   @@index([contactId])
   @@index([tagId])
+}
+
+/// A named set of contacts somebody works through (LIST-001..LIST-004).
+///
+/// `userId` is who created the list and `assignedToId` who works it. Inside an
+/// organization an admin may assign a list to any member; a member's lists are
+/// always their own. Removing a list never removes its contacts.
+///
+/// Deleting the organization deletes its lists rather than handing them to
+/// their creators: a list's contacts would land in different personal
+/// workspaces, so a surviving list would point across tenants.
+model ContactList {
+  id             String  @id @default(uuid()) @db.Uuid
+  name           String  @db.VarChar(120)
+  description    String? @db.VarChar(1000)
+  /// Who created the list.
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+  /// Who works the list. Set on every create; null only once that user is gone.
+  assignedToId   String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User               @relation("contactListCreator", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo   User?              @relation("contactListAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  organization Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries      ContactListEntry[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([assignedToId])
+}
+
+/// A contact's place in a list: once per list, while one contact can be in many.
+model ContactListEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  listId    String   @db.Uuid
+  contactId String   @db.Uuid
+  /// The order the list is worked in. A database sequence, so the rows of one
+  /// CSV keep the file's order and later additions go to the end.
+  sequence  BigInt   @default(autoincrement())
+  /// How the contact got here: "csv" or "manual".
+  source    String   @db.VarChar(20)
+  /// Who added it.
+  addedById String?  @db.Uuid
+  createdAt DateTime @default(now())
+  /// When a call to the contact was found after it joined the list — placed by
+  /// anyone in the workspace, from any surface. The list records it from the
+  /// workspace's calls (LIST-005); null while the contact is still to call.
+  calledAt  DateTime?
+  /// When the person working the list last skipped the contact. A skipped
+  /// contact goes to the back of the list and comes back after everyone else.
+  skippedAt DateTime?
+
+  list    ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  addedBy User?       @relation("contactListEntryAdder", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([listId, contactId])
+  @@index([listId, sequence])
+  @@index([contactId])
 }
 
 model Meeting {

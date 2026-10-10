@@ -506,4 +506,62 @@ describe("MeetingRepository.createIfAvailable", () => {
     assert.equal(onSecond.length, 1);
     assert.equal(onGlobal.length, 0);
   });
+
+  it("keeps capacity and busy slots correct in non-UTC database sessions", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    for (const [index, timeZone] of [
+      "America/Santo_Domingo",
+      "Pacific/Auckland",
+    ].entries()) {
+      const url = new URL(process.env.DATABASE_URL!);
+      const options = url.searchParams.get("options") ?? "";
+      url.searchParams.set(
+        "options",
+        `${options} -c timezone=${timeZone}`.trim(),
+      );
+      const client = new PrismaClient({
+        datasources: { db: { url: url.toString() } },
+      });
+
+      try {
+        const [{ zone }] = await client.$queryRaw<Array<{ zone: string }>>`
+          SELECT current_setting('TimeZone') AS zone
+        `;
+        assert.equal(zone, timeZone);
+
+        const zonedRepository = new MeetingRepository(client as never);
+        const ctx = { userId: fixture.userId };
+        const start = new Date(`2099-01-${13 + index}T15:00:00.000Z`);
+        const end = new Date(start.getTime() + 30 * 60_000);
+        const data = {
+          contactId: fixture.personalContactId,
+          calendarId: fixture.personalCalendarId,
+          scheduledAt: start,
+          duration: 30,
+        };
+        const results = await Promise.all([
+          zonedRepository.createIfAvailable(ctx, data, PERSONAL_SCOPE, null),
+          zonedRepository.createIfAvailable(ctx, data, PERSONAL_SCOPE, null),
+        ]);
+        assertExactlyOneBooking(results);
+
+        assert.deepEqual(
+          await zonedRepository.findBusySlots(ctx, PERSONAL_SCOPE, start, end),
+          [{ start, end }],
+        );
+        assert.deepEqual(
+          await zonedRepository.findBusySlots(
+            ctx,
+            PERSONAL_SCOPE,
+            end,
+            new Date(end.getTime() + 30 * 60_000),
+          ),
+          [],
+        );
+      } finally {
+        await client.$disconnect();
+      }
+    }
+  });
 });

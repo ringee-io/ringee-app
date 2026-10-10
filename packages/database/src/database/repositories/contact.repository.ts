@@ -13,6 +13,38 @@ export type ContactWithLastCall = Prisma.ContactGetPayload<{
   include: { calls: { select: { outcome: true; createdAt: true } } };
 }>;
 
+const CONTACT_WITH_LATEST_NOTES_SELECT = {
+  id: true,
+  name: true,
+  firstName: true,
+  lastName: true,
+  phoneNumber: true,
+  email: true,
+  company: true,
+  jobTitle: true,
+  locationCity: true,
+  locationRegion: true,
+  locationCountry: true,
+  tags: {
+    where: { tag: { deletedAt: null } },
+    select: { tag: { select: { name: true } } },
+  },
+  _count: { select: { notes: { where: { deletedAt: null } } } },
+} satisfies Prisma.ContactSelect;
+
+/** Who a contact is, its tags, and its latest notes with their authors. */
+export type ContactWithLatestNotes = Prisma.ContactGetPayload<{
+  select: typeof CONTACT_WITH_LATEST_NOTES_SELECT & {
+    notes: {
+      select: {
+        content: true;
+        createdAt: true;
+        user: { select: { firstName: true; lastName: true } };
+      };
+    };
+  };
+}>;
+
 @Injectable()
 export class ContactRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -56,6 +88,34 @@ export class ContactRepository {
   ): Promise<Contact | null> {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
+  /**
+   * A contact of the workspace as a notification shows it: who they are, their
+   * tags, and their `noteLimit` most recent notes, newest first. `_count.notes`
+   * says how many there are in all.
+   */
+  async findWithLatestNotesForOwner(
+    ctx: OwnershipContext,
+    id: string,
+    noteLimit: number,
+  ): Promise<ContactWithLatestNotes | null> {
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+      select: {
+        ...CONTACT_WITH_LATEST_NOTES_SELECT,
+        notes: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: "desc" },
+          take: noteLimit,
+          select: {
+            content: true,
+            createdAt: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
     });
   }
 
@@ -377,6 +437,16 @@ export class ContactRepository {
         phoneNumber: { in: phoneNumbers },
         deletedAt: null,
       },
+      select: { id: true },
+    });
+    return contacts.map((c) => c.id);
+  }
+
+  /** The ids among `ids` that are live contacts of the workspace. */
+  async findOwnedIds(ctx: OwnershipContext, ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const contacts = await this.prisma.contact.findMany({
+      where: { ...buildOwnershipFilter(ctx), id: { in: ids }, deletedAt: null },
       select: { id: true },
     });
     return contacts.map((c) => c.id);

@@ -25,6 +25,7 @@ export default function KBar({ children }: { children: React.ReactNode }) {
 
 const ITEM_TITLE_KEYS: Record<string, string> = {
   Dashboard: "items.dashboard",
+  Lists: "items.lists",
   Contacts: "items.contacts",
   Activities: "items.activities",
   Meetings: "items.meetings",

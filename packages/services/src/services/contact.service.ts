@@ -66,6 +66,22 @@ interface ContactIdentity {
   email: string | null;
 }
 
+/** A contacts CSV, read and checked but not written yet. */
+export interface ParsedContactsCsv {
+  /** Data rows in the file, header excluded. */
+  totalRows: number;
+  /** The valid rows in file order; a number repeated in the file only once. */
+  rows: CsvContactRow[];
+  errors: CsvRowError[];
+}
+
+/** What importing a CSV did, plus every contact its valid rows resolved to. */
+export interface ContactsCsvImport {
+  result: CsvImportResult;
+  /** One per valid row, in file order: created now or already there. */
+  contactIds: string[];
+}
+
 @Injectable()
 export class ContactService {
   constructor(
@@ -430,6 +446,49 @@ export class ContactService {
     tagIds?: string[],
   ): Promise<CsvImportResult> {
     const validatedTagIds = await this.validateImportTagIds(ctx, tagIds);
+    const parsed = this.parseContactsCsv(csvContent);
+    const { result, insertedPhones } = await this.writeImportedRows(
+      ctx,
+      parsed,
+      { resolveContactIds: false },
+    );
+
+    // Assign tags to imported contacts if tagIds provided
+    if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
+      const newContactIds = await this.repo.findContactIdsByPhoneNumbers(
+        ctx,
+        insertedPhones,
+      );
+      if (newContactIds.length > 0) {
+        await this.tagRepo.assignTagsToContacts(newContactIds, validatedTagIds);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Imports rows that {@link parseContactsCsv} already read, exactly as
+   * {@link importContacts} does, and also returns the contact each valid row
+   * resolved to — created now or already in the workspace — in file order.
+   * The contact-list import files them into a list (LIST-003).
+   */
+  async importParsedContacts(
+    ctx: OwnershipContext,
+    parsed: ParsedContactsCsv,
+  ): Promise<ContactsCsvImport> {
+    const { result, contactIds } = await this.writeImportedRows(ctx, parsed, {
+      resolveContactIds: true,
+    });
+    return { result, contactIds };
+  }
+
+  /**
+   * Reads a contacts CSV without writing anything. A file that cannot be
+   * imported at all — empty, too long, missing a required column — throws; a
+   * bad row only comes back as an error, so one typo does not sink the file.
+   */
+  parseContactsCsv(csvContent: string): ParsedContactsCsv {
     const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
 
     if (lines.length === 0) {
@@ -490,10 +549,25 @@ export class ContactService {
       validContacts.push(validation.data!);
     }
 
+    return { totalRows: lines.length - 1, rows: validContacts, errors };
+  }
+
+  private async writeImportedRows(
+    ctx: OwnershipContext,
+    parsed: ParsedContactsCsv,
+    options: { resolveContactIds: boolean },
+  ): Promise<{
+    result: CsvImportResult;
+    contactIds: string[];
+    insertedPhones: string[];
+  }> {
+    const validContacts = parsed.rows;
+
     // Process in batches
     let inserted = 0;
     let duplicatesSkipped = 0;
     const insertedPhones: string[] = [];
+    const contactIds: string[] = [];
 
     for (
       let i = 0;
@@ -527,29 +601,48 @@ export class ContactService {
       }
 
       await this.syncImportedCompanyLinkedinProfiles(ctx, batch);
-    }
 
-    // Assign tags to imported contacts if tagIds provided
-    if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
-      const newContactIds = await this.repo.findContactIdsByPhoneNumbers(
-        ctx,
-        insertedPhones,
-      );
-      if (newContactIds.length > 0) {
-        await this.tagRepo.assignTagsToContacts(newContactIds, validatedTagIds);
+      if (options.resolveContactIds) {
+        contactIds.push(...(await this.resolveImportedIds(ctx, phonesBatch)));
       }
     }
 
     return {
-      success: true,
-      summary: {
-        totalRows: lines.length - 1,
-        inserted,
-        duplicatesSkipped,
-        invalidRows: errors.length,
-        errors: errors.slice(0, 50), // Limit errors returned
+      result: {
+        success: true,
+        summary: {
+          totalRows: parsed.totalRows,
+          inserted,
+          duplicatesSkipped,
+          invalidRows: parsed.errors.length,
+          errors: parsed.errors.slice(0, 50), // Limit errors returned
+        },
       },
+      contactIds,
+      insertedPhones,
     };
+  }
+
+  /**
+   * The contact behind each imported number, in the order given. A workspace
+   * that already holds two contacts for one number gets one of them, the same
+   * way `findByPhone` resolves it.
+   */
+  private async resolveImportedIds(
+    ctx: OwnershipContext,
+    phoneNumbers: string[],
+  ): Promise<string[]> {
+    const targets = await this.repo.findImportTargetsByPhoneNumbers(
+      ctx,
+      phoneNumbers,
+    );
+    const idByPhone = new Map<string, string>();
+    for (const target of targets) {
+      if (!idByPhone.has(target.phoneNumber)) {
+        idByPhone.set(target.phoneNumber, target.id);
+      }
+    }
+    return phoneNumbers.flatMap((phone) => idByPhone.get(phone) ?? []);
   }
 
   /**

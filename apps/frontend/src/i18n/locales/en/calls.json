@@ -629,5 +629,152 @@
     "call": "Call",
     "callAndDontWarn": "Call and don't warn me again",
     "buyNumber": "Buy a number"
+  },
+  "myDay": {
+    "title": "Call",
+    "asideLabel": "Your line and your day",
+    "tabs": {
+      "label": "Call sources",
+      "myDay": "My day",
+      "campaigns": "Campaigns",
+      "campaignsSoon": "Campaign sessions are coming to this page soon."
+    },
+    "search": {
+      "label": "Search a contact or type a number",
+      "placeholder": "Search a contact or type a number",
+      "callNumber": "Call {number}",
+      "incompleteNumber": "Keep typing — include the country code, like +34",
+      "recent": "Recent calls",
+      "searching": "Searching…",
+      "noMatches": "No contacts match “{query}”",
+      "inbound": "Incoming call",
+      "outbound": "Outgoing call",
+      "clear": "Clear the search"
+    },
+    "keypad": {
+      "button": "Keypad",
+      "title": "Keypad"
+    },
+    "list": {
+      "button": "List",
+      "buttonWith": "Calling from {name}. Change the list",
+      "choose": "Choose a list to call",
+      "title": "Call from a list",
+      "hint": "When nobody in today's queue is due, Call next takes the next contact of this list.",
+      "search": "Search your lists",
+      "yours": "Assigned to you",
+      "counts": "{remaining, plural, one {# left} other {# left}} · {total, plural, one {# contact} other {# contacts}}",
+      "noMatches": "No list matches",
+      "none": "No lists are assigned to you yet",
+      "noneHint": "Lists you create, and the ones an admin assigns you, show up here.",
+      "openLists": "Open Lists",
+      "stop": "Stop calling from a list",
+      "failed": "Your lists didn't load.",
+      "retry": "Try again",
+      "gone": "That list is no longer assigned to you.",
+      "skipFailed": "The contact couldn't be skipped. Try again.",
+      "inLists": "From your list:",
+      "more": "+{count}",
+      "create": "Create a list"
+    },
+    "next": {
+      "label": "Next call",
+      "callNext": "Call next",
+      "calling": "Calling…",
+      "onCall": "You're on a call. Hang up to call the next person.",
+      "from": "From {number}",
+      "fromAuto": "From a local number, picked per call",
+      "fromPublic": "From the public number",
+      "caughtUp": "You're all caught up",
+      "caughtUpHint": "Search a contact or type a number to make a call.",
+      "nothingDue": "Nothing due right now",
+      "nothingDueHint": "Next up: {name} at {time}.",
+      "caughtUpWithLists": "Pick one of your lists to keep calling.",
+      "leftInList": "{count, plural, one {# left in the list} other {# left in the list}}",
+      "skippedBefore": "Skipped earlier",
+      "skip": "Skip",
+      "skipHint": "Skip: they go to the end of the list",
+      "listDone": "Nobody left to call in {list}",
+      "listDoneHint": "Everyone in it has been called. Pick another list to keep going.",
+      "listBlockedHint": "{count, plural, one {# contact can't be called now: on the Do Not Call list, with a callback booked, or without a valid number.} other {# contacts can't be called now: on the Do Not Call list, with a callback booked, or without a valid number.}}",
+      "listFailed": "Your list's next contact didn't load",
+      "listFailedHint": "Check your connection and try again.",
+      "retry": "Try again",
+      "chooseList": "Choose a list",
+      "changeList": "Change list",
+      "start": {
+        "title": "Line up who to call",
+        "hint": "Upload a file or type a few numbers. Ringee hands you the next person, every time.",
+        "cta": "Start calling",
+        "reward": "+{amount} free credit when you finish"
+      }
+    },
+    "queue": {
+      "title": "Today's queue",
+      "count": "{count, plural, one {# to call} other {# to call}}",
+      "stableHint": "the order stays put while you work",
+      "groups": {
+        "now": "Now",
+        "later": "Later today",
+        "anytime": "Anytime today"
+      },
+      "nextBadge": "Next",
+      "doNotCall": "Do not call",
+      "call": "Call",
+      "callBack": "Call back",
+      "more": "More actions for {name}",
+      "viewContact": "Open contact",
+      "cancelCallback": "Cancel callback",
+      "cancelFailed": "The callback couldn't be cancelled. Try again.",
+      "incoming": "{count, plural, one {# new person to call since you started} other {# new people to call since you started}}",
+      "addIncoming": "Add to the queue",
+      "emptyTitle": "Nobody to call yet today",
+      "emptyDescription": "Callbacks you owe, missed calls and follow-ups show up here as they come due.",
+      "emptyWithList": "Callbacks you owe, missed calls and follow-ups show up here as they come due. Until then, Call next works through {list}.",
+      "failedTitle": "Today's queue didn't load",
+      "retry": "Try again",
+      "localTime": "{time} there",
+      "unknownCaller": "Unknown caller"
+    },
+    "reasons": {
+      "callbackAt": "Callback at {time}",
+      "missedCall": "Missed call {when}",
+      "voicemail": "Voicemail {when}",
+      "followUpDue": "{action} · due {time}"
+    },
+    "line": {
+      "title": "Your line",
+      "performance": "Answered {rate}% of your {calls} calls · last {days} days",
+      "performanceLow": "Too few of your calls to rate yet · {calls} in the last {days} days",
+      "performanceHint": "Picked up by a person or by voicemail.",
+      "resting": "Resting until {date}: rotation skips it for now",
+      "balance": "Balance",
+      "addCredit": "Add credit"
+    },
+    "today": {
+      "title": "Today",
+      "calls": "{count, plural, one {call} other {calls}}",
+      "conversations": "{count, plural, one {conversation} other {conversations}}",
+      "meetingsBooked": "{count, plural, one {meeting booked} other {meetings booked}}",
+      "statsHint": "Only your own calls today, in this workspace. A conversation is one that reached a person.",
+      "nextMeeting": "Next meeting",
+      "noMeeting": "No more meetings today",
+      "meetingWith": "Meeting with {name}",
+      "duration": "{time} · {minutes} min",
+      "join": "Join",
+      "failed": "Today's numbers didn't load."
+    },
+    "shortcuts": {
+      "title": "Shortcuts",
+      "callNext": "Call next",
+      "search": "Search or type a number",
+      "keypad": "Open the keypad",
+      "list": "Choose a list",
+      "skip": "Skip a list's contact",
+      "move": "Move through results",
+      "callResult": "Call the highlighted result",
+      "clear": "Clear the search",
+      "hint": "They don't fire while you type, or while a call or a dialog is open."
+    }
   }
 }

@@ -34,6 +34,7 @@ import { CallService } from "./call.service";
 import { NumberPurchasedService } from "./number.purchased.service";
 import { RegulatoryDocumentService } from "./regulatory-document.service";
 import { ContactService } from "./contact.service";
+import { ContactListService } from "./contact-lists";
 import { CallerIdService } from "./caller.id.service";
 import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation.service";
 import { CreditService } from "./credit.service";
@@ -69,6 +70,7 @@ import {
   OfferAnalyticsService,
 } from "./offers";
 import { MeetingService } from "./meeting.service";
+import { MyDayService } from "./my-day";
 import {
   AppointmentBookingBlueprint,
   CompanyProfileService,
@@ -128,7 +130,11 @@ import {
   LeadSearchService,
   CustomFieldsService,
 } from "./enrichment";
-import { InboxTimelineService, MessageService } from "./inbox";
+import {
+  InboxTimelineService,
+  MessageService,
+  MissedCallNotificationService,
+} from "./inbox";
 import {
   EmailReminderChannel,
   PushReminderChannel,
@@ -214,6 +220,7 @@ const servicesProviders = [
   NumberPurchasedService,
   RegulatoryDocumentService,
   ContactService,
+  ContactListService,
   CallerIdService,
   CallerIdRotationService,
   CreditService,
@@ -247,6 +254,8 @@ const servicesProviders = [
   OfferAnalyticsService,
   MeetingService,
   CalendarService,
+  // "My day" on the Call page (today queue + day summary)
+  MyDayService,
   // Outbound system services
   ComplianceService,
   DispositionService,
@@ -289,6 +298,7 @@ const servicesProviders = [
   // Inbox / messaging
   InboxTimelineService,
   MessageService,
+  MissedCallNotificationService,
   // Reminders
   ReminderService,
   EmailReminderChannel,

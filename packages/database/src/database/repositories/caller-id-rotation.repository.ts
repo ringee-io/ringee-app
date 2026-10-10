@@ -190,12 +190,21 @@ export class CallerIdRotationRepository {
     return result.count === 1;
   }
 
-  /** Aggregated usage for one number in the reporting / health window. */
+  /**
+   * Aggregated usage for one number in the reporting / health window — or,
+   * with `userId`, only the calls that one person placed from it.
+   */
   async usageSince(
     numberId: string,
     since: Date,
+    userId?: string,
   ): Promise<{ count: number; answered: number; shortCalls: number }> {
-    const usage = await this.aggregateCallUsage([numberId], since);
+    const usage = await this.aggregateCallUsage(
+      [numberId],
+      since,
+      undefined,
+      userId,
+    );
     return usage.get(numberId) ?? { count: 0, answered: 0, shortCalls: 0 };
   }
 
@@ -209,6 +218,7 @@ export class CallerIdRotationRepository {
     numberIds: string[],
     since: Date,
     until?: Date,
+    userId?: string,
   ) {
     if (!numberIds.length)
       return new Map<
@@ -236,6 +246,7 @@ export class CallerIdRotationRepository {
         AND c.direction = 'outbound' AND c."callControlId" IS NOT NULL
         AND COALESCE(c."startedAt", c."createdAt") >= (${since}::timestamptz AT TIME ZONE 'UTC')
         ${until ? Prisma.sql`AND COALESCE(c."startedAt", c."createdAt") < (${until}::timestamptz AT TIME ZONE 'UTC')` : Prisma.empty}
+        ${userId ? Prisma.sql`AND c."userId" = ${userId}::uuid` : Prisma.empty}
       GROUP BY n.id
     `);
     return new Map(rows.map((row) => [row.numberId, row]));

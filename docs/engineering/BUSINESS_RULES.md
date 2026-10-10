@@ -379,6 +379,36 @@ records the margins it ran with.
   and `country-rate.util.ts` (+ specs)
 - **Risk if violated:** a published price the product does not honour
 
+### BILL-022 — The first-list onboarding gives a workspace $1, once, for its first list, only at $0
+
+The Call page's onboarding ends when the user has a list they created for
+themselves with somebody in it (`POST /onboarding/first-list/:listId` checks
+the list, never the client's word). The gift belongs to the **workspace**: a
+person's own workspace once, an organization once — never once per member.
+Finishing adds `FIRST_LIST_REWARD_USD` ($1) only when all of these hold:
+
+- it is the workspace's first list (its oldest one) — another list never pays,
+  at $0 or not, and a workspace that already had lists is past its first;
+- it is the first time this user finishes it in that workspace — a first time
+  that paid nothing, because there was credit, closes it all the same;
+- the user manages the balance (a freelancer, an org admin) — a member
+  finishes it without a gift, and their request never reads the
+  organization's balance (`CALL-014`);
+- the balance is at $0 to the cent — a workspace with credit, or in debt,
+  gets nothing.
+
+It is a `grantCreditsOnce` keyed `onboarding:first-list:<org:id|user:id>`, so a
+workspace is paid once whoever finishes it and however often it is retried;
+the step is stamped on the user per workspace (`first_list`,
+`first_list:<orgId>`) after the grant. A failed completion stays retryable on
+that original list, including after a reload; the UI only marks it complete
+after the server confirms it. Draft cleanup deletes only a still-empty list.
+
+- **Source of truth:** `OnboardingService.completeFirstList` (+ spec)
+- **Risk if violated:** free credit farmed by repeating the onboarding or by
+  each member of an organization, or paid on top of money a customer already
+  has
+
 ---
 
 ## Telephony — calls (`CALL`)
@@ -489,6 +519,76 @@ reaches it on hangup.
 - **Risk if violated:** counted by outcome alone, every connected call without
   one disappears — a workspace whose outcomes never reached the row
   (external-carrier calls, 2026-10) read 0 answered out of 35 connected calls
+
+### CALL-013 — "My day" never offers a call that something else will place
+
+The Call page's queue (`GET /my-day/queue`) is manual calling only. It leaves
+out campaign callbacks — when one comes due the campaign re-queues its lead —
+and the callbacks an AI voice agent scheduled, which the agent places itself.
+An item leaves the queue once it is handled: a missed call when anyone in the
+workspace has called the number since, a follow-up when its owner has called
+the contact after it was raised, a callback only when it is completed or
+cancelled (calling it from the queue completes it, as the callbacks list
+always did). An authorization row without a carrier leg is not a placed call.
+A note or message added to an inbox thread does not return its missed call.
+Reasons at different numbers of one contact remain separate queue items.
+Once nothing in the queue can be called now, "Call next" goes
+through the list the person picked (`LIST-005`), which sets aside anyone
+called since they joined it and anyone with a callback open.
+
+- **Source of truth:** `packages/services/src/services/my-day/`
+- **Risk if violated:** a person and the dialer — or an agent — reach the same
+  contact twice; and "Call next" offers the person who was just called.
+- **Do not** add a source to the queue without deciding who else dials it.
+
+### CALL-014 — "My day" shows the person their own day, never a teammate's
+
+Everything on the Call page is the signed-in person's, in the workspace they
+are in: their personal workspace, or their own share of the organization. The
+queue holds their callbacks and follow-ups, and only the missed calls on their
+lines or assigned to them; the day summary counts their calls and their
+bookings; a number's answer rate counts only the calls they placed from it;
+the lists they can pick, and the list names on the queue, are only the lists
+assigned to them (`LIST-005`). That holds for admins too — the team's numbers
+live on the dashboard and the rotation report. The balance and its top-up are shown only to whoever may
+manage them (a personal workspace's owner, an organization admin).
+
+- **Source of truth:** `packages/services/src/services/my-day/`,
+  `DashboardRepository.getMyDaySummary`,
+  `CallerIdRotationService.getNumberPerformance`
+- **Related:** `WRK-003`; `WRK-005` — hiding the balance is UX. The server
+  enforces who may top up (the Stripe checkout routes are `@OrgAdminOnly()`),
+  but `GET /credits/balance` still answers any member.
+
+### CALL-015 — A missed inbound call always reaches someone: in "My day", and by email
+
+An inbound call is missed when nobody took it: no `answeredAt` and no member's
+claim (`answeredByUserId`). How long it rang is no signal — `durationSeconds`
+runs from the first ring. Every path that ends a call — the main webhook, the
+desk phones' webhook, and the stale-call sweep when a hangup never arrived —
+puts it on its caller's conversation; a missed one reopens a resolved or
+archived conversation and, in an organization, moves an unassigned one onto
+the line of the person the call rang for (`Call.userId`, `NUM-010`). That is
+what lists it in "My day" (`CALL-013`, `CALL-014`).
+
+It is emailed once per call, and someone always gets it: the person whose queue
+lists it (the conversation's assignee when it has one, otherwise the line's
+owner); in an organization, when that person cannot be emailed — they left the
+workspace, or have no address — every member of the team; in a personal
+workspace, its owner. The email carries who called, the line and workspace,
+the contact's details and latest notes, and a link back to the caller. A caller
+who hid their number is announced too, without the link. The missed-call
+notification preference does not stop it (it is the mobile app's push switch,
+as for reminders). A refused send is retried twice and then logged; a backfill
+of past calls files missed calls but announces none.
+
+- **Source of truth:** `isMissedInboundCall` / `missedCallThreadPatch`
+  (`services/inbox/missed-call.ts`), `InboxTimelineService.recordEndedCall`,
+  `MissedCallNotificationService`, `StaleCallSweeperService`
+- **Risk if violated:** a call that rang unanswered is filed as completed and
+  never reaches anyone's queue (every one that rang for a second or more was,
+  until 2026-10); a missed call nobody is told about; a webhook redelivery
+  emails twice; a former member receives a workspace's contact notes.
 
 ---
 
@@ -932,6 +1032,92 @@ that picked it.
   `DispositionRepository.isInUse`
 - **Risk if violated:** past conversions silently reclassified, calls whose
   disposition disappears
+
+---
+
+## Contact lists (`LIST`)
+
+A list is a named set of workspace contacts that one person works through.
+`ContactList.userId` is who created it, `assignedToId` who works it.
+
+### LIST-001 — A member sees only the lists assigned to them
+
+Whoever runs the workspace — a freelancer, an org admin — sees every list in
+it. An `org:member` sees, searches and opens only the lists assigned to them; a
+teammate's list answers 404, exactly like one that does not exist, and the
+index ignores any `assignedToId` a member asks for.
+
+- **Source of truth:** `ContactListService.list` / `loadVisible`
+- **Risk if violated:** a member reads the prospect list a teammate works
+
+### LIST-002 — Only an admin hands a list to somebody else
+
+A list is assigned when it is created: to its creator, unless an org admin
+names another member, whose membership in the organization the server checks.
+A member's own lists are always assigned to them, and only an admin reassigns.
+On a list an admin assigned them, a member works it — calls it, adds contacts
+by CSV or by hand — while renaming, removing contacts and deleting stay with
+admins. On a list they created for themselves, a member has full control.
+
+- **Source of truth:** `ContactListService.resolveAssignee` / `permissionsFor`
+  (the `permissions` it returns only drive the UI)
+- **Risk if violated:** work assigned outside the organization; a member
+  deleting the list an admin built for them
+
+### LIST-003 — A list holds workspace contacts, never copies of them
+
+A CSV uploaded to a list goes through the Contacts import
+(`ContactService.parseContactsCsv` → `importParsedContacts`): same columns,
+same validation, and a number the workspace already has reuses that contact.
+Every valid row's contact then enters the list once, in the file's order
+(`ContactListEntry.sequence`, the order the list is worked in). A number typed
+by hand is matched the same way, and contacts added by id must belong to the
+workspace. A file that cannot be imported at all is refused before a new list
+is created, and a new list whose file fails while it is being filed is removed
+again; the contacts it already wrote stay.
+
+- **Source of truth:** `ContactListService.importCsv` / `addNewContact` /
+  `addContacts`
+- **Risk if violated:** two contacts for one number; a list pointing into
+  another workspace
+
+### LIST-004 — Removing a list or an entry never removes a contact
+
+Deleting a list deletes its entries and taking a contact out deletes one; the
+contacts stay in Contacts. A soft-deleted contact drops out of every list's
+count and pages. Deleting the organization deletes its lists instead of handing
+them to their creators, whose personal workspaces would not hold the contacts.
+
+- **Source of truth:** `ContactListRepository.delete` / `removeEntry`,
+  `ContactList.organization` (`onDelete: Cascade`)
+- **Risk if violated:** contacts lost while tidying lists; a personal list
+  showing another workspace's contacts
+
+### LIST-005 — The Call page works a list for the person it is assigned to
+
+On the Call page a person picks only among the lists assigned to them in the
+workspace they are in — an admin too, who sees every list on the Lists page
+but calls only their own (`CALL-014`). Once nothing in today's queue can be
+called now, "Call next" offers the list's next contact: the first entry, in
+`sequence` order, whose contact nobody in the workspace has called since it
+joined the list — from any surface, a campaign or a voice agent included —
+whose number is not on the Do Not Call list (the flag or the workspace list)
+and who has no callback open, anyone's, since the next call to them is already
+agreed. Skipping sends a contact to the back of the list: the skipped come
+back, longest skipped first, once nobody else is left.
+
+The list learns of calls from the workspace's own `Call` rows and records them
+on the entry (`calledAt`) as it reads, so no dial surface writes to it, and a
+dial that never reached the carrier does not move it on. Today's queue names,
+on each person, the caller's own lists that hold them — never a teammate's.
+
+- **Source of truth:** `MyDayService.getLists` / `getListNext` /
+  `skipListEntry`, `pickListNext` (`services/my-day/my-day-list.ts`),
+  `ContactListRepository.listToCall` / `listsHolding`
+- **Not covered:** a contact still waiting in an active campaign is not set
+  aside; once the campaign calls them, the list counts the call.
+- **Risk if violated:** an agent works a teammate's list; one person reached
+  twice by two surfaces; a Do Not Call number offered as the next call.
 
 ---
 

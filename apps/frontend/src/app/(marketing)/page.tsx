@@ -52,7 +52,7 @@ const FAQ_KEYS = [
 
 export default async function HomePage() {
   const { userId } = await auth();
-  if (userId) redirect('/dashboard/overview');
+  if (userId) redirect('/dashboard/call');
   const t = await getTranslations('marketing.home');
   const price = PRICING.organization.price;
   const faqs = FAQ_KEYS.map((key) => ({

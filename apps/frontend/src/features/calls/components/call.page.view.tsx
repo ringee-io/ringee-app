@@ -1,82 +1,66 @@
-import Link from 'next/link';
-import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
+import { getTranslations } from 'next-intl/server';
+import { Lock } from 'lucide-react';
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
-import { Suspense } from 'react';
-import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
-import ContactListingPage from '@/features/contact/components/contact.listing';
-import { Dialer } from './dialer';
-import { DialerSidePanel } from './dialer-side-panel/dialer-side-panel';
-import CallHistoryListing from '@/features/history/components/call.history.listing';
-import { getTranslations } from 'next-intl/server';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@ringee/frontend-shared/components/ui/tooltip';
+import { MyDayView } from './my-day/my-day-view';
+import { TodayDate } from './my-day/today-date';
 
-enum TabEnum {
-  Dialer = 'dialer',
-  Contact = 'contact',
-  History = 'history'
-}
+const TRIGGER_CLASSES =
+  'h-8 flex-none gap-1.5 px-4 data-[state=active]:font-semibold';
 
+/**
+ * The Call page: where a calling day starts. "My day" is the only source for
+ * now; campaign sessions will join it as a second tab.
+ */
 export default async function CallPageView() {
-  const tab = searchParamsCache.get('tab') || TabEnum.Dialer;
-  const t = await getTranslations('navigation.tabs');
+  const t = await getTranslations('calls.myDay');
 
   return (
-    <Tabs defaultValue={tab} key={tab}>
-      <TabsList className='w-fit'>
-        <TabsTrigger value={TabEnum.Dialer} asChild>
-          <Link href={`?tab=${TabEnum.Dialer}`}>{t('dialer')}</Link>
-        </TabsTrigger>
-        <TabsTrigger value={TabEnum.Contact} asChild>
-          <Link href={`?tab=${TabEnum.Contact}`}>{t('contact')}</Link>
-        </TabsTrigger>
-        <TabsTrigger value={TabEnum.History} asChild>
-          <Link href={`?tab=${TabEnum.History}`}>{t('history')}</Link>
-        </TabsTrigger>
-      </TabsList>
+    <Tabs value='my-day' className='w-full gap-5'>
+      <div className='flex flex-wrap items-end justify-between gap-3'>
+        <div className='space-y-1'>
+          <h1 className='text-2xl font-bold tracking-tight'>{t('title')}</h1>
+          <TodayDate className='text-muted-foreground text-[13px]' />
+        </div>
+        <TabsList aria-label={t('tabs.label')} className='h-10 border p-1'>
+          <TabsTrigger value='my-day' className={TRIGGER_CLASSES}>
+            {t('tabs.myDay')}
+          </TabsTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* A disabled tab takes no pointer events: the tooltip hangs
+                  off its wrapper. */}
+              <span className='inline-flex'>
+                <TabsTrigger
+                  value='campaigns'
+                  disabled
+                  className={TRIGGER_CLASSES}
+                >
+                  <Lock className='size-3.5' />
+                  {t('tabs.campaigns')}
+                  <span className='sr-only'>{t('tabs.campaignsSoon')}</span>
+                </TabsTrigger>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side='bottom'>
+              {t('tabs.campaignsSoon')}
+            </TooltipContent>
+          </Tooltip>
+        </TabsList>
+      </div>
 
-      {tab === TabEnum.Contact && (
-        <TabsContent
-          value={TabEnum.Contact}
-          className='flex flex-1 flex-col space-y-4'
-        >
-          <Suspense
-            fallback={
-              <DataTableSkeleton columnCount={5} rowCount={8} filterCount={2} />
-            }
-          >
-            <ContactListingPage />
-          </Suspense>
-        </TabsContent>
-      )}
-
-      {tab === TabEnum.Dialer && (
-        <TabsContent value={TabEnum.Dialer}>
-          <div className='flex flex-col gap-4 lg:flex-row lg:items-stretch'>
-            <div className='lg:w-[35%]'>
-              <Dialer full />
-            </div>
-            <div className='lg:w-[65%]'>
-              <DialerSidePanel />
-            </div>
-          </div>
-        </TabsContent>
-      )}
-
-      {tab === TabEnum.History && (
-        <TabsContent value={TabEnum.History}>
-          <Suspense
-            fallback={
-              <DataTableSkeleton columnCount={5} rowCount={8} filterCount={2} />
-            }
-          >
-            <CallHistoryListing />
-          </Suspense>
-        </TabsContent>
-      )}
+      <TabsContent value='my-day'>
+        <MyDayView />
+      </TabsContent>
     </Tabs>
   );
 }

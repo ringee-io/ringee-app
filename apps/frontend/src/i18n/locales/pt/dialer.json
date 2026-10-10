@@ -32,57 +32,6 @@
     "doNotCall": "Não ligar",
     "callAnyway": "Ligar mesmo assim"
   },
-  "sidePanel": {
-    "workQueue": "Fila de trabalho",
-    "dueCount": "{count} pendentes",
-    "pendingCount": "{count} agendadas",
-    "tabs": {
-      "callbacks": "Retornos",
-      "today": "Hoje",
-      "recent": "Recentes"
-    },
-    "callbacks": {
-      "emptyTitle": "Sem retornos pendentes",
-      "emptyDescription": "Bom trabalho — sua fila está limpa.",
-      "createdBy": "Criado por {name}",
-      "unknownUser": "Desconhecido",
-      "actions": {
-        "call": "Ligar agora",
-        "viewContact": "Ver contato",
-        "cancel": "Cancelar retorno",
-        "more": "Mais ações"
-      }
-    },
-    "today": {
-      "emptyTitle": "Sem reuniões hoje",
-      "emptyDescription": "Reuniões agendadas para hoje aparecerão aqui.",
-      "joinLink": "Link da reunião",
-      "actions": {
-        "join": "Entrar na reunião",
-        "callContact": "Ligar para o contato"
-      }
-    },
-    "recent": {
-      "emptyTitle": "Sem chamadas recentes",
-      "emptyDescription": "Chamadas que você fizer aparecerão aqui para rediscagem rápida.",
-      "actions": {
-        "redial": "Rediscar",
-        "openDetail": "Ver detalhes da chamada"
-      },
-      "inbound": "Chamada recebida",
-      "outbound": "Chamada efetuada"
-    },
-    "relative": {
-      "now": "agora",
-      "inMinutes": "em {count}m",
-      "minutesAgo": "há {count}m",
-      "inHours": "em {count}h",
-      "hoursAgo": "há {count}h",
-      "tomorrowAt": "amanhã {time}"
-    },
-    "callNext": "Ligar para o próximo",
-    "callNextHint": "Ligar para {name}, seu retorno mais atrasado"
-  },
   "workspace": {
     "title": "Sessão de chamadas",
     "metaTitle": "Marcador — Sessão de chamadas | Ringee",

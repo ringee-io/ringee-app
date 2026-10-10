@@ -32,57 +32,6 @@
     "doNotCall": "Nicht anrufen",
     "callAnyway": "Trotzdem anrufen"
   },
-  "sidePanel": {
-    "workQueue": "Arbeitsliste",
-    "dueCount": "{count} fällig",
-    "pendingCount": "{count} ausstehend",
-    "tabs": {
-      "callbacks": "Rückrufe",
-      "today": "Heute",
-      "recent": "Zuletzt"
-    },
-    "callbacks": {
-      "emptyTitle": "Keine offenen Rückrufe",
-      "emptyDescription": "Gute Arbeit — deine Liste ist leer.",
-      "createdBy": "Erstellt von {name}",
-      "unknownUser": "Unbekannt",
-      "actions": {
-        "call": "Jetzt anrufen",
-        "viewContact": "Kontakt anzeigen",
-        "cancel": "Rückruf abbrechen",
-        "more": "Weitere Aktionen"
-      }
-    },
-    "today": {
-      "emptyTitle": "Keine Meetings heute",
-      "emptyDescription": "Heute geplante Meetings erscheinen hier.",
-      "joinLink": "Meeting-Link",
-      "actions": {
-        "join": "Meeting beitreten",
-        "callContact": "Kontakt anrufen"
-      }
-    },
-    "recent": {
-      "emptyTitle": "Keine letzten Anrufe",
-      "emptyDescription": "Deine ausgehenden Anrufe erscheinen hier für schnelle Wahlwiederholung.",
-      "actions": {
-        "redial": "Erneut wählen",
-        "openDetail": "Anrufdetails öffnen"
-      },
-      "inbound": "Eingehender Anruf",
-      "outbound": "Ausgehender Anruf"
-    },
-    "relative": {
-      "now": "jetzt",
-      "inMinutes": "in {count}m",
-      "minutesAgo": "vor {count}m",
-      "inHours": "in {count}h",
-      "hoursAgo": "vor {count}h",
-      "tomorrowAt": "morgen {time}"
-    },
-    "callNext": "Nächsten anrufen",
-    "callNextHint": "{name} anrufen, dein am längsten überfälliger Rückruf"
-  },
   "workspace": {
     "title": "Anrufsitzung",
     "metaTitle": "Dialer — Anrufsitzung | Ringee",

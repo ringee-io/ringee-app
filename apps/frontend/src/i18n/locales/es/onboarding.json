@@ -27,10 +27,6 @@
     "stepsCompleted": "{completed} de {total} pasos completados"
   },
   "guideSteps": {
-    "request_free_call": {
-      "title": "Solicita tu llamada gratis",
-      "description": "Pide al equipo de Ringee una llamada gratis para probar el servicio"
-    },
     "first_call": {
       "title": "Haz tu primera llamada",
       "description": "Ringee te regala la primera llamada"
@@ -52,30 +48,87 @@
     "label": "Guía de configuración",
     "tooltip": "Reanudar la configuración"
   },
-  "firstCallModal": {
-    "title": "Tu primera llamada va por nuestra cuenta",
-    "subtitle": "¡Haz y graba tu primera llamada gratis!",
-    "step1Title": "Paso 1: Introduce un número",
-    "step1Description": "Usa el teclado para introducir cualquier número. Funciona igual que un teléfono normal.",
-    "step2Title": "Paso 2: Empieza a grabar",
-    "step2Description": "No olvides pulsar el botón de grabación al conectar la llamada para guardar la conversación.",
-    "recordingButton": "Botón de grabación",
-    "recordingAlt": "Cómo iniciar la grabación",
-    "maybeLater": "Quizás más tarde",
-    "startCalling": "Empezar a llamar"
-  },
-  "freeCallRequest": {
-    "badge": "Llamada gratis",
-    "title": "Solicita una llamada gratis",
-    "description": "Prueba Ringee con una llamada de nuestra parte. Envía una solicitud y nuestro equipo la revisará y te responderá por correo.",
-    "notePlaceholder": "Cuéntanos un poco cómo piensas usar Ringee (opcional)",
-    "submit": "Solicitar llamada gratis",
-    "submitting": "Enviando solicitud…",
-    "dismiss": "Quizás más tarde",
-    "successTitle": "Solicitud enviada",
-    "successDescription": "¡Gracias! El equipo de Ringee revisará tu solicitud y te contactará pronto por correo.",
-    "done": "Listo",
-    "errorTitle": "Algo salió mal",
-    "errorDescription": "No pudimos enviar tu solicitud. Inténtalo de nuevo en un momento."
+  "firstList": {
+    "stepOf": "Paso {current} de {total}",
+    "rewardChip": "Termina y recibe {amount} de crédito gratis",
+    "notNow": "Ahora no",
+    "back": "Atrás",
+    "choose": {
+      "title": "¿A quién quieres llamar?",
+      "description": "Trae a las personas que vas a llamar. Ringee las pone en fila y te da la siguiente, siempre.",
+      "time": "Toma alrededor de un minuto.",
+      "file": {
+        "title": "Subir un archivo",
+        "description": "Un CSV de tu CRM o de una hoja de cálculo.",
+        "badge": "Ideal para muchas personas"
+      },
+      "typed": {
+        "title": "Escribir los números",
+        "description": "Agrega a unas pocas personas a mano.",
+        "badge": "La forma más rápida de probar"
+      },
+      "contacts": {
+        "title": "De tus contactos",
+        "description": "Personas que ya guardaste en Ringee.",
+        "badge": "{count, plural, one {# contacto guardado} other {# contactos guardados}}"
+      }
+    },
+    "file": {
+      "title": "Sube tu archivo",
+      "description": "Cada fila es una persona a llamar, en el orden del archivo."
+    },
+    "typed": {
+      "title": "Escribe a quién llamar",
+      "description": "Un número y, si quieres, un nombre. Enter te lleva al siguiente campo.",
+      "phone": "Teléfono",
+      "name": "Nombre",
+      "namePlaceholder": "Nombre (opcional)",
+      "phoneOf": "Teléfono, persona {index}",
+      "nameOf": "Nombre, persona {index}",
+      "remove": "Quitar persona {index}",
+      "add": "Agregar otra persona",
+      "enterHint": "Enter en un nombre agrega a la siguiente persona.",
+      "max": "Hasta {max} aquí — agrega más luego desde Listas.",
+      "invalid": "Este número no parece correcto."
+    },
+    "contacts": {
+      "title": "Elige a quién llamar",
+      "description": "Busca y marca a las personas de esta lista.",
+      "search": "Busca por nombre, número o empresa",
+      "selectShown": "Seleccionar los visibles",
+      "selected": "{count, plural, =0 {Nadie elegido todavía} one {# elegido} other {# elegidos}}",
+      "full": "{max} elegidos — lo máximo que acepta una lista de una vez",
+      "noMatches": "Ningún contacto coincide con tu búsqueda.",
+      "failed": "Tus contactos no cargaron.",
+      "retry": "Reintentar"
+    },
+    "name": {
+      "label": "Nombre de la lista",
+      "first": "Mi primera lista",
+      "next": "Nueva lista",
+      "hint": "Puedes cambiarle el nombre cuando quieras en Listas."
+    },
+    "create": "Crear lista",
+    "createCount": "{count, plural, one {Crear lista con # persona} other {Crear lista con # personas}}",
+    "creating": "Creando tu lista…",
+    "adding": "Agregando {done} de {total}…",
+    "failed": "No se pudo crear la lista. Inténtalo de nuevo.",
+    "personFailed": "No se pudo agregar a esta persona.",
+    "nothingAdded": "No se pudo agregar a nadie a la lista. Revisa esto e inténtalo de nuevo:",
+    "skippedRow": "Fila {row}: {message}",
+    "skippedPerson": "{phone}: {message}",
+    "ready": {
+      "title": "Listo para llamar",
+      "description": "{count, plural, one {# persona en “{name}”, lista para llamar.} other {# personas en “{name}”, en fila y en orden.}}",
+      "rewardTitle": "+{amount} de crédito gratis",
+      "rewardHint": "Ya está en tu balance: tus primeras llamadas van por nuestra cuenta.",
+      "skipped": "{count, plural, one {# fila quedó fuera} other {# filas quedaron fuera}}",
+      "why": "Ver por qué",
+      "cta": "Empezar a llamar",
+      "keyHint": "Pulsa <key>N</key> cuando quieras para llamar a quien sigue."
+    },
+    "completionPending": "Tu primera lista está guardada. Finaliza la configuración para recibir el crédito para llamadas que te corresponda.",
+    "completionFailed": "Tu lista está guardada, pero no se pudo finalizar la configuración. Inténtalo de nuevo.",
+    "finishSetup": "Finalizar configuración"
   }
 }
