@@ -41,6 +41,7 @@ import {
   useRecordingSettings
 } from '@/features/transcription';
 import { useTranslations } from 'next-intl';
+import { CallQualityMonitor } from '@/features/calls/components/call-quality-monitor';
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -328,6 +329,11 @@ export function SoftphonePanel({
               {t('onHold')}
             </span>
           ) : null}
+          <CallQualityMonitor
+            key={activeCall?.id}
+            call={activeCall}
+            connected={isConnected}
+          />
         </div>
       ) : null}
 

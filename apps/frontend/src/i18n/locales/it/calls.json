@@ -591,5 +591,24 @@
       "clear": "Cancella la ricerca",
       "hint": "Non si attivano mentre scrivi, durante una chiamata o con una finestra di dialogo aperta."
     }
+  },
+  "callQuality": {
+    "status": "Connessione: {quality}",
+    "title": "Qualità della connessione",
+    "description": "Queste misurazioni riguardano la connessione del browser alla rete vocale. Non misurano la rete telefonica del destinatario né la qualità del microfono.",
+    "good": "Buona",
+    "fair": "Discreta",
+    "poor": "Scarsa",
+    "unknown": "In attesa di dati",
+    "latency": "Ritardo di andata e ritorno",
+    "jitter": "Jitter dell'audio ricevuto",
+    "packetLoss": "Perdita di pacchetti ricevuti",
+    "outboundLatency": "Audio inviato: andata e ritorno",
+    "outboundPacketLoss": "Perdita di pacchetti inviati",
+    "unavailable": "Non disponibile",
+    "ms": "{value} ms",
+    "percent": "{value}%",
+    "poorConnectionHint": "Se l'audio si interrompe, prova una connessione via cavo o un'altra rete.",
+    "outboundJitter": "Jitter dell'audio inviato"
   }
 }

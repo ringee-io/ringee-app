@@ -8,6 +8,9 @@ pages. Its surface is a public contract with users you cannot grep for.
   breaking and need a version bump in `package.json`.
 - The build is `tsup` and bundles `@ringee/dialer-core` (and `@telnyx/webrtc`)
   into the shipped artifact. A change in dialer-core is a change in this SDK.
+- Published declarations must be self-contained too. Check the built `.d.ts`
+  files for imports of private workspace packages; shared type-only source
+  imports must be inlined by the declaration build.
 - `src/telnyx/telnyx-adapter.ts` is the only Telnyx-aware layer. Everything above
   it speaks Ringee's public vocabulary.
 - Authentication is the publishable key (`pk_live_…`) plus server-side origin,

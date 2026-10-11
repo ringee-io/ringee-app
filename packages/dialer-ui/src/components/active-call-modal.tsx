@@ -34,7 +34,7 @@ import {
   Captions,
   CaptionsOff,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 // Subpath imports keep the Telnyx engine out of the side-panel / web bundles —
 // only the offscreen document ever pulls in @ringee/dialer-core/engine.
 import { useCallStore } from "@ringee/dialer-core/store";
@@ -75,6 +75,9 @@ export type ActiveCallModalProps = {
    */
   isConnected?: boolean;
 
+  /** Optional host-owned connection readout. It does not control the call. */
+  callQualityIndicator?: ReactNode;
+
   isMuted?: boolean;
   isOnHold?: boolean;
   isRecording?: boolean;
@@ -114,6 +117,7 @@ export function ActiveCallModal({
   contactName,
   statusText = "Connecting...",
   isConnected: isConnectedProp,
+  callQualityIndicator,
   isMuted = false,
   isOnHold = false,
   isRecording = false,
@@ -394,6 +398,9 @@ export function ActiveCallModal({
               >
                 {elapsedLabel}
               </div>
+              {callQualityIndicator ? (
+                <div className="mt-2">{callQualityIndicator}</div>
+              ) : null}
             </div>
 
             {/* Visualizer / Center Space */}

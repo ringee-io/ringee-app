@@ -21,6 +21,8 @@ import {
 import type { SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
 import { useTranslations } from 'next-intl';
+import type { Call } from '@telnyx/webrtc';
+import { CallQualityMonitor } from '@/features/calls/components/call-quality-monitor';
 
 interface CallState {
   state: 'idle' | 'dialing' | 'ringing' | 'connected' | 'held' | 'ended';
@@ -34,6 +36,7 @@ interface Props {
   phase: CallSessionPhase;
   activeItem: SessionItemDto | null;
   call: CallState;
+  activeCall: Call | null;
   busy: boolean;
   creditsOk: boolean;
   telnyxStatus:
@@ -69,6 +72,7 @@ export function SessionSoftphonePanel(props: Props) {
     phase,
     activeItem,
     call,
+    activeCall,
     busy,
     creditsOk,
     telnyxStatus,
@@ -244,6 +248,11 @@ export function SessionSoftphonePanel(props: Props) {
           {call.isOnHold && (
             <div className='mt-1 text-xs text-yellow-600'>{t('onHold')}</div>
           )}
+          <CallQualityMonitor
+            key={activeCall?.id}
+            call={activeCall}
+            connected={call.state === 'connected' || call.state === 'held'}
+          />
         </div>
 
         <div className='flex items-center gap-3'>

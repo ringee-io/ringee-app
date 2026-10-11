@@ -17,7 +17,7 @@
     "@ringee/dialer-core": "workspace:*",
     "@ringee/dialer-ui": "workspace:*",
     "@ringee/frontend-shared": "workspace:*",
-    "@telnyx/webrtc": "2.25.2",
+    "@telnyx/webrtc": "2.27.9",
     "country-flag-icons": "^1.5.21",
     "lucide-react": "^0.476.0",
     "react": "19.0.1",
