@@ -51,9 +51,7 @@ export function CallQualityIndicator({
             aria-hidden="true"
             className={cn("h-2 w-2 shrink-0 rounded-full", DOT_COLOR[tone])}
           />
-          <span role="status" aria-live="polite">
-            {statusText}
-          </span>
+          <span>{statusText}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
