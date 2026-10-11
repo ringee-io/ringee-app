@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { ApiError, type ApiClient } from '@ringee/frontend-shared/lib/api';
 import type { DialerMode } from '@/features/campaigns/types/campaign.types';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
@@ -14,6 +15,28 @@ import {
 } from '../store/dialer-call.store';
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
+const ORPHAN_END_ATTEMPTS = 3;
+
+/**
+ * Ends a session nobody is left to run. Ending is idempotent on the server, so
+ * a request lost to the network or a 5xx is sent again; a 4xx would answer the
+ * same every time. The stale-session sweep stays the backstop.
+ */
+async function endOrphanedSession(api: ApiClient, sessionId: string) {
+  for (let attempt = 1; attempt <= ORPHAN_END_ATTEMPTS; attempt++) {
+    try {
+      await api.delete(`/dialer/sessions/${sessionId}`);
+      return;
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0;
+      if (attempt === ORPHAN_END_ATTEMPTS || (status >= 400 && status < 500)) {
+        console.error('Failed to end an orphaned session:', err);
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
+  }
+}
 
 export function useDialerSession(campaignId: string) {
   const api = useApi();
@@ -126,7 +149,7 @@ export function useDialerSession(campaignId: string) {
       // session's leads or keep it alive, so it ends now instead of waiting for
       // the stale-session sweep with a lead the poller may already be handing it.
       if (!mountedRef.current) {
-        api.delete(`/dialer/sessions/${res.id}`).catch(() => {});
+        await endOrphanedSession(api, res.id);
         return res;
       }
       setSession(

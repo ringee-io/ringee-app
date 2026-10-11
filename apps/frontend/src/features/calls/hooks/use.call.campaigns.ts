@@ -68,9 +68,16 @@ export function useCallCampaigns() {
     }
   }, [api]);
 
+  // Runs again when the active organization changes under the page (a switch
+  // in another tab; this one reloads): nothing from the last one carries over,
+  // neither its campaigns nor the one picked among them.
   useEffect(() => {
+    setCampaigns([]);
+    setPickedId(null);
+    setLoading(true);
+    setFailed(false);
     void refresh();
-  }, [refresh]);
+  }, [refresh, orgId]);
 
   /** A session opened with this campaign: it is the default from now on. */
   const rememberSession = useCallback(

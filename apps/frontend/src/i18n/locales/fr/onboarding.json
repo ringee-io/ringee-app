@@ -47,5 +47,88 @@
   "headerProgress": {
     "label": "Guide de configuration",
     "tooltip": "Reprendre l'onboarding"
+  },
+  "firstList": {
+    "stepOf": "Étape {current} sur {total}",
+    "rewardChip": "Terminez pour recevoir {amount} de crédit gratuit",
+    "notNow": "Pas maintenant",
+    "back": "Retour",
+    "choose": {
+      "title": "Qui voulez-vous appeler ?",
+      "description": "Ajoutez les personnes à appeler. Ringee les met en file et vous présente la suivante à chaque fois.",
+      "time": "Cela prend environ une minute.",
+      "file": {
+        "title": "Importer un fichier",
+        "description": "Un CSV de votre CRM ou d’un tableur.",
+        "badge": "Idéal pour de nombreux contacts"
+      },
+      "typed": {
+        "title": "Saisir les numéros",
+        "description": "Ajoutez quelques personnes manuellement.",
+        "badge": "Le plus rapide pour essayer"
+      },
+      "contacts": {
+        "title": "Depuis vos contacts",
+        "description": "Des personnes déjà enregistrées dans Ringee.",
+        "badge": "{count, plural, one {# contact enregistré} other {# contacts enregistrés}}"
+      }
+    },
+    "file": {
+      "title": "Importez votre fichier",
+      "description": "Chaque ligne est une personne à appeler, dans l’ordre du fichier."
+    },
+    "typed": {
+      "title": "Saisissez les personnes à appeler",
+      "description": "Un numéro et, si vous le souhaitez, un nom. Entrée passe au champ suivant.",
+      "phone": "Numéro de téléphone",
+      "name": "Nom",
+      "namePlaceholder": "Nom (facultatif)",
+      "phoneOf": "Numéro de téléphone, personne {index}",
+      "nameOf": "Nom, personne {index}",
+      "remove": "Retirer la personne {index}",
+      "add": "Ajouter une personne",
+      "enterHint": "Entrée sur un nom ajoute la personne suivante.",
+      "max": "Jusqu’à {max} ici — ajoutez-en plus ensuite depuis Listes.",
+      "invalid": "Ce numéro semble incorrect."
+    },
+    "contacts": {
+      "title": "Choisissez les personnes à appeler",
+      "description": "Recherchez et cochez les personnes à inclure dans cette liste.",
+      "search": "Rechercher par nom, numéro ou entreprise",
+      "selectShown": "Sélectionner tous les contacts affichés",
+      "selected": "{count, plural, =0 {Aucune personne sélectionnée} one {# sélectionnée} other {# sélectionnées}}",
+      "full": "{max} personnes sélectionnées — le maximum par ajout",
+      "noMatches": "Aucun contact ne correspond à votre recherche.",
+      "failed": "Vos contacts n’ont pas pu être chargés.",
+      "retry": "Réessayer"
+    },
+    "name": {
+      "label": "Nom de la liste",
+      "first": "Ma première liste",
+      "next": "Nouvelle liste",
+      "hint": "Vous pouvez la renommer à tout moment dans Listes."
+    },
+    "create": "Créer la liste",
+    "createCount": "{count, plural, one {Créer une liste avec # personne} other {Créer une liste avec # personnes}}",
+    "creating": "Création de votre liste…",
+    "adding": "Ajout de {done} sur {total}…",
+    "failed": "La liste n’a pas pu être créée. Réessayez.",
+    "personFailed": "Cette personne n’a pas pu être ajoutée.",
+    "nothingAdded": "Personne n’a pu être ajouté à la liste. Vérifiez ces éléments et réessayez :",
+    "skippedRow": "Ligne {row} : {message}",
+    "skippedPerson": "{phone} : {message}",
+    "ready": {
+      "title": "Vous pouvez commencer à appeler",
+      "description": "{count, plural, one {# personne dans « {name} », prête à être appelée.} other {# personnes dans « {name} », dans l’ordre d’appel.}}",
+      "rewardTitle": "+{amount} de crédit gratuit",
+      "rewardHint": "Ajouté à votre solde — vos premiers appels sont offerts.",
+      "skipped": "{count, plural, one {# ligne a été ignorée} other {# lignes ont été ignorées}}",
+      "why": "Voir pourquoi",
+      "cta": "Commencer à appeler",
+      "keyHint": "Appuyez sur <key>N</key> à tout moment pour appeler la personne suivante."
+    },
+    "completionPending": "Votre première liste est enregistrée. Terminez la configuration pour recevoir le crédit d’appel auquel vous avez droit.",
+    "completionFailed": "Votre liste est enregistrée, mais la configuration n’a pas pu être terminée. Réessayez.",
+    "finishSetup": "Terminer la configuration"
   }
 }

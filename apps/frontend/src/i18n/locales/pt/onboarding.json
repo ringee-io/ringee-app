@@ -47,5 +47,88 @@
   "headerProgress": {
     "label": "Guia de configuração",
     "tooltip": "Retomar a configuração"
+  },
+  "firstList": {
+    "stepOf": "Passo {current} de {total}",
+    "rewardChip": "Termine e receba {amount} de crédito gratuito",
+    "notNow": "Agora não",
+    "back": "Voltar",
+    "choose": {
+      "title": "A quem quer ligar?",
+      "description": "Adicione as pessoas a quem vai ligar. A Ringee organiza-as e apresenta-lhe a próxima, sempre.",
+      "time": "Demora cerca de um minuto.",
+      "file": {
+        "title": "Carregar um ficheiro",
+        "description": "Um CSV do seu CRM ou de uma folha de cálculo.",
+        "badge": "Ideal para muitas pessoas"
+      },
+      "typed": {
+        "title": "Introduzir os números",
+        "description": "Adicione algumas pessoas manualmente.",
+        "badge": "A forma mais rápida de experimentar"
+      },
+      "contacts": {
+        "title": "A partir dos seus contactos",
+        "description": "Pessoas já guardadas na Ringee.",
+        "badge": "{count, plural, one {# contacto guardado} other {# contactos guardados}}"
+      }
+    },
+    "file": {
+      "title": "Carregue o seu ficheiro",
+      "description": "Cada linha é uma pessoa para ligar, pela ordem do ficheiro."
+    },
+    "typed": {
+      "title": "Introduza a quem ligar",
+      "description": "Um número e, se quiser, um nome. Enter passa para o campo seguinte.",
+      "phone": "Número de telefone",
+      "name": "Nome",
+      "namePlaceholder": "Nome (opcional)",
+      "phoneOf": "Número de telefone, pessoa {index}",
+      "nameOf": "Nome, pessoa {index}",
+      "remove": "Remover pessoa {index}",
+      "add": "Adicionar outra pessoa",
+      "enterHint": "Enter num nome adiciona a pessoa seguinte.",
+      "max": "Até {max} aqui — adicione mais depois em Listas.",
+      "invalid": "Este número não parece correto."
+    },
+    "contacts": {
+      "title": "Escolha a quem ligar",
+      "description": "Pesquise e selecione as pessoas para esta lista.",
+      "search": "Pesquisar por nome, número ou empresa",
+      "selectShown": "Selecionar todos os apresentados",
+      "selected": "{count, plural, =0 {Ainda ninguém selecionado} one {# selecionado} other {# selecionados}}",
+      "full": "{max} selecionados — o máximo por adição à lista",
+      "noMatches": "Nenhum contacto corresponde à pesquisa.",
+      "failed": "Não foi possível carregar os seus contactos.",
+      "retry": "Tentar novamente"
+    },
+    "name": {
+      "label": "Nome da lista",
+      "first": "A minha primeira lista",
+      "next": "Nova lista",
+      "hint": "Pode mudar o nome a qualquer momento em Listas."
+    },
+    "create": "Criar lista",
+    "createCount": "{count, plural, one {Criar lista com # pessoa} other {Criar lista com # pessoas}}",
+    "creating": "A criar a sua lista…",
+    "adding": "A adicionar {done} de {total}…",
+    "failed": "Não foi possível criar a lista. Tente novamente.",
+    "personFailed": "Não foi possível adicionar esta pessoa.",
+    "nothingAdded": "Não foi possível adicionar ninguém à lista. Verifique estes dados e tente novamente:",
+    "skippedRow": "Linha {row}: {message}",
+    "skippedPerson": "{phone}: {message}",
+    "ready": {
+      "title": "Está pronto para ligar",
+      "description": "{count, plural, one {# pessoa em «{name}», pronta para ligar.} other {# pessoas em «{name}», organizadas por ordem.}}",
+      "rewardTitle": "+{amount} de crédito gratuito",
+      "rewardHint": "Adicionado ao seu saldo — as primeiras chamadas são por nossa conta.",
+      "skipped": "{count, plural, one {# linha ficou de fora} other {# linhas ficaram de fora}}",
+      "why": "Ver porquê",
+      "cta": "Começar a ligar",
+      "keyHint": "Prima <key>N</key> a qualquer momento para ligar à próxima pessoa."
+    },
+    "completionPending": "A sua primeira lista foi guardada. Termine a configuração para receber o crédito de chamadas a que tem direito.",
+    "completionFailed": "A sua lista foi guardada, mas não foi possível concluir a configuração. Tente novamente.",
+    "finishSetup": "Concluir configuração"
   }
 }

@@ -353,7 +353,14 @@
       "connectingHint": "Tu línea se está conectando. Si llamas ahora, la llamada saldrá en cuanto esté lista.",
       "offline": "Sin conexión",
       "offlineHint": "Tu línea está desconectada. Revisa tu conexión a internet."
-    }
+    },
+    "freeTrial": "🎉 Tienes una llamada de prueba gratuita",
+    "freeTrialHint": "Limitada a 1 minuto: la llamada termina automáticamente",
+    "balance": "Saldo",
+    "outboundDisabled": "Las llamadas salientes están desactivadas para esta cuenta.",
+    "enterNumber": "Introduce un número",
+    "callerIdUnavailable": "No hay un ID de llamante disponible para este destino. Añade o activa un número de ese país en los ajustes de rotación de ID de llamante.",
+    "freeTrialEnded": "⏱ La llamada de prueba gratuita terminó: se alcanzó el límite de 1 minuto"
   },
   "numberSelector": {
     "externalCarrier": "Tu operador",
@@ -414,5 +421,182 @@
     "call": "Llamar",
     "callAndDontWarn": "Llamar y no volver a avisar",
     "buyNumber": "Comprar un número"
+  },
+  "myDay": {
+    "title": "Llamar",
+    "asideLabel": "Tu línea y tu día",
+    "tabs": {
+      "label": "Origen de las llamadas",
+      "myDay": "Mi día",
+      "campaigns": "Campañas",
+      "unlockCampaigns": "Desbloquear campañas"
+    },
+    "campaigns": {
+      "bar": "Campaña para llamar",
+      "leads": "{count, plural, one {# prospecto} other {# prospectos}}",
+      "callingHours": "Horario de llamadas",
+      "picker": {
+        "change": "Cambiar campaña, {name} seleccionada",
+        "title": "Campañas activas",
+        "search": "Buscar campañas",
+        "noMatches": "No hay campañas que coincidan",
+        "all": "Todas las campañas"
+      },
+      "emptyTitle": "No hay campañas activas",
+      "emptyAdmin": "Activa una campaña y aparecerá aquí, lista para llamar.",
+      "emptyMember": "Cuando se active una campaña que tengas asignada, aparecerá aquí.",
+      "goToCampaigns": "Ir a campañas",
+      "failedTitle": "No se pudieron cargar tus campañas",
+      "retry": "Reintentar",
+      "unlock": {
+        "title": "Desbloquear campañas",
+        "description": "Las campañas están incluidas en el plan Organización: carga tus prospectos, asígnalos a tu equipo y llámalos en sesiones.",
+        "switchTitle": "Las campañas están en tu organización",
+        "switchDescription": "Estás en tu espacio personal. Cambia a tu organización para llamar en sus campañas.",
+        "switchTo": "Cambiar a {name}",
+        "checkFailed": "No pudimos comprobar si ya tienes un plan Organización.",
+        "readyTitle": "Tu plan Organización está listo",
+        "readyDescription": "Crea tu organización para empezar a trabajar con campañas."
+      }
+    },
+    "search": {
+      "label": "Busca un contacto o escribe un número",
+      "placeholder": "Busca un contacto o escribe un número",
+      "callNumber": "Llamar a {number}",
+      "incompleteNumber": "Sigue escribiendo: incluye el prefijo del país, como +34",
+      "recent": "Llamadas recientes",
+      "searching": "Buscando…",
+      "noMatches": "No hay contactos que coincidan con «{query}»",
+      "inbound": "Llamada entrante",
+      "outbound": "Llamada saliente",
+      "clear": "Borrar la búsqueda"
+    },
+    "keypad": {
+      "button": "Teclado",
+      "title": "Teclado",
+      "country": "País del número de teléfono",
+      "international": "Internacional"
+    },
+    "list": {
+      "button": "Lista",
+      "buttonWith": "Llamando desde {name}. Cambiar la lista",
+      "choose": "Elige una lista para llamar",
+      "title": "Llamar desde una lista",
+      "hint": "Cuando no haya llamadas pendientes en la cola de hoy, Llamar al siguiente toma el próximo contacto de esta lista.",
+      "search": "Buscar en tus listas",
+      "yours": "Asignadas a ti",
+      "counts": "{remaining, plural, one {# pendiente} other {# pendientes}} · {total, plural, one {# contacto} other {# contactos}}",
+      "noMatches": "No hay listas que coincidan",
+      "none": "Aún no tienes listas asignadas",
+      "noneHint": "Aquí aparecen las listas que creas y las que un administrador te asigna.",
+      "openLists": "Abrir Listas",
+      "stop": "Dejar de llamar desde una lista",
+      "failed": "No se pudieron cargar tus listas.",
+      "retry": "Reintentar",
+      "gone": "Ya no tienes esa lista asignada.",
+      "skipFailed": "No se pudo omitir el contacto. Inténtalo de nuevo.",
+      "inLists": "De tu lista:",
+      "more": "+{count}",
+      "create": "Crear una lista"
+    },
+    "next": {
+      "label": "Próxima llamada",
+      "callNext": "Llamar al siguiente",
+      "calling": "Llamando…",
+      "onCall": "Estás en una llamada. Cuelga para llamar a la siguiente persona.",
+      "from": "Desde {number}",
+      "fromAuto": "Desde un número local, elegido para cada llamada",
+      "fromPublic": "Desde el número público",
+      "caughtUp": "Estás al día",
+      "caughtUpHint": "Busca un contacto o escribe un número para llamar.",
+      "nothingDue": "No hay llamadas pendientes ahora",
+      "nothingDueHint": "A continuación: {name} a las {time}.",
+      "caughtUpWithLists": "Elige una de tus listas para seguir llamando.",
+      "leftInList": "{count, plural, one {# pendiente en la lista} other {# pendientes en la lista}}",
+      "skippedBefore": "Omitido antes",
+      "skip": "Omitir",
+      "skipHint": "Omitir: pasa al final de la lista",
+      "listDone": "No queda nadie por llamar en {list}",
+      "listDoneHint": "Ya llamaste a todas las personas de la lista. Elige otra para continuar.",
+      "listBlockedHint": "{count, plural, one {# contacto no se puede llamar ahora: está en la lista de no llamar, tiene una devolución agendada o no tiene un número válido.} other {# contactos no se pueden llamar ahora: están en la lista de no llamar, tienen una devolución agendada o no tienen un número válido.}}",
+      "listFailed": "No se pudo cargar el siguiente contacto de tu lista",
+      "listFailedHint": "Revisa tu conexión e inténtalo de nuevo.",
+      "retry": "Reintentar",
+      "chooseList": "Elegir una lista",
+      "changeList": "Cambiar lista",
+      "start": {
+        "title": "Prepara a quién llamar",
+        "hint": "Sube un archivo o escribe algunos números. Ringee te muestra la siguiente persona cada vez.",
+        "cta": "Empezar a llamar",
+        "reward": "+{amount} de crédito gratis al terminar"
+      }
+    },
+    "queue": {
+      "title": "Cola de hoy",
+      "count": "{count, plural, one {# por llamar} other {# por llamar}}",
+      "stableHint": "el orden se mantiene mientras trabajas",
+      "groups": {
+        "now": "Ahora",
+        "later": "Más tarde hoy",
+        "anytime": "En cualquier momento hoy"
+      },
+      "nextBadge": "Siguiente",
+      "doNotCall": "No llamar",
+      "call": "Llamar",
+      "callBack": "Devolver llamada",
+      "more": "Más acciones para {name}",
+      "viewContact": "Abrir contacto",
+      "cancelCallback": "Cancelar devolución",
+      "cancelFailed": "No se pudo cancelar la devolución. Inténtalo de nuevo.",
+      "incoming": "{count, plural, one {# persona nueva por llamar desde que empezaste} other {# personas nuevas por llamar desde que empezaste}}",
+      "addIncoming": "Añadir a la cola",
+      "emptyTitle": "Hoy aún no hay nadie por llamar",
+      "emptyDescription": "Las devoluciones pendientes, las llamadas perdidas y los seguimientos aparecen aquí cuando toca hacerlos.",
+      "emptyWithList": "Las devoluciones pendientes, las llamadas perdidas y los seguimientos aparecen aquí cuando toca hacerlos. Mientras tanto, Llamar al siguiente recorre {list}.",
+      "failedTitle": "No se pudo cargar la cola de hoy",
+      "retry": "Reintentar",
+      "localTime": "{time} allí",
+      "unknownCaller": "Llamante desconocido"
+    },
+    "reasons": {
+      "callbackAt": "Devolución a las {time}",
+      "missedCall": "Llamada perdida {when}",
+      "voicemail": "Buzón de voz {when}",
+      "followUpDue": "{action} · pendiente a las {time}"
+    },
+    "line": {
+      "title": "Tu línea",
+      "performance": "Respondieron al {rate}% de tus {calls} llamadas · últimos {days} días",
+      "performanceLow": "Aún hay pocas llamadas para evaluar · {calls} en los últimos {days} días",
+      "performanceHint": "Atendidas por una persona o por un buzón de voz.",
+      "resting": "En descanso hasta {date}: la rotación la omite por ahora",
+      "balance": "Saldo",
+      "addCredit": "Recargar"
+    },
+    "today": {
+      "title": "Hoy",
+      "calls": "{count, plural, one {llamada} other {llamadas}}",
+      "conversations": "{count, plural, one {conversación} other {conversaciones}}",
+      "meetingsBooked": "{count, plural, one {reunión agendada} other {reuniones agendadas}}",
+      "statsHint": "Solo tus llamadas de hoy en este espacio de trabajo. Una conversación es una llamada atendida por una persona.",
+      "nextMeeting": "Próxima reunión",
+      "noMeeting": "No hay más reuniones hoy",
+      "meetingWith": "Reunión con {name}",
+      "duration": "{time} · {minutes} min",
+      "join": "Unirse",
+      "failed": "No se pudieron cargar las cifras de hoy."
+    },
+    "shortcuts": {
+      "title": "Atajos",
+      "callNext": "Llamar al siguiente",
+      "search": "Buscar o escribir un número",
+      "keypad": "Abrir el teclado",
+      "list": "Elegir una lista",
+      "skip": "Omitir un contacto de la lista",
+      "move": "Moverse entre los resultados",
+      "callResult": "Llamar al resultado seleccionado",
+      "clear": "Borrar la búsqueda",
+      "hint": "No se activan mientras escribes ni cuando hay una llamada o un diálogo abierto."
+    }
   }
 }

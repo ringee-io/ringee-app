@@ -110,5 +110,6 @@
     "thu": "Jeu",
     "fri": "Ven",
     "sat": "Sam"
-  }
+  },
+  "openActions": "Ouvrir le menu d’actions"
 }

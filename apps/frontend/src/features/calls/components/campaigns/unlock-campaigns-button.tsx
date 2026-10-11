@@ -9,6 +9,7 @@ import {
   Loader2,
   Lock,
   Plus,
+  RotateCw,
   Sparkles
 } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -45,6 +46,8 @@ export interface UnlockOrganization {
  */
 export function UnlockCampaignsContent({
   loading,
+  failed,
+  onRetry,
   hasSubscription,
   organizations,
   switchingTo,
@@ -52,6 +55,9 @@ export function UnlockCampaignsContent({
   onSwitch
 }: {
   loading: boolean;
+  /** Whether a plan is already paid for could not be read. */
+  failed: boolean;
+  onRetry: () => void;
   /** A plan paid for and not used yet by an organization. */
   hasSubscription: boolean;
   organizations: UnlockOrganization[];
@@ -60,7 +66,20 @@ export function UnlockCampaignsContent({
   onSwitch: (organizationId: string) => void;
 }) {
   const t = useTranslations('calls.myDay.campaigns.unlock');
+  const tCampaigns = useTranslations('calls.myDay.campaigns');
   const tSwitcher = useTranslations('organizations.switcher');
+
+  if (failed) {
+    return (
+      <div className='flex flex-col items-center gap-3 text-center'>
+        <p className='text-sm font-medium'>{t('checkFailed')}</p>
+        <Button variant='outline' size='sm' onClick={onRetry}>
+          <RotateCw />
+          {tCampaigns('retry')}
+        </Button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -164,25 +183,31 @@ export function UnlockCampaignsButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
-  // `null` = not known yet.
+  // `null` = not known yet. A read that fails stays unknown: it must never
+  // pass for "no plan" and offer a second checkout to someone already paying.
   const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
+  const [subscriptionFailed, setSubscriptionFailed] = useState(false);
+  const [subscriptionAttempt, setSubscriptionAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ hasAvailable: boolean }>('/subscriptions/available')
+      .get<{ hasAvailable?: boolean }>('/subscriptions/available')
       .then((res) => {
-        if (!cancelled) setHasSubscription(!!res?.hasAvailable);
+        if (cancelled) return;
+        if (typeof res?.hasAvailable === 'boolean') {
+          setHasSubscription(res.hasAvailable);
+        } else {
+          setSubscriptionFailed(true);
+        }
       })
       .catch(() => {
-        // Unknown reads as "no plan": showing the upsell is recoverable,
-        // hiding the only way forward is not.
-        if (!cancelled) setHasSubscription(false);
+        if (!cancelled) setSubscriptionFailed(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [api]);
+  }, [api, subscriptionAttempt]);
 
   const switchTo = async (organizationId: string) => {
     setSwitchingTo(organizationId);
@@ -222,6 +247,11 @@ export function UnlockCampaignsButton({ className }: { className?: string }) {
             loading={
               hasSubscription === null || !isLoaded || userMemberships.isLoading
             }
+            failed={subscriptionFailed}
+            onRetry={() => {
+              setSubscriptionFailed(false);
+              setSubscriptionAttempt((attempt) => attempt + 1);
+            }}
             hasSubscription={hasSubscription === true}
             organizations={(userMemberships.data ?? []).map(
               ({ organization }) => ({

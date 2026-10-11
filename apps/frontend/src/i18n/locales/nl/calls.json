@@ -341,6 +341,25 @@
       "connectingHint": "Je lijn wordt verbonden. Een gesprek dat je nu start, gaat eruit zodra die klaar is.",
       "offline": "Offline",
       "offlineHint": "Je lijn is verbroken. Controleer je internetverbinding."
+    },
+    "freeTrial": "🎉 Gratis proefgesprek beschikbaar",
+    "freeTrialHint": "Beperkt tot 1 minuut — het gesprek eindigt automatisch",
+    "balance": "Saldo",
+    "outboundDisabled": "Uitgaand bellen is uitgeschakeld voor dit account.",
+    "enterNumber": "Voer een nummer in",
+    "callerIdUnavailable": "Geen beller-ID beschikbaar voor deze bestemming. Voeg een nummer voor dit land toe of schakel er een in bij de instellingen voor nummerrotatie.",
+    "freeTrialEnded": "⏱ Het gratis proefgesprek is beëindigd — de limiet van 1 minuut is bereikt",
+    "externalCarrier": {
+      "invalidDestination": "Voer een geldig internationaal nummer in dat begint met +.",
+      "noCredit": "Je hebt onvoldoende tegoed voor dit gesprek.",
+      "notAllowed": "Je kunt in deze werkruimte niet vanaf dit nummer bellen.",
+      "numberUnavailable": "Dit nummer is niet meer beschikbaar. Kies een ander nummer.",
+      "notReady": "Je provider is niet klaar. Controleer of het toestel is gesynchroniseerd en geregistreerd.",
+      "unavailable": "Je provider is niet bereikbaar. Probeer het zo nog eens.",
+      "rejected": "Je provider heeft het gesprek geweigerd. Controleer de rechten voor uitgaand bellen van het toestel in je PBX.",
+      "destinationRejected": "Je provider kon het gesprek naar dit nummer niet doorverbinden.",
+      "timeout": "Je provider heeft niet op tijd geantwoord.",
+      "failed": "Het gesprek kon niet via je provider worden voltooid."
     }
   },
   "activeCallStatus": {
@@ -402,5 +421,182 @@
     "call": "Bellen",
     "callAndDontWarn": "Bellen en niet meer waarschuwen",
     "buyNumber": "Nummer kopen"
+  },
+  "myDay": {
+    "title": "Bellen",
+    "asideLabel": "Je lijn en je dag",
+    "tabs": {
+      "label": "Gespreksbronnen",
+      "myDay": "Mijn dag",
+      "campaigns": "Campagnes",
+      "unlockCampaigns": "Campagnes ontgrendelen"
+    },
+    "campaigns": {
+      "bar": "Campagne om te bellen",
+      "leads": "{count, plural, one {# lead} other {# leads}}",
+      "callingHours": "Beltijden",
+      "picker": {
+        "change": "Campagne wijzigen, {name} geselecteerd",
+        "title": "Actieve campagnes",
+        "search": "Campagnes zoeken",
+        "noMatches": "Geen overeenkomende campagnes",
+        "all": "Alle campagnes"
+      },
+      "emptyTitle": "Geen actieve campagnes",
+      "emptyAdmin": "Activeer een campagne en die verschijnt hier, klaar om te bellen.",
+      "emptyMember": "Wanneer een aan jou toegewezen campagne actief is, verschijnt die hier.",
+      "goToCampaigns": "Naar campagnes",
+      "failedTitle": "Je campagnes konden niet worden geladen",
+      "retry": "Opnieuw proberen",
+      "unlock": {
+        "title": "Campagnes ontgrendelen",
+        "description": "Campagnes horen bij het Organisatie-abonnement: upload je leads, wijs ze toe aan je team en bel ze in sessies.",
+        "switchTitle": "Campagnes staan in je organisatie",
+        "switchDescription": "Je zit in je persoonlijke werkruimte. Schakel over naar je organisatie om in de campagnes te bellen.",
+        "switchTo": "Overschakelen naar {name}",
+        "checkFailed": "We konden niet controleren of je al een Organisatie-abonnement hebt.",
+        "readyTitle": "Je Organisatie-abonnement is klaar",
+        "readyDescription": "Maak je organisatie aan om met campagnes te beginnen."
+      }
+    },
+    "search": {
+      "label": "Zoek een contact of voer een nummer in",
+      "placeholder": "Zoek een contact of voer een nummer in",
+      "callNumber": "Bel {number}",
+      "incompleteNumber": "Blijf typen — voeg de landcode toe, zoals +34",
+      "recent": "Recente gesprekken",
+      "searching": "Zoeken…",
+      "noMatches": "Geen contacten komen overeen met ‘{query}’",
+      "inbound": "Inkomend gesprek",
+      "outbound": "Uitgaand gesprek",
+      "clear": "Zoekopdracht wissen"
+    },
+    "keypad": {
+      "button": "Toetsenblok",
+      "title": "Toetsenblok",
+      "country": "Land van het telefoonnummer",
+      "international": "Internationaal"
+    },
+    "list": {
+      "button": "Lijst",
+      "buttonWith": "Bellen vanuit {name}. Lijst wijzigen",
+      "choose": "Kies een lijst om te bellen",
+      "title": "Bellen vanuit een lijst",
+      "hint": "Als er in de wachtrij van vandaag niemand aan de beurt is, kiest Volgende bellen het volgende contact uit deze lijst.",
+      "search": "Zoek in je lijsten",
+      "yours": "Aan jou toegewezen",
+      "counts": "{remaining, plural, one {# over} other {# over}} · {total, plural, one {# contact} other {# contacten}}",
+      "noMatches": "Geen overeenkomende lijst",
+      "none": "Er zijn nog geen lijsten aan je toegewezen",
+      "noneHint": "Lijsten die je maakt en lijsten die een beheerder aan je toewijst, verschijnen hier.",
+      "openLists": "Lijsten openen",
+      "stop": "Stoppen met bellen vanuit een lijst",
+      "failed": "Je lijsten konden niet worden geladen.",
+      "retry": "Opnieuw proberen",
+      "gone": "Die lijst is niet meer aan je toegewezen.",
+      "skipFailed": "Het contact kon niet worden overgeslagen. Probeer het opnieuw.",
+      "inLists": "Uit je lijst:",
+      "more": "+{count}",
+      "create": "Lijst maken"
+    },
+    "next": {
+      "label": "Volgend gesprek",
+      "callNext": "Volgende bellen",
+      "calling": "Bellen…",
+      "onCall": "Je bent in gesprek. Hang op om de volgende persoon te bellen.",
+      "from": "Vanaf {number}",
+      "fromAuto": "Vanaf een lokaal nummer, gekozen per gesprek",
+      "fromPublic": "Vanaf het openbare nummer",
+      "caughtUp": "Je bent helemaal bij",
+      "caughtUpHint": "Zoek een contact of voer een nummer in om te bellen.",
+      "nothingDue": "Nu niemand aan de beurt",
+      "nothingDueHint": "Hierna: {name} om {time}.",
+      "caughtUpWithLists": "Kies een van je lijsten om verder te bellen.",
+      "leftInList": "{count, plural, one {# over in de lijst} other {# over in de lijst}}",
+      "skippedBefore": "Eerder overgeslagen",
+      "skip": "Overslaan",
+      "skipHint": "Overslaan: het contact gaat naar het einde van de lijst",
+      "listDone": "Niemand meer om te bellen in {list}",
+      "listDoneHint": "Iedereen is gebeld. Kies een andere lijst om verder te gaan.",
+      "listBlockedHint": "{count, plural, one {# contact kan nu niet worden gebeld: op de Niet-bellen-lijst, met een geplande terugbelafspraak of zonder geldig nummer.} other {# contacten kunnen nu niet worden gebeld: op de Niet-bellen-lijst, met een geplande terugbelafspraak of zonder geldig nummer.}}",
+      "listFailed": "Het volgende contact uit je lijst kon niet worden geladen",
+      "listFailedHint": "Controleer je verbinding en probeer het opnieuw.",
+      "retry": "Opnieuw proberen",
+      "chooseList": "Lijst kiezen",
+      "changeList": "Lijst wijzigen",
+      "start": {
+        "title": "Zet klaar wie je wilt bellen",
+        "hint": "Upload een bestand of voer enkele nummers in. Ringee geeft je telkens de volgende persoon.",
+        "cta": "Begin met bellen",
+        "reward": "+{amount} gratis tegoed wanneer je klaar bent"
+      }
+    },
+    "queue": {
+      "title": "Wachtrij van vandaag",
+      "count": "{count, plural, one {# om te bellen} other {# om te bellen}}",
+      "stableHint": "de volgorde blijft gelijk terwijl je werkt",
+      "groups": {
+        "now": "Nu",
+        "later": "Later vandaag",
+        "anytime": "Elk moment vandaag"
+      },
+      "nextBadge": "Volgende",
+      "doNotCall": "Niet bellen",
+      "call": "Bellen",
+      "callBack": "Terugbellen",
+      "more": "Meer acties voor {name}",
+      "viewContact": "Contact openen",
+      "cancelCallback": "Terugbelafspraak annuleren",
+      "cancelFailed": "De terugbelafspraak kon niet worden geannuleerd. Probeer het opnieuw.",
+      "incoming": "{count, plural, one {# nieuwe persoon om te bellen sinds je begon} other {# nieuwe personen om te bellen sinds je begon}}",
+      "addIncoming": "Aan de wachtrij toevoegen",
+      "emptyTitle": "Vandaag nog niemand om te bellen",
+      "emptyDescription": "Openstaande terugbelafspraken, gemiste gesprekken en opvolgingen verschijnen hier zodra ze aan de beurt zijn.",
+      "emptyWithList": "Openstaande terugbelafspraken, gemiste gesprekken en opvolgingen verschijnen hier zodra ze aan de beurt zijn. Tot die tijd werkt Volgende bellen {list} af.",
+      "failedTitle": "De wachtrij van vandaag kon niet worden geladen",
+      "retry": "Opnieuw proberen",
+      "localTime": "{time} daar",
+      "unknownCaller": "Onbekende beller"
+    },
+    "reasons": {
+      "callbackAt": "Terugbellen om {time}",
+      "missedCall": "Gemist gesprek {when}",
+      "voicemail": "Voicemail {when}",
+      "followUpDue": "{action} · gepland om {time}"
+    },
+    "line": {
+      "title": "Je lijn",
+      "performance": "{rate}% van je {calls} gesprekken opgenomen · laatste {days} dagen",
+      "performanceLow": "Nog te weinig gesprekken om te beoordelen · {calls} in de laatste {days} dagen",
+      "performanceHint": "Opgenomen door een persoon of voicemail.",
+      "resting": "In rust tot {date}: rotatie slaat het nummer voorlopig over",
+      "balance": "Saldo",
+      "addCredit": "Tegoed toevoegen"
+    },
+    "today": {
+      "title": "Vandaag",
+      "calls": "{count, plural, one {gesprek} other {gesprekken}}",
+      "conversations": "{count, plural, one {conversatie} other {conversaties}}",
+      "meetingsBooked": "{count, plural, one {afspraak geboekt} other {afspraken geboekt}}",
+      "statsHint": "Alleen je eigen gesprekken van vandaag in deze werkruimte. Een conversatie is een gesprek waarbij een persoon is bereikt.",
+      "nextMeeting": "Volgende afspraak",
+      "noMeeting": "Geen afspraken meer vandaag",
+      "meetingWith": "Afspraak met {name}",
+      "duration": "{time} · {minutes} min",
+      "join": "Deelnemen",
+      "failed": "De cijfers van vandaag konden niet worden geladen."
+    },
+    "shortcuts": {
+      "title": "Sneltoetsen",
+      "callNext": "Volgende bellen",
+      "search": "Zoeken of een nummer invoeren",
+      "keypad": "Toetsenblok openen",
+      "list": "Lijst kiezen",
+      "skip": "Contact uit een lijst overslaan",
+      "move": "Door resultaten bewegen",
+      "callResult": "Gemarkeerd resultaat bellen",
+      "clear": "Zoekopdracht wissen",
+      "hint": "Ze werken niet terwijl je typt, tijdens een gesprek of als er een dialoogvenster openstaat."
+    }
   }
 }

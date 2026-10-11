@@ -408,7 +408,8 @@
       "connectingHint": "Your line is connecting. A call you start now goes out as soon as it's ready.",
       "offline": "Offline",
       "offlineHint": "Your line is disconnected. Check your internet connection."
-    }
+    },
+    "freeTrialEnded": "⏱ Free trial call ended — 1 minute limit reached"
   },
   "activeCallStatus": {
     "recording": "Recording...",
@@ -662,6 +663,7 @@
         "switchTitle": "Campaigns live in your organization",
         "switchDescription": "You're in your personal workspace. Switch to your organization to call its campaigns.",
         "switchTo": "Switch to {name}",
+        "checkFailed": "We couldn't check whether you already have an Organization plan.",
         "readyTitle": "Your Organization plan is ready",
         "readyDescription": "Create your organization to start running campaigns."
       }
@@ -680,7 +682,9 @@
     },
     "keypad": {
       "button": "Keypad",
-      "title": "Keypad"
+      "title": "Keypad",
+      "country": "Phone number country",
+      "international": "International"
     },
     "list": {
       "button": "List",

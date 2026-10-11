@@ -1,10 +1,10 @@
 'use client';
 
 import 'react-phone-number-input/style.css';
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Grid3x3 } from 'lucide-react';
-import PhoneInput, { type Value } from 'react-phone-number-input';
+import PhoneInput, { getCountries, type Value } from 'react-phone-number-input';
 import {
   countryCallingCode,
   normalize,
@@ -21,6 +21,7 @@ import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useDial } from '../../hooks/use.dial';
 import { DialPad } from '../dialer.pad';
 import { Kbd } from './kbd';
+import { useMyDayFormat } from './use-my-day-format';
 
 interface KeypadButtonProps {
   open: boolean;
@@ -66,6 +67,18 @@ export function KeypadButton({
 }: KeypadButtonProps) {
   const t = useTranslations('calls.myDay.keypad');
   const tDialer = useTranslations('calls.dialer');
+  const fmt = useMyDayFormat();
+  const phoneLabels = useMemo(
+    () => ({
+      ...Object.fromEntries(
+        getCountries().map((code) => [code, fmt.country(code) ?? code])
+      ),
+      country: t('country'),
+      phone: tDialer('enterNumber'),
+      ZZ: t('international')
+    }),
+    [fmt, t, tDialer]
+  );
   const fieldRef = useRef<HTMLDivElement>(null);
   const { dialingNumber, onCall } = useDial();
   const { canAccessAdminFeatures, isLoaded: roleLoaded } = useOrgRole();
@@ -125,6 +138,7 @@ export function KeypadButton({
         <div ref={fieldRef} className='mb-3 w-[15.25rem] space-y-1.5'>
           <PhoneInput
             international
+            labels={phoneLabels}
             defaultCountry={country}
             onCountryChange={(next) => next && onCountryChange(next)}
             placeholder={tDialer('enterNumber')}
