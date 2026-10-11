@@ -598,5 +598,24 @@
       "clear": "Suche löschen",
       "hint": "Sie sind beim Tippen, während eines Anrufs oder bei geöffnetem Dialog deaktiviert."
     }
+  },
+  "callQuality": {
+    "status": "Verbindung: {quality}",
+    "title": "Verbindungsqualität",
+    "description": "Diese Messungen erfassen die Verbindung Ihres Browsers zum Sprachnetz. Sie messen weder das Telefonnetz des Empfängers noch die Mikrofonqualität.",
+    "good": "Gut",
+    "fair": "Mittel",
+    "poor": "Schlecht",
+    "unknown": "Warten auf Daten",
+    "latency": "Hin- und Rücklaufzeit",
+    "jitter": "Jitter des empfangenen Audios",
+    "packetLoss": "Verlust empfangener Pakete",
+    "outboundLatency": "Gesendetes Audio: Umlaufzeit",
+    "outboundPacketLoss": "Verlust gesendeter Pakete",
+    "unavailable": "Nicht verfügbar",
+    "ms": "{value} ms",
+    "percent": "{value} %",
+    "poorConnectionHint": "Bei abgehacktem Audio versuchen Sie eine Kabelverbindung oder ein anderes Netzwerk.",
+    "outboundJitter": "Jitter des gesendeten Audios"
   }
 }

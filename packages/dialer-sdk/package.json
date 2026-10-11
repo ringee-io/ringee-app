@@ -1,6 +1,6 @@
 {
   "name": "@ringee/dialer-sdk",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Universal headless browser SDK to embed Ringee calling in any web CRM.",
   "license": "MIT",
   "type": "module",
@@ -36,7 +36,7 @@
     "@ringee/dialer-core": "workspace:*"
   },
   "devDependencies": {
-    "@telnyx/webrtc": "2.25.2",
+    "@telnyx/webrtc": "2.27.9",
     "@types/node": "~22.16.0",
     "tsup": "^8.3.0",
     "typescript": "~5.9.0",

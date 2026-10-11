@@ -12,6 +12,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.store';
 import { useCallIdBySession } from '@/features/transcription';
 import { useTranslations } from 'next-intl';
+import { CallQualityMonitor } from './call-quality-monitor';
 
 export function ShowActiveCall() {
   const t = useTranslations('calls.activeCallStatus');
@@ -163,6 +164,15 @@ export function ShowActiveCall() {
         contactName={contactName}
         statusText={statusText}
         isConnected={activeCall?.state === 'active'}
+        callQualityIndicator={
+          <CallQualityMonitor
+            key={activeCall?.id}
+            call={activeCall}
+            connected={
+              activeCall?.state === 'active' || activeCall?.state === 'held'
+            }
+          />
+        }
         onHangup={handleHangup}
         onToggleHold={handleHold}
         onToggleMute={async () => await handleMute(!isMuted)}

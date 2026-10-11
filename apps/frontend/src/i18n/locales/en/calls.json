@@ -807,5 +807,24 @@
       "clear": "Clear the search",
       "hint": "They don't fire while you type, or while a call or a dialog is open."
     }
+  },
+  "callQuality": {
+    "status": "Connection: {quality}",
+    "title": "Connection quality",
+    "description": "These measurements cover your browser's connection to the voice network. They do not measure the recipient's phone network or microphone quality.",
+    "good": "Good",
+    "fair": "Fair",
+    "poor": "Poor",
+    "unknown": "Waiting for data",
+    "latency": "Round-trip delay",
+    "jitter": "Received audio jitter",
+    "packetLoss": "Received packet loss",
+    "outboundLatency": "Sent audio round-trip delay",
+    "outboundPacketLoss": "Sent packet loss",
+    "unavailable": "Unavailable",
+    "ms": "{value} ms",
+    "percent": "{value}%",
+    "poorConnectionHint": "If audio breaks up, try a wired connection or another network.",
+    "outboundJitter": "Sent audio jitter"
   }
 }

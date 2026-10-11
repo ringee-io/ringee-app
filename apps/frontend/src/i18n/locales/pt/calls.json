@@ -598,5 +598,24 @@
       "clear": "Limpar a pesquisa",
       "hint": "Não são ativados enquanto escreve, durante uma chamada ou com uma caixa de diálogo aberta."
     }
+  },
+  "callQuality": {
+    "status": "Conexão: {quality}",
+    "title": "Qualidade da conexão",
+    "description": "Estas medições abrangem a conexão do navegador à rede de voz. Não medem a rede telefônica do destinatário nem a qualidade do microfone.",
+    "good": "Boa",
+    "fair": "Razoável",
+    "poor": "Ruim",
+    "unknown": "Aguardando dados",
+    "latency": "Atraso de ida e volta",
+    "jitter": "Variação do áudio recebido",
+    "packetLoss": "Perda de pacotes recebidos",
+    "outboundLatency": "Áudio enviado: ida e volta",
+    "outboundPacketLoss": "Perda de pacotes enviados",
+    "unavailable": "Indisponível",
+    "ms": "{value} ms",
+    "percent": "{value}%",
+    "poorConnectionHint": "Se o áudio apresentar cortes, tente uma conexão por cabo ou outra rede.",
+    "outboundJitter": "Variação do áudio enviado"
   }
 }

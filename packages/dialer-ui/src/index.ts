@@ -4,6 +4,8 @@ export { ActiveCallModal } from "./components/active-call-modal";
 export type { ActiveCallModalProps } from "./components/active-call-modal";
 export { DtmfKeypad } from "./components/dtmf-keypad";
 export type { DtmfKeypadProps } from "./components/dtmf-keypad";
+export { CallQualityIndicator } from "./components/call-quality-indicator";
+export type { CallQualityIndicatorProps } from "./components/call-quality-indicator";
 export { PostCallView } from "./components/post-call-view";
 
 export { DialerProvider, useDialer } from "./data/context";
