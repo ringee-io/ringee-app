@@ -2,9 +2,85 @@ import { clerkClient } from "@clerk/express";
 import { EmailStatus, User as PrismaUser, UserEmail } from "@ringee/database";
 import { User as ClerkUser } from "@clerk/express";
 
+/** Why Clerk refused to create a login. */
+export type ClerkUserCreationFailure =
+  | "email_taken"
+  | "invalid_email"
+  | "password_rejected"
+  | "unknown";
+
+export class ClerkUserCreationError extends Error {
+  constructor(
+    readonly reason: ClerkUserCreationFailure,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ClerkUserCreationError";
+  }
+}
+
+export interface NewClerkUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+  /** Server-only notes on the login; never readable from the browser. */
+  privateMetadata?: Record<string, unknown>;
+}
+
+/** A login found by its email address. */
+export interface ClerkLogin {
+  id: string;
+  privateMetadata: Record<string, unknown>;
+}
+
 export class ClerkUserRepository {
   static async findById(id: string) {
     return clerkClient.users.getUser(id);
+  }
+
+  /**
+   * A login Ringee creates for someone (LIFE-005). Clerk marks an email added
+   * through its backend API as verified, so the person can sign in at once.
+   */
+  static async createUser(input: NewClerkUser): Promise<{ id: string }> {
+    try {
+      const user = await clerkClient.users.createUser({
+        emailAddress: [input.email],
+        firstName: input.firstName,
+        lastName: input.lastName,
+        password: input.password,
+        privateMetadata: input.privateMetadata,
+      });
+      return { id: user.id };
+    } catch (error) {
+      throw toCreationError(error);
+    }
+  }
+
+  /** The login that owns this email address, if there is one. */
+  static async findByEmail(email: string): Promise<ClerkLogin | null> {
+    const { data } = await clerkClient.users.getUserList({
+      emailAddress: [email],
+      limit: 1,
+    });
+    const user = data[0];
+    if (!user) return null;
+    return {
+      id: user.id,
+      privateMetadata: (user.privateMetadata ?? {}) as Record<string, unknown>,
+    };
+  }
+
+  /** Replace a login's password and sign it out everywhere else. */
+  static async setPassword(
+    clerkUserId: string,
+    password: string,
+  ): Promise<void> {
+    await clerkClient.users.updateUser(clerkUserId, {
+      password,
+      signOutOfOtherSessions: true,
+    });
   }
 
   /**
@@ -103,4 +179,45 @@ export class ClerkUserRepository {
       })),
     };
   }
+}
+
+/**
+ * Clerk answers a refused create with a list of coded errors. Read the codes
+ * by shape, so nothing outside this adapter has to know Clerk's error class.
+ */
+function toCreationError(error: unknown): ClerkUserCreationError {
+  const failures =
+    (
+      error as {
+        errors?: Array<{
+          code?: string;
+          message?: string;
+          longMessage?: string;
+          meta?: { paramName?: string };
+        }>;
+      }
+    )?.errors ?? [];
+  const first = failures[0];
+  const message =
+    first?.longMessage ||
+    first?.message ||
+    (error instanceof Error ? error.message : String(error));
+
+  const codes = failures.map((failure) => failure.code ?? "");
+  if (codes.includes("form_identifier_exists")) {
+    return new ClerkUserCreationError("email_taken", message);
+  }
+  if (codes.some((code) => code.startsWith("form_password"))) {
+    return new ClerkUserCreationError("password_rejected", message);
+  }
+  if (
+    failures.some(
+      (failure) =>
+        failure.code === "form_param_format_invalid" &&
+        failure.meta?.paramName === "email_address",
+    )
+  ) {
+    return new ClerkUserCreationError("invalid_email", message);
+  }
+  return new ClerkUserCreationError("unknown", message);
 }

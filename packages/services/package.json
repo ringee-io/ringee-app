@@ -14,10 +14,13 @@
     "@ringee/database": "workspace:*",
     "@ringee/platform": "workspace:*",
     "date-fns": "4.1.0",
+    "disposable-email-domains-js": "1.26.0",
+    "free-email-domains": "1.12.7",
     "libphonenumber-js": "^1.11.0",
     "reflect-metadata": "~0.2.2",
     "rimraf": "~6.0.0",
     "rxjs": "~7.8.0",
+    "tldts": "7.4.15",
     "ws": "^8.21.0"
   },
   "devDependencies": {

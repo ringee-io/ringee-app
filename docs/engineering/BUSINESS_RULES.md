@@ -1685,3 +1685,70 @@ stays available.
 ### LIFE-003 — Soft-deleted rows stay queryable but are excluded from normal reads
 
 `deletedAt` on contacts, tags, caller IDs and call sessions.
+
+### LIFE-004 — A demo request gets an account on its own only when its profile verifies itself
+
+Sign-up is closed; `/request-demo` is the way in. Every request is reviewed in
+a Temporal workflow (`reviewDemoRequestWorkflow`): automatic checks first, then
+an AI verdict. The account is created automatically only when **all** of these
+hold:
+
+- the email is not at a personal or temporary provider — the maintained lists
+  of `free-email-domains` and `disposable-email-domains-js`, checked against
+  the domain and the domain it is registered under — and its domain receives
+  email;
+- the company website is a public address, not a social profile nor a mailbox
+  provider's own site, answers, and shares the email's registrable domain
+  under the Public Suffix List (also after its redirects);
+- the phone number is valid;
+- the AI review approves: a real person's name, an operating business that
+  fits the domain, and nothing pointing to a use the Terms prohibit.
+
+A failed check can never be overridden by the AI. The AI reads text the
+requester wrote and their website, so it is told that all of it is untrusted,
+and the checks are what make an automatic account safe: its credentials go to
+a mailbox at the company's own live website.
+
+Any other request is emailed what could not be verified and what to send; the
+team takes over from the reply. Both outcome emails copy
+`edison@getringee.com`. A request automation cannot finish — the AI
+unavailable with no check failing, an email that already has a login, retries
+exhausted, the workflow unable to start — becomes `manual_review` and the team
+is emailed why. That alert is recorded apart from the hand-over
+(`teamNotifiedAt`) and retried until the email provider accepts it. The
+requester keeps the usual confirmation email either way.
+
+- **States:** `received → approved → account_created`,
+  `received → needs_info`, and `manual_review` from any state whose outcome
+  email has not gone out. Every move is a compare-and-set, and the outcome
+  email is sent once (`notifiedAt`), so the workflow's retries resume rather
+  than repeat.
+- Requests stored before 2026-10-10 are `manual_review`.
+- **Source of truth:** `packages/services/src/services/demo-requests/`
+  (`DemoRequestReviewService`, `profile-checks.ts`, + specs),
+  `DemoRequestRepository`
+- **Risk if violated:** accounts — and the first-list gift (`BILL-022`) —
+  handed to identities nobody verified; or a requester never told anything.
+
+### LIFE-005 — A login Ringee creates has a generated password, emailed once and stored nowhere
+
+`AccountProvisioningService` creates the Clerk user — from the backoffice
+(first name, last name, email) or for an approved demo request — with a
+16-character password from a cryptographic source, and emails it to the person
+with `edison@getringee.com` in cc. The backoffice sees the password only when
+that email could not be sent, so it can be handed over by hand. Phone
+verification at first sign-in still applies (`phoneRequired`).
+
+- A demo request's login is made at most once: the request records
+  `clerkUserId`, and the Clerk user carries `provisionedBy` / `demoRequestId`
+  in its private metadata, so a retry finds it and gives it a new password —
+  the earlier one never reached anybody. A login the email already had is
+  never modified.
+- Creating an account from the backoffice for an email with an open demo
+  request closes that request (`account_created`, notified) and the email
+  thanks them for it. Staff own handing that login over from then on, so the
+  review never resets its password — even when the email failed.
+- **Source of truth:** `packages/services/src/services/accounts/` (+ spec),
+  `ClerkUserRepository.createUser`
+- **Risk if violated:** a password readable from the database or the logs; a
+  second login, or a reset password, on somebody's existing account.

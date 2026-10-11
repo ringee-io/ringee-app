@@ -12,6 +12,7 @@ import { proxyActivities } from "@temporalio/workflow";
 import type { Activities } from "./activities";
 import type {
   ProcessCallRecordingInput,
+  ReviewDemoRequestInput,
   TranscribeRecordingInput,
 } from "@ringee/platform";
 
@@ -62,6 +63,21 @@ const bulkJobs = proxyActivities<Activities>({
   retry: { maximumAttempts: 1 },
 });
 
+/**
+ * Handing work to a person is the last resort, so it must eventually happen:
+ * no attempt cap, at most an hour apart. An email or database outage delays
+ * the alert instead of losing it — the step is idempotent, so retrying it for
+ * as long as the outage lasts costs nothing.
+ */
+const handoffJobs = proxyActivities<Activities>({
+  startToCloseTimeout: "2 minutes",
+  retry: {
+    initialInterval: "30s",
+    backoffCoefficient: 2,
+    maximumInterval: "1 hour",
+  },
+});
+
 // ── Event-driven workflows (started by the backend) ──
 
 export async function processCallRecordingWorkflow(
@@ -74,6 +90,33 @@ export async function transcribeRecordingWorkflow(
   input: TranscribeRecordingInput,
 ): Promise<void> {
   await transcriptionJobs.transcribeRecording(input);
+}
+
+/**
+ * Demo-request review (LIFE-004). Its steps are short calls to the AI
+ * provider, the requester's website, Clerk and the email provider, so it takes
+ * the recording pipeline's retry policy for transient failures. Each step is
+ * guarded by the request's own state, so a retry resumes instead of repeating.
+ * When retries run out, the request is handed to the team — retried until it
+ * is (`handoffJobs`).
+ */
+export async function reviewDemoRequestWorkflow(
+  input: ReviewDemoRequestInput,
+): Promise<void> {
+  try {
+    await recordingJobs.reviewDemoRequest(input);
+  } catch (error) {
+    await handoffJobs.escalateDemoRequest({
+      demoRequestId: input.demoRequestId,
+      reason: activityFailureReason(error),
+    });
+  }
+}
+
+/** The activity's own error, rather than Temporal's "Activity task failed". */
+function activityFailureReason(error: unknown): string {
+  const failure = error as { message?: string; cause?: { message?: string } };
+  return failure.cause?.message || failure.message || "Unknown error";
 }
 
 // ── Scheduled workflows (fired by Temporal Schedules) ──

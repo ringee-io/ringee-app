@@ -8,6 +8,7 @@ import { apiConfiguration } from "@ringee/configuration";
 import { TemporalClientService } from "./temporal-client.service";
 import {
   ProcessCallRecordingInput,
+  ReviewDemoRequestInput,
   TranscribeRecordingInput,
   WORKFLOW_NAMES,
   WorkflowName,
@@ -52,6 +53,19 @@ export class OrchestratorService {
     return this.startWorkflow(WORKFLOW_NAMES.transcribeRecording, workflowId, [
       data,
     ]);
+  }
+
+  /**
+   * Review a demo request and, from the verdict, create the account or ask
+   * the requester for what is missing (LIFE-004). One run per request.
+   */
+  async reviewDemoRequest(demoRequestId: string): Promise<string> {
+    const input: ReviewDemoRequestInput = { demoRequestId };
+    return this.startWorkflow(
+      WORKFLOW_NAMES.reviewDemoRequest,
+      `demo-request-review:${demoRequestId}`,
+      [input],
+    );
   }
 
   /**

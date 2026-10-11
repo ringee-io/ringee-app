@@ -1,13 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { DemoRequestRepository } from "@ringee/database";
-import { ResendProvider } from "@ringee/platform";
+import {
+  OrchestratorService,
+  ResendProvider,
+  wasEmailAccepted,
+} from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
-
-/**
- * Internal inbox the Ringee team reviews. Every demo request is emailed here
- * (the same address used for free-trial and credit requests).
- */
-const RINGEE_TEAM_EMAIL = "edisonpadilla.dev@gmail.com";
+import {
+  DEMO_REQUEST_TEAM_EMAIL,
+  detailsTable,
+  escapeHtml,
+} from "./demo-request-emails";
 
 /** Same email can only create one request per window; extra submits are no-ops. */
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
@@ -29,22 +32,27 @@ export interface CreateDemoRequestInput {
 /**
  * Demo requests from the public marketing site (/request-demo). Visitors are
  * not signed in, so requests are standalone rows (no User relation). On
- * creation the team gets a detail email and the requester a confirmation.
- * Sign-up is closed: the team vets each profile and creates the account
- * directly — no meeting is scheduled.
+ * creation the requester gets a confirmation, the automatic review starts,
+ * and the team gets a detail email. Sign-up is closed: the review creates the
+ * account when the profile verifies itself, and otherwise asks the requester
+ * for what is missing (LIFE-004) — no meeting is scheduled.
  */
 @Injectable()
 export class DemoRequestService {
   private readonly logger = new Logger(DemoRequestService.name);
   private readonly email = new ResendProvider();
 
-  constructor(private readonly demoRequestRepository: DemoRequestRepository) {}
+  constructor(
+    private readonly demoRequestRepository: DemoRequestRepository,
+    private readonly orchestrator: OrchestratorService,
+  ) {}
 
   /**
-   * Store the request and send both emails. Always resolves `{ ok: true }` on
-   * accepted input: bots (honeypot) and repeat submits within the rate-limit
-   * window are silently dropped, and email failures never fail the request —
-   * the row is already stored for manual follow-up.
+   * Store the request, confirm it, start its review and tell the team. Always
+   * resolves `{ ok: true }` on accepted input: bots (honeypot) and repeat
+   * submits within the rate-limit window are silently dropped, and neither an
+   * email failure nor a review that cannot start fails the request — the row
+   * is already stored for manual follow-up.
    */
   async createRequest(input: CreateDemoRequestInput): Promise<{ ok: true }> {
     if (input.fax?.trim()) {
@@ -79,15 +87,8 @@ export class DemoRequestService {
 
     const request = await this.demoRequestRepository.create(data);
 
-    try {
-      await this.notifyTeam(data);
-    } catch (error) {
-      this.logger.error(
-        `Failed to send team email for demo request ${request.id}`,
-        error as Error,
-      );
-    }
-
+    // The confirmation goes first, so it reaches the requester before the
+    // review's outcome does.
     try {
       await this.confirmRequester(data);
     } catch (error) {
@@ -97,34 +98,79 @@ export class DemoRequestService {
       );
     }
 
+    const reviewing = await this.startReview(request.id);
+
+    try {
+      const told = await this.notifyTeam(data, reviewing);
+      // With no review running, this email is how the team learns the
+      // request is theirs (LIFE-004).
+      if (told && !reviewing) {
+        await this.demoRequestRepository.markTeamNotified(request.id);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to send team email for demo request ${request.id}`,
+        error as Error,
+      );
+    }
+
     return { ok: true };
   }
 
-  /** Full-detail email to the team inbox. */
+  /**
+   * The review runs as a durable workflow. When it cannot even start, the
+   * request is the team's to vet, exactly as before the review existed.
+   */
+  private async startReview(id: string): Promise<boolean> {
+    try {
+      await this.orchestrator.reviewDemoRequest(id);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Could not start the review of demo request ${id}; leaving it to the team`,
+        error as Error,
+      );
+      await this.demoRequestRepository
+        .markManualReview(id, "The automatic review could not start")
+        .catch((markError: Error) =>
+          this.logger.error(
+            `Could not mark demo request ${id} for manual review; it stays "received"`,
+            markError,
+          ),
+        );
+      return false;
+    }
+  }
+
+  /** Full-detail email to the team inbox. True once the provider took it. */
   private async notifyTeam(
     data: Omit<CreateDemoRequestInput, "fax">,
-  ): Promise<void> {
+    reviewing: boolean,
+  ): Promise<boolean> {
     const fullName = `${data.firstName} ${data.lastName}`.trim();
+    const next = reviewing
+      ? "Ringee is reviewing this profile automatically. You will be copied on the outcome: their account and credentials, or the details they are asked for."
+      : "The automatic review could not start. Vet the profile and create their account from the backoffice (New account).";
     const html = `
       <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #171717;">
         <h2 style="margin: 0 0 12px;">New demo request</h2>
-        <p>${this.escapeHtml(fullName)} requested a Ringee demo from the marketing site.</p>
-        ${this.detailsTable(data)}
+        <p>${escapeHtml(fullName)} requested a Ringee demo from the marketing site.</p>
+        ${detailsTable(data)}
         <p style="margin-top: 16px; color: #737373;">
-          Vet the profile and create their account. Reply to this email to
-          reach them directly.
+          ${next} Reply to this email to reach them directly.
         </p>
       </div>
     `;
 
-    await this.email.sendEmail(
-      RINGEE_TEAM_EMAIL,
+    const result: unknown = await this.email.sendEmail(
+      DEMO_REQUEST_TEAM_EMAIL,
       `New demo request — ${fullName}`,
       html,
       "Ringee Notifications",
       apiConfiguration.EMAIL_FROM_ADDRESS,
       data.email,
     );
+    return wasEmailAccepted(result);
   }
 
   /** Confirmation email to the requester, echoing what they submitted. */
@@ -134,7 +180,7 @@ export class DemoRequestService {
     const html = `
       <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #171717;">
         <h2 style="margin: 0 0 12px;">We got your demo request</h2>
-        <p>Hi ${this.escapeHtml(data.firstName)},</p>
+        <p>Hi ${escapeHtml(data.firstName)},</p>
         <p>
           Thanks for your interest in Ringee. We received your request and are
           reviewing your details — no meeting needed. Once approved, we&#39;ll
@@ -142,7 +188,7 @@ export class DemoRequestService {
           within one business day.
         </p>
         <p style="margin: 16px 0 8px;"><strong>What you submitted:</strong></p>
-        ${this.detailsTable(data)}
+        ${detailsTable(data)}
         <p style="margin-top: 16px;">
           Anything wrong or want to add context? Just reply to this email.
         </p>
@@ -156,49 +202,7 @@ export class DemoRequestService {
       html,
       "Ringee",
       apiConfiguration.EMAIL_FROM_ADDRESS,
-      RINGEE_TEAM_EMAIL,
+      DEMO_REQUEST_TEAM_EMAIL,
     );
-  }
-
-  private detailsTable(data: Omit<CreateDemoRequestInput, "fax">): string {
-    const rows: [string, string][] = [
-      ["Name", `${data.firstName} ${data.lastName}`.trim()],
-      ["Email", data.email],
-      ["Phone", data.phoneNumber],
-      ["Company website", data.companyWebsite],
-      ["Number of users", data.numberOfUsers],
-      ["How they found us", data.referralSource],
-    ];
-    if (data.country) {
-      rows.push(["Country (browser)", this.countryLabel(data.country)]);
-    }
-    const cells = rows
-      .map(
-        ([label, value]) => `
-          <tr>
-            <td style="padding: 6px 16px 6px 0; color: #737373; white-space: nowrap;">${label}</td>
-            <td style="padding: 6px 0;"><strong>${this.escapeHtml(value)}</strong></td>
-          </tr>`,
-      )
-      .join("");
-    return `<table style="border-collapse: collapse; font-size: 14px;">${cells}</table>`;
-  }
-
-  /** "DO" -> "Dominican Republic (DO)"; falls back to the raw code. */
-  private countryLabel(code: string): string {
-    try {
-      const name = new Intl.DisplayNames(["en"], { type: "region" }).of(code);
-      return name && name !== code ? `${name} (${code})` : code;
-    } catch {
-      return code;
-    }
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
   }
 }

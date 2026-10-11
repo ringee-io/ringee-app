@@ -26,6 +26,7 @@ import {
   IconLayoutDashboard,
   IconShieldLock,
   IconSpeakerphone,
+  IconUserPlus,
   IconUsers
 } from '@tabler/icons-react';
 
@@ -36,6 +37,11 @@ const NAV = [
     icon: IconLayoutDashboard
   },
   { href: '/backoffice/accounts', label: 'Accounts', icon: IconUsers },
+  {
+    href: '/backoffice/new-account',
+    label: 'New account',
+    icon: IconUserPlus
+  },
   {
     href: '/backoffice/campaigns',
     label: 'Campaigns',

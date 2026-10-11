@@ -12,16 +12,21 @@ import {
 } from "@nestjs/common";
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from "class-validator";
 import {
+  AccountProvisioningService,
   BackofficeService,
+  CreatedAccount,
   McpUsageService,
   PipelineType,
 } from "@ringee/services";
@@ -70,6 +75,22 @@ class SetAiPipelineDto {
   @IsOptional()
   @IsIn(PIPELINE_TYPES)
   pipelineType?: PipelineType;
+}
+
+class CreateAccountDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  firstName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  lastName!: string;
+
+  @IsEmail()
+  @MaxLength(255)
+  email!: string;
 }
 
 class AssignNumberDto {
@@ -146,6 +167,7 @@ export class BackofficeController {
     private readonly backoffice: BackofficeService,
     private readonly userAccess: UserAccessEnforcementService,
     private readonly mcpUsage: McpUsageService,
+    private readonly accounts: AccountProvisioningService,
   ) {}
 
   @Get("dashboard")
@@ -178,6 +200,16 @@ export class BackofficeController {
       page: Number(q.page) || 1,
       pageSize: Number(q.pageSize) || 25,
     });
+  }
+
+  /**
+   * Create a login from a name and an email. The password is generated and
+   * emailed to the person with the team copied (LIFE-005); the response
+   * carries it only when that email could not be sent.
+   */
+  @Post("accounts")
+  createAccount(@Body() dto: CreateAccountDto): Promise<CreatedAccount> {
+    return this.accounts.createAccount(dto);
   }
 
   @Get("numbers")

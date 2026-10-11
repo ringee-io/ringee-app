@@ -23,6 +23,17 @@ export interface TranscribeRecordingInput {
   manual?: boolean;
 }
 
+/** The automatic review of one demo request (LIFE-004). */
+export interface ReviewDemoRequestInput {
+  demoRequestId: string;
+}
+
+/** A demo request the review could not finish, handed to the team. */
+export interface EscalateDemoRequestInput {
+  demoRequestId: string;
+  reason: string;
+}
+
 /**
  * Workflow type names as registered on the task queue. The values MUST match
  * the exported function names in apps/orchestrator/src/temporal/workflows.ts —
@@ -31,6 +42,7 @@ export interface TranscribeRecordingInput {
 export const WORKFLOW_NAMES = {
   processCallRecording: "processCallRecordingWorkflow",
   transcribeRecording: "transcribeRecordingWorkflow",
+  reviewDemoRequest: "reviewDemoRequestWorkflow",
   retryScheduler: "retrySchedulerWorkflow",
   callbackScheduler: "callbackSchedulerWorkflow",
   heartbeatCheck: "heartbeatCheckWorkflow",

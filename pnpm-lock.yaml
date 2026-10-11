@@ -1600,6 +1600,12 @@ importers:
       date-fns:
         specifier: 4.1.0
         version: 4.1.0
+      disposable-email-domains-js:
+        specifier: 1.26.0
+        version: 1.26.0
+      free-email-domains:
+        specifier: 1.12.7
+        version: 1.12.7
       libphonenumber-js:
         specifier: ^1.11.0
         version: 1.12.23
@@ -1612,6 +1618,9 @@ importers:
       rxjs:
         specifier: ~7.8.0
         version: 7.8.2
+      tldts:
+        specifier: 7.4.15
+        version: 7.4.15
       ws:
         specifier: ^8.21.0
         version: 8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
@@ -9297,6 +9306,9 @@ packages:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
 
+  disposable-email-domains-js@1.26.0:
+    resolution: {integrity: sha512-pSqALZAiuw6HDC1HqhhtvShRnniUNObQ6kzwa5N280XbyxxCPBZnQQ7fO6Uk/CNTi4cAaKE1UZl3Mc30Zfj4UA==}
+
   doctoc@2.2.1:
     resolution: {integrity: sha512-qNJ1gsuo7hH40vlXTVVrADm6pdg30bns/Mo7Nv1SxuXSM1bwF9b4xQ40a6EFT/L1cI+Yylbyi8MPI4G4y7XJzQ==}
     hasBin: true
@@ -10058,6 +10070,10 @@ packages:
         optional: true
       react-dom:
         optional: true
+
+  free-email-domains@1.12.7:
+    resolution: {integrity: sha512-bsIFTIzqUFU7Oq14/6lYBYE+1qZ44hTirHUib7wm/KJUgFukME+y/lKCtUM0j1kn9VIvtgzjDuxLRa8d4yOAvA==}
+    engines: {node: '>= 18'}
 
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
@@ -13518,6 +13534,13 @@ packages:
 
   title-case@3.0.3:
     resolution: {integrity: sha512-e1zGYRvbffpcHIrnuqT0Dh+gEJtDaxDSoG4JAIpq4oDFyooziLBIiYQv0GBT4FUAnUop5uZ1hiIAj7oAF6sOCA==}
+
+  tldts-core@7.4.15:
+    resolution: {integrity: sha512-ERuv0p98XgSzmlSLJr8vDNxX+uATGInlN97V3R+JpYWaSqn5IG3ewWgCwczk4bkOpgth/o8Nt5FOi4B4w0n/1A==}
+
+  tldts@7.4.15:
+    resolution: {integrity: sha512-SJVBeHOxDbNoq14CvpAoA2mLEWdbldGK8nR+yumpjY5nrlZxOflcA7p1Qj1gbTGmbu9DY9qLj/bENSWhBzjxRQ==}
+    hasBin: true
 
   tmp-promise@3.0.3:
     resolution: {integrity: sha512-RwM7MoPojPxsOBYnyd2hy0bxtIlVrihNs9pj5SUvY8Zz1sQcQG2tG1hSr8PDxfgEB8RNKDhqbIlroIarSNDNsQ==}
@@ -24201,6 +24224,8 @@ snapshots:
     dependencies:
       path-type: 4.0.0
 
+  disposable-email-domains-js@1.26.0: {}
+
   doctoc@2.2.1(supports-color@8.1.1):
     dependencies:
       '@textlint/markdown-to-ast': 12.6.1(supports-color@8.1.1)
@@ -25406,6 +25431,8 @@ snapshots:
     optionalDependencies:
       react: 19.0.3
       react-dom: 19.0.3(react@19.0.3)
+
+  free-email-domains@1.12.7: {}
 
   fresh@0.5.2: {}
 
@@ -29324,6 +29351,12 @@ snapshots:
   title-case@3.0.3:
     dependencies:
       tslib: 2.8.1
+
+  tldts-core@7.4.15: {}
+
+  tldts@7.4.15:
+    dependencies:
+      tldts-core: 7.4.15
 
   tmp-promise@3.0.3:
     dependencies:
