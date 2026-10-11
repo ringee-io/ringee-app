@@ -73,7 +73,12 @@ if (typeof window !== 'undefined' && !(window as any).__zzPatched) {
     }
     if (url.endsWith('/api/dialer/sessions') && method === 'POST') {
       await new Promise((r) => setTimeout(r, 3000));
-      return json({ id: 's1', status: 'ready', startedAt: now, dialerMode: 'progressive' });
+      return json({
+        id: 's1',
+        status: 'ready',
+        startedAt: now,
+        dialerMode: 'progressive'
+      });
     }
     if (url.includes('/api/dialer/sessions/s1') && method === 'DELETE') {
       deletes += 1;
