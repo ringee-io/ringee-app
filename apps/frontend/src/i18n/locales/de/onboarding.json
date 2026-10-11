@@ -47,5 +47,88 @@
   "headerProgress": {
     "label": "Einrichtungsleitfaden",
     "tooltip": "Onboarding fortsetzen"
+  },
+  "firstList": {
+    "stepOf": "Schritt {current} von {total}",
+    "rewardChip": "Abschließen und {amount} kostenloses Guthaben erhalten",
+    "notNow": "Nicht jetzt",
+    "back": "Zurück",
+    "choose": {
+      "title": "Wen möchten Sie anrufen?",
+      "description": "Fügen Sie die Personen hinzu, die Sie anrufen möchten. Ringee ordnet sie und zeigt Ihnen jedes Mal die nächste Person.",
+      "time": "Dauert etwa eine Minute.",
+      "file": {
+        "title": "Datei hochladen",
+        "description": "Eine CSV aus Ihrem CRM oder einer Tabelle.",
+        "badge": "Ideal für viele Personen"
+      },
+      "typed": {
+        "title": "Nummern eingeben",
+        "description": "Fügen Sie einige Personen von Hand hinzu.",
+        "badge": "Am schnellsten zum Ausprobieren"
+      },
+      "contacts": {
+        "title": "Aus Ihren Kontakten",
+        "description": "Bereits in Ringee gespeicherte Personen.",
+        "badge": "{count, plural, one {# Kontakt gespeichert} other {# Kontakte gespeichert}}"
+      }
+    },
+    "file": {
+      "title": "Laden Sie Ihre Datei hoch",
+      "description": "Jede Zeile ist eine anzurufende Person, in der Reihenfolge der Datei."
+    },
+    "typed": {
+      "title": "Geben Sie die anzurufenden Personen ein",
+      "description": "Eine Nummer und auf Wunsch ein Name. Die Eingabetaste führt zum nächsten Feld.",
+      "phone": "Telefonnummer",
+      "name": "Name",
+      "namePlaceholder": "Name (optional)",
+      "phoneOf": "Telefonnummer, Person {index}",
+      "nameOf": "Name, Person {index}",
+      "remove": "Person {index} entfernen",
+      "add": "Weitere Person hinzufügen",
+      "enterHint": "Die Eingabetaste im Namensfeld fügt die nächste Person hinzu.",
+      "max": "Hier bis zu {max} — weitere können Sie später unter Listen hinzufügen.",
+      "invalid": "Diese Nummer scheint nicht richtig zu sein."
+    },
+    "contacts": {
+      "title": "Wählen Sie die anzurufenden Personen",
+      "description": "Suchen und markieren Sie die Personen für diese Liste.",
+      "search": "Nach Name, Nummer oder Unternehmen suchen",
+      "selectShown": "Alle angezeigten auswählen",
+      "selected": "{count, plural, =0 {Noch niemand ausgewählt} one {# ausgewählt} other {# ausgewählt}}",
+      "full": "{max} ausgewählt — die maximale Anzahl pro Hinzufügen",
+      "noMatches": "Kein Kontakt passt zu Ihrer Suche.",
+      "failed": "Ihre Kontakte konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
+    },
+    "name": {
+      "label": "Listenname",
+      "first": "Meine erste Liste",
+      "next": "Neue Liste",
+      "hint": "Sie können die Liste jederzeit unter Listen umbenennen."
+    },
+    "create": "Liste erstellen",
+    "createCount": "{count, plural, one {Liste mit # Person erstellen} other {Liste mit # Personen erstellen}}",
+    "creating": "Ihre Liste wird erstellt…",
+    "adding": "{done} von {total} werden hinzugefügt…",
+    "failed": "Die Liste konnte nicht erstellt werden. Versuchen Sie es erneut.",
+    "personFailed": "Diese Person konnte nicht hinzugefügt werden.",
+    "nothingAdded": "Es konnte niemand zur Liste hinzugefügt werden. Prüfen Sie diese Angaben und versuchen Sie es erneut:",
+    "skippedRow": "Zeile {row}: {message}",
+    "skippedPerson": "{phone}: {message}",
+    "ready": {
+      "title": "Sie können jetzt anrufen",
+      "description": "{count, plural, one {# Person in „{name}“, bereit zum Anrufen.} other {# Personen in „{name}“, der Reihe nach bereit.}}",
+      "rewardTitle": "+{amount} kostenloses Guthaben",
+      "rewardHint": "Ihrem Guthaben hinzugefügt — Ihre ersten Anrufe gehen auf uns.",
+      "skipped": "{count, plural, one {# Zeile wurde ausgelassen} other {# Zeilen wurden ausgelassen}}",
+      "why": "Grund anzeigen",
+      "cta": "Mit Anrufen beginnen",
+      "keyHint": "Drücken Sie jederzeit <key>N</key>, um die nächste Person anzurufen."
+    },
+    "completionPending": "Ihre erste Liste ist gespeichert. Schließen Sie die Einrichtung ab, um berechtigtes Anrufguthaben zu erhalten.",
+    "completionFailed": "Ihre Liste ist gespeichert, aber die Einrichtung konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
+    "finishSetup": "Einrichtung abschließen"
   }
 }

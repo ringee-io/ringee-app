@@ -341,6 +341,25 @@
       "connectingHint": "Deine Leitung wird verbunden. Ein jetzt gestarteter Anruf geht raus, sobald sie bereit ist.",
       "offline": "Offline",
       "offlineHint": "Deine Leitung ist getrennt. Prüfe deine Internetverbindung."
+    },
+    "freeTrial": "🎉 Kostenloser Testanruf verfügbar",
+    "freeTrialHint": "Auf 1 Minute begrenzt — der Anruf endet automatisch",
+    "balance": "Guthaben",
+    "outboundDisabled": "Ausgehende Anrufe sind für dieses Konto deaktiviert.",
+    "enterNumber": "Nummer eingeben",
+    "callerIdUnavailable": "Keine Anrufer-ID für dieses Ziel verfügbar. Fügen Sie in den Einstellungen zur Rufnummernrotation eine Nummer für dieses Land hinzu oder aktivieren Sie eine.",
+    "freeTrialEnded": "⏱ Der kostenlose Testanruf ist beendet — die Grenze von 1 Minute ist erreicht",
+    "externalCarrier": {
+      "invalidDestination": "Geben Sie eine gültige internationale Nummer ein, die mit + beginnt.",
+      "noCredit": "Ihr Guthaben reicht für diesen Anruf nicht aus.",
+      "notAllowed": "Sie können in diesem Arbeitsbereich nicht von dieser Nummer aus anrufen.",
+      "numberUnavailable": "Diese Nummer ist nicht mehr verfügbar. Wählen Sie eine andere.",
+      "notReady": "Ihr Anbieter ist nicht bereit. Prüfen Sie, ob die Nebenstelle synchronisiert und registriert ist.",
+      "unavailable": "Ihr Anbieter ist nicht erreichbar. Versuchen Sie es gleich noch einmal.",
+      "rejected": "Ihr Anbieter hat den Anruf abgelehnt. Prüfen Sie die Berechtigungen für ausgehende Anrufe der Nebenstelle in Ihrer Telefonanlage.",
+      "destinationRejected": "Ihr Anbieter konnte den Anruf zu dieser Nummer nicht weiterleiten.",
+      "timeout": "Ihr Anbieter hat nicht rechtzeitig geantwortet.",
+      "failed": "Der Anruf konnte über Ihren Anbieter nicht abgeschlossen werden."
     }
   },
   "activeCallStatus": {
@@ -402,5 +421,182 @@
     "call": "Anrufen",
     "callAndDontWarn": "Anrufen und nicht mehr warnen",
     "buyNumber": "Nummer kaufen"
+  },
+  "myDay": {
+    "title": "Anrufen",
+    "asideLabel": "Ihre Leitung und Ihr Tag",
+    "tabs": {
+      "label": "Anrufquellen",
+      "myDay": "Mein Tag",
+      "campaigns": "Kampagnen",
+      "unlockCampaigns": "Kampagnen freischalten"
+    },
+    "campaigns": {
+      "bar": "Kampagne zum Anrufen",
+      "leads": "{count, plural, one {# Lead} other {# Leads}}",
+      "callingHours": "Anrufzeiten",
+      "picker": {
+        "change": "Kampagne wechseln, {name} ausgewählt",
+        "title": "Aktive Kampagnen",
+        "search": "Kampagnen suchen",
+        "noMatches": "Keine passenden Kampagnen",
+        "all": "Alle Kampagnen"
+      },
+      "emptyTitle": "Keine aktiven Kampagnen",
+      "emptyAdmin": "Aktivieren Sie eine Kampagne, damit sie hier zum Anrufen erscheint.",
+      "emptyMember": "Sobald eine Ihnen zugewiesene Kampagne aktiv ist, erscheint sie hier.",
+      "goToCampaigns": "Zu den Kampagnen",
+      "failedTitle": "Ihre Kampagnen konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "unlock": {
+        "title": "Kampagnen freischalten",
+        "description": "Kampagnen gehören zum Organisationstarif: Laden Sie Ihre Leads hoch, weisen Sie sie Ihrem Team zu und rufen Sie sie in Sitzungen an.",
+        "switchTitle": "Kampagnen befinden sich in Ihrer Organisation",
+        "switchDescription": "Sie sind in Ihrem persönlichen Arbeitsbereich. Wechseln Sie zu Ihrer Organisation, um in deren Kampagnen anzurufen.",
+        "switchTo": "Zu {name} wechseln",
+        "checkFailed": "Wir konnten nicht prüfen, ob Sie bereits einen Organisationstarif haben.",
+        "readyTitle": "Ihr Organisationstarif ist bereit",
+        "readyDescription": "Erstellen Sie Ihre Organisation, um mit Kampagnen zu beginnen."
+      }
+    },
+    "search": {
+      "label": "Kontakt suchen oder Nummer eingeben",
+      "placeholder": "Kontakt suchen oder Nummer eingeben",
+      "callNumber": "{number} anrufen",
+      "incompleteNumber": "Weiter eingeben — mit Landesvorwahl, zum Beispiel +34",
+      "recent": "Letzte Anrufe",
+      "searching": "Suche läuft…",
+      "noMatches": "Keine Kontakte passen zu „{query}“",
+      "inbound": "Eingehender Anruf",
+      "outbound": "Ausgehender Anruf",
+      "clear": "Suche löschen"
+    },
+    "keypad": {
+      "button": "Wähltastatur",
+      "title": "Wähltastatur",
+      "country": "Land der Telefonnummer",
+      "international": "International"
+    },
+    "list": {
+      "button": "Liste",
+      "buttonWith": "Anrufe aus {name}. Liste wechseln",
+      "choose": "Liste zum Anrufen wählen",
+      "title": "Aus einer Liste anrufen",
+      "hint": "Wenn in der heutigen Warteschlange kein Anruf fällig ist, wählt Nächsten anrufen den nächsten Kontakt dieser Liste.",
+      "search": "Ihre Listen durchsuchen",
+      "yours": "Ihnen zugewiesen",
+      "counts": "{remaining, plural, one {# übrig} other {# übrig}} · {total, plural, one {# Kontakt} other {# Kontakte}}",
+      "noMatches": "Keine passende Liste",
+      "none": "Ihnen sind noch keine Listen zugewiesen",
+      "noneHint": "Hier erscheinen Ihre eigenen Listen und die Listen, die Ihnen ein Administrator zuweist.",
+      "openLists": "Listen öffnen",
+      "stop": "Anrufe aus einer Liste beenden",
+      "failed": "Ihre Listen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "gone": "Diese Liste ist Ihnen nicht mehr zugewiesen.",
+      "skipFailed": "Der Kontakt konnte nicht übersprungen werden. Versuchen Sie es erneut.",
+      "inLists": "Aus Ihrer Liste:",
+      "more": "+{count}",
+      "create": "Liste erstellen"
+    },
+    "next": {
+      "label": "Nächster Anruf",
+      "callNext": "Nächsten anrufen",
+      "calling": "Anruf wird gestartet…",
+      "onCall": "Sie sind in einem Anruf. Legen Sie auf, um die nächste Person anzurufen.",
+      "from": "Von {number}",
+      "fromAuto": "Von einer lokalen Nummer, die pro Anruf gewählt wird",
+      "fromPublic": "Von der öffentlichen Nummer",
+      "caughtUp": "Alles erledigt",
+      "caughtUpHint": "Suchen Sie einen Kontakt oder geben Sie eine Nummer ein, um anzurufen.",
+      "nothingDue": "Derzeit ist kein Anruf fällig",
+      "nothingDueHint": "Als Nächstes: {name} um {time}.",
+      "caughtUpWithLists": "Wählen Sie eine Ihrer Listen, um weiter anzurufen.",
+      "leftInList": "{count, plural, one {# übrig in der Liste} other {# übrig in der Liste}}",
+      "skippedBefore": "Zuvor übersprungen",
+      "skip": "Überspringen",
+      "skipHint": "Überspringen: Der Kontakt kommt ans Ende der Liste",
+      "listDone": "In {list} ist niemand mehr anzurufen",
+      "listDoneHint": "Alle wurden angerufen. Wählen Sie eine andere Liste, um fortzufahren.",
+      "listBlockedHint": "{count, plural, one {# Kontakt kann derzeit nicht angerufen werden: auf der Nicht-anrufen-Liste, mit geplantem Rückruf oder ohne gültige Nummer.} other {# Kontakte können derzeit nicht angerufen werden: auf der Nicht-anrufen-Liste, mit geplantem Rückruf oder ohne gültige Nummer.}}",
+      "listFailed": "Der nächste Kontakt Ihrer Liste konnte nicht geladen werden",
+      "listFailedHint": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "chooseList": "Liste wählen",
+      "changeList": "Liste wechseln",
+      "start": {
+        "title": "Stellen Sie Ihre Anrufliste zusammen",
+        "hint": "Laden Sie eine Datei hoch oder geben Sie einige Nummern ein. Ringee zeigt Ihnen jedes Mal die nächste Person.",
+        "cta": "Mit Anrufen beginnen",
+        "reward": "+{amount} kostenloses Guthaben nach Abschluss"
+      }
+    },
+    "queue": {
+      "title": "Heutige Warteschlange",
+      "count": "{count, plural, one {# anzurufen} other {# anzurufen}}",
+      "stableHint": "die Reihenfolge bleibt während Ihrer Arbeit gleich",
+      "groups": {
+        "now": "Jetzt",
+        "later": "Später heute",
+        "anytime": "Jederzeit heute"
+      },
+      "nextBadge": "Als Nächstes",
+      "doNotCall": "Nicht anrufen",
+      "call": "Anrufen",
+      "callBack": "Zurückrufen",
+      "more": "Weitere Aktionen für {name}",
+      "viewContact": "Kontakt öffnen",
+      "cancelCallback": "Rückruf absagen",
+      "cancelFailed": "Der Rückruf konnte nicht abgesagt werden. Versuchen Sie es erneut.",
+      "incoming": "{count, plural, one {# neue Person zum Anrufen seit dem Start} other {# neue Personen zum Anrufen seit dem Start}}",
+      "addIncoming": "Zur Warteschlange hinzufügen",
+      "emptyTitle": "Heute ist noch niemand anzurufen",
+      "emptyDescription": "Fällige Rückrufe, verpasste Anrufe und Nachfassaktionen erscheinen hier, sobald sie anstehen.",
+      "emptyWithList": "Fällige Rückrufe, verpasste Anrufe und Nachfassaktionen erscheinen hier, sobald sie anstehen. Bis dahin arbeitet Nächsten anrufen {list} ab.",
+      "failedTitle": "Die heutige Warteschlange konnte nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "localTime": "{time} vor Ort",
+      "unknownCaller": "Unbekannter Anrufer"
+    },
+    "reasons": {
+      "callbackAt": "Rückruf um {time}",
+      "missedCall": "Verpasster Anruf {when}",
+      "voicemail": "Sprachnachricht {when}",
+      "followUpDue": "{action} · fällig um {time}"
+    },
+    "line": {
+      "title": "Ihre Leitung",
+      "performance": "{rate}% Ihrer {calls} Anrufe angenommen · letzte {days} Tage",
+      "performanceLow": "Noch zu wenige Anrufe für eine Bewertung · {calls} in den letzten {days} Tagen",
+      "performanceHint": "Von einer Person oder Mailbox angenommen.",
+      "resting": "Pausiert bis {date}: Die Rotation überspringt sie vorerst",
+      "balance": "Guthaben",
+      "addCredit": "Guthaben hinzufügen"
+    },
+    "today": {
+      "title": "Heute",
+      "calls": "{count, plural, one {Anruf} other {Anrufe}}",
+      "conversations": "{count, plural, one {Gespräch} other {Gespräche}}",
+      "meetingsBooked": "{count, plural, one {Termin gebucht} other {Termine gebucht}}",
+      "statsHint": "Nur Ihre eigenen heutigen Anrufe in diesem Arbeitsbereich. Ein Gespräch ist ein Anruf, der eine Person erreicht hat.",
+      "nextMeeting": "Nächster Termin",
+      "noMeeting": "Keine weiteren Termine heute",
+      "meetingWith": "Termin mit {name}",
+      "duration": "{time} · {minutes} Min.",
+      "join": "Teilnehmen",
+      "failed": "Die heutigen Zahlen konnten nicht geladen werden."
+    },
+    "shortcuts": {
+      "title": "Tastenkürzel",
+      "callNext": "Nächsten anrufen",
+      "search": "Suchen oder Nummer eingeben",
+      "keypad": "Wähltastatur öffnen",
+      "list": "Liste wählen",
+      "skip": "Kontakt einer Liste überspringen",
+      "move": "Durch Ergebnisse navigieren",
+      "callResult": "Markiertes Ergebnis anrufen",
+      "clear": "Suche löschen",
+      "hint": "Sie sind beim Tippen, während eines Anrufs oder bei geöffnetem Dialog deaktiviert."
+    }
   }
 }

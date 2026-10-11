@@ -47,5 +47,88 @@
   "headerProgress": {
     "label": "Setup-gids",
     "tooltip": "Onboarding hervatten"
+  },
+  "firstList": {
+    "stepOf": "Stap {current} van {total}",
+    "rewardChip": "Rond af en ontvang {amount} gratis tegoed",
+    "notNow": "Niet nu",
+    "back": "Terug",
+    "choose": {
+      "title": "Wie wil je bellen?",
+      "description": "Voeg de mensen toe die je gaat bellen. Ringee zet ze op volgorde en geeft je telkens de volgende persoon.",
+      "time": "Duurt ongeveer een minuut.",
+      "file": {
+        "title": "Bestand uploaden",
+        "description": "Een CSV uit je CRM of een spreadsheet.",
+        "badge": "Ideaal voor veel personen"
+      },
+      "typed": {
+        "title": "Nummers invoeren",
+        "description": "Voeg enkele personen handmatig toe.",
+        "badge": "Snelste manier om te proberen"
+      },
+      "contacts": {
+        "title": "Uit je contacten",
+        "description": "Personen die al in Ringee zijn opgeslagen.",
+        "badge": "{count, plural, one {# contact opgeslagen} other {# contacten opgeslagen}}"
+      }
+    },
+    "file": {
+      "title": "Upload je bestand",
+      "description": "Elke rij is een persoon om te bellen, in de volgorde van het bestand."
+    },
+    "typed": {
+      "title": "Voer in wie je wilt bellen",
+      "description": "Een nummer en, als je wilt, een naam. Enter brengt je naar het volgende veld.",
+      "phone": "Telefoonnummer",
+      "name": "Naam",
+      "namePlaceholder": "Naam (optioneel)",
+      "phoneOf": "Telefoonnummer, persoon {index}",
+      "nameOf": "Naam, persoon {index}",
+      "remove": "Persoon {index} verwijderen",
+      "add": "Nog een persoon toevoegen",
+      "enterHint": "Enter bij een naam voegt de volgende persoon toe.",
+      "max": "Hier maximaal {max} — voeg later meer toe via Lijsten.",
+      "invalid": "Dit nummer lijkt niet te kloppen."
+    },
+    "contacts": {
+      "title": "Kies wie je wilt bellen",
+      "description": "Zoek en vink de personen voor deze lijst aan.",
+      "search": "Zoeken op naam, nummer of bedrijf",
+      "selectShown": "Alle getoonde contacten selecteren",
+      "selected": "{count, plural, =0 {Nog niemand gekozen} one {# gekozen} other {# gekozen}}",
+      "full": "{max} gekozen — het maximum per toevoeging aan de lijst",
+      "noMatches": "Geen contact komt overeen met je zoekopdracht.",
+      "failed": "Je contacten konden niet worden geladen.",
+      "retry": "Opnieuw proberen"
+    },
+    "name": {
+      "label": "Lijstnaam",
+      "first": "Mijn eerste lijst",
+      "next": "Nieuwe lijst",
+      "hint": "Je kunt de naam op elk moment wijzigen in Lijsten."
+    },
+    "create": "Lijst maken",
+    "createCount": "{count, plural, one {Lijst met # persoon maken} other {Lijst met # personen maken}}",
+    "creating": "Je lijst wordt gemaakt…",
+    "adding": "{done} van {total} toevoegen…",
+    "failed": "De lijst kon niet worden gemaakt. Probeer het opnieuw.",
+    "personFailed": "Deze persoon kon niet worden toegevoegd.",
+    "nothingAdded": "Er kon niemand aan de lijst worden toegevoegd. Controleer dit en probeer het opnieuw:",
+    "skippedRow": "Rij {row}: {message}",
+    "skippedPerson": "{phone}: {message}",
+    "ready": {
+      "title": "Je kunt beginnen met bellen",
+      "description": "{count, plural, one {# persoon in ‘{name}’, klaar om te bellen.} other {# personen in ‘{name}’, op volgorde klaargezet.}}",
+      "rewardTitle": "+{amount} gratis tegoed",
+      "rewardHint": "Aan je saldo toegevoegd — je eerste gesprekken zijn op onze kosten.",
+      "skipped": "{count, plural, one {# rij is overgeslagen} other {# rijen zijn overgeslagen}}",
+      "why": "Bekijk waarom",
+      "cta": "Begin met bellen",
+      "keyHint": "Druk op elk moment op <key>N</key> om de volgende persoon te bellen."
+    },
+    "completionPending": "Je eerste lijst is opgeslagen. Rond de configuratie af om het beltegoed waarvoor je in aanmerking komt te ontvangen.",
+    "completionFailed": "Je lijst is opgeslagen, maar de configuratie kon niet worden voltooid. Probeer het opnieuw.",
+    "finishSetup": "Configuratie afronden"
   }
 }

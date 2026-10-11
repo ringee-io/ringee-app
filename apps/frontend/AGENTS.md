@@ -129,3 +129,10 @@ outbound call" onto the attempt — a second leg's hangup used to clear the live
 call. A leg that ends before the provider acknowledged it (`trying`) never
 reached the server: report it through `POST /dialer/abandon`, or the agent is
 left `dialing` (`CMP-013`).
+
+A campaign session is started by the workspace's own `useDialerSession`, and
+by nothing else. A "Start calling" outside it (the Call page's Campaigns tab)
+opens `AgentSessionDialog` with `autoStart`: a second `useDialerSession`
+would double the heartbeat and the end-on-unmount, and a session started
+outside the workspace has nobody to receive its leads. A start that resolves
+after the workspace closed is ended on the spot.

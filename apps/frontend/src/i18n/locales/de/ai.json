@@ -264,5 +264,23 @@
       "bestFor": "Teams, die wollen, dass jeder Vertriebler die schwierigsten Einwände mit der Antwort meistert, die bereits funktioniert.",
       "dataNote": "Benötigt echte Gespräche mit verwertbaren Transkripten. Rund 25+ analysierte Anrufe pro Kontext schalten Erkenntnisse mit höherer Konfidenz frei."
     }
+  },
+  "pendingActions": {
+    "actionTypes": {
+      "send_follow_up": "Nachricht zur Nachverfolgung senden",
+      "create_callback": "Rückruf tätigen",
+      "book_meeting": "Termin buchen",
+      "ask_for_referral": "Um Empfehlung bitten",
+      "send_pricing_or_info": "Informationen / Preise senden",
+      "update_crm": "CRM aktualisieren",
+      "add_to_nurture": "Zur Kontaktpflege hinzufügen",
+      "mark_not_interested": "Als nicht interessiert markieren",
+      "review_call": "Anruf prüfen",
+      "review_script_suggestion": "Skriptvorschlag prüfen",
+      "approve_script_version": "Skriptversion freigeben",
+      "review_objection_response": "Antwort auf Einwand prüfen",
+      "add_objection_response_to_script": "Antwort auf Einwand hinzufügen",
+      "review_campaign_insight": "Kampagnenanalyse prüfen"
+    }
   }
 }

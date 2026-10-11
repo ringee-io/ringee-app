@@ -264,5 +264,23 @@
       "bestFor": "Les équipes qui veulent que chaque commercial gère les objections les plus difficiles avec la réponse qui fonctionne déjà.",
       "dataNote": "Nécessite de vraies conversations avec des transcriptions exploitables. Environ 25+ appels analysés par contexte débloquent des insights plus fiables."
     }
+  },
+  "pendingActions": {
+    "actionTypes": {
+      "send_follow_up": "Envoyer un suivi",
+      "create_callback": "Effectuer un rappel",
+      "book_meeting": "Planifier une réunion",
+      "ask_for_referral": "Demander une recommandation",
+      "send_pricing_or_info": "Envoyer des informations / tarifs",
+      "update_crm": "Mettre à jour le CRM",
+      "add_to_nurture": "Ajouter au suivi commercial",
+      "mark_not_interested": "Marquer comme non intéressé",
+      "review_call": "Examiner l’appel",
+      "review_script_suggestion": "Examiner la suggestion de script",
+      "approve_script_version": "Approuver la version du script",
+      "review_objection_response": "Examiner la réponse à l’objection",
+      "add_objection_response_to_script": "Ajouter une réponse à l’objection",
+      "review_campaign_insight": "Examiner l’analyse de la campagne"
+    }
   }
 }

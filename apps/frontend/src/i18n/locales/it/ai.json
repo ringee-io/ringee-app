@@ -264,5 +264,23 @@
       "bestFor": "Team che vogliono che ogni venditore gestisca le obiezioni più difficili con la risposta che funziona già.",
       "dataNote": "Servono conversazioni reali con trascrizioni utilizzabili. Circa 25+ chiamate analizzate per contesto sbloccano insight a maggiore confidenza."
     }
+  },
+  "pendingActions": {
+    "actionTypes": {
+      "send_follow_up": "Invia follow-up",
+      "create_callback": "Effettua richiamata",
+      "book_meeting": "Prenota riunione",
+      "ask_for_referral": "Chiedi una segnalazione",
+      "send_pricing_or_info": "Invia informazioni / prezzi",
+      "update_crm": "Aggiorna CRM",
+      "add_to_nurture": "Aggiungi al percorso di nurturing",
+      "mark_not_interested": "Segna come non interessato",
+      "review_call": "Esamina chiamata",
+      "review_script_suggestion": "Esamina suggerimento di script",
+      "approve_script_version": "Approva versione dello script",
+      "review_objection_response": "Esamina risposta all’obiezione",
+      "add_objection_response_to_script": "Aggiungi risposta all’obiezione",
+      "review_campaign_insight": "Esamina analisi della campagna"
+    }
   }
 }

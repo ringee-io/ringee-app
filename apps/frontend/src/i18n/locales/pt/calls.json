@@ -341,6 +341,25 @@
       "connectingHint": "Sua linha está conectando. Uma chamada iniciada agora sai assim que ela estiver pronta.",
       "offline": "Sem conexão",
       "offlineHint": "Sua linha está desconectada. Verifique sua conexão com a internet."
+    },
+    "freeTrial": "🎉 Chamada de teste gratuita disponível",
+    "freeTrialHint": "Limitada a 1 minuto — a chamada termina automaticamente",
+    "balance": "Saldo",
+    "outboundDisabled": "As chamadas de saída estão desativadas para esta conta.",
+    "enterNumber": "Introduza um número",
+    "callerIdUnavailable": "Não há um ID de chamada disponível para este destino. Adicione ou ative um número desse país nas definições de rotação de números.",
+    "freeTrialEnded": "⏱ A chamada de teste gratuita terminou — foi atingido o limite de 1 minuto",
+    "externalCarrier": {
+      "invalidDestination": "Introduza um número internacional válido que comece por +.",
+      "noCredit": "Não tem crédito suficiente para fazer esta chamada.",
+      "notAllowed": "Não pode ligar a partir deste número no espaço de trabalho atual.",
+      "numberUnavailable": "Este número já não está disponível. Escolha outro.",
+      "notReady": "O seu operador não está pronto. Verifique se a extensão está sincronizada e registada.",
+      "unavailable": "Não foi possível contactar o seu operador. Tente novamente dentro de momentos.",
+      "rejected": "O seu operador rejeitou a chamada. Verifique as permissões de saída da extensão no seu PBX.",
+      "destinationRejected": "O seu operador não conseguiu encaminhar a chamada para este número.",
+      "timeout": "O seu operador não respondeu a tempo.",
+      "failed": "Não foi possível concluir a chamada através do seu operador."
     }
   },
   "activeCallStatus": {
@@ -402,5 +421,182 @@
     "call": "Ligar",
     "callAndDontWarn": "Ligar e não avisar mais",
     "buyNumber": "Comprar um número"
+  },
+  "myDay": {
+    "title": "Ligar",
+    "asideLabel": "A sua linha e o seu dia",
+    "tabs": {
+      "label": "Origem das chamadas",
+      "myDay": "O meu dia",
+      "campaigns": "Campanhas",
+      "unlockCampaigns": "Desbloquear campanhas"
+    },
+    "campaigns": {
+      "bar": "Campanha para ligar",
+      "leads": "{count, plural, one {# potencial cliente} other {# potenciais clientes}}",
+      "callingHours": "Horário de chamadas",
+      "picker": {
+        "change": "Alterar campanha, {name} selecionada",
+        "title": "Campanhas ativas",
+        "search": "Pesquisar campanhas",
+        "noMatches": "Nenhuma campanha corresponde",
+        "all": "Todas as campanhas"
+      },
+      "emptyTitle": "Sem campanhas ativas",
+      "emptyAdmin": "Ative uma campanha para a ver aqui, pronta para ligar.",
+      "emptyMember": "Quando uma campanha que lhe foi atribuída estiver ativa, aparece aqui.",
+      "goToCampaigns": "Ir para campanhas",
+      "failedTitle": "Não foi possível carregar as suas campanhas",
+      "retry": "Tentar novamente",
+      "unlock": {
+        "title": "Desbloquear campanhas",
+        "description": "As campanhas estão incluídas no plano Organização: carregue os seus potenciais clientes, atribua-os à equipa e ligue-lhes em sessões.",
+        "switchTitle": "As campanhas estão na sua organização",
+        "switchDescription": "Está no seu espaço pessoal. Mude para a sua organização para ligar nas campanhas.",
+        "switchTo": "Mudar para {name}",
+        "checkFailed": "Não foi possível verificar se já tem um plano Organização.",
+        "readyTitle": "O seu plano Organização está pronto",
+        "readyDescription": "Crie a sua organização para começar a trabalhar com campanhas."
+      }
+    },
+    "search": {
+      "label": "Pesquise um contacto ou introduza um número",
+      "placeholder": "Pesquise um contacto ou introduza um número",
+      "callNumber": "Ligar para {number}",
+      "incompleteNumber": "Continue a escrever — inclua o indicativo do país, como +34",
+      "recent": "Chamadas recentes",
+      "searching": "A pesquisar…",
+      "noMatches": "Nenhum contacto corresponde a «{query}»",
+      "inbound": "Chamada recebida",
+      "outbound": "Chamada efetuada",
+      "clear": "Limpar a pesquisa"
+    },
+    "keypad": {
+      "button": "Teclado",
+      "title": "Teclado",
+      "country": "País do número de telefone",
+      "international": "Internacional"
+    },
+    "list": {
+      "button": "Lista",
+      "buttonWith": "A ligar a partir de {name}. Alterar a lista",
+      "choose": "Escolha uma lista para ligar",
+      "title": "Ligar a partir de uma lista",
+      "hint": "Quando não houver chamadas devidas na fila de hoje, Ligar ao seguinte usa o próximo contacto desta lista.",
+      "search": "Pesquisar nas suas listas",
+      "yours": "Atribuídas a si",
+      "counts": "{remaining, plural, one {# restante} other {# restantes}} · {total, plural, one {# contacto} other {# contactos}}",
+      "noMatches": "Nenhuma lista corresponde",
+      "none": "Ainda não lhe foram atribuídas listas",
+      "noneHint": "As listas que cria e as que um administrador lhe atribui aparecem aqui.",
+      "openLists": "Abrir Listas",
+      "stop": "Parar de ligar a partir de uma lista",
+      "failed": "Não foi possível carregar as suas listas.",
+      "retry": "Tentar novamente",
+      "gone": "Essa lista já não lhe está atribuída.",
+      "skipFailed": "Não foi possível saltar o contacto. Tente novamente.",
+      "inLists": "Da sua lista:",
+      "more": "+{count}",
+      "create": "Criar uma lista"
+    },
+    "next": {
+      "label": "Próxima chamada",
+      "callNext": "Ligar ao seguinte",
+      "calling": "A ligar…",
+      "onCall": "Está numa chamada. Desligue para ligar à próxima pessoa.",
+      "from": "A partir de {number}",
+      "fromAuto": "A partir de um número local, escolhido por chamada",
+      "fromPublic": "A partir do número público",
+      "caughtUp": "Está tudo em dia",
+      "caughtUpHint": "Pesquise um contacto ou introduza um número para ligar.",
+      "nothingDue": "Sem chamadas devidas agora",
+      "nothingDueHint": "A seguir: {name} às {time}.",
+      "caughtUpWithLists": "Escolha uma das suas listas para continuar a ligar.",
+      "leftInList": "{count, plural, one {# restante na lista} other {# restantes na lista}}",
+      "skippedBefore": "Saltado anteriormente",
+      "skip": "Saltar",
+      "skipHint": "Saltar: o contacto vai para o fim da lista",
+      "listDone": "Não há mais ninguém para ligar em {list}",
+      "listDoneHint": "Já ligou a todos os contactos. Escolha outra lista para continuar.",
+      "listBlockedHint": "{count, plural, one {# contacto não pode ser chamado agora: está na lista Não ligar, tem um retorno agendado ou não tem um número válido.} other {# contactos não podem ser chamados agora: estão na lista Não ligar, têm um retorno agendado ou não têm um número válido.}}",
+      "listFailed": "Não foi possível carregar o próximo contacto da sua lista",
+      "listFailedHint": "Verifique a sua ligação e tente novamente.",
+      "retry": "Tentar novamente",
+      "chooseList": "Escolher uma lista",
+      "changeList": "Alterar lista",
+      "start": {
+        "title": "Prepare quem vai chamar",
+        "hint": "Carregue um ficheiro ou introduza alguns números. A Ringee apresenta-lhe a próxima pessoa, sempre.",
+        "cta": "Começar a ligar",
+        "reward": "+{amount} de crédito gratuito ao terminar"
+      }
+    },
+    "queue": {
+      "title": "Fila de hoje",
+      "count": "{count, plural, one {# para ligar} other {# para ligar}}",
+      "stableHint": "a ordem mantém-se enquanto trabalha",
+      "groups": {
+        "now": "Agora",
+        "later": "Mais tarde hoje",
+        "anytime": "A qualquer hora hoje"
+      },
+      "nextBadge": "Seguinte",
+      "doNotCall": "Não ligar",
+      "call": "Ligar",
+      "callBack": "Devolver chamada",
+      "more": "Mais ações para {name}",
+      "viewContact": "Abrir contacto",
+      "cancelCallback": "Cancelar retorno",
+      "cancelFailed": "Não foi possível cancelar o retorno. Tente novamente.",
+      "incoming": "{count, plural, one {# nova pessoa para ligar desde que começou} other {# novas pessoas para ligar desde que começou}}",
+      "addIncoming": "Adicionar à fila",
+      "emptyTitle": "Ainda não há ninguém para ligar hoje",
+      "emptyDescription": "Os retornos pendentes, as chamadas perdidas e os seguimentos aparecem aqui quando chega a hora.",
+      "emptyWithList": "Os retornos pendentes, as chamadas perdidas e os seguimentos aparecem aqui quando chega a hora. Até lá, Ligar ao seguinte percorre {list}.",
+      "failedTitle": "Não foi possível carregar a fila de hoje",
+      "retry": "Tentar novamente",
+      "localTime": "{time} no destino",
+      "unknownCaller": "Autor da chamada desconhecido"
+    },
+    "reasons": {
+      "callbackAt": "Retorno às {time}",
+      "missedCall": "Chamada perdida {when}",
+      "voicemail": "Correio de voz {when}",
+      "followUpDue": "{action} · previsto para {time}"
+    },
+    "line": {
+      "title": "A sua linha",
+      "performance": "{rate}% das suas {calls} chamadas atendidas · últimos {days} dias",
+      "performanceLow": "Ainda há poucas chamadas para avaliar · {calls} nos últimos {days} dias",
+      "performanceHint": "Atendidas por uma pessoa ou pelo correio de voz.",
+      "resting": "Em descanso até {date}: a rotação ignora-a por agora",
+      "balance": "Saldo",
+      "addCredit": "Adicionar crédito"
+    },
+    "today": {
+      "title": "Hoje",
+      "calls": "{count, plural, one {chamada} other {chamadas}}",
+      "conversations": "{count, plural, one {conversa} other {conversas}}",
+      "meetingsBooked": "{count, plural, one {reunião agendada} other {reuniões agendadas}}",
+      "statsHint": "Apenas as suas chamadas de hoje neste espaço de trabalho. Uma conversa é uma chamada atendida por uma pessoa.",
+      "nextMeeting": "Próxima reunião",
+      "noMeeting": "Sem mais reuniões hoje",
+      "meetingWith": "Reunião com {name}",
+      "duration": "{time} · {minutes} min",
+      "join": "Participar",
+      "failed": "Não foi possível carregar os números de hoje."
+    },
+    "shortcuts": {
+      "title": "Atalhos",
+      "callNext": "Ligar ao seguinte",
+      "search": "Pesquisar ou introduzir um número",
+      "keypad": "Abrir o teclado",
+      "list": "Escolher uma lista",
+      "skip": "Saltar um contacto da lista",
+      "move": "Percorrer os resultados",
+      "callResult": "Ligar ao resultado selecionado",
+      "clear": "Limpar a pesquisa",
+      "hint": "Não são ativados enquanto escreve, durante uma chamada ou com uma caixa de diálogo aberta."
+    }
   }
 }

@@ -5,6 +5,7 @@ import type { Call } from '@telnyx/webrtc';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { toast } from 'sonner';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useTranslations } from 'next-intl';
 
 const FREE_TRIAL_DURATION = 60; // seconds
 
@@ -19,6 +20,9 @@ export function useFreeTrialTimer(
 ) {
   const { freeCallTrial, setFreeCallTrial } = useCreditStore();
   const api = useApi();
+  const t = useTranslations('calls.dialer');
+  const tRef = useRef(t);
+  tRef.current = t;
   const [remainingSeconds, setRemainingSeconds] = useState(FREE_TRIAL_DURATION);
   const remainingSecondsRef = useRef(FREE_TRIAL_DURATION);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -71,7 +75,7 @@ export function useFreeTrialTimer(
             clearTimer();
             if (!hasHungUpRef.current) {
               hasHungUpRef.current = true;
-              toast.info('⏱ Free trial call ended — 1 minute limit reached', {
+              toast.info(tRef.current('freeTrialEnded'), {
                 duration: 6000
               });
               onHangupRef.current();

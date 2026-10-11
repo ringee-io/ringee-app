@@ -27,12 +27,15 @@ export function AgentSessionDialog({
   campaignId,
   campaignName,
   open,
-  onClose
+  onClose,
+  autoStart = false
 }: {
   campaignId: string;
   campaignName?: string;
   open: boolean;
   onClose: () => void;
+  /** The session starts on opening: the press that opened it was the start. */
+  autoStart?: boolean;
 }) {
   const t = useTranslations('dialer.workspace');
   const sessionActive = useDialerSessionStore((s) => s.sessionId !== null);
@@ -64,6 +67,7 @@ export function AgentSessionDialog({
           campaignId={campaignId}
           campaignName={campaignName}
           onExit={onClose}
+          autoStart={autoStart}
           className='h-dvh'
         />
       </DialogContent>

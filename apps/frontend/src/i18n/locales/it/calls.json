@@ -334,6 +334,25 @@
       "connectingHint": "La linea si sta connettendo. Una chiamata avviata ora partirà appena sarà pronta.",
       "offline": "Offline",
       "offlineHint": "La tua linea è disconnessa. Controlla la connessione a internet."
+    },
+    "freeTrial": "🎉 Chiamata di prova gratuita disponibile",
+    "freeTrialHint": "Limitata a 1 minuto — la chiamata termina automaticamente",
+    "balance": "Saldo",
+    "outboundDisabled": "Le chiamate in uscita sono disattivate per questo account.",
+    "enterNumber": "Inserisci un numero",
+    "callerIdUnavailable": "Nessun ID chiamante disponibile per questa destinazione. Aggiungi o attiva un numero di quel paese nelle impostazioni di rotazione dei numeri.",
+    "freeTrialEnded": "⏱ La chiamata di prova gratuita è terminata — raggiunto il limite di 1 minuto",
+    "externalCarrier": {
+      "invalidDestination": "Inserisci un numero internazionale valido che inizi con +.",
+      "noCredit": "Non hai credito sufficiente per effettuare questa chiamata.",
+      "notAllowed": "Non puoi chiamare da questo numero nell’area di lavoro attuale.",
+      "numberUnavailable": "Questo numero non è più disponibile. Scegline un altro.",
+      "notReady": "Il tuo operatore non è pronto. Verifica che l’interno sia sincronizzato e registrato.",
+      "unavailable": "Impossibile contattare il tuo operatore. Riprova tra poco.",
+      "rejected": "Il tuo operatore ha rifiutato la chiamata. Controlla le autorizzazioni in uscita dell’interno nel tuo PBX.",
+      "destinationRejected": "Il tuo operatore non è riuscito a instradare la chiamata verso questo numero.",
+      "timeout": "Il tuo operatore non ha risposto in tempo.",
+      "failed": "Impossibile completare la chiamata tramite il tuo operatore."
     }
   },
   "activeCallStatus": {
@@ -395,5 +414,182 @@
     "call": "Chiama",
     "callAndDontWarn": "Chiama e non avvisarmi più",
     "buyNumber": "Acquista un numero"
+  },
+  "myDay": {
+    "title": "Chiama",
+    "asideLabel": "La tua linea e la tua giornata",
+    "tabs": {
+      "label": "Origine delle chiamate",
+      "myDay": "La mia giornata",
+      "campaigns": "Campagne",
+      "unlockCampaigns": "Sblocca le campagne"
+    },
+    "campaigns": {
+      "bar": "Campagna da chiamare",
+      "leads": "{count, plural, one {# lead} other {# lead}}",
+      "callingHours": "Orari di chiamata",
+      "picker": {
+        "change": "Cambia campagna, {name} selezionata",
+        "title": "Campagne attive",
+        "search": "Cerca campagne",
+        "noMatches": "Nessuna campagna corrispondente",
+        "all": "Tutte le campagne"
+      },
+      "emptyTitle": "Nessuna campagna attiva",
+      "emptyAdmin": "Attiva una campagna e apparirà qui, pronta per chiamare.",
+      "emptyMember": "Quando una campagna che ti è stata assegnata è attiva, appare qui.",
+      "goToCampaigns": "Vai alle campagne",
+      "failedTitle": "Impossibile caricare le tue campagne",
+      "retry": "Riprova",
+      "unlock": {
+        "title": "Sblocca le campagne",
+        "description": "Le campagne sono incluse nel piano Organizzazione: carica i lead, assegnali al tuo team e chiamali in sessioni.",
+        "switchTitle": "Le campagne sono nella tua organizzazione",
+        "switchDescription": "Sei nella tua area di lavoro personale. Passa alla tua organizzazione per chiamare nelle sue campagne.",
+        "switchTo": "Passa a {name}",
+        "checkFailed": "Non siamo riusciti a verificare se hai già un piano Organizzazione.",
+        "readyTitle": "Il tuo piano Organizzazione è pronto",
+        "readyDescription": "Crea la tua organizzazione per iniziare a usare le campagne."
+      }
+    },
+    "search": {
+      "label": "Cerca un contatto o inserisci un numero",
+      "placeholder": "Cerca un contatto o inserisci un numero",
+      "callNumber": "Chiama {number}",
+      "incompleteNumber": "Continua a scrivere — includi il prefisso del paese, come +34",
+      "recent": "Chiamate recenti",
+      "searching": "Ricerca…",
+      "noMatches": "Nessun contatto corrisponde a «{query}»",
+      "inbound": "Chiamata in entrata",
+      "outbound": "Chiamata in uscita",
+      "clear": "Cancella la ricerca"
+    },
+    "keypad": {
+      "button": "Tastierino",
+      "title": "Tastierino",
+      "country": "Paese del numero di telefono",
+      "international": "Internazionale"
+    },
+    "list": {
+      "button": "Lista",
+      "buttonWith": "Chiamate da {name}. Cambia la lista",
+      "choose": "Scegli una lista da chiamare",
+      "title": "Chiama da una lista",
+      "hint": "Quando non ci sono chiamate in scadenza nella coda di oggi, Chiama il prossimo prende il contatto successivo di questa lista.",
+      "search": "Cerca nelle tue liste",
+      "yours": "Assegnate a te",
+      "counts": "{remaining, plural, one {# rimasto} other {# rimasti}} · {total, plural, one {# contatto} other {# contatti}}",
+      "noMatches": "Nessuna lista corrispondente",
+      "none": "Non hai ancora liste assegnate",
+      "noneHint": "Qui appaiono le liste che crei e quelle che un amministratore ti assegna.",
+      "openLists": "Apri Liste",
+      "stop": "Smetti di chiamare da una lista",
+      "failed": "Impossibile caricare le tue liste.",
+      "retry": "Riprova",
+      "gone": "Quella lista non ti è più assegnata.",
+      "skipFailed": "Impossibile saltare il contatto. Riprova.",
+      "inLists": "Dalla tua lista:",
+      "more": "+{count}",
+      "create": "Crea una lista"
+    },
+    "next": {
+      "label": "Prossima chiamata",
+      "callNext": "Chiama il prossimo",
+      "calling": "Chiamata in corso…",
+      "onCall": "Sei in una chiamata. Riaggancia per chiamare la prossima persona.",
+      "from": "Da {number}",
+      "fromAuto": "Da un numero locale, scelto per ogni chiamata",
+      "fromPublic": "Dal numero pubblico",
+      "caughtUp": "Sei in pari",
+      "caughtUpHint": "Cerca un contatto o inserisci un numero per chiamare.",
+      "nothingDue": "Nessuna chiamata da fare ora",
+      "nothingDueHint": "A seguire: {name} alle {time}.",
+      "caughtUpWithLists": "Scegli una delle tue liste per continuare a chiamare.",
+      "leftInList": "{count, plural, one {# rimasto nella lista} other {# rimasti nella lista}}",
+      "skippedBefore": "Saltato in precedenza",
+      "skip": "Salta",
+      "skipHint": "Salta: il contatto va in fondo alla lista",
+      "listDone": "Non resta nessuno da chiamare in {list}",
+      "listDoneHint": "Hai chiamato tutti. Scegli un’altra lista per continuare.",
+      "listBlockedHint": "{count, plural, one {# contatto non può essere chiamato ora: è nella lista Non chiamare, ha una richiamata prenotata o non ha un numero valido.} other {# contatti non possono essere chiamati ora: sono nella lista Non chiamare, hanno una richiamata prenotata o non hanno un numero valido.}}",
+      "listFailed": "Impossibile caricare il prossimo contatto della tua lista",
+      "listFailedHint": "Controlla la connessione e riprova.",
+      "retry": "Riprova",
+      "chooseList": "Scegli una lista",
+      "changeList": "Cambia lista",
+      "start": {
+        "title": "Prepara le persone da chiamare",
+        "hint": "Carica un file o inserisci qualche numero. Ringee ti presenta la prossima persona, ogni volta.",
+        "cta": "Inizia a chiamare",
+        "reward": "+{amount} di credito gratuito al termine"
+      }
+    },
+    "queue": {
+      "title": "Coda di oggi",
+      "count": "{count, plural, one {# da chiamare} other {# da chiamare}}",
+      "stableHint": "l’ordine resta invariato mentre lavori",
+      "groups": {
+        "now": "Ora",
+        "later": "Più tardi oggi",
+        "anytime": "In qualsiasi momento oggi"
+      },
+      "nextBadge": "Prossimo",
+      "doNotCall": "Non chiamare",
+      "call": "Chiama",
+      "callBack": "Richiama",
+      "more": "Altre azioni per {name}",
+      "viewContact": "Apri contatto",
+      "cancelCallback": "Annulla richiamata",
+      "cancelFailed": "Impossibile annullare la richiamata. Riprova.",
+      "incoming": "{count, plural, one {# nuova persona da chiamare da quando hai iniziato} other {# nuove persone da chiamare da quando hai iniziato}}",
+      "addIncoming": "Aggiungi alla coda",
+      "emptyTitle": "Ancora nessuno da chiamare oggi",
+      "emptyDescription": "Le richiamate dovute, le chiamate perse e i follow-up appaiono qui quando arriva il momento.",
+      "emptyWithList": "Le richiamate dovute, le chiamate perse e i follow-up appaiono qui quando arriva il momento. Nel frattempo, Chiama il prossimo scorre {list}.",
+      "failedTitle": "Impossibile caricare la coda di oggi",
+      "retry": "Riprova",
+      "localTime": "{time} sul posto",
+      "unknownCaller": "Chiamante sconosciuto"
+    },
+    "reasons": {
+      "callbackAt": "Richiamata alle {time}",
+      "missedCall": "Chiamata persa {when}",
+      "voicemail": "Messaggio vocale {when}",
+      "followUpDue": "{action} · in scadenza alle {time}"
+    },
+    "line": {
+      "title": "La tua linea",
+      "performance": "Risposta al {rate}% delle tue {calls} chiamate · ultimi {days} giorni",
+      "performanceLow": "Ancora poche chiamate per una valutazione · {calls} negli ultimi {days} giorni",
+      "performanceHint": "Risposte da una persona o dalla segreteria telefonica.",
+      "resting": "A riposo fino a {date}: la rotazione lo salta per ora",
+      "balance": "Saldo",
+      "addCredit": "Aggiungi credito"
+    },
+    "today": {
+      "title": "Oggi",
+      "calls": "{count, plural, one {chiamata} other {chiamate}}",
+      "conversations": "{count, plural, one {conversazione} other {conversazioni}}",
+      "meetingsBooked": "{count, plural, one {riunione prenotata} other {riunioni prenotate}}",
+      "statsHint": "Solo le tue chiamate di oggi in questa area di lavoro. Una conversazione è una chiamata che ha raggiunto una persona.",
+      "nextMeeting": "Prossima riunione",
+      "noMeeting": "Nessun’altra riunione oggi",
+      "meetingWith": "Riunione con {name}",
+      "duration": "{time} · {minutes} min",
+      "join": "Partecipa",
+      "failed": "Impossibile caricare i numeri di oggi."
+    },
+    "shortcuts": {
+      "title": "Scorciatoie",
+      "callNext": "Chiama il prossimo",
+      "search": "Cerca o inserisci un numero",
+      "keypad": "Apri il tastierino",
+      "list": "Scegli una lista",
+      "skip": "Salta un contatto della lista",
+      "move": "Scorri i risultati",
+      "callResult": "Chiama il risultato evidenziato",
+      "clear": "Cancella la ricerca",
+      "hint": "Non si attivano mentre scrivi, durante una chiamata o con una finestra di dialogo aperta."
+    }
   }
 }

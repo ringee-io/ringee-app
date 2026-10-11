@@ -264,5 +264,23 @@
       "bestFor": "Teams die willen dat elke vertegenwoordiger de lastigste bezwaren aanpakt met de reactie die al werkt.",
       "dataNote": "Vereist echte gesprekken met bruikbare transcripties. Ongeveer 25+ geanalyseerde gesprekken per context ontgrendelen inzichten met hogere betrouwbaarheid."
     }
+  },
+  "pendingActions": {
+    "actionTypes": {
+      "send_follow_up": "Opvolging versturen",
+      "create_callback": "Terugbellen",
+      "book_meeting": "Afspraak boeken",
+      "ask_for_referral": "Om een doorverwijzing vragen",
+      "send_pricing_or_info": "Informatie / prijzen versturen",
+      "update_crm": "CRM bijwerken",
+      "add_to_nurture": "Aan contactopvolging toevoegen",
+      "mark_not_interested": "Als niet geïnteresseerd markeren",
+      "review_call": "Gesprek beoordelen",
+      "review_script_suggestion": "Scriptsuggestie beoordelen",
+      "approve_script_version": "Scriptversie goedkeuren",
+      "review_objection_response": "Antwoord op bezwaar beoordelen",
+      "add_objection_response_to_script": "Antwoord op bezwaar toevoegen",
+      "review_campaign_insight": "Campagneanalyse beoordelen"
+    }
   }
 }

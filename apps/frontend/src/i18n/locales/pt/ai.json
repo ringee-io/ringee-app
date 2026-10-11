@@ -264,5 +264,23 @@
       "bestFor": "Equipes que querem que cada vendedor lide com as objeções mais difíceis usando a resposta que já funciona.",
       "dataNote": "Precisa de conversas reais com transcrições utilizáveis. Cerca de 25+ chamadas analisadas por contexto liberam insights de maior confiança."
     }
+  },
+  "pendingActions": {
+    "actionTypes": {
+      "send_follow_up": "Enviar seguimento",
+      "create_callback": "Devolver chamada",
+      "book_meeting": "Agendar reunião",
+      "ask_for_referral": "Pedir uma referência",
+      "send_pricing_or_info": "Enviar informações / preços",
+      "update_crm": "Atualizar CRM",
+      "add_to_nurture": "Adicionar ao acompanhamento comercial",
+      "mark_not_interested": "Marcar como não interessado",
+      "review_call": "Rever chamada",
+      "review_script_suggestion": "Rever sugestão de guião",
+      "approve_script_version": "Aprovar versão do guião",
+      "review_objection_response": "Rever resposta à objeção",
+      "add_objection_response_to_script": "Adicionar resposta à objeção",
+      "review_campaign_insight": "Rever análise da campanha"
+    }
   }
 }
