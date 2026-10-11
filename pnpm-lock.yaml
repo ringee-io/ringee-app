@@ -349,6 +349,9 @@ importers:
       dayjs:
         specifier: ^1.11.18
         version: 1.11.18
+      disposable-email-domains-js:
+        specifier: 1.26.0
+        version: 1.26.0
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -358,6 +361,9 @@ importers:
       firebase-admin:
         specifier: ^13.5.0
         version: 13.5.0(supports-color@8.1.1)
+      free-email-domains:
+        specifier: 1.12.7
+        version: 1.12.7
       ioredis:
         specifier: ^5.8.2
         version: 5.8.2(supports-color@8.1.1)
@@ -394,6 +400,9 @@ importers:
       telnyx:
         specifier: ^4.2.1
         version: 4.2.1
+      tldts:
+        specifier: 7.4.15
+        version: 7.4.15
       ws:
         specifier: ^8.21.0
         version: 8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
@@ -977,6 +986,9 @@ importers:
       dayjs:
         specifier: ^1.11.18
         version: 1.11.18
+      disposable-email-domains-js:
+        specifier: 1.26.0
+        version: 1.26.0
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -986,6 +998,9 @@ importers:
       firebase-admin:
         specifier: ^13.5.0
         version: 13.5.0(supports-color@8.1.1)
+      free-email-domains:
+        specifier: 1.12.7
+        version: 1.12.7
       ioredis:
         specifier: ^5.8.2
         version: 5.8.2(supports-color@8.1.1)
@@ -1019,6 +1034,9 @@ importers:
       telnyx:
         specifier: ^4.2.1
         version: 4.2.1
+      tldts:
+        specifier: 7.4.15
+        version: 7.4.15
       ws:
         specifier: ^8.21.0
         version: 8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)

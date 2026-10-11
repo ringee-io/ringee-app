@@ -69,3 +69,14 @@ already split into subfolders (`outbound/`, `sdk/`, `crm/`, `ai-pipeline/`,
 `offers/`, `security/`, `transcription/`). Extend the owner of the responsibility
 rather than adding a second service for the same concept, and export it from the
 domain barrel so `@ringee/services` stays the single entry point.
+
+## Adding a runtime dependency
+
+`apps/backend` and `apps/orchestrator` compile this package (and
+`packages/platform`) into their own `dist`, and their Dockerfiles run that
+output against the app's `node_modules`. A package imported here must
+therefore also be a dependency of **both apps**, at the same version — declared
+only in `packages/services/package.json` it type-checks, builds and passes
+every test, then crashes the API at boot with `MODULE_NOT_FOUND` (production,
+2026-10-10). Check from the built output, which resolves the way production
+does: `node -e "require.resolve('<pkg>', { paths: ['apps/backend/dist/packages/services/src'] })"`.
