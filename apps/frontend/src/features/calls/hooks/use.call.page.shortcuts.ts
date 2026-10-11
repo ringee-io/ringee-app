@@ -3,18 +3,26 @@
 import { useEffect, useRef } from 'react';
 import { shortcutAllowed } from '@ringee/frontend-shared/lib/shortcuts';
 
+/** Each tab passes the keys it has: My day all of them, Campaigns only N. */
 interface CallPageShortcuts {
   /** N */
-  onCallNext: () => void;
+  onCallNext?: () => void;
   /** / */
-  onFocusSearch: () => void;
+  onFocusSearch?: () => void;
   /** K */
-  onToggleKeypad: () => void;
+  onToggleKeypad?: () => void;
   /** L */
-  onToggleListPicker: () => void;
+  onToggleListPicker?: () => void;
   /** S — only while "Call next" offers a list's contact. */
-  onSkip: () => void;
+  onSkip?: () => void;
 }
+
+const LETTERS: Partial<Record<string, keyof CallPageShortcuts>> = {
+  KeyN: 'onCallNext',
+  KeyK: 'onToggleKeypad',
+  KeyL: 'onToggleListPicker',
+  KeyS: 'onSkip'
+};
 
 /**
  * The Call page's keyboard shortcuts. They never act while the user types
@@ -39,22 +47,16 @@ export function useCallPageShortcuts(actions: CallPageShortcuts) {
         return;
       }
 
-      if (event.key === '/') {
-        event.preventDefault();
-        actionsRef.current.onFocusSearch();
-      } else if (event.code === 'KeyN' && !event.shiftKey) {
-        event.preventDefault();
-        actionsRef.current.onCallNext();
-      } else if (event.code === 'KeyK' && !event.shiftKey) {
-        event.preventDefault();
-        actionsRef.current.onToggleKeypad();
-      } else if (event.code === 'KeyL' && !event.shiftKey) {
-        event.preventDefault();
-        actionsRef.current.onToggleListPicker();
-      } else if (event.code === 'KeyS' && !event.shiftKey) {
-        event.preventDefault();
-        actionsRef.current.onSkip();
-      }
+      const name =
+        event.key === '/'
+          ? 'onFocusSearch'
+          : event.shiftKey
+            ? undefined
+            : LETTERS[event.code];
+      const action = name ? actionsRef.current[name] : undefined;
+      if (!action) return;
+      event.preventDefault();
+      action();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

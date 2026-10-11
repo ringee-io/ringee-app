@@ -57,6 +57,7 @@ import { useTranslations } from 'next-intl';
 import { AgentSessionDialog } from '@/features/dialer/components/agent-session-dialog';
 import type { Campaign, CampaignStatus } from '../types/campaign.types';
 import { useCampaignSummary } from '../hooks/use-campaign-summary';
+import { useCallingWindowText } from '../lib/calling-window';
 import { CampaignLeadsTab } from './campaign-leads-tab';
 import { CampaignDispositionsTab } from './campaign-dispositions-tab';
 import { CampaignSettingsTab } from './campaign-settings-tab';
@@ -73,15 +74,6 @@ import {
 const TAB_KEYS = ['leads', 'results', 'team', 'settings'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
-/** Indexes match `Date.getDay()`; labels come from `common.weekdaysShort`. */
-const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
-function minutesToTime(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-}
-
 interface Props {
   campaignId: string;
 }
@@ -89,7 +81,7 @@ interface Props {
 export function CampaignDetail({ campaignId }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns');
-  const tCommon = useTranslations('common');
+  const callingWindow = useCallingWindowText();
   // Members get read-only access; only admins can manage the campaign. The
   // server enforces the same split — this only decides what to show.
   const { isOrgAdmin } = useOrgRole();
@@ -276,26 +268,12 @@ export function CampaignDetail({ campaignId }: Props) {
   const isCompleted = campaign.status === 'completed';
   const ready = canActivate(leadCount, dispositionCount);
 
-  const workDays = [...(campaign.workDays ?? [])].sort((a, b) => a - b);
-  const contiguous =
-    workDays.length >= 3 &&
-    workDays.every((d, i) => i === 0 || d === workDays[i - 1] + 1);
-  const dayLabel = (d: number) => tCommon(`weekdaysShort.${DAY_KEYS[d]}`);
-  const daysText =
-    workDays.length === 7
-      ? t('detail.config.everyDay')
-      : contiguous
-        ? `${dayLabel(workDays[0])}–${dayLabel(workDays[workDays.length - 1])}`
-        : workDays.map(dayLabel).join(', ');
+  const { schedule, timezone } = callingWindow(campaign);
   const configParts = [
     t(`modes.${campaign.dialerMode}`),
     t('detail.config.attempts', { count: campaign.maxAttempts }),
-    daysText
-      ? `${daysText} ${minutesToTime(campaign.workStartMin)}–${minutesToTime(
-          campaign.workEndMin
-        )}`
-      : null,
-    campaign.timezone.replace(/_/g, ' ')
+    schedule,
+    timezone
   ].filter(Boolean);
 
   const primaryAction = isActive ? (

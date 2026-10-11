@@ -637,7 +637,34 @@
       "label": "Call sources",
       "myDay": "My day",
       "campaigns": "Campaigns",
-      "campaignsSoon": "Campaign sessions are coming to this page soon."
+      "unlockCampaigns": "Unlock campaigns"
+    },
+    "campaigns": {
+      "bar": "Campaign to call",
+      "leads": "{count, plural, one {# lead} other {# leads}}",
+      "callingHours": "Calling hours",
+      "picker": {
+        "change": "Change campaign, {name} selected",
+        "title": "Active campaigns",
+        "search": "Search campaigns",
+        "noMatches": "No campaigns match",
+        "all": "All campaigns"
+      },
+      "emptyTitle": "No active campaigns",
+      "emptyAdmin": "Activate a campaign and it shows up here, ready to call.",
+      "emptyMember": "When a campaign you're assigned to is active, it shows up here.",
+      "goToCampaigns": "Go to campaigns",
+      "failedTitle": "Your campaigns didn't load",
+      "retry": "Try again",
+      "unlock": {
+        "title": "Unlock campaigns",
+        "description": "Campaigns come with the Organization plan: load your leads, put your team on them and call them in sessions.",
+        "switchTitle": "Campaigns live in your organization",
+        "switchDescription": "You're in your personal workspace. Switch to your organization to call its campaigns.",
+        "switchTo": "Switch to {name}",
+        "readyTitle": "Your Organization plan is ready",
+        "readyDescription": "Create your organization to start running campaigns."
+      }
     },
     "search": {
       "label": "Search a contact or type a number",

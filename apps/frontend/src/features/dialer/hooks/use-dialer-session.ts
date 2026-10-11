@@ -85,6 +85,15 @@ export function useDialerSession(campaignId: string) {
     };
   }, [sessionId, api, clearLead, clearAttempt, clearSession]);
 
+  // Whether the workspace that asked for a session is still there to run it.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // Cleanup on unmount — end session if still active
   useEffect(() => {
     return () => {
@@ -113,6 +122,13 @@ export function useDialerSession(campaignId: string) {
         startedAt?: string;
         dialerMode: DialerMode | null;
       }>('/dialer/sessions', { campaignId });
+      // Closed while the request was in flight: nothing is left to dial this
+      // session's leads or keep it alive, so it ends now instead of waiting for
+      // the stale-session sweep with a lead the poller may already be handing it.
+      if (!mountedRef.current) {
+        api.delete(`/dialer/sessions/${res.id}`).catch(() => {});
+        return res;
+      }
       setSession(
         res.id,
         campaignId,

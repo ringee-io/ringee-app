@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDialerSession } from '../hooks/use-dialer-session';
 import { useDialerEvents } from '../hooks/use-dialer-events';
 import { useDialerCallEngine } from '../hooks/use-dialer-call';
@@ -17,8 +17,8 @@ import { SoftphonePanel } from './softphone-panel';
 import { ScriptPanel } from './script-panel';
 import { DispositionPanel } from './disposition-panel';
 import { PanelHeader } from './panel-header';
+import { SessionStartCard } from './session-start-card';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,7 @@ import {
   AlertDialogTitle
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import { Play, ArrowLeft, Loader2, Users, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Loader2, Users, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -44,6 +44,13 @@ interface Props {
    * standalone route falls back to navigating to the campaign.
    */
   onExit?: () => void;
+  /**
+   * Opened by a "Start calling" pressed outside the workspace (the Call page):
+   * that press was the start, so the session starts as soon as the line is
+   * ready instead of asking again. Only once — a session ended later goes back
+   * to the start screen.
+   */
+  autoStart?: boolean;
   className?: string;
 }
 
@@ -51,6 +58,7 @@ export function AgentWorkspace({
   campaignId,
   campaignName,
   onExit,
+  autoStart = false,
   className = 'h-[calc(100dvh-52px)]'
 }: Props) {
   const router = useRouter();
@@ -81,8 +89,12 @@ export function AgentWorkspace({
   const [startError, setStartError] = useState<string | null>(null);
   const [confirmExit, setConfirmExit] = useState(false);
   const [ending, setEnding] = useState(false);
+  // Until the automatic start has run its course, the start screen — whose
+  // question was already answered — is not shown.
+  const [autoStarting, setAutoStarting] = useState(autoStart);
+  const autoStartedRef = useRef(false);
 
-  async function handleStart() {
+  const handleStart = useCallback(async () => {
     setStarting(true);
     setStartError(null);
     try {
@@ -97,7 +109,13 @@ export function AgentWorkspace({
     } finally {
       setStarting(false);
     }
-  }
+  }, [startSession, t]);
+
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current || !lineReady) return;
+    autoStartedRef.current = true;
+    void handleStart().finally(() => setAutoStarting(false));
+  }, [autoStart, lineReady, handleStart]);
 
   const leave = useCallback(() => {
     if (onExit) onExit();
@@ -211,39 +229,22 @@ export function AgentWorkspace({
         </div>
       </div>
       <div className='flex flex-1 items-center justify-center p-4'>
-        <Card className='w-full max-w-md'>
-          <CardContent className='flex flex-col items-center py-12'>
-            <div className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10'>
-              <Play className='h-8 w-8 text-emerald-600 dark:text-emerald-400' />
-            </div>
-            <h2 className='text-xl font-semibold'>{t('ready')}</h2>
-            <p className='text-muted-foreground mt-2 text-center text-sm'>
-              {t('description')}
-            </p>
-            {startError && (
-              <p className='text-destructive mt-4 max-w-sm text-center text-sm'>
-                {startError}
-              </p>
-            )}
-            <Button
-              className='mt-6 bg-emerald-600 text-white hover:bg-emerald-700'
-              size='lg'
-              onClick={handleStart}
-              disabled={starting || !lineReady}
-            >
-              {starting || !lineReady ? (
-                <Loader2 className='mr-2 h-5 w-5 animate-spin' />
-              ) : (
-                <Play className='mr-2 h-5 w-5' />
-              )}
-              {starting
-                ? t('starting')
-                : lineReady
-                  ? t('start')
-                  : tCallStatus('connecting')}
-            </Button>
-          </CardContent>
-        </Card>
+        {autoStarting ? (
+          <p
+            role='status'
+            className='text-muted-foreground flex items-center gap-2 text-sm'
+          >
+            <Loader2 className='h-4 w-4 animate-spin' />
+            {lineReady ? t('starting') : tCallStatus('connecting')}
+          </p>
+        ) : (
+          <SessionStartCard
+            onStart={() => void handleStart()}
+            starting={starting}
+            lineReady={lineReady}
+            error={startError}
+          />
+        )}
       </div>
     </div>
   ) : (
