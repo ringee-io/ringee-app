@@ -716,38 +716,29 @@ const off = dialer.on("stateChanged", ({ state }) => {
 off();
 ```
 
-| Event              | Payload             | Emitted when                                             |
-| ------------------ | ------------------- | -------------------------------------------------------- |
-| `ready`            | `{}`                | Agent and WebRTC are ready                               |
-| `authStateChanged` | `{ state }`         | Authentication changes                                   |
-| `authRequired`     | `{}`                | OTP is required                                          |
-| `codeSent`         | `{ challenge }`     | Code is sent or resent                                   |
-| `signedIn`         | `{ agent }`         | Agent is authenticated                                   |
-| `signedOut`        | `{}`                | Session is signed out                                    |
-| `sessionExpired`   | `{}`                | Session expires                                          |
-| `stateChanged`     | `{ state }`         | Call state changes                                       |
-| `dialing`          | `{ call }`          | Dialing starts                                           |
-| `ringing`          | `{ call }`          | Destination rings                                        |
-| `answered`         | `{ call }`          | Call is answered                                         |
-| `held`             | `{ call }`          | Call is held                                             |
-| `resumed`          | `{ call }`          | Call resumes                                             |
-| `muted`            | `{ call }`          | Microphone is muted                                      |
-| `unmuted`          | `{ call }`          | Microphone is unmuted                                    |
-| `ended`            | `{ call }`          | Call ends normally                                       |
-| `failed`           | `{ call, error }`   | Authorization or call fails                              |
-| `callQuality`      | `{ call, quality }` | Browser audio network measurements during an active call |
-| `tokenExpiring`    | `{}`                | Reserved for proactive credential renewal                |
-| `microphoneDenied` | `{}`                | Reserved; currently use `error`/`failed` code            |
-| `deviceChanged`    | `{}`                | Audio selection changes                                  |
-| `error`            | `{ error }`         | A typed general error occurs                             |
-
-`callQuality` measures the browser-to-provider audio leg. `quality` includes
-RTT, jitter and recent packet loss, with outbound measurements when the browser
-receives RTCP feedback. Unavailable values are `null` and the initial rating is
-`unknown`; measurements contain no addresses, credentials or audio. They do not
-measure the remote telephone carrier's leg. Sampling stops on hold, call end or
-disconnect. Subscribe to this event to build a connection indicator without
-enabling verbose debug logs.
+| Event              | Payload           | Emitted when                                  |
+| ------------------ | ----------------- | --------------------------------------------- |
+| `ready`            | `{}`              | Agent and WebRTC are ready                    |
+| `authStateChanged` | `{ state }`       | Authentication changes                        |
+| `authRequired`     | `{}`              | OTP is required                               |
+| `codeSent`         | `{ challenge }`   | Code is sent or resent                        |
+| `signedIn`         | `{ agent }`       | Agent is authenticated                        |
+| `signedOut`        | `{}`              | Session is signed out                         |
+| `sessionExpired`   | `{}`              | Session expires                               |
+| `stateChanged`     | `{ state }`       | Call state changes                            |
+| `dialing`          | `{ call }`        | Dialing starts                                |
+| `ringing`          | `{ call }`        | Destination rings                             |
+| `answered`         | `{ call }`        | Call is answered                              |
+| `held`             | `{ call }`        | Call is held                                  |
+| `resumed`          | `{ call }`        | Call resumes                                  |
+| `muted`            | `{ call }`        | Microphone is muted                           |
+| `unmuted`          | `{ call }`        | Microphone is unmuted                         |
+| `ended`            | `{ call }`        | Call ends normally                            |
+| `failed`           | `{ call, error }` | Authorization or call fails                   |
+| `tokenExpiring`    | `{}`              | Reserved for proactive credential renewal     |
+| `microphoneDenied` | `{}`              | Reserved; currently use `error`/`failed` code |
+| `deviceChanged`    | `{}`              | Audio selection changes                       |
+| `error`            | `{ error }`       | A typed general error occurs                  |
 
 ### Errors
 

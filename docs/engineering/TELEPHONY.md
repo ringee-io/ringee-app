@@ -55,37 +55,6 @@ common field, lift it into `TelephonyEvent` rather than adding another cast.
 The **browser** side has its own normalization: `state-map.ts` in
 `@ringee/dialer-core` maps Telnyx call states to Ringee states.
 
-### Browser audio and international routing
-
-Keep the shared WebRTC client on automatic routing: omit `region`, `env`,
-`rtcIp` and custom `iceServers`. The provider selects the signaling endpoint for
-the client's connection and negotiates media for each call. Do not reconnect the
-client or choose a SIP region from the destination number's country code: the
-prefix identifies a numbering plan, not the recipient's physical location, and
-the provider owns the international PSTN route. See Telnyx's
-[client options](https://developers.telnyx.com/docs/development/webrtc/js-sdk/reference/iclientoptions).
-
-Signaling and media placement are separate. Keep the shared credential
-connection (`TELNYX_CONNECTION_ID`) on `anchorsite_override: "Latency"` so media
-is not pinned to one country. This is a provider connection setting, not a
-per-call API parameter; deploying browser code does not update it. Inspect the
-configured connection before changing it, preserve its webhook and outbound
-voice profile, and verify the resulting setting. Inspect the separate
-`TELNYX_CALL_CONTROL_APP_ID` when diagnosing server-originated or BYOC legs;
-do not assume it shares the credential connection's settings. See
-[AnchorSite configuration](https://developers.telnyx.com/docs/voice/sip-trunking/routing/anchorsite-configuration)
-and the [credential connection API](https://developers.telnyx.com/api-reference/credential-connections/update-a-credential-connection).
-
-Browser quality telemetry belongs in `@ringee/dialer-core` and must expose
-Ringee-shaped metrics rather than provider frames. Compare jitter, packet loss
-and RTT in both directions on controlled calls using the same microphone,
-network and destination. A receiver hearing unclear speech requires checking
-the browser's outbound audio as well as local playback. Browser RTP measurements
-cover the browser-to-provider leg; they do not establish the quality of the
-provider-to-PSTN leg. Never log full stats frames, ICE addresses, credentials or
-recordings. Quality sampling must not create calls or alter call lifecycle,
-workspace authorization or credit settlement.
-
 ## Call lifecycle
 
 ```

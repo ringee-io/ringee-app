@@ -31,7 +31,6 @@ export function CallSessionWorkspace({ token }: Props) {
     stats,
     mode,
     telnyxStatus,
-    activeCall,
     call,
     actions
   } = useCallSession(token);
@@ -93,7 +92,6 @@ export function CallSessionWorkspace({ token }: Props) {
             phase={phase}
             activeItem={activeItem}
             call={call}
-            activeCall={activeCall}
             busy={busy}
             creditsOk={creditsOk}
             telnyxStatus={telnyxStatus}
