@@ -6,11 +6,9 @@ import {
   hangupCall,
   sendDtmf,
   onCallUpdate,
-  monitorCallQuality,
   mapTelnyxState,
   TELNYX_EVENTS,
   type Call,
-  type CallQualitySnapshot,
 } from "@ringee/dialer-core/engine";
 import { mapEngineState } from "./telnyx-state-mapper";
 import { RingeeError } from "../errors";
@@ -36,7 +34,6 @@ export interface TelnyxAdapterCallbacks {
   onStateChange: (state: DialerState, call: Call) => void;
   onRemoteStream: (stream: MediaStream) => void;
   onConnectionError: (error: RingeeError) => void;
-  onCallQuality?: (quality: CallQualitySnapshot) => void;
 }
 
 /** The concrete Telnyx client type, derived from the engine so this package
@@ -55,8 +52,6 @@ export class TelnyxAdapter {
   private client: TelnyxClient | null = null;
   private currentCall: Call | null = null;
   private unsubscribe: (() => void) | null = null;
-  private unsubscribeQuality: (() => void) | null = null;
-  private monitoredCallId: string | null = null;
   private lastState: DialerState = "uninitialized";
 
   constructor(
@@ -181,22 +176,6 @@ export class TelnyxAdapter {
     const engineState = mapTelnyxState(call.state);
     const publicState = mapEngineState(engineState);
 
-    if (publicState === "active" && this.callbacks.onCallQuality) {
-      if (this.monitoredCallId !== call.id) {
-        this.stopQualityMonitor();
-        this.monitoredCallId = call.id;
-        this.unsubscribeQuality = monitorCallQuality(call, (quality) => {
-          if (
-            this.currentCall?.id === call.id &&
-            this.monitoredCallId === call.id
-          )
-            this.callbacks.onCallQuality?.(quality);
-        });
-      }
-    } else {
-      this.stopQualityMonitor();
-    }
-
     const remoteStream = (call as Call & { remoteStream?: MediaStream })
       .remoteStream;
     if (remoteStream) this.callbacks.onRemoteStream(remoteStream);
@@ -212,7 +191,6 @@ export class TelnyxAdapter {
   }
 
   private teardownClient(): void {
-    this.stopQualityMonitor();
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
@@ -227,11 +205,5 @@ export class TelnyxAdapter {
     this.client = null;
     this.currentCall = null;
     this.lastState = "uninitialized";
-  }
-
-  private stopQualityMonitor(): void {
-    this.unsubscribeQuality?.();
-    this.unsubscribeQuality = null;
-    this.monitoredCallId = null;
   }
 }

@@ -12,7 +12,6 @@ export type {
   DialerState,
   AuthState,
   AudioDevice,
-  CallQuality,
   RingeeEventName,
   RingeeEventHandler,
   RingeeEventPayloads,
