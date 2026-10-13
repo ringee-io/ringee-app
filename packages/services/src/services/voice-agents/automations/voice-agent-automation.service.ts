@@ -361,15 +361,25 @@ export class VoiceAgentAutomationService {
       }
     }
 
+    // Read before the agent is resolved: a first setup's claim writes the new
+    // agent onto the row.
+    const previousAgentId = (
+      await this.automations.findForOwner(ctx, AGENT_TYPE.reminders)
+    )?.agentId;
     const agent = await this.resolveAgent(ctx, "reminders", input, {
       callerNumberId: input.callerNumberId,
     });
 
     // The setup names the whole set of calendars: a calendar left out stops
-    // being watched, and what it had planned is withdrawn.
-    const current = await this.policies.listForOwner(ctx, {
-      agentId: agent.id,
-    });
+    // being watched, and what it had planned is withdrawn — including what
+    // the card's previous agent watched, when the setup moved it to another.
+    const current = (
+      await Promise.all(
+        [...new Set([agent.id, previousAgentId ?? agent.id])].map((agentId) =>
+          this.policies.listForOwner(ctx, { agentId }),
+        ),
+      )
+    ).flat();
     const dropped = current.filter(
       (policy) => !calendarIds.includes(policy.calendarId),
     );
@@ -423,6 +433,12 @@ export class VoiceAgentAutomationService {
         "Inbound AI calling is not available on this installation yet.",
       );
     }
+    // Read before the agent is resolved: a first setup's claim writes the new
+    // agent onto the row.
+    const previous = await this.automations.findForOwner(
+      ctx,
+      AGENT_TYPE.receptionist,
+    );
     const agent = await this.resolveAgent(ctx, "receptionist", input, {});
     if (agent.status !== AiVoiceAgentStatus.active) {
       throw new BadRequestException(
@@ -450,18 +466,16 @@ export class VoiceAgentAutomationService {
       }
     }
 
-    // Numbers the setup no longer names go back to where they went before.
-    const previous = await this.automations.findForOwner(
-      ctx,
-      AGENT_TYPE.receptionist,
-    );
+    // Numbers the setup no longer names go back to where they went before,
+    // released from the agent that answered them — the card's previous one,
+    // when the setup moved it to another.
     const dropped = readReceptionistSettings(previous).numbers.filter(
       (ref) => !numbers.some((kept) => sameRef(kept, ref)),
     );
     if (dropped.length) {
       const released = await this.inboundRoutes.releaseReceptionist(
         ctx,
-        agent.id,
+        previous?.agentId ?? agent.id,
         dropped,
       );
       failed.push(
@@ -730,6 +744,9 @@ export class VoiceAgentAutomationService {
         existing.agentId,
       );
       if (agent) return this.prepare(ctx, agent, input.name, settings);
+      // The agent the card drove was deleted. While the row names it, the
+      // claim below sees a card already set up and every setup is refused.
+      await this.automations.clearAgent(ctx, existing.id, existing.agentId);
     }
 
     const token = randomUUID();

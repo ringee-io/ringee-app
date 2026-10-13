@@ -93,7 +93,7 @@ and contact into the call store; the call screen and the post-call outcome read
 them from there.
 
 **The right edge holds one auxiliary surface at a time.** The quick dialer
-(`DialerShortcutView`) and the "Ringee IA Voice Agents" rail
+(`DialerShortcutView`) and the "Trigger AI Voice Agents" rail
 (`features/ai-voice-agents/automations`) share it: opening one closes the
 other. Closing the quick dialer only hides its keypad — the WebRTC client lives
 in the sidebar — so switching panels never ends or unmounts a call. Keep any

@@ -229,14 +229,16 @@ export class VoiceAgentResultService {
   /**
    * Binds the conversation to the call and records that it finished. The
    * telephony status still comes from the call status callback — a conversation
-   * that ended is not by itself proof the call completed normally.
+   * that ended is not by itself proof the call completed normally, so the
+   * reminder execution that placed it is settled there (a voicemail that held
+   * the conversation is a no-answer), not here.
    */
   private async applyConversationEnded(
     agentCall: AiVoiceAgentCall,
     event: TelephonyEvent,
     conversation: TelephonyConversationDetails,
   ): Promise<void> {
-    const ended = await this.agentCalls.update(agentCall.id, {
+    await this.agentCalls.update(agentCall.id, {
       providerConversationId:
         agentCall.providerConversationId ?? conversation.conversationId,
       providerCallControlId:
@@ -247,7 +249,6 @@ export class VoiceAgentResultService {
         ? { status: AiVoiceAgentCallStatus.completed }
         : {}),
     });
-    await this.settleReminderExecution(ended);
 
     // Bind the telephony row too. The control id is already on it — the dial
     // path writes it down — but the session and leg handles are not, and this

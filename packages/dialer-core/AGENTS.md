@@ -14,7 +14,11 @@ server packages (ESLint `ARCH-003`).
 - `engine/state-map.ts` — Telnyx call state → Ringee call state. This mapping is
   the normalization boundary; consumers switch on Ringee states, not Telnyx ones.
 - `engine/telnyx-engine.ts` — the **single** monorepo importer of `@telnyx/webrtc`
-  outside the frontend's own call features and the SDK adapter.
+  outside the frontend's own call features and the SDK adapter. Every client is
+  a `SessionScopedTelnyxRTC` (`createTelnyxClient` builds one), never a bare
+  `new TelnyxRTC`: a tab runs more than one, and the bare SDK logs a new client
+  in with another's session, which knocks that one offline
+  (`docs/engineering/TELEPHONY.md`).
 - `contracts/` — cross-context message shapes. `store/call-store.ts` — call state.
 - `dtmf/tones.ts` — tone generation.
 

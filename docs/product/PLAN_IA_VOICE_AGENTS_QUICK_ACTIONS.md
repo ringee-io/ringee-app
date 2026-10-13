@@ -6,7 +6,7 @@ Estado (13 de octubre de 2026): entregas 1, 2 y 4 implementadas sin traspaso IA,
 
 ## 1. Decisión de producto
 
-Agregar una barra vertical a la derecha con el texto **Ringee IA Voice Agents**. Al abrirla aparecen tres capacidades listas para configurar: **Recordatorios y confirmaciones**, **Recepcionista IA** y **Agendar citas**. Cada una tiene nombre propio, activación rápida, una acción útil y acceso a **Personalizar**.
+Agregar una barra vertical a la derecha con el texto **Ringee IA Voice Agents** (hoy **Trigger AI Voice Agents**, ver §3). Al abrirla aparecen tres capacidades listas para configurar: **Recordatorios y confirmaciones**, **Recepcionista IA** y **Agendar citas**. Cada una tiene nombre propio, activación rápida, una acción útil y acceso a **Personalizar**.
 
 La recepcionista atiende, reconoce el motivo y transfiere al especialista. El agente de recordatorios confirma la asistencia; el de agendamiento consulta disponibilidad y agenda. La recepcionista conserva su capacidad actual de responder preguntas y transferir a personas, pero no recibe herramientas para modificar citas.
 
@@ -36,8 +36,9 @@ Dos restricciones actuales son especialmente relevantes:
 
 ### Estructura
 
-- Barra cerrada de aproximadamente 48 px, borde fino, icono discreto, título vertical como la referencia y contador accesible de agentes operativos. Un punto verde solo si hay al menos una capacidad realmente operativa.
-- Panel abierto de 360–392 px. En pantallas amplias puede convivir con el contenido; cuando comprima tablas o formularios, se presenta como panel superpuesto. En móvil: botón horizontal y panel de pantalla completa.
+- Nombre visible: **Trigger AI Voice Agents** («Trigger IA Voice Agents» en español). Los textos presentan cada capacidad como un agente con su disparador —cuándo se dispara → qué hace— para que quien lo configura sepa qué va a pasar.
+- Franja de 64 px a toda la altura, al lado del header y de la página (no debajo), con fondo propio (`bg-sidebar`) para que se vea cerrada. Arriba, una pestaña con el título vertical de arriba abajo y el contador accesible de agentes operativos; cerrada, sin logo. Contador verde, con punto, solo si hay al menos una capacidad realmente operativa.
+- Abierta, la pestaña queda presionada con el logo de Ringee y el panel de 480 px aparece a su derecha, como en la referencia de Kapso. Se acopla junto al contenido desde 1440 px; por debajo, cuando comprimiría tablas o formularios, se presenta como panel superpuesto. En móvil: botón horizontal y panel de pantalla completa.
 - Tres tarjetas compactas: propósito, nombre/estado, una frase de configuración y acciones. Sin métricas decorativas, constructor de flujos ni campos de modelo/proveedor al activar.
 - Conservar colores, tipografía y componentes Radix/Tailwind de Ringee. Neutros, un acento para la acción principal, verde para activo y ámbar para atención; el texto siempre explica el estado.
 - La barra comparte el espacio derecho con el `DialerShortcutView` existente: una superficie auxiliar visible a la vez. Cambiar de panel nunca termina una llamada ni desmonta su motor.
@@ -253,7 +254,7 @@ Alcance acordado: entregas 1, 2 y 4 sin traspaso IA. El handoff (entrega 3 y su 
 
 **Decisiones tomadas durante la implementación**
 
-- Una llamada que caería fuera de la ventana se adelanta al último minuto abierto; nunca se retrasa. Ventana por defecto 09:00–20:00 en la zona del calendario.
+- Una llamada que caería fuera de la ventana se adelanta a media hora antes del cierre (nunca antes de la apertura), para que un tick tardío, un reintento o un aplazamiento sigan cayendo dentro; nunca se retrasa. Ventana por defecto 09:00–20:00 en la zona del calendario.
 - Si el lead ya respondió para esa versión de la cita, no se planifican más recordatorios.
 - La llamada automática se coloca como el administrador que activó la regla; la manual, como quien la pide.
 - La respuesta «no asistirá» notifica al miembro (y al creador) con los administradores en CC, no al lead; no cancela la reunión.

@@ -859,4 +859,23 @@ describe("VoiceAgentResultService on calls about a scheduled meeting (AGENT-017)
       { agentCallId: "call-1", status: "no_answer", from: ["placed"] },
     ]);
   });
+
+  it("leaves the execution to the call's terminal status when the conversation ends", async () => {
+    // A voicemail can hold the whole conversation. Settling here would close
+    // the execution as completed before the status callback says no-answer.
+    const { service, updates, settledExecutions } = build({
+      execution: EXECUTION,
+      agentCall: { ...AGENT_CALL, status: "in_progress" },
+    });
+
+    await service.handleTelephonyEvent({
+      type: "call.conversation.ended",
+      providerEventType: "call.conversation.ended",
+      callControlId: "cc-1",
+      conversation: { conversationId: "conv-1", insights: [] },
+    } as never);
+
+    assert.equal(updates[0]!.status, "completed");
+    assert.deepEqual(settledExecutions, []);
+  });
 });

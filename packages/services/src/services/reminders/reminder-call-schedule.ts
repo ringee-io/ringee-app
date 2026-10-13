@@ -24,6 +24,14 @@ export const DEFAULT_CALLING_WINDOW: CallingWindow = {
  */
 const MAX_PULL_EARLIER_DAYS = 7;
 
+/**
+ * How long before the window closes a reminder pulled earlier is placed. The
+ * last open minute leaves the worker no room: a tick that runs late, a batch
+ * that spills into the next tick, a retry or a "lead on a call" deferral would
+ * all land after the close, and the call would be skipped.
+ */
+const CLOSING_SLACK_MINUTES = 30;
+
 /** The calendar date and minute of day an instant reads as in a zone. */
 export function zonedClock(
   instant: Date,
@@ -65,10 +73,11 @@ export function isWithinCallingWindow(
  * When to place the reminder call for one meeting and offset.
  *
  * The call goes `offsetMinutes` before the meeting. When that moment falls
- * outside the calling window it is pulled *earlier*, to the last minute the
- * window was open — a reminder may arrive a little early, never late and never
- * at night. Null when there is no such moment after `notBefore`: an offset
- * that has already passed is not called late (AGENT-019).
+ * outside the calling window it is pulled *earlier*, to half an hour before
+ * the window last closed (never before it opened) — a reminder may arrive a
+ * little early, never late and never at night. Null when there is no such
+ * moment after `notBefore`: an offset that has already passed is not called
+ * late (AGENT-019).
  */
 export function planReminderCallAt(params: {
   meetingAt: Date;
@@ -86,20 +95,23 @@ export function planReminderCallAt(params: {
   if (isWithinCallingWindow(ideal, window, timeZone)) return ideal;
 
   const { date } = zonedClock(ideal, timeZone);
-  const lastOpenMinute = window.endMinute - 1;
+  const pullToMinute = Math.max(
+    window.startMinute,
+    window.endMinute - CLOSING_SLACK_MINUTES,
+  );
   for (let back = 0; back <= MAX_PULL_EARLIER_DAYS; back++) {
     const day = shiftDate(date, -back);
     if (!window.days.includes(weekdayOf(day))) continue;
-    const closing = zonedTimeToUtc(
+    const pulled = zonedTimeToUtc(
       day,
-      Math.floor(lastOpenMinute / 60),
-      lastOpenMinute % 60,
+      Math.floor(pullToMinute / 60),
+      pullToMinute % 60,
       timeZone,
     );
-    // On the meeting's own day the window may close after the ideal moment,
-    // which means the ideal is before it opened: look at the day before.
-    if (closing.getTime() > ideal.getTime()) continue;
-    return closing.getTime() > notBefore.getTime() ? closing : null;
+    // On the meeting's own day that moment may come after the ideal one, which
+    // means the ideal is before the window opened: look at the day before.
+    if (pulled.getTime() > ideal.getTime()) continue;
+    return pulled.getTime() > notBefore.getTime() ? pulled : null;
   }
   return null;
 }

@@ -422,29 +422,29 @@
     "calendar": "a calendar"
   },
   "automations": {
-    "title": "Ringee AI Voice Agents",
-    "titleShort": "AI Voice Agents",
-    "railLabel": "Ringee AI Voice Agents, {count, plural, =0 {none working yet} one {# working} other {# working}}",
+    "title": "Trigger AI Voice Agents",
+    "titleShort": "Trigger AI Voice Agents",
+    "railLabel": "Trigger AI Voice Agents, {count, plural, =0 {no agent ready yet} one {# agent ready to fire} other {# agents ready to fire}}",
     "attentionHint": "Something needs your attention",
-    "subtitle": "{count, plural, =0 {Ready to switch on} one {# agent working} other {# agents working}}",
+    "subtitle": "{count, plural, =0 {Choose what triggers each agent} one {# agent ready to fire} other {# agents ready to fire}}",
     "subtitleLoading": "Loading…",
-    "close": "Close Ringee AI Voice Agents",
+    "close": "Close Trigger AI Voice Agents",
     "loadError": "The agents could not be loaded.",
     "retry": "Try again",
-    "unavailable": "AI Voice Agents are not available in this workspace yet.",
+    "unavailable": "Trigger AI Voice Agents are not available in this workspace yet.",
     "announce": "{title}: {state}",
     "capabilities": {
       "reminders": {
         "title": "Reminders & confirmations",
-        "purpose": "Calls each lead before their meeting and confirms they will attend."
+        "purpose": "When a meeting is coming up, the agent calls the lead to confirm they will attend."
       },
       "receptionist": {
         "title": "AI receptionist",
-        "purpose": "Answers your number, helps the caller and transfers to your team."
+        "purpose": "When someone calls your number, the agent answers, helps and transfers to your team."
       },
       "scheduling": {
         "title": "Appointment scheduling",
-        "purpose": "Calls a lead and books the meeting on your calendar."
+        "purpose": "When you press “Call to schedule”, the agent calls the lead and books the meeting."
       }
     },
     "state": {
@@ -455,15 +455,15 @@
       "needs_attention": "Needs attention"
     },
     "toast": {
-      "resumed": "{title} is on",
-      "paused": "{title} is paused",
+      "resumed": "{title}: the agent will fire again",
+      "paused": "{title}: paused, the agent won't fire",
       "toggleError": "That could not be changed.",
-      "saved": "{title} is set up"
+      "saved": "{title}: the agent is ready to fire"
     },
     "sentence": {
-      "reminders": "{name} · calls {when} before · {calendars}",
-      "receptionist": "{name} · answers {count, plural, =0 {no number yet} one {# number} other {# numbers}}",
-      "scheduling": "{name} · books on {calendar}"
+      "reminders": "{when} before each meeting → {name} calls · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} answers no number yet} one {A call to your number → {name} answers} other {A call to any of your # numbers → {name} answers}}",
+      "scheduling": "You press “Call to schedule” → {name} books on {calendar}"
     },
     "nextStep": {
       "set_up": "Set this up to switch it on.",
@@ -490,11 +490,11 @@
       "pause": "Pause {title}",
       "resume": "Turn on {title}"
     },
-    "activate": "Activate",
-    "askAdmin": "An admin can switch this on.",
+    "activate": "Set up agent",
+    "askAdmin": "An admin can set up this agent.",
     "scheduling": {
       "call": "Call to schedule",
-      "noCalls": "Switching it on calls nobody: it books only when you press “Call to schedule”."
+      "noCalls": "It only fires when you press “Call to schedule” — switching it on calls nobody."
     },
     "customize": "Customize",
     "customizeGreeting": "Customize greeting",
@@ -534,12 +534,12 @@
       },
       "error": "It could not be set up. Try again.",
       "save": "Save",
-      "activate": "Activate",
-      "calendars": "Calendars",
+      "activate": "Turn on agent",
+      "calendars": "Meetings that trigger it",
       "callFrom": "Call from",
       "callFromHint": "Leads see this number — and call it back.",
       "chooseNumber": "Choose a number",
-      "when": "When to call",
+      "when": "When it fires",
       "custom": "Other",
       "before": "{value} before",
       "units": {
@@ -548,12 +548,12 @@
         "minutes": "Minutes"
       },
       "offsetRange": "Between 5 minutes and 14 days.",
-      "scope": "Will call about {calls, plural, =0 {none} one {# meeting} other {# meetings}} of {meetings} upcoming, starting now.",
-      "scopeUnknown": "Choose a calendar to see which meetings it covers.",
-      "noLateCalls": "Meetings too close for this lead time are never called late.",
+      "scope": "Will fire for {calls, plural, =0 {none} one {# meeting} other {# meetings}} of {meetings} upcoming, starting now.",
+      "scopeUnknown": "Choose a calendar to see which meetings trigger it.",
+      "noLateCalls": "If a meeting is closer than this, it never fires late.",
       "recipients": "When a lead confirms: one email to the lead and the member, admins in CC.",
       "recipientsWithCount": "When a lead confirms: one email to the lead and the member, {count, plural, one {# admin} other {# admins}} in CC.",
-      "answerNumbers": "Numbers it answers",
+      "answerNumbers": "Numbers that trigger it",
       "todayReceptionist": "Answered by {name} today",
       "today": "Today it rings {destination}",
       "defaultRoute": "its default",
@@ -566,7 +566,7 @@
       "someNumbersFailed": "Some numbers could not be assigned: {reasons}",
       "calendar": "Calendar",
       "chooseCalendar": "Choose a calendar",
-      "schedulingNoCalls": "Switching it on calls nobody. Each call starts when you press “Call to schedule” on a lead."
+      "schedulingNoCalls": "Switching it on calls nobody: it fires each time you press “Call to schedule” on a lead."
     },
     "upcoming": {
       "title": "{count, plural, =0 {No calls planned} one {# call planned} other {# calls planned}}",
@@ -599,8 +599,8 @@
       "error": "The call could not be started."
     },
     "activity": {
-      "title": "Recent activity",
-      "empty": "Nothing yet — what the agents do shows up here.",
+      "title": "Recently triggered",
+      "empty": "Nothing has fired yet — each call the agents make shows up here.",
       "someone": "a lead",
       "kinds": {
         "attendance_confirmed": "{name} confirmed they will attend",

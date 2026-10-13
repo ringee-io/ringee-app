@@ -1720,7 +1720,7 @@ never that it was.
 
 ### AGENT-018 — The Voice Agents rail drives ordinary agents, behind a pilot flag
 
-The "Ringee IA Voice Agents" rail offers three capabilities — reminders and
+The "Trigger AI Voice Agents" rail offers three capabilities — reminders and
 confirmations, AI receptionist, appointment scheduling — each backed by one
 `AiVoiceAgentAutomation` row per organization. Setting one up creates or reuses
 an ordinary agent; the advanced editor still owns everything else, and nothing
@@ -1755,9 +1755,10 @@ A `MeetingReminderPolicy` (one per calendar) plans one `MeetingReminderExecution
 per meeting and offset, keyed `meeting + schedule version + policy + policy
 version + offset + attempt`. Planning is idempotent, never plans an offset that
 is already in the past, and pulls a call that would ring outside the calling
-window _earlier_ — to the last minute the window was open — never later. An
-offset that already had a call for the same meeting version is not planned
-again, and a meeting whose lead already answered gets none.
+window _earlier_ — to half an hour before the window closed, never before it
+opened, so a late tick, a retry or a deferral still lands inside it — never
+later. An offset that already had a call for the same meeting version is not
+planned again, and a meeting whose lead already answered gets none.
 
 The worker claims due executions with `FOR UPDATE SKIP LOCKED` under a lease and
 re-checks right before the dial: the meeting still on, at the same version,
@@ -1768,8 +1769,11 @@ dials through `VoiceAgentCallService.startCall`, every AGENT-004 gate included,
 under a key persisted on `AiVoiceAgentCall.idempotencyKey` before the leg
 exists. A reclaimed execution whose last try may have placed a leg is linked to
 that leg and never dialed again; only a failure before placement is retried, a
-bounded number of times, inside the window. Moving or cancelling the meeting,
-or pausing or changing the policy, withdraws what was planned.
+bounded number of times, inside the window. A dial counts as unplaced only when
+the provider refused it (`VoiceAgentCallRefusedError`); a timeout, a dropped
+connection or a 5xx may have rung the lead and is reconciled, never redialed.
+Moving or cancelling the meeting, or pausing or changing the policy, withdraws
+what was planned.
 
 - **Source of truth:** `ReminderService.planMeetingCalls` / `planPolicyCalls`,
   `planReminderCallAt`, `MeetingReminderCallService`,

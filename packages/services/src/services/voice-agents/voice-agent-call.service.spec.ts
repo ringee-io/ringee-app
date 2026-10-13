@@ -2,6 +2,8 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { HttpException } from "@nestjs/common";
+import { VoiceAgentCallRefusedError } from "@ringee/platform";
 import {
   VoiceAgentCallService,
   VoiceAgentCallStartError,
@@ -399,10 +401,12 @@ describe("VoiceAgentCallService start outcomes", () => {
     assert.deepEqual(agentCallUpdates, []);
   });
 
-  it("exposes a retryable failure before a leg is placed", async () => {
+  it("exposes a retryable failure when the provider refused the call", async () => {
     const { service, placed, forciblyEnded } = build({
       usable: [NUMBERS.miami],
-      providerError: new Error("provider unavailable"),
+      providerError: new VoiceAgentCallRefusedError(
+        new HttpException({ errors: [{ title: "Invalid To" }] }, 422),
+      ),
     });
 
     await assert.rejects(
@@ -413,11 +417,40 @@ describe("VoiceAgentCallService start outcomes", () => {
           error.outcome,
           VoiceAgentCallStartOutcome.retryable_before_placement,
         );
+        // REST, CLI and MCP callers still get the provider's own answer.
+        assert.equal(error.getStatus(), 422);
         return true;
       },
     );
     assert.deepEqual(placed, []);
     assert.deepEqual(forciblyEnded, ["call-1"]);
+  });
+
+  it("never treats a dial the provider did not refuse as unplaced", async () => {
+    // A timeout or a 5xx may come back after the provider already rang the
+    // lead: retrying it would place a second leg.
+    const { service, agentCallUpdates, forciblyEnded } = build({
+      usable: [NUMBERS.miami],
+      providerError: new Error("socket hang up"),
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", { to: TO }),
+      (error: unknown) => {
+        assert.ok(error instanceof VoiceAgentCallStartError);
+        assert.equal(
+          error.outcome,
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+        );
+        assert.equal(error.agentCallId, "agent-call-1");
+        return true;
+      },
+    );
+    assert.deepEqual(forciblyEnded, []);
+    assert.equal(
+      agentCallUpdates.some((update) => update.status === "failed"),
+      false,
+    );
   });
 
   it("exposes a placed leg when later persistence needs reconciliation", async () => {

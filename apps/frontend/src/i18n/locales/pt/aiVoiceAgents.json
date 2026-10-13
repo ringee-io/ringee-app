@@ -422,29 +422,29 @@
     "calendar": "um calendário"
   },
   "automations": {
-    "title": "Ringee IA Voice Agents",
-    "titleShort": "IA Voice Agents",
-    "railLabel": "Ringee IA Voice Agents, {count, plural, =0 {nenhum ativo ainda} one {# ativo} other {# ativos}}",
+    "title": "Trigger IA Voice Agents",
+    "titleShort": "Trigger IA Voice Agents",
+    "railLabel": "Trigger IA Voice Agents, {count, plural, =0 {nenhum agente pronto ainda} one {# agente pronto para disparar} other {# agentes prontos para disparar}}",
     "attentionHint": "Algo precisa da sua atenção",
-    "subtitle": "{count, plural, =0 {Prontos para ativar} one {# agente ativo} other {# agentes ativos}}",
+    "subtitle": "{count, plural, =0 {Escolha o que dispara cada agente} one {# agente pronto para disparar} other {# agentes prontos para disparar}}",
     "subtitleLoading": "Carregando…",
-    "close": "Fechar Ringee IA Voice Agents",
+    "close": "Fechar Trigger IA Voice Agents",
     "loadError": "Não foi possível carregar os agentes.",
     "retry": "Tentar novamente",
-    "unavailable": "Os IA Voice Agents ainda não estão disponíveis neste espaço de trabalho.",
+    "unavailable": "Os Trigger IA Voice Agents ainda não estão disponíveis neste espaço de trabalho.",
     "announce": "{title}: {state}",
     "capabilities": {
       "reminders": {
         "title": "Lembretes e confirmações",
-        "purpose": "Liga para cada lead antes da reunião e confirma a presença."
+        "purpose": "Quando uma reunião se aproxima, o agente liga para o lead para confirmar a presença."
       },
       "receptionist": {
         "title": "Recepcionista IA",
-        "purpose": "Atende o seu número, ajuda quem liga e transfere para a sua equipe."
+        "purpose": "Quando alguém liga para o seu número, o agente atende, ajuda e transfere para a sua equipe."
       },
       "scheduling": {
         "title": "Agendamento",
-        "purpose": "Liga para um lead e marca a reunião no seu calendário."
+        "purpose": "Quando você toca em «Ligar para agendar», o agente liga para o lead e marca a reunião."
       }
     },
     "state": {
@@ -455,15 +455,15 @@
       "needs_attention": "Precisa de atenção"
     },
     "toast": {
-      "resumed": "{title} está ativo",
-      "paused": "{title} está pausado",
+      "resumed": "{title}: o agente voltará a disparar",
+      "paused": "{title}: pausado, o agente não vai disparar",
       "toggleError": "Não foi possível alterar.",
-      "saved": "{title} foi configurado"
+      "saved": "{title}: o agente está pronto para disparar"
     },
     "sentence": {
-      "reminders": "{name} · liga {when} antes · {calendars}",
-      "receptionist": "{name} · atende {count, plural, =0 {nenhum número ainda} one {# número} other {# números}}",
-      "scheduling": "{name} · agenda em {calendar}"
+      "reminders": "{when} antes de cada reunião → {name} liga · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} ainda não atende nenhum número} one {Ligam para o seu número → {name} atende} other {Ligam para um dos seus # números → {name} atende}}",
+      "scheduling": "Você toca em «Ligar para agendar» → {name} agenda em {calendar}"
     },
     "nextStep": {
       "set_up": "Configure para ativar.",
@@ -490,11 +490,11 @@
       "pause": "Pausar {title}",
       "resume": "Ativar {title}"
     },
-    "activate": "Ativar",
-    "askAdmin": "Um administrador pode ativar.",
+    "activate": "Configurar agente",
+    "askAdmin": "Um administrador pode configurar este agente.",
     "scheduling": {
       "call": "Ligar para agendar",
-      "noCalls": "Ativá-lo não liga para ninguém: só agenda quando você toca em «Ligar para agendar»."
+      "noCalls": "Só dispara quando você toca em «Ligar para agendar»: ativá-lo não liga para ninguém."
     },
     "customize": "Personalizar",
     "customizeGreeting": "Personalizar saudação",
@@ -534,12 +534,12 @@
       },
       "error": "Não foi possível configurar. Tente novamente.",
       "save": "Salvar",
-      "activate": "Ativar",
-      "calendars": "Calendários",
+      "activate": "Ativar agente",
+      "calendars": "Reuniões que o disparam",
       "callFrom": "Ligar de",
       "callFromHint": "Os leads veem este número e retornam a ligação para ele.",
       "chooseNumber": "Escolha um número",
-      "when": "Quando ligar",
+      "when": "Quando dispara",
       "custom": "Outro",
       "before": "{value} antes",
       "units": {
@@ -548,12 +548,12 @@
         "minutes": "Minutos"
       },
       "offsetRange": "Entre 5 minutos e 14 dias.",
-      "scope": "Ligará sobre {calls, plural, =0 {nenhuma} one {# reunião} other {# reuniões}} de {meetings} próximas, a partir de agora.",
-      "scopeUnknown": "Escolha um calendário para ver quais reuniões ele cobre.",
-      "noLateCalls": "Reuniões próximas demais para este aviso nunca recebem ligação atrasada.",
+      "scope": "Vai disparar para {calls, plural, =0 {nenhuma} one {# reunião} other {# reuniões}} de {meetings} próximas, a partir de agora.",
+      "scopeUnknown": "Escolha um calendário para ver quais reuniões o disparam.",
+      "noLateCalls": "Se uma reunião estiver mais perto que este aviso, o agente nunca dispara atrasado.",
       "recipients": "Quando um lead confirma: um e-mail para o lead e o membro, com os administradores em CC.",
       "recipientsWithCount": "Quando um lead confirma: um e-mail para o lead e o membro, com {count, plural, one {# administrador} other {# administradores}} em CC.",
-      "answerNumbers": "Números que atende",
+      "answerNumbers": "Números que o disparam",
       "todayReceptionist": "Hoje quem atende é {name}",
       "today": "Hoje toca em: {destination}",
       "defaultRoute": "o destino padrão",
@@ -566,7 +566,7 @@
       "someNumbersFailed": "Alguns números não puderam ser atribuídos: {reasons}",
       "calendar": "Calendário",
       "chooseCalendar": "Escolha um calendário",
-      "schedulingNoCalls": "Ativá-lo não liga para ninguém. Cada ligação começa quando você toca em «Ligar para agendar» em um lead."
+      "schedulingNoCalls": "Ativá-lo não liga para ninguém: ele dispara cada vez que você toca em «Ligar para agendar» em um lead."
     },
     "upcoming": {
       "title": "{count, plural, =0 {Nenhuma ligação agendada} one {# ligação agendada} other {# ligações agendadas}}",
@@ -599,8 +599,8 @@
       "error": "Não foi possível iniciar a ligação."
     },
     "activity": {
-      "title": "Atividade recente",
-      "empty": "Nada ainda: o que os agentes fazem aparece aqui.",
+      "title": "Disparados recentemente",
+      "empty": "Nada disparou ainda: cada ligação dos agentes aparece aqui.",
       "someone": "um lead",
       "kinds": {
         "attendance_confirmed": "{name} confirmou presença",

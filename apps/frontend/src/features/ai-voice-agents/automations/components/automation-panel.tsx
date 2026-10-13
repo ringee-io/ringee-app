@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, RotateCw, X } from 'lucide-react';
+import { RingeeMark } from '@ringee/frontend-shared/components/ringee-mark';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   SheetDescription,
@@ -59,16 +60,24 @@ export function AutomationPanel({
 
   return (
     <div className='flex h-full flex-col'>
-      <header className='flex items-start gap-2 border-b px-4 py-3'>
-        <div className='min-w-0 flex-1'>
+      {/* As tall as the dashboard header beside it, so their edges line up. */}
+      <header className='flex h-20 shrink-0 items-center gap-3 px-4 transition-[height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-18'>
+        {/* <RingeeMark className='size-8 shrink-0' /> */}
+        <div className='min-w-0 flex-1 mt-8'>
           {/* In the sheet, Radix names the dialog by its own title id. */}
           <Title
             {...(inSheet ? {} : { id: titleId })}
-            className='text-sm font-semibold'
+            className='truncate text-xl leading-tight font-semibold'
           >
             {t('title')}
           </Title>
-          <Description className='text-muted-foreground text-xs'>
+          <Description className='text-muted-foreground mt-1.5 flex items-center gap-1.5 text-xs'>
+            {panel && panel.operational > 0 ? (
+              <span
+                aria-hidden
+                className='size-1.5 shrink-0 rounded-full bg-emerald-500'
+              />
+            ) : null}
             {panel
               ? t('subtitle', { count: panel.operational })
               : t('subtitleLoading')}
@@ -78,7 +87,7 @@ export function AutomationPanel({
           type='button'
           variant='ghost'
           size='icon'
-          className='size-11 shrink-0 md:size-8'
+          className='size-11 shrink-0 md:size-9'
           onClick={onClose}
           aria-label={t('close')}
         >
@@ -86,7 +95,7 @@ export function AutomationPanel({
         </Button>
       </header>
 
-      <div className='min-h-0 flex-1 space-y-3 overflow-y-auto p-3'>
+      <div className='min-h-0 flex-1 space-y-3 mt-6 overflow-y-auto p-4'>
         {status === 'loading' ? (
           <>
             <Skeleton className='h-24 w-full rounded-xl' />

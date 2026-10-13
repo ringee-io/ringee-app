@@ -138,6 +138,23 @@ export class AiVoiceAgentAutomationRepository {
   }
 
   /**
+   * Forgets an agent that was deleted, so the card can be claimed and set up
+   * again. Only while the row still names that agent: a setup that moved the
+   * card on meanwhile is left alone.
+   */
+  async clearAgent(
+    ctx: OrganizationOwnershipContext,
+    id: string,
+    agentId: string,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.aiVoiceAgentAutomation.updateMany({
+      where: { id, organizationId: ctx.organizationId, agentId },
+      data: { agentId: null },
+    });
+    return count === 1;
+  }
+
+  /**
    * Saves the setup of a capability whose agent already exists. An upsert on
    * the stable key, so re-running a setup converges instead of duplicating.
    */

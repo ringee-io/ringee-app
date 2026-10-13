@@ -25,6 +25,7 @@ import {
 import {
   hashApiKey,
   normalizePhoneE164,
+  VoiceAgentCallRefusedError,
   VoiceAgentProviderService,
   type OwnershipContext,
 } from "@ringee/platform";
@@ -317,24 +318,41 @@ export class VoiceAgentCallService {
     try {
       await this.ensureInsightDelivery(agent);
       await this.ensureToolDelivery(ctx, agent);
-      const handle = await this.provider.startCall({
-        assistantId: agent.providerAssistantId!,
-        callingAppId: await this.requireCallingApp(agent),
-        from,
-        to,
-        // The assistant is long-lived, but the clock is not. Override the
-        // Ringee-owned runtime values on every dial so web, public API, CLI and
-        // MCP calls all interpret dates in the agent's selected time zone.
-        variables: {
-          ...variables,
-          ...voiceAgentRuntimeVariables(agent.timezone),
-        },
-        conversationCallbackUrl: this.conversationCallbackUrl(),
-        statusCallbackUrl: this.statusCallbackUrl(agentCall.id, callbackToken),
-        ringTimeoutSeconds: RING_TIMEOUT_SECONDS,
-        timeLimitSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
-        record: true,
-      });
+      const handle = await this.provider
+        .startCall({
+          assistantId: agent.providerAssistantId!,
+          callingAppId: await this.requireCallingApp(agent),
+          from,
+          to,
+          // The assistant is long-lived, but the clock is not. Override the
+          // Ringee-owned runtime values on every dial so web, public API, CLI
+          // and MCP calls all interpret dates in the agent's selected time
+          // zone.
+          variables: {
+            ...variables,
+            ...voiceAgentRuntimeVariables(agent.timezone),
+          },
+          conversationCallbackUrl: this.conversationCallbackUrl(),
+          statusCallbackUrl: this.statusCallbackUrl(
+            agentCall.id,
+            callbackToken,
+          ),
+          ringTimeoutSeconds: RING_TIMEOUT_SECONDS,
+          timeLimitSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
+          record: true,
+        })
+        .catch((error: unknown) => {
+          // Only a refusal the provider stated proves no leg exists. A
+          // timeout, a dropped connection or a 5xx may have placed one: it is
+          // left for the call's own callbacks to reconcile, never dialed
+          // again (AGENT-019).
+          if (error instanceof VoiceAgentCallRefusedError) throw error;
+          throw new VoiceAgentCallStartError(
+            VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+            error,
+            agentCall.id,
+          );
+        });
 
       // Whatever handles the provider gives back are written the moment they
       // exist — an event that arrives before the first status callback (the
@@ -389,11 +407,11 @@ export class VoiceAgentCallService {
         error.outcome ===
           VoiceAgentCallStartOutcome.placed_pending_reconciliation
       ) {
-        // The leg is live. Provider callbacks and the billing sweep can repair
-        // whichever local write failed, so neither row is marked failed and a
-        // durable caller must not initiate a second leg.
+        // The leg is live, or may be. Provider callbacks and the billing sweep
+        // can repair whichever local write failed, so neither row is marked
+        // failed and a durable caller must not initiate a second leg.
         this.logger.error(
-          `Agent call ${agentCall.id} was placed but could not be linked: ${message}`,
+          `Agent call ${agentCall.id} may have a live leg and is left to reconcile: ${message}`,
         );
         throw error;
       }

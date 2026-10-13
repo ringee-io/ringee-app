@@ -80,6 +80,7 @@ function build(
       releaseClaim: async (id: string) => {
         releasedClaims.push(id);
       },
+      clearAgent: async () => true,
       upsertForOwner: async (_ctx: Row, _type: string, data: Row) => {
         automationUpdates.push(data);
         return data;
@@ -267,6 +268,112 @@ describe("VoiceAgentAutomationService quick setup", () => {
         }),
       /different job/,
     );
+  });
+
+  it("sets a card up again after the agent it drove was deleted", async () => {
+    // The row still names the deleted agent. Until it is forgotten the claim
+    // sees a card that is already set up, and every setup is refused.
+    const { service, created, calls } = build({ agent: null });
+    const automations = (service as unknown as { automations: Row })
+      .automations;
+    let cleared = false;
+    automations.clearAgent = async (_ctx: Row, id: string, agentId: string) => {
+      calls.push({ clearAgent: id, agentId });
+      cleared = true;
+      return true;
+    };
+    automations.claim = async () =>
+      cleared
+        ? { claimed: true, row: { id: "automation-1" } }
+        : { claimed: false, row: { id: "automation-1", agentId: "agent-1" } };
+
+    await service.setupReminders(CTX, {
+      calendarIds: ["calendar-1"],
+      offsetMinutes: 1440,
+    });
+
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.clearAgent === "automation-1" && call.agentId === "agent-1",
+      ),
+    );
+    assert.equal(created.length, 1);
+  });
+
+  it("withdraws what the card's previous agent watched when it moves to another", async () => {
+    const { service, calls } = build({
+      automation: {
+        id: "automation-1",
+        capability: "reminders_notifications",
+        agentId: "agent-old",
+        enabled: true,
+        settings: null,
+      },
+    });
+    const policies = (service as unknown as { policies: Row }).policies;
+    const deleted: string[][] = [];
+    policies.listForOwner = async (_ctx: Row, options: Row) =>
+      options.agentId === "agent-old"
+        ? [{ id: "policy-old", calendarId: "calendar-2", offsetsMinutes: [60] }]
+        : [];
+    policies.deleteForOwner = async (_ctx: Row, ids: string[]) => {
+      deleted.push(ids);
+      return ids.length;
+    };
+
+    await service.setupReminders(CTX, {
+      agentId: "agent-1",
+      calendarIds: ["calendar-1"],
+      offsetMinutes: 1440,
+    });
+
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.cancelled === "policy-old" && call.reason === "policy_removed",
+      ),
+    );
+    assert.deepEqual(deleted, [["policy-old"]]);
+  });
+
+  it("hands back the numbers the previous receptionist answered when the card moves to another", async () => {
+    const { service } = build({
+      agent: AGENT({ type: "receptionist" }),
+      automation: {
+        id: "automation-1",
+        capability: "receptionist",
+        agentId: "agent-old",
+        enabled: true,
+        settings: {
+          numbers: [
+            { kind: "ringee", id: "number-1" },
+            { kind: "ringee", id: "number-2" },
+          ],
+          fallback: null,
+        },
+      },
+    });
+    const releases: Row[] = [];
+    (
+      service as unknown as { inboundRoutes: Row }
+    ).inboundRoutes.releaseReceptionist = async (
+      _ctx: Row,
+      agentId: string,
+      only: Row[],
+    ) => {
+      releases.push({ agentId, only });
+      return { restored: only.length, failed: [] };
+    };
+
+    await service.setupReceptionist(CTX, {
+      agentId: "agent-1",
+      numbers: [{ kind: "ringee", id: "number-1" }],
+    });
+
+    assert.deepEqual(releases, [
+      { agentId: "agent-old", only: [{ kind: "ringee", id: "number-2" }] },
+    ]);
   });
 });
 

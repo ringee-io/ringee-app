@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { TelnyxRTC } from '@telnyx/webrtc';
-import type { Call, INotification } from '@telnyx/webrtc';
+import type { Call, INotification, TelnyxRTC } from '@telnyx/webrtc';
+import { createTelnyxClient } from '@ringee/dialer-core';
 import type { TelephonyCredential } from './api';
 
 export type TelnyxClientStatus =
@@ -36,12 +36,13 @@ export function useSessionTelnyx(
   useEffect(() => {
     if (!credential) return;
 
-    const telnyx = new TelnyxRTC({
+    // The shared engine builds it, so it never logs in with the session of
+    // another client this tab ran (the dashboard's line, for one).
+    const telnyx = createTelnyxClient({
       login: credential.sipUsername,
       password: credential.sipPassword,
       ringbackFile: '/sounds/outbound-call.mp3',
-      debug: false,
-      keepConnectionAliveOnSocketClose: true
+      debug: false
     });
 
     const onReady = () => setStatus('registered');

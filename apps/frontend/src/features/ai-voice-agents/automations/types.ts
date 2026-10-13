@@ -1,5 +1,5 @@
 /**
- * What the "Ringee IA Voice Agents" rail reads from the API. The server
+ * What the "Trigger AI Voice Agents" rail reads from the API. The server
  * computes every state, readiness and next step; the rail only renders them.
  */
 

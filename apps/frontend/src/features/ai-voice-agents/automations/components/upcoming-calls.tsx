@@ -25,6 +25,8 @@ export function UpcomingCalls({ count }: { count: number }) {
   const [rows, setRows] = useState<UpcomingReminderCall[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [calling, setCalling] = useState<string | null>(null);
+  /** Meetings a call was just placed about: one call each, not one per click. */
+  const [placed, setPlaced] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -46,6 +48,7 @@ export function UpcomingCalls({ count }: { count: number }) {
     try {
       const result = await api.confirmationCall(row.meeting.id);
       if (result.status === 'placed') {
+        setPlaced((ids) => [...ids, row.meeting.id]);
         toast.success(
           t('calling', { name: row.meeting.contactName ?? t('theLead') })
         );
@@ -92,7 +95,7 @@ export function UpcomingCalls({ count }: { count: number }) {
                 size='sm'
                 variant='ghost'
                 className='h-11 shrink-0 rounded-lg px-2 md:h-8'
-                disabled={calling !== null}
+                disabled={calling !== null || placed.includes(row.meeting.id)}
                 onClick={() => void callNow(row)}
                 aria-label={t('callNowFor', {
                   name: row.meeting.contactName ?? t('theLead')

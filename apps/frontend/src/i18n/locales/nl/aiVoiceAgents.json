@@ -422,29 +422,29 @@
     "calendar": "een agenda"
   },
   "automations": {
-    "title": "Ringee AI Voice Agents",
-    "titleShort": "AI Voice Agents",
-    "railLabel": "Ringee AI Voice Agents, {count, plural, =0 {nog geen actief} one {# actief} other {# actief}}",
+    "title": "Trigger AI Voice Agents",
+    "titleShort": "Trigger AI Voice Agents",
+    "railLabel": "Trigger AI Voice Agents, {count, plural, =0 {nog geen agent klaar} one {# agent wacht op zijn trigger} other {# agents wachten op hun trigger}}",
     "attentionHint": "Er vraagt iets je aandacht",
-    "subtitle": "{count, plural, =0 {Klaar om in te schakelen} one {# agent actief} other {# agents actief}}",
+    "subtitle": "{count, plural, =0 {Kies wanneer elke agent in actie komt} one {# agent wacht op zijn trigger} other {# agents wachten op hun trigger}}",
     "subtitleLoading": "Laden…",
-    "close": "Ringee AI Voice Agents sluiten",
+    "close": "Trigger AI Voice Agents sluiten",
     "loadError": "De agents konden niet worden geladen.",
     "retry": "Opnieuw proberen",
-    "unavailable": "AI Voice Agents zijn nog niet beschikbaar in deze werkruimte.",
+    "unavailable": "Trigger AI Voice Agents zijn nog niet beschikbaar in deze werkruimte.",
     "announce": "{title}: {state}",
     "capabilities": {
       "reminders": {
         "title": "Herinneringen & bevestigingen",
-        "purpose": "Belt elke lead voor de afspraak en bevestigt of ze komen."
+        "purpose": "Als er een afspraak nadert, belt de agent de lead om te bevestigen dat ze komen."
       },
       "receptionist": {
         "title": "AI-receptionist",
-        "purpose": "Neemt je nummer op, helpt de beller en verbindt door met je team."
+        "purpose": "Als iemand je nummer belt, neemt de agent op, helpt en verbindt door met je team."
       },
       "scheduling": {
         "title": "Afspraken plannen",
-        "purpose": "Belt een lead en zet de afspraak in je agenda."
+        "purpose": "Als je op „Bellen om te plannen” drukt, belt de agent de lead en plant de afspraak."
       }
     },
     "state": {
@@ -455,15 +455,15 @@
       "needs_attention": "Actie nodig"
     },
     "toast": {
-      "resumed": "{title} staat aan",
-      "paused": "{title} is gepauzeerd",
+      "resumed": "{title}: de agent komt weer in actie",
+      "paused": "{title}: gepauzeerd, de agent komt niet in actie",
       "toggleError": "Dat kon niet worden gewijzigd.",
-      "saved": "{title} is ingesteld"
+      "saved": "{title}: de agent staat klaar"
     },
     "sentence": {
-      "reminders": "{name} · belt {when} van tevoren · {calendars}",
-      "receptionist": "{name} · neemt {count, plural, =0 {nog geen nummer} one {# nummer} other {# nummers}} op",
-      "scheduling": "{name} · plant in {calendar}"
+      "reminders": "{when} voor elke afspraak → {name} belt · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} neemt nog geen nummer op} one {Oproep naar je nummer → {name} neemt op} other {Oproep naar een van je # nummers → {name} neemt op}}",
+      "scheduling": "Je drukt op „Bellen om te plannen” → {name} plant in {calendar}"
     },
     "nextStep": {
       "set_up": "Stel het in om het in te schakelen.",
@@ -490,11 +490,11 @@
       "pause": "{title} pauzeren",
       "resume": "{title} inschakelen"
     },
-    "activate": "Activeren",
-    "askAdmin": "Een beheerder kan dit inschakelen.",
+    "activate": "Agent instellen",
+    "askAdmin": "Een beheerder kan deze agent instellen.",
     "scheduling": {
       "call": "Bellen om te plannen",
-      "noCalls": "Inschakelen belt niemand: er wordt alleen gepland als je op „Bellen om te plannen” drukt."
+      "noCalls": "Komt alleen in actie als je op „Bellen om te plannen” drukt: inschakelen belt niemand."
     },
     "customize": "Aanpassen",
     "customizeGreeting": "Begroeting aanpassen",
@@ -534,12 +534,12 @@
       },
       "error": "Instellen is mislukt. Probeer het opnieuw.",
       "save": "Opslaan",
-      "activate": "Activeren",
-      "calendars": "Agenda's",
+      "activate": "Agent inschakelen",
+      "calendars": "Afspraken die hem triggeren",
       "callFrom": "Bellen vanaf",
       "callFromHint": "Leads zien dit nummer en bellen het terug.",
       "chooseNumber": "Kies een nummer",
-      "when": "Wanneer bellen",
+      "when": "Wanneer hij in actie komt",
       "custom": "Anders",
       "before": "{value} van tevoren",
       "units": {
@@ -548,12 +548,12 @@
         "minutes": "Minuten"
       },
       "offsetRange": "Tussen 5 minuten en 14 dagen.",
-      "scope": "Belt vanaf nu over {calls, plural, =0 {geen} one {# afspraak} other {# afspraken}} van {meetings} komende.",
-      "scopeUnknown": "Kies een agenda om te zien welke afspraken eronder vallen.",
-      "noLateCalls": "Afspraken die te dichtbij zijn voor deze termijn worden nooit te laat gebeld.",
+      "scope": "Komt vanaf nu in actie voor {calls, plural, =0 {geen} one {# afspraak} other {# afspraken}} van {meetings} komende.",
+      "scopeUnknown": "Kies een agenda om te zien welke afspraken hem triggeren.",
+      "noLateCalls": "Ligt een afspraak dichterbij dan deze termijn, dan komt hij nooit te laat in actie.",
       "recipients": "Als een lead bevestigt: één e-mail aan lead en lid, beheerders in CC.",
       "recipientsWithCount": "Als een lead bevestigt: één e-mail aan lead en lid, {count, plural, one {# beheerder} other {# beheerders}} in CC.",
-      "answerNumbers": "Nummers die hij opneemt",
+      "answerNumbers": "Nummers die hem triggeren",
       "todayReceptionist": "Vandaag neemt {name} op",
       "today": "Vandaag gaat over bij: {destination}",
       "defaultRoute": "de standaardbestemming",
@@ -566,7 +566,7 @@
       "someNumbersFailed": "Sommige nummers konden niet worden toegewezen: {reasons}",
       "calendar": "Agenda",
       "chooseCalendar": "Kies een agenda",
-      "schedulingNoCalls": "Inschakelen belt niemand. Elk gesprek begint als je bij een lead op „Bellen om te plannen” drukt."
+      "schedulingNoCalls": "Inschakelen belt niemand: hij komt in actie elke keer dat je bij een lead op „Bellen om te plannen” drukt."
     },
     "upcoming": {
       "title": "{count, plural, =0 {Geen gesprekken gepland} one {# gesprek gepland} other {# gesprekken gepland}}",
@@ -599,8 +599,8 @@
       "error": "Het gesprek kon niet worden gestart."
     },
     "activity": {
-      "title": "Recente activiteit",
-      "empty": "Nog niets: wat de agents doen verschijnt hier.",
+      "title": "Recent getriggerd",
+      "empty": "Nog niets getriggerd: elk gesprek van de agents verschijnt hier.",
       "someone": "een lead",
       "kinds": {
         "attendance_confirmed": "{name} heeft bevestigd te komen",

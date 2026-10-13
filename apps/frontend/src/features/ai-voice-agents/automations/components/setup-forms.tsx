@@ -532,12 +532,15 @@ export function ReceptionistSetup({
   card,
   remindersNumber,
   onDone,
+  onPartial,
   onCancel
 }: {
   card: AutomationCard;
   /** The reminders' outbound number: leads call it back. */
   remindersNumber: string | null;
   onDone: (card: AutomationCard) => void;
+  /** Some numbers failed: the rest was saved, and the form stays open. */
+  onPartial?: (card: AutomationCard) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('aiVoiceAgents.automations.setup');
@@ -650,7 +653,10 @@ export function ReceptionistSetup({
             reasons: result.failed.map((failure) => failure.error).join(' · ')
           })
         );
-        onDone(result.card);
+        // The card now has its agent: a retry saves it under the name it has,
+        // not the default typed before an existing agent was chosen.
+        if (result.card.agent) patch({ name: result.card.agent.name });
+        onPartial?.(result.card);
         return;
       }
       clear();

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { AudioLines } from 'lucide-react';
+import { RingeeMark } from '@ringee/frontend-shared/components/ringee-mark';
 import {
   Sheet,
   SheetContent
@@ -14,9 +14,33 @@ import { useRailSummary } from '../hooks/use-automation-data';
 import { useVoiceAgentsRail } from '../store';
 import { AutomationPanel } from './automation-panel';
 
-/** Above this width the open panel sits beside the page instead of over it. */
-const DOCK_MIN_WIDTH = 1280;
+/**
+ * Above this width the open panel sits beside the page instead of over it.
+ * The strip and the docked panel take about 544 px; from here the page keeps
+ * about 640 px next to an expanded sidebar.
+ */
+const DOCK_MIN_WIDTH = 1440;
 const PANEL_ID = 'voice-agents-panel';
+
+/** The agents really working: green with a dot, or a muted zero. */
+function OperationalCount({ count }: { count: number }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+        count > 0
+          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+          : 'bg-muted text-muted-foreground'
+      )}
+    >
+      {count > 0 ? (
+        <span className='size-1.5 rounded-full bg-emerald-500' />
+      ) : null}
+      {count}
+    </span>
+  );
+}
 
 function useDockable(): boolean {
   const [dockable, setDockable] = useState(false);
@@ -31,11 +55,12 @@ function useDockable(): boolean {
 }
 
 /**
- * "Ringee IA Voice Agents": the rail on the right edge of the dashboard
- * (AGENT-018). Closed, it is a 48 px bar with a counter of what is really
- * working. Open, it docks beside the page on wide screens, slides over it
- * where docking would squeeze tables and forms, and takes the whole screen on
- * a phone.
+ * "Trigger AI Voice Agents": a strip down the whole right edge of the
+ * dashboard, beside the header and the page (AGENT-018). Its tab carries the
+ * vertical title and a counter of what is really working. Open, the tab stays
+ * pressed under the Ringee mark and the panel docks to its right on wide
+ * screens, slides over the page where docking would squeeze tables and
+ * forms, and takes the whole screen on a phone.
  *
  * It shares the right edge with the quick dialer: one auxiliary surface at a
  * time. Closing the dialer only hides its keypad — the call engine lives in
@@ -68,9 +93,19 @@ export function VoiceAgentsRail() {
     dialerWasOpen.current = quickDial;
   }, [quickDial, open, setOpen]);
 
-  // Back from "Customize": the panel comes back where the person left it.
+  // Back from "Customize": the panel comes back where the person left it —
+  // once the editor was reached and left, not on the render where "Customize"
+  // set `resume` and the page has not navigated yet.
+  const sawEditor = useRef(false);
   useEffect(() => {
-    if (resume && !pathname.startsWith('/dashboard/ai-voice-agents/')) {
+    if (!resume) {
+      sawEditor.current = false;
+      return;
+    }
+    if (pathname.startsWith('/dashboard/ai-voice-agents/')) {
+      sawEditor.current = true;
+    } else if (sawEditor.current) {
+      sawEditor.current = false;
       setResume(false);
       setOpen(true);
     }
@@ -102,44 +137,38 @@ export function VoiceAgentsRail() {
 
   return (
     <>
-      {/* Desktop: the closed rail, or the docked panel in its place. */}
-      {docked ? (
-        <aside
-          id={PANEL_ID}
-          aria-labelledby={`${PANEL_ID}-title`}
-          className='bg-background hidden h-[calc(100dvh-52px)] w-[376px] shrink-0 border-l md:block'
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') close();
-          }}
-        >
-          <AutomationPanel titleId={`${PANEL_ID}-title`} onClose={close} />
-        </aside>
-      ) : (
-        <button
-          ref={triggerRef}
-          type='button'
-          onClick={openRail}
-          aria-expanded={open}
-          aria-controls={PANEL_ID}
-          aria-label={label}
-          className={cn(
-            'group hidden h-[calc(100dvh-52px)] w-12 shrink-0 flex-col items-center gap-3 border-l py-4 md:flex',
-            'hover:bg-muted/60 focus-visible:ring-ring transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset'
-          )}
-        >
-          <span className='relative'>
-            <AudioLines className='text-muted-foreground group-hover:text-foreground size-5' />
-            {operational > 0 ? (
-              <span
-                aria-hidden
-                className='absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500'
-              />
+      {/* Desktop: the strip, full height beside the header, and the docked
+          panel to the right of its tab. */}
+      <div
+        className='sticky top-0 hidden h-svh shrink-0 md:flex'
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && docked) close();
+        }}
+      >
+        <div className='bg-sidebar flex w-18 shrink-0 flex-col items-center border-l px-2 py-3'>
+          <button
+            ref={triggerRef}
+            type='button'
+            onClick={() => (open ? close() : openRail())}
+            aria-expanded={open}
+            aria-controls={PANEL_ID}
+            aria-label={label}
+            className={cn(
+              'flex w-full flex-col items-center gap-3 rounded-xl border px-1 pt-3 pb-2.5 transition-colors outline-none',
+              'focus-visible:ring-ring focus-visible:ring-2',
+              // Pressed while open, a lighter fill than the hover of a closed tab.
+              open
+                ? 'bg-foreground/10 border-foreground/25 shadow-inner'
+                : 'bg-background hover:bg-foreground/5 shadow-sm'
+            )}
+          >
+            {/* Closed, the tab is only its title; the Ringee mark joins it open. */}
+            {open ? (
+              <RingeeMark className='animate-in fade-in-0 zoom-in-90 size-9 duration-200 motion-reduce:animate-none' />
             ) : null}
-          </span>
-          <span className='text-muted-foreground group-hover:text-foreground rotate-180 text-xs font-medium tracking-wide whitespace-nowrap [writing-mode:vertical-rl]'>
-            {t('title')}
-          </span>
-          <span className='mt-auto flex flex-col items-center gap-1.5'>
+            <span className='text-base font-semibold tracking-wide whitespace-nowrap [writing-mode:vertical-rl]'>
+              {t('title')}
+            </span>
             {attention ? (
               <span
                 aria-hidden
@@ -147,20 +176,20 @@ export function VoiceAgentsRail() {
                 title={t('attentionHint')}
               />
             ) : null}
-            <span
-              aria-hidden
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
-                operational > 0
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-muted text-muted-foreground'
-              )}
-            >
-              {operational}
-            </span>
-          </span>
-        </button>
-      )}
+            <OperationalCount count={operational} />
+          </button>
+        </div>
+
+        {docked ? (
+          <aside
+            id={PANEL_ID}
+            aria-labelledby={`${PANEL_ID}-title`}
+            className='bg-background animate-in fade-in-0 slide-in-from-right-4 w-[480px] border-l duration-200 motion-reduce:animate-none'
+          >
+            <AutomationPanel titleId={`${PANEL_ID}-title`} onClose={close} />
+          </aside>
+        ) : null}
+      </div>
 
       {/* Narrower screens: the same panel over the page; phones: full screen. */}
       <Sheet
@@ -170,7 +199,7 @@ export function VoiceAgentsRail() {
         <SheetContent
           id={!docked ? PANEL_ID : undefined}
           side='right'
-          className='w-full gap-0 p-0 sm:max-w-[392px] [&>button:last-child]:hidden'
+          className='w-full gap-0 p-0 sm:max-w-[480px] [&>button:last-child]:hidden'
         >
           {open && !dockable ? (
             <AutomationPanel
@@ -182,7 +211,7 @@ export function VoiceAgentsRail() {
         </SheetContent>
       </Sheet>
 
-      {/* Phones: a horizontal button instead of the vertical rail. */}
+      {/* Phones: a horizontal button instead of the vertical strip. */}
       <button
         ref={mobileTriggerRef}
         type='button'
@@ -192,19 +221,8 @@ export function VoiceAgentsRail() {
         aria-label={label}
         className='bg-background focus-visible:ring-ring fixed right-4 bottom-4 z-40 flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium shadow-lg outline-none focus-visible:ring-2 md:hidden'
       >
-        <span className='relative'>
-          <AudioLines className='size-4' />
-          {operational > 0 ? (
-            <span
-              aria-hidden
-              className='absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-emerald-500'
-            />
-          ) : null}
-        </span>
         {t('titleShort')}
-        <span className='bg-muted rounded-full px-1.5 text-xs tabular-nums'>
-          {operational}
-        </span>
+        <OperationalCount count={operational} />
       </button>
     </>
   );

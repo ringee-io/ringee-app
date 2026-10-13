@@ -86,6 +86,24 @@ provider-to-PSTN leg. Never log full stats frames, ICE addresses, credentials or
 recordings. Quality sampling must not create calls or alter call lifecycle,
 workspace authorization or credit settlement.
 
+### More than one WebRTC client in a tab
+
+A tab can run several Telnyx clients at once: the dashboard's shared line, the
+per-user inbound endpoint (organizations with controlled routes) and the AI
+agent test call. Since `@telnyx/webrtc` 2.27.1 the SDK stores the session id of
+the last login made in the tab (`sessionStorage`, 90 s), and a client without a
+session of its own logs in with it as a reconnection. The provider moves that
+session to the new socket and punts the client that held it, which does not
+reconnect. After the 2.25.2 → 2.27.9 upgrade this left the shared line on
+"Connecting your phone line…" in every organization with controlled routes.
+
+Build every browser client as a `SessionScopedTelnyxRTC` (`createTelnyxClient`
+does), never a bare `new TelnyxRTC`. It clears the stored token before a login
+until the client has a session, and leaves reconnects with its own session
+alone, so an interrupted call can still be reattached.
+`reconnect-session.test.ts` runs the real SDK and fails if an upgrade changes
+where the token is read.
+
 ## Call lifecycle
 
 ```

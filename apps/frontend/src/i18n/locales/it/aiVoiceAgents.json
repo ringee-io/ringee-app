@@ -422,29 +422,29 @@
     "calendar": "un calendario"
   },
   "automations": {
-    "title": "Ringee IA Voice Agents",
-    "titleShort": "IA Voice Agents",
-    "railLabel": "Ringee IA Voice Agents, {count, plural, =0 {nessuno attivo per ora} one {# attivo} other {# attivi}}",
+    "title": "Trigger IA Voice Agents",
+    "titleShort": "Trigger IA Voice Agents",
+    "railLabel": "Trigger IA Voice Agents, {count, plural, =0 {nessun agente pronto per ora} one {# agente pronto a scattare} other {# agenti pronti a scattare}}",
     "attentionHint": "Qualcosa richiede la tua attenzione",
-    "subtitle": "{count, plural, =0 {Pronti da attivare} one {# agente attivo} other {# agenti attivi}}",
+    "subtitle": "{count, plural, =0 {Scegli cosa fa scattare ogni agente} one {# agente pronto a scattare} other {# agenti pronti a scattare}}",
     "subtitleLoading": "Caricamento…",
-    "close": "Chiudi Ringee IA Voice Agents",
+    "close": "Chiudi Trigger IA Voice Agents",
     "loadError": "Impossibile caricare gli agenti.",
     "retry": "Riprova",
-    "unavailable": "Gli IA Voice Agents non sono ancora disponibili in questo spazio di lavoro.",
+    "unavailable": "I Trigger IA Voice Agents non sono ancora disponibili in questo spazio di lavoro.",
     "announce": "{title}: {state}",
     "capabilities": {
       "reminders": {
         "title": "Promemoria e conferme",
-        "purpose": "Chiama ogni lead prima dell'appuntamento e ne conferma la presenza."
+        "purpose": "Quando si avvicina un appuntamento, l'agente chiama il lead per confermarne la presenza."
       },
       "receptionist": {
         "title": "Receptionist IA",
-        "purpose": "Risponde al tuo numero, aiuta chi chiama e lo trasferisce al tuo team."
+        "purpose": "Quando qualcuno chiama il tuo numero, l'agente risponde, aiuta e trasferisce al tuo team."
       },
       "scheduling": {
         "title": "Fissa appuntamenti",
-        "purpose": "Chiama un lead e fissa l'appuntamento nel tuo calendario."
+        "purpose": "Quando premi «Chiama per fissare», l'agente chiama il lead e fissa l'appuntamento."
       }
     },
     "state": {
@@ -455,15 +455,15 @@
       "needs_attention": "Richiede attenzione"
     },
     "toast": {
-      "resumed": "{title} è attivo",
-      "paused": "{title} è in pausa",
+      "resumed": "{title}: l'agente scatterà di nuovo",
+      "paused": "{title}: in pausa, l'agente non scatterà",
       "toggleError": "Impossibile modificare.",
-      "saved": "{title} è configurato"
+      "saved": "{title}: l'agente è pronto a scattare"
     },
     "sentence": {
-      "reminders": "{name} · chiama {when} prima · {calendars}",
-      "receptionist": "{name} · risponde a {count, plural, =0 {nessun numero per ora} one {# numero} other {# numeri}}",
-      "scheduling": "{name} · prenota in {calendar}"
+      "reminders": "{when} prima di ogni appuntamento → chiama {name} · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} non risponde ancora a nessun numero} one {Chiamata al tuo numero → risponde {name}} other {Chiamata a uno dei tuoi # numeri → risponde {name}}}",
+      "scheduling": "Premi «Chiama per fissare» → {name} prenota in {calendar}"
     },
     "nextStep": {
       "set_up": "Configuralo per attivarlo.",
@@ -490,11 +490,11 @@
       "pause": "Metti in pausa {title}",
       "resume": "Attiva {title}"
     },
-    "activate": "Attiva",
-    "askAdmin": "Un amministratore può attivarlo.",
+    "activate": "Configura agente",
+    "askAdmin": "Un amministratore può configurare questo agente.",
     "scheduling": {
       "call": "Chiama per fissare",
-      "noCalls": "Attivarlo non chiama nessuno: prenota solo quando premi «Chiama per fissare»."
+      "noCalls": "Scatta solo quando premi «Chiama per fissare»: attivarlo non chiama nessuno."
     },
     "customize": "Personalizza",
     "customizeGreeting": "Personalizza il saluto",
@@ -534,12 +534,12 @@
       },
       "error": "Configurazione non riuscita. Riprova.",
       "save": "Salva",
-      "activate": "Attiva",
-      "calendars": "Calendari",
+      "activate": "Attiva agente",
+      "calendars": "Appuntamenti che lo fanno scattare",
       "callFrom": "Chiama da",
       "callFromHint": "I lead vedono questo numero e lo richiamano.",
       "chooseNumber": "Scegli un numero",
-      "when": "Quando chiamare",
+      "when": "Quando scatta",
       "custom": "Altro",
       "before": "{value} prima",
       "units": {
@@ -548,12 +548,12 @@
         "minutes": "Minuti"
       },
       "offsetRange": "Tra 5 minuti e 14 giorni.",
-      "scope": "Chiamerà per {calls, plural, =0 {nessuno} one {# appuntamento} other {# appuntamenti}} su {meetings} in arrivo, da adesso.",
-      "scopeUnknown": "Scegli un calendario per vedere quali appuntamenti copre.",
-      "noLateCalls": "Gli appuntamenti troppo vicini per questo preavviso non vengono mai chiamati in ritardo.",
+      "scope": "Scatterà per {calls, plural, =0 {nessuno} one {# appuntamento} other {# appuntamenti}} su {meetings} in arrivo, da adesso.",
+      "scopeUnknown": "Scegli un calendario per vedere quali appuntamenti lo fanno scattare.",
+      "noLateCalls": "Se un appuntamento è più vicino di questo preavviso, non scatta mai in ritardo.",
       "recipients": "Quando un lead conferma: un'email al lead e al membro, con gli amministratori in CC.",
       "recipientsWithCount": "Quando un lead conferma: un'email al lead e al membro, con {count, plural, one {# amministratore} other {# amministratori}} in CC.",
-      "answerNumbers": "Numeri a cui risponde",
+      "answerNumbers": "Numeri che lo fanno scattare",
       "todayReceptionist": "Oggi risponde {name}",
       "today": "Oggi squilla: {destination}",
       "defaultRoute": "la destinazione predefinita",
@@ -566,7 +566,7 @@
       "someNumbersFailed": "Alcuni numeri non sono stati assegnati: {reasons}",
       "calendar": "Calendario",
       "chooseCalendar": "Scegli un calendario",
-      "schedulingNoCalls": "Attivarlo non chiama nessuno. Ogni chiamata parte quando premi «Chiama per fissare» su un lead."
+      "schedulingNoCalls": "Attivarlo non chiama nessuno: scatta ogni volta che premi «Chiama per fissare» su un lead."
     },
     "upcoming": {
       "title": "{count, plural, =0 {Nessuna chiamata pianificata} one {# chiamata pianificata} other {# chiamate pianificate}}",
@@ -599,8 +599,8 @@
       "error": "Impossibile avviare la chiamata."
     },
     "activity": {
-      "title": "Attività recente",
-      "empty": "Ancora niente: qui compare quello che fanno gli agenti.",
+      "title": "Scattati di recente",
+      "empty": "Non è ancora scattato nulla: qui compare ogni chiamata degli agenti.",
       "someone": "un lead",
       "kinds": {
         "attendance_confirmed": "{name} ha confermato la presenza",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -82,6 +82,7 @@ export function CapabilityCard({
   const setFocus = useVoiceAgentsRail((state) => state.setFocus);
   const setOpen = useVoiceAgentsRail((state) => state.setOpen);
   const setResume = useVoiceAgentsRail((state) => state.setResume);
+  const setDraft = useVoiceAgentsRail((state) => state.setDraft);
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
@@ -94,6 +95,21 @@ export function CapabilityCard({
   const title = t(`capabilities.${card.capability}.title`);
   const showForm =
     canConfigure && (editing || (expanded && card.state === 'unconfigured'));
+
+  // "Cancel" puts the panel back as it was before the form opened.
+  const focusBeforeForm = useRef<AutomationCapability | null>(null);
+  const openForm = () => {
+    focusBeforeForm.current = focus;
+    setFocus(card.capability);
+    setEditing(true);
+  };
+  const cancelForm = () => {
+    setEditing(false);
+    // What was typed is dropped: the next open starts from the saved setup.
+    setDraft(card.capability, null);
+    // An unconfigured card shows its form for as long as it is focused.
+    setFocus(focusBeforeForm.current);
+  };
 
   /**
    * "Customize" and "Test" open the agent's own editor, and the rail comes
@@ -170,10 +186,7 @@ export function CapabilityCard({
           size='sm'
           variant='outline'
           className='h-11 rounded-lg md:h-8'
-          onClick={() => {
-            setFocus(card.capability);
-            setEditing(true);
-          }}
+          onClick={openForm}
         >
           {t(`nextStepAction.${code}`)}
         </Button>
@@ -307,10 +320,7 @@ export function CapabilityCard({
             <Button
               size='sm'
               className='h-11 rounded-lg md:h-8'
-              onClick={() => {
-                setFocus(card.capability);
-                setEditing(true);
-              }}
+              onClick={openForm}
             >
               {t('activate')}
             </Button>
@@ -390,7 +400,7 @@ export function CapabilityCard({
               toast.success(t('toast.saved', { title }));
               onChanged(next);
             }}
-            onCancel={() => setEditing(false)}
+            onCancel={cancelForm}
           />
         ) : card.capability === 'receptionist' ? (
           <ReceptionistSetup
@@ -401,7 +411,13 @@ export function CapabilityCard({
               toast.success(t('toast.saved', { title }));
               onChanged(next);
             }}
-            onCancel={() => setEditing(false)}
+            onPartial={(next) => {
+              // Stays open on the numbers that failed — also when it was shown
+              // only because the card was unconfigured, which it no longer is.
+              setEditing(true);
+              onChanged(next);
+            }}
+            onCancel={cancelForm}
           />
         ) : (
           <SchedulingSetup
@@ -411,7 +427,7 @@ export function CapabilityCard({
               toast.success(t('toast.saved', { title }));
               onChanged(next);
             }}
-            onCancel={() => setEditing(false)}
+            onCancel={cancelForm}
           />
         )
       ) : null}
@@ -449,7 +465,7 @@ export function CapabilityCard({
                   size='sm'
                   variant='outline'
                   className='h-11 rounded-lg md:h-8'
-                  onClick={() => setEditing(true)}
+                  onClick={openForm}
                 >
                   {t('editSetup')}
                 </Button>
@@ -482,7 +498,7 @@ export function CapabilityCard({
                   size='sm'
                   variant='outline'
                   className='h-11 rounded-lg md:h-8'
-                  onClick={() => setEditing(true)}
+                  onClick={openForm}
                 >
                   {t('receptionist.manageNumbers')}
                 </Button>
@@ -505,7 +521,7 @@ export function CapabilityCard({
                   size='sm'
                   variant='outline'
                   className='h-11 rounded-lg md:h-8'
-                  onClick={() => setEditing(true)}
+                  onClick={openForm}
                 >
                   {t('editSetup')}
                 </Button>

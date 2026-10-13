@@ -94,6 +94,7 @@ function build(
       listPlacedBefore: async () => [],
       hasActiveForMeeting: async () => over.otherActiveForMeeting ?? false,
       countForMeetingVersion: async () => 0,
+      findOpenForMeetingVersion: async () => null,
       createMany: async () => 1,
       findByIdempotencyKey: async () => execution,
       findById: async () => execution,
@@ -405,5 +406,68 @@ describe("MeetingReminderCallService.callNow", () => {
         ),
       /already in progress/,
     );
+  });
+
+  it("refuses another call while an earlier one has not reported back, however old", async () => {
+    // Placed hours ago, so no longer "active" — but still the call.
+    const { service } = build();
+    const internals = service as unknown as {
+      policies: Row;
+      executions: Row;
+    };
+    internals.policies.findForCalendar = async () => ({ agentId: "agent-1" });
+    internals.executions.findOpenForMeetingVersion = async () => ({
+      id: "exec-manual",
+      trigger: "manual",
+      status: "placed",
+    });
+    await assert.rejects(
+      () =>
+        service.callNow(
+          { userId: "member-1", organizationId: "org-1" },
+          "meeting-1",
+        ),
+      /already in progress/,
+    );
+  });
+
+  it("acts on the call a busy lead put off instead of planning a second one", async () => {
+    // Each "not placed — on a call" used to leave one behind, and every one
+    // of them would have rung on its own later.
+    const { service } = build();
+    const internals = service as unknown as {
+      policies: Row;
+      executions: Row;
+    };
+    const planned: Row[] = [];
+    const claimedIds: string[] = [];
+    const putOff = {
+      id: "exec-manual",
+      trigger: "manual",
+      status: "scheduled",
+    };
+    internals.policies.findForCalendar = async () => ({ agentId: "agent-1" });
+    internals.executions.findOpenForMeetingVersion = async () => putOff;
+    internals.executions.createMany = async (rows: Row[]) => {
+      planned.push(...rows);
+      return rows.length;
+    };
+    internals.executions.claimScheduled = async (id: string) => {
+      claimedIds.push(id);
+      // A tick claims it first: the request is refused, and still nothing
+      // new is planned. (A won claim dials, which depends on the clock.)
+      return null;
+    };
+
+    await assert.rejects(
+      () =>
+        service.callNow(
+          { userId: "member-1", organizationId: "org-1" },
+          "meeting-1",
+        ),
+      /just requested/,
+    );
+    assert.deepEqual(claimedIds, ["exec-manual"]);
+    assert.deepEqual(planned, []);
   });
 });

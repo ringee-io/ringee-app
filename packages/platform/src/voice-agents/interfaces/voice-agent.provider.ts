@@ -11,6 +11,8 @@
  * event half arrives through `TelephonyEvent`'s `conversation` field.
  */
 
+import { HttpException } from "@nestjs/common";
+
 /** Which LLM family runs the conversation, as the product presents it. */
 export type VoiceAgentLlmProvider =
   | "ringee"
@@ -186,6 +188,19 @@ export interface VoiceAgentCallHandle {
   providerCallId: string | null;
   callControlId: string | null;
   callSessionId: string | null;
+}
+
+/**
+ * The provider answered a call start with a refusal, so no leg exists. It is
+ * the only failure of `startCall` that proves it: a timeout, a dropped
+ * connection or a 5xx may have placed the leg anyway. Keeps the provider's own
+ * response, status and message.
+ */
+export class VoiceAgentCallRefusedError extends HttpException {
+  constructor(cause: HttpException) {
+    super(cause.getResponse(), cause.getStatus(), { cause });
+    this.message = cause.message;
+  }
 }
 
 /** One analysis definition Ringee asks the provider to run after every call. */
@@ -420,6 +435,10 @@ export interface VoiceAgentProvider {
     },
   ): Promise<void>;
 
+  /**
+   * Places an outbound call. Rejects with `VoiceAgentCallRefusedError` only
+   * when the provider refused it; any other failure may have placed the leg.
+   */
   startCall(request: VoiceAgentCallRequest): Promise<VoiceAgentCallHandle>;
   startInboundCall(
     request: VoiceAgentInboundRequest,

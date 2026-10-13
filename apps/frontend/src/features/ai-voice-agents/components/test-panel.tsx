@@ -170,9 +170,13 @@ export function TestPanel({
     stopping.current = false;
     try {
       const session = await api.startTestSession(agentId, values);
-      const { TelnyxRTC } = await import('@telnyx/webrtc');
+      // Never logs in with the dashboard line's session: the provider would
+      // hand it over and punt the line for good.
+      const { SessionScopedTelnyxRTC } = await import(
+        '@ringee/dialer-core/engine'
+      );
 
-      const client = new TelnyxRTC({
+      const client = new SessionScopedTelnyxRTC({
         anonymous_login: {
           target_type: 'ai_assistant',
           target_id: session.assistantId

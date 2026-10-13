@@ -422,29 +422,29 @@
     "calendar": "un calendrier"
   },
   "automations": {
-    "title": "Ringee IA Voice Agents",
-    "titleShort": "IA Voice Agents",
-    "railLabel": "Ringee IA Voice Agents, {count, plural, =0 {aucun actif pour l'instant} one {# actif} other {# actifs}}",
+    "title": "Trigger IA Voice Agents",
+    "titleShort": "Trigger IA Voice Agents",
+    "railLabel": "Trigger IA Voice Agents, {count, plural, =0 {aucun agent prêt pour l'instant} one {# agent prêt à se déclencher} other {# agents prêts à se déclencher}}",
     "attentionHint": "Quelque chose demande votre attention",
-    "subtitle": "{count, plural, =0 {Prêts à être activés} one {# agent actif} other {# agents actifs}}",
+    "subtitle": "{count, plural, =0 {Choisissez ce qui déclenche chaque agent} one {# agent prêt à se déclencher} other {# agents prêts à se déclencher}}",
     "subtitleLoading": "Chargement…",
-    "close": "Fermer Ringee IA Voice Agents",
+    "close": "Fermer Trigger IA Voice Agents",
     "loadError": "Les agents n'ont pas pu être chargés.",
     "retry": "Réessayer",
-    "unavailable": "Les IA Voice Agents ne sont pas encore disponibles dans cet espace de travail.",
+    "unavailable": "Les Trigger IA Voice Agents ne sont pas encore disponibles dans cet espace de travail.",
     "announce": "{title} : {state}",
     "capabilities": {
       "reminders": {
         "title": "Rappels et confirmations",
-        "purpose": "Appelle chaque prospect avant son rendez-vous et confirme sa présence."
+        "purpose": "Quand un rendez-vous approche, l'agent appelle le prospect pour confirmer sa présence."
       },
       "receptionist": {
         "title": "Réceptionniste IA",
-        "purpose": "Répond à votre numéro, aide l'appelant et le transfère à votre équipe."
+        "purpose": "Quand quelqu'un appelle votre numéro, l'agent répond, aide et transfère à votre équipe."
       },
       "scheduling": {
         "title": "Prise de rendez-vous",
-        "purpose": "Appelle un prospect et fixe le rendez-vous dans votre calendrier."
+        "purpose": "Quand vous appuyez sur « Appeler pour planifier », l'agent appelle le prospect et fixe le rendez-vous."
       }
     },
     "state": {
@@ -455,15 +455,15 @@
       "needs_attention": "Action requise"
     },
     "toast": {
-      "resumed": "{title} est actif",
-      "paused": "{title} est en pause",
+      "resumed": "{title} : l'agent se déclenchera à nouveau",
+      "paused": "{title} : en pause, l'agent ne se déclenchera pas",
       "toggleError": "Impossible de modifier.",
-      "saved": "{title} est configuré"
+      "saved": "{title} : l'agent est prêt à se déclencher"
     },
     "sentence": {
-      "reminders": "{name} · appelle {when} avant · {calendars}",
-      "receptionist": "{name} · répond à {count, plural, =0 {aucun numéro pour l'instant} one {# numéro} other {# numéros}}",
-      "scheduling": "{name} · réserve dans {calendar}"
+      "reminders": "{when} avant chaque rendez-vous → {name} appelle · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} ne répond encore à aucun numéro} one {Appel sur votre numéro → {name} répond} other {Appel sur l'un de vos # numéros → {name} répond}}",
+      "scheduling": "Vous appuyez sur « Appeler pour planifier » → {name} réserve dans {calendar}"
     },
     "nextStep": {
       "set_up": "Configurez-le pour l'activer.",
@@ -490,11 +490,11 @@
       "pause": "Mettre en pause {title}",
       "resume": "Activer {title}"
     },
-    "activate": "Activer",
-    "askAdmin": "Un administrateur peut l'activer.",
+    "activate": "Configurer l'agent",
+    "askAdmin": "Un administrateur peut configurer cet agent.",
     "scheduling": {
       "call": "Appeler pour planifier",
-      "noCalls": "L'activer n'appelle personne : il ne réserve que lorsque vous appuyez sur « Appeler pour planifier »."
+      "noCalls": "Il ne se déclenche que lorsque vous appuyez sur « Appeler pour planifier » : l'activer n'appelle personne."
     },
     "customize": "Personnaliser",
     "customizeGreeting": "Personnaliser l'accueil",
@@ -534,12 +534,12 @@
       },
       "error": "La configuration a échoué. Réessayez.",
       "save": "Enregistrer",
-      "activate": "Activer",
-      "calendars": "Calendriers",
+      "activate": "Activer l'agent",
+      "calendars": "Rendez-vous qui le déclenchent",
       "callFrom": "Appeler depuis",
       "callFromHint": "Les prospects voient ce numéro et le rappellent.",
       "chooseNumber": "Choisissez un numéro",
-      "when": "Quand appeler",
+      "when": "Quand il se déclenche",
       "custom": "Autre",
       "before": "{value} avant",
       "units": {
@@ -548,12 +548,12 @@
         "minutes": "Minutes"
       },
       "offsetRange": "Entre 5 minutes et 14 jours.",
-      "scope": "Appellera pour {calls, plural, =0 {aucun} one {# rendez-vous} other {# rendez-vous}} sur {meetings} à venir, dès maintenant.",
-      "scopeUnknown": "Choisissez un calendrier pour voir les rendez-vous couverts.",
-      "noLateCalls": "Les rendez-vous trop proches pour ce délai ne sont jamais appelés en retard.",
+      "scope": "Se déclenchera pour {calls, plural, =0 {aucun} one {# rendez-vous} other {# rendez-vous}} sur {meetings} à venir, dès maintenant.",
+      "scopeUnknown": "Choisissez un calendrier pour voir les rendez-vous qui le déclenchent.",
+      "noLateCalls": "Si un rendez-vous est plus proche que ce délai, il ne se déclenche jamais en retard.",
       "recipients": "Quand un prospect confirme : un e-mail au prospect et au membre, les administrateurs en CC.",
       "recipientsWithCount": "Quand un prospect confirme : un e-mail au prospect et au membre, {count, plural, one {# administrateur} other {# administrateurs}} en CC.",
-      "answerNumbers": "Numéros auxquels il répond",
+      "answerNumbers": "Numéros qui le déclenchent",
       "todayReceptionist": "Aujourd'hui, {name} répond",
       "today": "Aujourd'hui sonne chez : {destination}",
       "defaultRoute": "sa destination par défaut",
@@ -566,7 +566,7 @@
       "someNumbersFailed": "Certains numéros n'ont pas pu être attribués : {reasons}",
       "calendar": "Calendrier",
       "chooseCalendar": "Choisissez un calendrier",
-      "schedulingNoCalls": "L'activer n'appelle personne. Chaque appel démarre quand vous appuyez sur « Appeler pour planifier » sur un prospect."
+      "schedulingNoCalls": "L'activer n'appelle personne : il se déclenche chaque fois que vous appuyez sur « Appeler pour planifier » sur un prospect."
     },
     "upcoming": {
       "title": "{count, plural, =0 {Aucun appel prévu} one {# appel prévu} other {# appels prévus}}",
@@ -599,8 +599,8 @@
       "error": "L'appel n'a pas pu démarrer."
     },
     "activity": {
-      "title": "Activité récente",
-      "empty": "Rien pour l'instant : ce que font les agents apparaît ici.",
+      "title": "Déclenchés récemment",
+      "empty": "Rien ne s'est encore déclenché : chaque appel des agents apparaît ici.",
       "someone": "un prospect",
       "kinds": {
         "attendance_confirmed": "{name} a confirmé sa présence",

@@ -148,7 +148,8 @@ export class MeetingReminderCallService {
   /**
    * "Confirm now": a reminder call for one meeting, placed immediately through
    * the same execution path the policies use. A second request while one is
-   * running, or for the same attempt, is refused rather than dialed.
+   * running, or for the same attempt, is refused rather than dialed; one
+   * while an earlier request is still open places that one instead.
    */
   async callNow(
     ctx: OwnershipContext,
@@ -186,35 +187,51 @@ export class MeetingReminderCallService {
       );
     }
 
-    const attempt =
-      (await this.executions.countForMeetingVersion(
-        meeting.id,
-        meeting.scheduleVersion,
-        "manual",
-      )) + 1;
-    const idempotencyKey = [
-      "meeting",
+    // One open manual call per meeting version. One a busy lead put off is
+    // placed now rather than beside a second — each would ring on its own
+    // later. One claimed or placed refuses another however long ago it
+    // started, until it reports back.
+    let execution = await this.executions.findOpenForMeetingVersion(
       meeting.id,
-      `v${meeting.scheduleVersion}`,
+      meeting.scheduleVersion,
       "manual",
-      `a${attempt}`,
-    ].join(":");
-    const created = await this.executions.createMany([
-      {
-        userId: ctx.userId,
-        organizationId: ctx.organizationId,
-        meetingId: meeting.id,
-        agentId,
-        trigger: "manual",
-        scheduleVersion: meeting.scheduleVersion,
-        attempt,
-        idempotencyKey,
-        fireAt: now,
-      },
-    ]);
-    const execution = created
-      ? await this.executions.findByIdempotencyKey(idempotencyKey)
-      : null;
+    );
+    if (execution && execution.status !== S.scheduled) {
+      throw new ConflictException(
+        "A confirmation call for this meeting is already in progress.",
+      );
+    }
+    if (!execution) {
+      const attempt =
+        (await this.executions.countForMeetingVersion(
+          meeting.id,
+          meeting.scheduleVersion,
+          "manual",
+        )) + 1;
+      const idempotencyKey = [
+        "meeting",
+        meeting.id,
+        `v${meeting.scheduleVersion}`,
+        "manual",
+        `a${attempt}`,
+      ].join(":");
+      const created = await this.executions.createMany([
+        {
+          userId: ctx.userId,
+          organizationId: ctx.organizationId,
+          meetingId: meeting.id,
+          agentId,
+          trigger: "manual",
+          scheduleVersion: meeting.scheduleVersion,
+          attempt,
+          idempotencyKey,
+          fireAt: now,
+        },
+      ]);
+      execution = created
+        ? await this.executions.findByIdempotencyKey(idempotencyKey)
+        : null;
+    }
     const claimed = execution
       ? await this.executions.claimScheduled(
           execution.id,

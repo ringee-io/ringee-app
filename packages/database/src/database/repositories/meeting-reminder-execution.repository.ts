@@ -303,6 +303,27 @@ export class MeetingReminderExecutionRepository {
     });
   }
 
+  /**
+   * The newest execution of one trigger for a meeting version that has not
+   * finished, whatever its age: one put off because the lead was busy, one
+   * being dialed, or one placed that has not reported back.
+   */
+  findOpenForMeetingVersion(
+    meetingId: string,
+    scheduleVersion: number,
+    trigger: string,
+  ): Promise<MeetingReminderExecution | null> {
+    return this.prisma.meetingReminderExecution.findFirst({
+      where: {
+        meetingId,
+        scheduleVersion,
+        trigger,
+        status: { in: OPEN_REMINDER_EXECUTION_STATUSES },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   listUpcomingForOwner(
     ctx: OrganizationOwnershipContext,
     options: { from: Date; take: number; agentId?: string },

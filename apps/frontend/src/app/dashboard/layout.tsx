@@ -40,20 +40,23 @@ export default async function DashboardLayout({
         <KBar>
           <SidebarProvider defaultOpen={defaultOpen}>
             <AppMainSidebar />
-            <SidebarInset>
+            {/* min-w-0: the page shrinks beside the voice agents strip
+                instead of pushing it off screen. */}
+            <SidebarInset className='min-w-0'>
               {/* Above the header on purpose: an offer banner shifts the whole
                   dashboard down rather than competing with the toolbar. Renders
                   nothing when no offer applies. */}
               <OfferBanner placement='TOP_BANNER' />
               <Header />
-              <div className='flex gap-4'>
+              <div className='flex gap-4 mt-4'>
                 <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />
-                {/* "Ringee IA Voice Agents": renders nothing unless the
-                    workspace is in the automations pilot (AGENT-018). */}
-                <VoiceAgentsRail />
               </div>
             </SidebarInset>
+            {/* "Trigger AI Voice Agents": full height beside the header and the
+                page. Renders nothing unless the workspace is in the
+                automations pilot (AGENT-018). */}
+            <VoiceAgentsRail />
             <OnboardingGuideWrapper />
             {/* <SupportButton /> */}
           </SidebarProvider>

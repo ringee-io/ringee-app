@@ -50,6 +50,9 @@ export function MeetingAttendance({
     (state) => state.summary?.capabilities.reminders === 'active'
   );
   const [calling, setCalling] = useState(false);
+  // Placed: the call about this meeting is on its way; another click would
+  // only be refused.
+  const [placed, setPlaced] = useState(false);
 
   if (!pilot) return null;
 
@@ -63,8 +66,12 @@ export function MeetingAttendance({
     setCalling(true);
     try {
       const result = await api.confirmationCall(meeting.id);
-      if (result.status === 'placed') toast.success(t('calling'));
-      else toast.warning(t('notPlaced', { reason: result.reason ?? '—' }));
+      if (result.status === 'placed') {
+        setPlaced(true);
+        toast.success(t('calling'));
+      } else {
+        toast.warning(t('notPlaced', { reason: result.reason ?? '—' }));
+      }
     } catch (failure) {
       toast.error(describeApiError(failure, t('callError')));
     } finally {
@@ -105,7 +112,7 @@ export function MeetingAttendance({
             variant='outline'
             className='h-11 rounded-lg md:h-8'
             onClick={() => void callNow()}
-            disabled={calling}
+            disabled={calling || placed}
           >
             {calling ? (
               <Loader2 className='h-3.5 w-3.5 animate-spin' />

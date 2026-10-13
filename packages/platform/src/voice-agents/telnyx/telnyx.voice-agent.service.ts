@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelnyxClient } from "../../telephony/telnyx/telnyx.client";
 import { TelnyxKnowledgeStore } from "./telnyx.knowledge.store";
 import type {
@@ -23,6 +23,7 @@ import type {
   VoiceAgentUsageRecord,
   VoiceAgentVoice,
 } from "../interfaces/voice-agent.provider";
+import { VoiceAgentCallRefusedError } from "../interfaces/voice-agent.provider";
 import { limitVoiceCloneSample } from "../voice-clone-audio";
 import { curateVoices, type RawProviderVoice } from "../voices.catalog";
 import {
@@ -259,9 +260,8 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
   async startCall(
     request: VoiceAgentCallRequest,
   ): Promise<VoiceAgentCallHandle> {
-    const raw = await this.telnyxClient.post<Record<string, any>>(
-      `/texml/ai_calls/${request.callingAppId}`,
-      {
+    const raw = await this.telnyxClient
+      .post<Record<string, any>>(`/texml/ai_calls/${request.callingAppId}`, {
         From: request.from,
         To: request.to,
         AIAssistantId: request.assistantId,
@@ -291,8 +291,19 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
         ...(request.record === undefined
           ? {}
           : { Record: request.record, RecordingChannels: "dual" }),
-      },
-    );
+      })
+      .catch((error: unknown) => {
+        // Telnyx answering 4xx refused the call, so no leg exists. A 5xx, a
+        // timeout or a dropped connection says nothing either way.
+        if (
+          error instanceof HttpException &&
+          error.getStatus() >= 400 &&
+          error.getStatus() < 500
+        ) {
+          throw new VoiceAgentCallRefusedError(error);
+        }
+        throw error;
+      });
 
     const body = raw?.data ?? raw ?? {};
     // In TeXML the call sid *is* the call control id (`v3:…`) — the same value

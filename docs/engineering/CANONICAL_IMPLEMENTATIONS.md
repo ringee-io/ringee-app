@@ -195,6 +195,7 @@ pick the one matching your runtime.
 | Starting a campaign session    | `AgentWorkspace` (`useDialerSession`); from elsewhere `AgentSessionDialog autoStart` + `SessionStartCard`     |
 | A campaign's calling window    | `useCallingWindowText` — `features/campaigns/lib/calling-window.ts`                                           |
 | Selling the Organization plan  | `OrganizationUpgradePanel` — `frontend-shared/src/components/organization-upgrade-panel.tsx`                  |
+| Ringee logo mark (the globe)   | `RingeeMark` / `RINGEE_MARK_PATH` — `frontend-shared/src/components/ringee-mark.tsx`                          |
 | Campaign disposition write     | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`                              |
 | Campaign outcome buttons       | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx`                       |
 | Manual post-call buttons       | `PostCallView` — `packages/dialer-ui` (workspace dispositions via `DialerDataClient.listDispositions`)        |

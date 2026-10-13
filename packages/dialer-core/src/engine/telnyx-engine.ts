@@ -50,6 +50,28 @@ export interface TelnyxClientConfig {
 }
 
 /**
+ * A Telnyx client that only ever logs in with its own session.
+ *
+ * Since 2.27.1 the SDK keeps the session id of the last login made anywhere in
+ * the tab (sessionStorage, 90 s), and a client with no session of its own logs
+ * in with it as a reconnection. The provider then moves that session to the
+ * new socket and punts the client that held it, which does not come back. A
+ * tab can run several clients — the dashboard's shared line beside the
+ * per-user inbound endpoint and the AI agent test call — so whichever logged
+ * in second knocked the other offline: the line stayed "connecting" for good.
+ *
+ * The SDK reads the stored token inside `login()`, on every attempt. A client
+ * that has not logged in yet clears it first; one that has keeps reconnecting
+ * with its own session, so an interrupted call can still be reattached.
+ */
+export class SessionScopedTelnyxRTC extends TelnyxRTC {
+  override login(params?: Parameters<TelnyxRTC["login"]>[0]): Promise<void> {
+    if (!this.sessionid) this.clearReconnectToken();
+    return super.login(params);
+  }
+}
+
+/**
  * Construct (but do not connect) a Telnyx client.
  *
  * `keepConnectionAliveOnSocketClose` is always on so an in-progress call
@@ -57,7 +79,7 @@ export interface TelnyxClientConfig {
  * loss) instead of being purged mid-call.
  */
 export function createTelnyxClient(config: TelnyxClientConfig): TelnyxRTC {
-  return new TelnyxRTC({
+  return new SessionScopedTelnyxRTC({
     login: config.login,
     password: config.password,
     ringbackFile: config.ringbackFile,
