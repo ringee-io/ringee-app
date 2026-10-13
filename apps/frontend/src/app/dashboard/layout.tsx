@@ -7,6 +7,7 @@ import {
   SidebarProvider
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
+import { VoiceAgentsRail } from '@/features/ai-voice-agents/automations/components/voice-agents-rail';
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
 import { AccountLockdownProvider } from '@/features/security';
 import { OfferBanner } from '@/features/offers';
@@ -46,8 +47,11 @@ export default async function DashboardLayout({
               <OfferBanner placement='TOP_BANNER' />
               <Header />
               <div className='flex gap-4'>
-                <div className='w-full'>{children}</div>
+                <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />
+                {/* "Ringee IA Voice Agents": renders nothing unless the
+                    workspace is in the automations pilot (AGENT-018). */}
+                <VoiceAgentsRail />
               </div>
             </SidebarInset>
             <OnboardingGuideWrapper />

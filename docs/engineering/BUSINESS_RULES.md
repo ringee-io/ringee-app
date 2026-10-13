@@ -1381,6 +1381,31 @@ pointer in place, so reconnecting restores every calendar that used it at once.
 - **Risk if violated:** duplicate events on a customer's real calendar, or a
   booking silently lost because an external API was down
 
+### CAL-003 — Attendance is the lead's answer, kept apart from the meeting's status
+
+`Meeting.attendanceStatus` (`pending` / `confirmed` / `declined`) records whether
+the lead said they will attend. It is never `Meeting.status`: a confirmed
+meeting is still `scheduled`, and "I can't make it" cancels nothing without a
+person deciding to.
+
+Every meeting carries a `scheduleVersion`, bumped when it moves, is cancelled or
+changes hands. Moving a meeting resets its attendance to `pending` — an answer
+given for one time is not an answer for another. Reminder calls and attendance
+answers carry the version they were made for, and an answer for an older one is
+refused (`stale`) under the meeting's row lock, so a reschedule and a
+confirmation running at the same moment cannot leave a confirmation on the
+wrong time.
+
+`responsibleUserId` is the member the meeting is _with_: whoever booked it, or
+the member "Call to schedule" named, and changed only by an admin, to a current
+member. Ownership (`userId`) is never rewritten to stand in for it; rows that
+predate it fall back to their creator.
+
+- **Source of truth:** `MeetingRepository.recordAttendance` / `reschedule` /
+  `setResponsible`, `MeetingService.updateMeeting` / `setResponsible`
+- **Risk if violated:** a lead's "yes" confirms a time they were never asked
+  about, or a reminder names someone the meeting is not with
+
 ## AI voice agents (`AGENT`)
 
 ### AGENT-001 — The blueprint owns defaults and enforcement; the user owns copy
@@ -1466,6 +1491,13 @@ member took over (`Call.answeredByUserId`), the disposition is that member's.
 The analysis, which lands minutes after the conversation, updates the agent's
 own row and never rewrites `Call.outcome` or publishes `call.outcome.updated`
 for it. The condition is on the write itself, so a takeover cannot lose a race.
+
+The same holds for a meeting's attendance (AGENT-017). On a call a reminder
+execution placed, only `confirm_meeting_attendance` sets `confirmed` /
+`cannot_attend`: the analysis neither manufactures one from the transcript nor
+overwrites the one the tool recorded. On a call that is not about a meeting — a
+notification started through the API — an analysed `confirmed` still applies,
+as it always did.
 
 - **Source of truth:** `VoiceAgentResultService.applyKnownOutcome`,
   `CallRepository.updateOutcomeUnlessTakenOver`
@@ -1667,6 +1699,107 @@ called back is handed to `request_human_support`.
   `VoiceAgentCallService.startCall`
 - **Risk if violated:** a caller is answered by a prompt written for a person
   the agent dialed ("I'm calling about…"), or a receptionist dials strangers
+
+### AGENT-017 — Attendance is recorded by a tool, for the meeting the call was placed about
+
+Reminders agents carry `confirm_meeting_attendance`. The model supplies only the
+answer (`confirmed` / `declined`), an optional note and — only when no email is
+on file — an address the person dictated and confirmed. Ringee reads the call
+from the provider-filled header, the meeting from the reminder execution that
+placed that call, and the schedule version from the same row: the tool cannot
+reach any other meeting, and a call not placed about one has nothing to record.
+
+The answer, the closing of the execution and the email it owes (AGENT-020) are
+one transaction; repeating the answer on the same call is the same result and
+no second email. Only a clear yes counts — "maybe", silence or a voicemail
+greeting is not a confirmation — and the agent may say the email will be sent,
+never that it was.
+
+- **Source of truth:** `VoiceAgentToolService.confirmMeetingAttendance`,
+  `MeetingService.recordAttendance`, `RemindersNotificationsBlueprint`
+
+### AGENT-018 — The Voice Agents rail drives ordinary agents, behind a pilot flag
+
+The "Ringee IA Voice Agents" rail offers three capabilities — reminders and
+confirmations, AI receptionist, appointment scheduling — each backed by one
+`AiVoiceAgentAutomation` row per organization. Setting one up creates or reuses
+an ordinary agent; the advanced editor still owns everything else, and nothing
+limits how many agents a workspace creates there.
+
+- The row's unique key is the claim that stops a double click or a second tab
+  from creating two agents; a claim left by a crashed request can be taken over.
+- A capability's state is computed on the server from what actually works — the
+  agent provisioned and on, a usable caller ID by the AGENT-008 rule, credit, a
+  calendar, and for a receptionist a number routed to it — never from `status`
+  alone.
+- Configuring an automation is admin-only (`@OrgAdminOnly()`). Reading the rail,
+  and acting on a meeting or contact the member can already see, is not.
+- Organization-only (AGENT-011), and only for organizations listed in
+  `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every one). The reminder worker
+  applies the same flag to every row it claims.
+- Pausing a receptionist hands each of its numbers back first — to where the
+  number rang before the receptionist took it, or to the backup chosen at
+  setup — under compare-and-set on the route's `version`. A number another admin
+  re-pointed meanwhile is reported, not overwritten, and a number whose default
+  would leave it unrouted keeps the receptionist until someone says where its
+  calls go. The agent is switched off only once every number is handed back.
+- Switching scheduling on dials nobody: "Call to schedule" is what spends.
+
+- **Source of truth:** `VoiceAgentAutomationService`,
+  `AiVoiceAgentAutomationRepository.claim`,
+  `InboundRouteService.releaseReceptionist`, `voiceAgentAutomationsEnabled`
+
+### AGENT-019 — A reminder call is a durable execution, re-checked before it dials
+
+A `MeetingReminderPolicy` (one per calendar) plans one `MeetingReminderExecution`
+per meeting and offset, keyed `meeting + schedule version + policy + policy
+version + offset + attempt`. Planning is idempotent, never plans an offset that
+is already in the past, and pulls a call that would ring outside the calling
+window _earlier_ — to the last minute the window was open — never later. An
+offset that already had a call for the same meeting version is not planned
+again, and a meeting whose lead already answered gets none.
+
+The worker claims due executions with `FOR UPDATE SKIP LOCKED` under a lease and
+re-checks right before the dial: the meeting still on, at the same version,
+unanswered and at least 15 minutes away; the policy enabled at the same version;
+the agent active; now inside the window — a tick that runs late after downtime
+skips rather than rings at night; nobody already on a call with the lead. It
+dials through `VoiceAgentCallService.startCall`, every AGENT-004 gate included,
+under a key persisted on `AiVoiceAgentCall.idempotencyKey` before the leg
+exists. A reclaimed execution whose last try may have placed a leg is linked to
+that leg and never dialed again; only a failure before placement is retried, a
+bounded number of times, inside the window. Moving or cancelling the meeting,
+or pausing or changing the policy, withdraws what was planned.
+
+- **Source of truth:** `ReminderService.planMeetingCalls` / `planPolicyCalls`,
+  `planReminderCallAt`, `MeetingReminderCallService`,
+  `MeetingReminderExecutionRepository.claimDue`
+- **Risk if violated:** a lead called twice, at night, or about a time that
+  moved
+
+### AGENT-020 — An attendance answer owes one email, delivered durably
+
+A confirmation owes one email: the lead and the responsible member — plus the
+person who created the meeting, when that is someone else who is still a member
+— in To, the organization's current admins in CC with every To removed, and
+Reply-To the member, so a reply reaches the person the meeting is with and
+"reply all" keeps everyone on one thread. "Can't attend" goes to the member and
+creator with the admins, never to the lead.
+
+Recipients are resolved at send time from the meeting and the organization as
+they are then: a member who left is never written to (`needs_member`), and a
+confirmation with no address for the lead waits (`needs_email`, "Complete
+email") rather than going out without them. The `MeetingEmailDelivery` row is
+created in the attendance transaction under `meeting + schedule version +
+kind`, so a repeated answer never sends twice; the worker sends it under a lease
+with its own id as the provider's idempotency key, and records `sent` only once
+the provider accepted it. A later email about the same meeting threads under
+the previous one's Message-ID. The email carries the meeting's title, time with
+its zone, place and the answer — never a recording, transcript or internal
+summary.
+
+- **Source of truth:** `MeetingEmailService`, `MeetingEmailDeliveryRepository`,
+  `EmailInterface.send`
 
 ---
 

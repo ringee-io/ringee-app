@@ -41,6 +41,101 @@ export class AiVoiceAgentCallRepository {
     return this.prisma.aiVoiceAgentCall.findUnique({ where: { callId } });
   }
 
+  /** The agent call whose booking tool created a meeting, if one did. */
+  findByMeetingId(meetingId: string): Promise<AiVoiceAgentCall | null> {
+    return this.prisma.aiVoiceAgentCall.findFirst({
+      where: { meetingId },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  /** Stored conversation summaries of some telephony calls, by call id. */
+  async findSummariesByCallIds(
+    callIds: string[],
+  ): Promise<Map<string, string>> {
+    if (callIds.length === 0) return new Map();
+    const rows = await this.prisma.aiVoiceAgentCall.findMany({
+      where: { callId: { in: callIds }, summary: { not: null } },
+      select: { callId: true, summary: true },
+    });
+    return new Map(
+      rows.flatMap((row) =>
+        row.callId && row.summary ? [[row.callId, row.summary] as const] : [],
+      ),
+    );
+  }
+
+  /** The call a durable caller persisted under this key, if any. */
+  findByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<AiVoiceAgentCall | null> {
+    return this.prisma.aiVoiceAgentCall.findUnique({
+      where: { idempotencyKey },
+    });
+  }
+
+  /**
+   * The workspace's recent calls to one number, newest first — the history a
+   * new conversation with that person is given as context.
+   */
+  listRecentToNumberForOwner(
+    ctx: OwnershipContext,
+    toNumber: string,
+    take: number,
+  ): Promise<AiVoiceAgentCall[]> {
+    return this.prisma.aiVoiceAgentCall.findMany({
+      where: { ...buildOwnershipFilter(ctx), toNumber },
+      orderBy: { createdAt: "desc" },
+      take,
+    });
+  }
+
+  /**
+   * Whether an agent call to this number is still being dialed or is live, so
+   * an automation never rings the same person twice at once.
+   */
+  async hasLiveCallToNumber(
+    ctx: OwnershipContext,
+    toNumber: string,
+    since: Date,
+  ): Promise<boolean> {
+    const count = await this.prisma.aiVoiceAgentCall.count({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        toNumber,
+        createdAt: { gte: since },
+        status: {
+          in: [
+            AiVoiceAgentCallStatus.created,
+            AiVoiceAgentCallStatus.initiating,
+            AiVoiceAgentCallStatus.ringing,
+            AiVoiceAgentCallStatus.in_progress,
+          ],
+        },
+      },
+    });
+    return count > 0;
+  }
+
+  /** Recent calls of some agents, for the rail's activity list. */
+  listRecentForAgents(
+    ctx: OwnershipContext,
+    agentIds: string[],
+    since: Date,
+    take: number,
+  ): Promise<AiVoiceAgentCall[]> {
+    if (agentIds.length === 0) return Promise.resolve([]);
+    return this.prisma.aiVoiceAgentCall.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        agentId: { in: agentIds },
+        createdAt: { gte: since },
+      },
+      orderBy: { updatedAt: "desc" },
+      take,
+    });
+  }
+
   /**
    * Which of `ids` are agent calls. A callback an agent scheduled reuses its
    * call's id (`CallbackService.scheduleFromVoiceAgent`), so this tells the

@@ -60,20 +60,20 @@ export class OpenaiService implements AiServiceInterface {
     const res = completion.choices[0];
 
     const toolCall = res.message.tool_calls?.[0];
-    // @ts-expect-error
-    if (toolCall?.function?.name && toolCall.function?.arguments) {
+    if (
+      toolCall?.type === "function" &&
+      toolCall.function.name &&
+      toolCall.function.arguments
+    ) {
       try {
         return {
           type: "tool_call",
-          // @ts-expect-error
           toolName: toolCall.function.name,
-          // @ts-expect-error
           arguments: JSON.parse(toolCall.function.arguments),
         };
       } catch (err) {
         console.error(
           "Error parsing tool arguments:",
-          // @ts-expect-error
           toolCall.function.arguments,
         );
         return {

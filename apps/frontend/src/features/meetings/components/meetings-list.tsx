@@ -66,6 +66,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsDialogStore } from '@/features/settings/store/settings-dialog.store';
+import {
+  MeetingAttendance,
+  type MeetingAttendanceStatus
+} from '@/features/ai-voice-agents/automations/components/meeting-attendance';
 
 interface Meeting {
   id: string;
@@ -94,6 +98,9 @@ interface Meeting {
    * in Ringee regardless — `pending` and `failed` describe only the copy.
    */
   externalSyncStatus?: 'not_required' | 'pending' | 'synced' | 'failed';
+  /** Whether the lead said they will attend; separate from `status`. */
+  attendanceStatus?: MeetingAttendanceStatus;
+  attendanceNote?: string | null;
   createdAt: string;
 }
 
@@ -433,6 +440,8 @@ function MeetingDetail({
             </p>
           </div>
         </div>
+
+        <MeetingAttendance meeting={meeting} />
 
         <Separator />
 

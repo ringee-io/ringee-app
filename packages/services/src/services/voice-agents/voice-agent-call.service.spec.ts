@@ -54,6 +54,8 @@ function build(options: {
   timezone?: string | null;
   /** The agent's type; an outbound type unless a test says otherwise. */
   type?: string;
+  /** An agent call an earlier start already persisted under its key. */
+  existingByKey?: Record<string, unknown> | null;
 }) {
   const placed: Array<{ from: string }> = [];
   const providerVariables: Array<Record<string, string>> = [];
@@ -73,6 +75,7 @@ function build(options: {
   const deliveryEvents: string[] = [];
   const agentCallUpdates: Array<Record<string, unknown>> = [];
   const forciblyEnded: string[] = [];
+  const createdAgentCalls: Array<Record<string, unknown>> = [];
   const service = new VoiceAgentCallService(
     {
       require: async () => agent,
@@ -91,7 +94,11 @@ function build(options: {
     } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
     {
-      create: async () => ({ id: "agent-call-1" }),
+      create: async (data: Record<string, unknown>) => {
+        createdAgentCalls.push(data);
+        return { id: "agent-call-1" };
+      },
+      findByIdempotencyKey: async () => options.existingByKey ?? null,
       update: async (id: string, data: Record<string, unknown>) => {
         agentCallUpdates.push(data);
         return { id, status: data.status };
@@ -141,6 +148,7 @@ function build(options: {
   return {
     service,
     placed,
+    createdAgentCalls,
     contacts,
     configured,
     analysisEnsured,
@@ -435,5 +443,68 @@ describe("VoiceAgentCallService start outcomes", () => {
       true,
     );
     assert.deepEqual(forciblyEnded, []);
+  });
+});
+
+describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
+  it("persists the caller's key and member on the agent call before dialing", async () => {
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+    });
+
+    await service.startCall(CTX as never, "agent-1", {
+      to: TO,
+      idempotencyKey: "meeting:m1:v1:policy:p1:p1:T-1440m:a1:d1",
+      responsibleUserId: "member-7",
+    });
+
+    assert.equal(placed.length, 1);
+    assert.equal(
+      createdAgentCalls[0]!.idempotencyKey,
+      "meeting:m1:v1:policy:p1:p1:T-1440m:a1:d1",
+    );
+    assert.equal(createdAgentCalls[0]!.responsibleUserId, "member-7");
+  });
+
+  it("never places a second leg under a key whose call may already exist", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: {
+        id: "agent-call-earlier",
+        status: "initiating",
+        providerCallControlId: "cc-1",
+      },
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", {
+        to: TO,
+        idempotencyKey: "k-1",
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome ===
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation &&
+        error.agentCallId === "agent-call-earlier",
+    );
+    assert.deepEqual(placed, []);
+  });
+
+  it("reports an earlier try that provably placed nothing as safe to follow", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: { id: "agent-call-earlier", status: "failed" },
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", {
+        to: TO,
+        idempotencyKey: "k-1",
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
+    );
+    assert.deepEqual(placed, []);
   });
 });

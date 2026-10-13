@@ -1,15 +1,23 @@
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
+  CalendarRepository,
   CallbackStatus,
   CallbackTaskRepository,
+  Meeting,
+  MeetingReminderExecutionRepository,
+  MeetingReminderPolicy,
+  MeetingReminderPolicyRepository,
   MeetingRepository,
   MeetingStatus,
+  Prisma,
   ReminderRepository,
   ReminderStatus,
   ReminderSubjectType,
   UserRepository,
   ContactRepository,
 } from "@ringee/database";
+import type { OrganizationOwnershipContext } from "@ringee/platform";
+import { voiceAgentAutomationsEnabled } from "../voice-agents/automations/automation-access";
 import {
   REMINDER_CHANNELS,
   ReminderChannel,
@@ -17,6 +25,39 @@ import {
   ReminderContent,
   ReminderRecipient,
 } from "./reminder-channel.interface";
+import {
+  DEFAULT_CALLING_WINDOW,
+  planReminderCallAt,
+  readCallingWindow,
+} from "./reminder-call-schedule";
+
+/**
+ * How far ahead of "now" a reminder call must be to be planned at all. A call
+ * planned for this very minute would ring while the person is still on the
+ * screen that created the meeting.
+ */
+const CALL_PLANNING_MARGIN_MS = 2 * 60_000;
+
+/** The idempotency key of one planned reminder call (AGENT-019). */
+export function reminderCallKey(parts: {
+  meetingId: string;
+  scheduleVersion: number;
+  policyId: string;
+  policyVersion: number;
+  offsetMinutes: number;
+  attempt: number;
+}): string {
+  return [
+    "meeting",
+    parts.meetingId,
+    `v${parts.scheduleVersion}`,
+    "policy",
+    parts.policyId,
+    `p${parts.policyVersion}`,
+    `T-${parts.offsetMinutes}m`,
+    `a${parts.attempt}`,
+  ].join(":");
+}
 
 const DEFAULT_OFFSETS_MIN = [15, 5] as const;
 const DEFAULT_CHANNELS: ReminderChannelKind[] = ["email", "in_app"];
@@ -71,7 +112,211 @@ export class ReminderService {
     private readonly contactRepo: ContactRepository,
     @Inject(REMINDER_CHANNELS)
     private readonly channels: ReminderChannel[],
+    private readonly calendarRepo: CalendarRepository,
+    private readonly callPolicies: MeetingReminderPolicyRepository,
+    private readonly callExecutions: MeetingReminderExecutionRepository,
   ) {}
+
+  // ── Reminder calls (AGENT-019) ──────────────────────────────────────
+  //
+  // The email/push reminders above go to the person who scheduled. These go
+  // to the lead, as a call from a reminders agent, and are planned as durable
+  // executions the voice worker claims one at a time — never as a channel on
+  // the rows above, which have no claim and are best-effort.
+
+  /**
+   * Plans the reminder calls one meeting is owed under its calendar's enabled
+   * policy. Idempotent: the same meeting version and offset plan once, and an
+   * offset that already has a call is never planned a second time.
+   */
+  async planMeetingCalls(meeting: Meeting): Promise<number> {
+    if (
+      !meeting.organizationId ||
+      !voiceAgentAutomationsEnabled(meeting.organizationId) ||
+      (meeting.status !== MeetingStatus.scheduled &&
+        meeting.status !== MeetingStatus.rescheduled)
+    ) {
+      return 0;
+    }
+    const ctx: OrganizationOwnershipContext = {
+      userId: meeting.userId,
+      organizationId: meeting.organizationId,
+    };
+    const calendar = meeting.calendarId
+      ? await this.calendarRepo.findByIdForOwner(ctx, meeting.calendarId)
+      : await this.calendarRepo.findDefault(ctx);
+    if (!calendar) return 0;
+    const policy = await this.callPolicies.findEnabledForCalendar(calendar.id);
+    if (!policy || policy.organizationId !== meeting.organizationId) return 0;
+
+    const used = await this.callExecutions.listUsedOffsets([meeting.id]);
+    return this.callExecutions.createMany(
+      this.callsFor(meeting, policy, calendar.timezone, used, new Date()),
+    );
+  }
+
+  /**
+   * After a meeting moved or changed hands: withdraw what was planned for its
+   * old version and plan the new one.
+   */
+  async replanMeetingCalls(meeting: Meeting): Promise<number> {
+    await this.callExecutions.cancelScheduled(
+      { meetingId: meeting.id, exceptScheduleVersion: meeting.scheduleVersion },
+      "meeting_changed",
+    );
+    return this.planMeetingCalls(meeting);
+  }
+
+  /** The meeting is gone or cancelled: nothing planned for it may ring. */
+  cancelMeetingCalls(meetingId: string, reason: string): Promise<number> {
+    return this.callExecutions.cancelScheduled({ meetingId }, reason);
+  }
+
+  /**
+   * Plans calls for every upcoming meeting a policy covers — what switching a
+   * policy on does. Offsets already behind us are not planned: activating a
+   * policy never calls anyone late.
+   */
+  async planPolicyCalls(
+    ctx: OrganizationOwnershipContext,
+    policy: MeetingReminderPolicy,
+  ): Promise<number> {
+    if (!policy.enabled || !voiceAgentAutomationsEnabled(ctx.organizationId)) {
+      return 0;
+    }
+    const calendar = await this.calendarRepo.findByIdForOwner(
+      ctx,
+      policy.calendarId,
+    );
+    if (!calendar || calendar.archivedAt) return 0;
+    const now = new Date();
+    const meetings = await this.meetingRepo.listUpcomingOnCalendars(ctx, {
+      calendarIds: [calendar.id],
+      includeUnassigned: calendar.isDefault,
+      after: now,
+    });
+    const used = await this.callExecutions.listUsedOffsets(
+      meetings.map((meeting) => meeting.id),
+    );
+    return this.callExecutions.createMany(
+      meetings.flatMap((meeting) =>
+        this.callsFor(meeting, policy, calendar.timezone, used, now),
+      ),
+    );
+  }
+
+  /** A paused or replaced policy withdraws what it had planned. */
+  cancelPolicyCalls(policyId: string, reason: string): Promise<number> {
+    return this.callExecutions.cancelScheduled({ policyId }, reason);
+  }
+
+  /**
+   * What switching a policy on would do, before it is switched on: how many
+   * upcoming meetings its calendars hold, and how many of them would still get
+   * a call — the rest are too close for the chosen lead time, and are never
+   * called late.
+   */
+  async previewPolicyCalls(
+    ctx: OrganizationOwnershipContext,
+    input: { calendarIds: string[]; offsetMinutes: number },
+  ): Promise<{ meetings: number; calls: number }> {
+    const now = new Date();
+    const notBefore = new Date(now.getTime() + CALL_PLANNING_MARGIN_MS);
+    let meetings = 0;
+    let calls = 0;
+    for (const calendarId of new Set(input.calendarIds)) {
+      const calendar = await this.calendarRepo.findByIdForOwner(
+        ctx,
+        calendarId,
+      );
+      if (!calendar || calendar.archivedAt) continue;
+      const existing = await this.callPolicies.findForCalendar(ctx, calendarId);
+      const window = existing
+        ? readCallingWindow(existing)
+        : DEFAULT_CALLING_WINDOW;
+      const upcoming = (
+        await this.meetingRepo.listUpcomingOnCalendars(ctx, {
+          calendarIds: [calendar.id],
+          includeUnassigned: calendar.isDefault,
+          after: now,
+        })
+      ).filter((meeting) => meeting.attendanceStatus === "pending");
+      meetings += upcoming.length;
+      calls += upcoming.filter((meeting) =>
+        planReminderCallAt({
+          meetingAt: meeting.scheduledAt,
+          offsetMinutes: input.offsetMinutes,
+          window,
+          timeZone: calendar.timezone,
+          notBefore,
+        }),
+      ).length;
+    }
+    return { meetings, calls };
+  }
+
+  private callsFor(
+    meeting: Meeting,
+    policy: MeetingReminderPolicy,
+    timeZone: string,
+    used: Array<{
+      meetingId: string;
+      scheduleVersion: number;
+      offsetMinutes: number | null;
+    }>,
+    now: Date,
+  ): Prisma.MeetingReminderExecutionCreateManyInput[] {
+    if (!meeting.organizationId) return [];
+    // An answer already given for this version needs no reminder.
+    if (meeting.attendanceStatus !== "pending") return [];
+    const window = readCallingWindow(policy);
+    const notBefore = new Date(
+      Math.max(now.getTime(), policy.activatedAt.getTime()) +
+        CALL_PLANNING_MARGIN_MS,
+    );
+    return policy.offsetsMinutes.flatMap((offsetMinutes) => {
+      const alreadyCalled = used.some(
+        (row) =>
+          row.meetingId === meeting.id &&
+          row.scheduleVersion === meeting.scheduleVersion &&
+          row.offsetMinutes === offsetMinutes,
+      );
+      if (alreadyCalled) return [];
+      const fireAt = planReminderCallAt({
+        meetingAt: meeting.scheduledAt,
+        offsetMinutes,
+        window,
+        timeZone,
+        notBefore,
+      });
+      if (!fireAt) return [];
+      return [
+        {
+          // Placed as the admin who switched the policy on: the call is the
+          // automation's, accountable to whoever configured it.
+          userId: policy.userId,
+          organizationId: meeting.organizationId!,
+          meetingId: meeting.id,
+          policyId: policy.id,
+          agentId: policy.agentId,
+          trigger: "policy",
+          scheduleVersion: meeting.scheduleVersion,
+          policyVersion: policy.version,
+          offsetMinutes,
+          attempt: 1,
+          idempotencyKey: reminderCallKey({
+            meetingId: meeting.id,
+            scheduleVersion: meeting.scheduleVersion,
+            policyId: policy.id,
+            policyVersion: policy.version,
+            offsetMinutes,
+            attempt: 1,
+          }),
+          fireAt,
+        },
+      ];
+    });
+  }
 
   /**
    * Schedule the default reminder set (-15min, -5min) for a subject.

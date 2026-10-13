@@ -420,5 +420,217 @@
     "voice": "uma voz",
     "apiKey": "uma chave de API verificada",
     "calendar": "um calendário"
+  },
+  "automations": {
+    "title": "Ringee IA Voice Agents",
+    "titleShort": "IA Voice Agents",
+    "railLabel": "Ringee IA Voice Agents, {count, plural, =0 {nenhum ativo ainda} one {# ativo} other {# ativos}}",
+    "attentionHint": "Algo precisa da sua atenção",
+    "subtitle": "{count, plural, =0 {Prontos para ativar} one {# agente ativo} other {# agentes ativos}}",
+    "subtitleLoading": "Carregando…",
+    "close": "Fechar Ringee IA Voice Agents",
+    "loadError": "Não foi possível carregar os agentes.",
+    "retry": "Tentar novamente",
+    "unavailable": "Os IA Voice Agents ainda não estão disponíveis neste espaço de trabalho.",
+    "announce": "{title}: {state}",
+    "capabilities": {
+      "reminders": {
+        "title": "Lembretes e confirmações",
+        "purpose": "Liga para cada lead antes da reunião e confirma a presença."
+      },
+      "receptionist": {
+        "title": "Recepcionista IA",
+        "purpose": "Atende o seu número, ajuda quem liga e transfere para a sua equipe."
+      },
+      "scheduling": {
+        "title": "Agendamento",
+        "purpose": "Liga para um lead e marca a reunião no seu calendário."
+      }
+    },
+    "state": {
+      "unconfigured": "Não configurado",
+      "activating": "Ativando…",
+      "active": "Ativo",
+      "paused": "Pausado",
+      "needs_attention": "Precisa de atenção"
+    },
+    "toast": {
+      "resumed": "{title} está ativo",
+      "paused": "{title} está pausado",
+      "toggleError": "Não foi possível alterar.",
+      "saved": "{title} foi configurado"
+    },
+    "sentence": {
+      "reminders": "{name} · liga {when} antes · {calendars}",
+      "receptionist": "{name} · atende {count, plural, =0 {nenhum número ainda} one {# número} other {# números}}",
+      "scheduling": "{name} · agenda em {calendar}"
+    },
+    "nextStep": {
+      "set_up": "Configure para ativar.",
+      "fix_agent": "Não foi possível configurar o agente.",
+      "turn_on_agent": "O agente está desligado.",
+      "add_number": "Não há um número para ligar.",
+      "choose_number": "Escolha de qual número ele liga.",
+      "add_credit": "Adicione crédito para que ele possa ligar.",
+      "choose_calendar": "Escolha o calendário cujas reuniões ele confirma.",
+      "answer_a_number": "Escolha um número para ele atender.",
+      "inbound_unavailable": "O atendimento de chamadas por IA ainda não está disponível."
+    },
+    "nextStepAction": {
+      "set_up": "Configurar",
+      "fix_agent": "Abrir agente",
+      "turn_on_agent": "Abrir agente",
+      "add_number": "Comprar número",
+      "choose_number": "Escolher número",
+      "add_credit": "Adicionar crédito",
+      "choose_calendar": "Escolher calendário",
+      "answer_a_number": "Escolher número"
+    },
+    "toggle": {
+      "pause": "Pausar {title}",
+      "resume": "Ativar {title}"
+    },
+    "activate": "Ativar",
+    "askAdmin": "Um administrador pode ativar.",
+    "scheduling": {
+      "call": "Ligar para agendar",
+      "noCalls": "Ativá-lo não liga para ninguém: só agenda quando você toca em «Ligar para agendar»."
+    },
+    "customize": "Personalizar",
+    "customizeGreeting": "Personalizar saudação",
+    "test": "Testar",
+    "details": "Detalhes",
+    "speaksFor": "Fala em nome de {company}",
+    "noCompany": "Adicione sua empresa em Personalizar para que o agente diga em nome de quem liga.",
+    "reminders": {
+      "callsFrom": "Liga de {number}",
+      "recipients": "Na confirmação, um único e-mail para o lead e o membro{count, plural, =0 {} one { · CC # administrador} other { · CC # administradores}}."
+    },
+    "editSetup": "Editar configuração",
+    "receptionist": {
+      "pauseGoesTo": "Se pausado, vai para {destination}",
+      "default": "o destino habitual",
+      "notAnswering": "Não atende",
+      "manageNumbers": "Alterar números"
+    },
+    "units": {
+      "day": "d",
+      "hour": "h",
+      "minute": "min"
+    },
+    "setup": {
+      "name": "Nome do agente",
+      "agentChoice": "Qual agente?",
+      "useExisting": "Usar {name}",
+      "createNew": "Criar um novo",
+      "cancel": "Cancelar",
+      "activating": "Ativando…",
+      "noNumber": "Você precisa de um número para ligar.",
+      "buyNumber": "Comprar número",
+      "defaultNames": {
+        "reminders": "Sofia",
+        "receptionist": "Lúcia",
+        "scheduling": "Carmen"
+      },
+      "error": "Não foi possível configurar. Tente novamente.",
+      "save": "Salvar",
+      "activate": "Ativar",
+      "calendars": "Calendários",
+      "callFrom": "Ligar de",
+      "callFromHint": "Os leads veem este número e retornam a ligação para ele.",
+      "chooseNumber": "Escolha um número",
+      "when": "Quando ligar",
+      "custom": "Outro",
+      "before": "{value} antes",
+      "units": {
+        "days": "Dias",
+        "hours": "Horas",
+        "minutes": "Minutos"
+      },
+      "offsetRange": "Entre 5 minutos e 14 dias.",
+      "scope": "Ligará sobre {calls, plural, =0 {nenhuma} one {# reunião} other {# reuniões}} de {meetings} próximas, a partir de agora.",
+      "scopeUnknown": "Escolha um calendário para ver quais reuniões ele cobre.",
+      "noLateCalls": "Reuniões próximas demais para este aviso nunca recebem ligação atrasada.",
+      "recipients": "Quando um lead confirma: um e-mail para o lead e o membro, com os administradores em CC.",
+      "recipientsWithCount": "Quando um lead confirma: um e-mail para o lead e o membro, com {count, plural, one {# administrador} other {# administradores}} em CC.",
+      "answerNumbers": "Números que atende",
+      "todayReceptionist": "Hoje quem atende é {name}",
+      "today": "Hoje toca em: {destination}",
+      "defaultRoute": "o destino padrão",
+      "remindersCallBack": "Seus lembretes ligam deste número: os leads vão retornar para ele",
+      "fallback": "Se você pausar",
+      "fallbackHint": "Para onde vão as chamadas enquanto a recepcionista está pausada.",
+      "fallbackPrevious": "Para o que cada número fazia antes",
+      "routeChange": "O que muda",
+      "routeChangeLine": "{number}: {name} atende · se pausado, volta para {back}",
+      "someNumbersFailed": "Alguns números não puderam ser atribuídos: {reasons}",
+      "calendar": "Calendário",
+      "chooseCalendar": "Escolha um calendário",
+      "schedulingNoCalls": "Ativá-lo não liga para ninguém. Cada ligação começa quando você toca em «Ligar para agendar» em um lead."
+    },
+    "upcoming": {
+      "title": "{count, plural, =0 {Nenhuma ligação agendada} one {# ligação agendada} other {# ligações agendadas}}",
+      "loadError": "Não foi possível carregar as próximas ligações.",
+      "empty": "Nada agendado ainda.",
+      "line": "Liga {call} · reunião {meeting}",
+      "callNow": "Ligar agora",
+      "callNowFor": "Ligar agora para {name}",
+      "theLead": "o lead",
+      "calling": "Ligando para {name}…",
+      "notPlaced": "Não ligou: {reason}",
+      "callError": "Não foi possível iniciar a ligação."
+    },
+    "scheduleCall": {
+      "button": "Ligar para agendar",
+      "title": "Ligar para agendar",
+      "hint": "O agente liga para o lead, encontra um horário no calendário e marca a reunião.",
+      "lead": "Lead",
+      "changeLead": "Escolher outro lead",
+      "firstName": "Cumprimentar como",
+      "firstNameHint": "O primeiro nome que o agente usará.",
+      "member": "Reunião com",
+      "chooseMember": "Escolha um membro",
+      "you": "(você)",
+      "booksOn": "Agenda em {calendar}",
+      "callsFrom": "Liga de {number}",
+      "onlyThisCall": "Só esta ligação é cobrada.",
+      "start": "Ligar para agendar",
+      "calling": "Ligando para {name}…",
+      "error": "Não foi possível iniciar a ligação."
+    },
+    "activity": {
+      "title": "Atividade recente",
+      "empty": "Nada ainda: o que os agentes fazem aparece aqui.",
+      "someone": "um lead",
+      "kinds": {
+        "attendance_confirmed": "{name} confirmou presença",
+        "attendance_declined": "{name} não poderá comparecer",
+        "no_answer": "Sem resposta: {name}",
+        "call_completed": "Conversou com {name}, sem resposta explícita",
+        "call_failed": "Não foi possível ligar para {name}",
+        "needs_email": "Falta um e-mail: {name}",
+        "needs_member": "Reatribua a reunião de {name}",
+        "email_failed": "Falhou o e-mail para {name}",
+        "meeting_booked": "Reunião agendada"
+      },
+      "completeEmail": "Completar e-mail",
+      "emailLabel": "E-mail de {name}",
+      "emailPlaceholder": "nome@empresa.com",
+      "send": "Enviar",
+      "emailQueued": "O e-mail de confirmação sai agora.",
+      "emailError": "Não foi possível salvar o e-mail."
+    },
+    "attendance": {
+      "label": "Presença",
+      "status": {
+        "pending": "Ainda não confirmada",
+        "confirmed": "Confirmada pelo lead",
+        "declined": "O lead não poderá comparecer"
+      },
+      "callNow": "Ligar para confirmar agora",
+      "calling": "Ligando para o lead…",
+      "notPlaced": "Não ligou: {reason}",
+      "callError": "Não foi possível iniciar a ligação."
+    }
   }
 }

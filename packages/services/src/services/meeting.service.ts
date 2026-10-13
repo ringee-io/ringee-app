@@ -12,10 +12,16 @@ import {
   MeetingRepository,
   CallRepository,
   Meeting,
+  MeetingAttendanceInput,
+  MeetingAttendanceOutcome,
+  MeetingEmailDeliveryRepository,
+  MeetingEmailDeliveryStatus,
+  MeetingEmailKind,
   MeetingExternalSyncStatus,
   MeetingStatus,
   CallOutcome,
   Call,
+  OrganizationRepository,
   ReminderSubjectType,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
@@ -54,6 +60,8 @@ export class MeetingService {
     private readonly crmCallLog: CrmCallLogService,
     private readonly contactService: ContactService,
     private readonly dispositions: DispositionService,
+    private readonly emailDeliveries: MeetingEmailDeliveryRepository,
+    private readonly organizations: OrganizationRepository,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -140,6 +148,12 @@ export class MeetingService {
       bookingTimeZone?: string;
       /** Voice-agent call claimed atomically with this protected booking. */
       agentCallId?: string;
+      /**
+       * The member the meeting is with. Omitted, it is whoever is booking —
+       * "the member who scheduled it is proposed automatically" (CAL-003). The
+       * caller has checked a member it names belongs to the workspace.
+       */
+      responsibleUserId?: string | null;
     },
   ): Promise<Meeting> {
     if (typeof dto.scheduledAt !== "string" || !dto.scheduledAt.trim()) {
@@ -194,6 +208,8 @@ export class MeetingService {
       notes: dto.notes,
       calendarId: resolvedCalendar.calendar.id,
       agentCallId: dto.agentCallId,
+      responsibleUserId: dto.responsibleUserId ?? ctx.userId,
+      leadEmail: normalizeEmail(dto.attendeeEmail),
     };
     let availabilityRuleId: string | null = null;
     if (dto.requireAvailableSlot) {
@@ -317,6 +333,16 @@ export class MeetingService {
       );
     }
 
+    // Best-effort: the reminder calls its calendar's policy owes the lead
+    // (AGENT-019). The booking stands whatever happens here.
+    try {
+      await this.reminderService.planMeetingCalls(meeting);
+    } catch (err) {
+      this.logger.warn(
+        `Could not plan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+
     // `createCalendarEvent` persists these fields after Ringee creates the
     // meeting. Reflect them in this response as well so tool callers receive
     // the Meet/Teams link without needing a second read.
@@ -418,13 +444,40 @@ export class MeetingService {
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, id);
 
-    const updated = await this.meetingRepo.update(meeting.id, {
-      title: dto.title,
-      scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
-      duration: dto.duration,
-      location: dto.location,
-      notes: dto.notes,
-    });
+    const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : undefined;
+    const moves =
+      scheduledAt !== undefined &&
+      !Number.isNaN(scheduledAt.getTime()) &&
+      scheduledAt.getTime() !== new Date(meeting.scheduledAt).getTime();
+
+    // A new time is a new schedule version (CAL-003): calls planned for the
+    // old time are withdrawn, and an answer given for it no longer stands.
+    const updated = moves
+      ? await this.meetingRepo.reschedule(meeting.id, {
+          scheduledAt: scheduledAt!,
+          title: dto.title,
+          duration: dto.duration,
+          location: dto.location,
+          notes: dto.notes,
+        })
+      : await this.meetingRepo.update(meeting.id, {
+          title: dto.title,
+          scheduledAt,
+          duration: dto.duration,
+          location: dto.location,
+          notes: dto.notes,
+        });
+
+    if (moves) {
+      await this.withdrawUnsentEmails(meeting.id);
+      try {
+        await this.reminderService.replanMeetingCalls(updated);
+      } catch (err) {
+        this.logger.warn(
+          `Could not replan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
+        );
+      }
+    }
 
     if (dto.scheduledAt) {
       try {
@@ -448,10 +501,9 @@ export class MeetingService {
   async cancelMeeting(ctx: OwnershipContext, id: string): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, id);
 
-    const updated = await this.meetingRepo.update(meeting.id, {
-      status: MeetingStatus.cancelled,
-      cancelledAt: new Date(),
-    });
+    // The cancellation moves the schedule version, so a reminder call already
+    // claimed for this meeting is refused at dial time too.
+    const updated = await this.meetingRepo.cancel(meeting.id);
 
     try {
       await this.reminderService.cancelForSubject(
@@ -463,8 +515,111 @@ export class MeetingService {
         `Skipped reminder cancel for meeting ${meeting.id}: ${(err as Error).message}`,
       );
     }
+    try {
+      await this.reminderService.cancelMeetingCalls(
+        meeting.id,
+        "meeting_cancelled",
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Could not cancel reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+    await this.withdrawUnsentEmails(meeting.id);
 
     return updated;
+  }
+
+  /**
+   * Records the lead's answer about attending, with the email it owes, in one
+   * transaction (AGENT-017). Called only by the confirmation tool, which has
+   * already proved the call and derived the meeting from it.
+   */
+  recordAttendance(
+    ctx: OwnershipContext,
+    input: Omit<MeetingAttendanceInput, "email">,
+  ): Promise<MeetingAttendanceOutcome> {
+    const kind =
+      input.status === "confirmed"
+        ? MeetingEmailKind.attendance_confirmed
+        : MeetingEmailKind.attendance_declined;
+    return this.meetingRepo.recordAttendance(ctx, {
+      ...input,
+      leadEmail: normalizeEmail(input.leadEmail),
+      email: {
+        kind,
+        // One email per meeting version and answer: a repeated confirmation is
+        // the same email, a later reschedule is a new one.
+        idempotencyKey: `meeting:${input.meetingId}:v${input.expectedScheduleVersion}:${kind}`,
+      },
+    });
+  }
+
+  /**
+   * Hands a meeting to another member of the organization. The meeting's
+   * owner stays who it was; only who it is *with* changes (CAL-003).
+   */
+  async setResponsible(
+    ctx: OwnershipContext,
+    meetingId: string,
+    userId: string,
+  ): Promise<Meeting> {
+    const meeting = await this.getMeetingById(ctx, meetingId);
+    this.ensureOrganization(ctx);
+    if (!(await this.organizations.isMember(userId, ctx.organizationId!))) {
+      throw new BadRequestException(
+        "Choose a member of your organization as the person this meeting is with.",
+      );
+    }
+    if (meeting.responsibleUserId === userId) return meeting;
+    const updated = await this.meetingRepo.setResponsible(meeting.id, userId);
+    // A reminder call names the member, so what was planned is replanned; an
+    // email waiting for a member who left can go out now.
+    try {
+      await this.reminderService.replanMeetingCalls(updated);
+    } catch (err) {
+      this.logger.warn(
+        `Could not replan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+    await this.emailDeliveries.requeueForMeeting(meeting.id, [
+      MeetingEmailDeliveryStatus.needs_member,
+    ]);
+    return updated;
+  }
+
+  /**
+   * "Complete email": the lead's address for a confirmation that is waiting
+   * on it. The shared email then goes out to everyone at once.
+   */
+  async completeLeadEmail(
+    ctx: OwnershipContext,
+    meetingId: string,
+    email: string,
+  ): Promise<Meeting> {
+    const meeting = await this.getMeetingById(ctx, meetingId);
+    const leadEmail = normalizeEmail(email);
+    if (!leadEmail)
+      throw new BadRequestException("Enter a valid email address.");
+    const updated = await this.meetingRepo.setLeadEmail(meeting.id, leadEmail);
+    await this.emailDeliveries.requeueForMeeting(meeting.id, [
+      MeetingEmailDeliveryStatus.needs_email,
+    ]);
+    return updated;
+  }
+
+  /**
+   * An email about a time that no longer stands is withdrawn before it goes
+   * out. What was already sent stays sent.
+   */
+  private async withdrawUnsentEmails(meetingId: string): Promise<void> {
+    try {
+      await this.emailDeliveries.cancelUnsentForMeeting(meetingId);
+    } catch (err) {
+      this.logger.warn(
+        `Could not withdraw unsent emails for meeting ${meetingId}: ${(err as Error).message}`,
+      );
+    }
   }
 
   async findCallBySessionId(sessionId: string): Promise<Call | null> {
@@ -553,4 +708,16 @@ export class MeetingService {
     }
     return call;
   }
+}
+
+/**
+ * A usable email address, lower-cased, or null. The same shape check the rest
+ * of the meeting flow relies on; the provider validates it again on send.
+ */
+export function normalizeEmail(
+  value: string | null | undefined,
+): string | null {
+  const email = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (!email || email.length > 254) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }

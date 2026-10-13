@@ -61,6 +61,7 @@ import { VoiceSection } from './sections/voice-section';
 import { InboundRoutingButton } from '@ringee/frontend-shared/components/inbound-routing/routing-panel';
 import { StartCallDialog } from './start-call-dialog';
 import { TestPanel } from './test-panel';
+import { safeReturnTo } from '../automations/lib/format';
 
 const TABS = [
   { value: 'setup', icon: Settings2 },
@@ -106,7 +107,10 @@ export function AgentDetail({ agentId }: { agentId: string }) {
     void load();
   }, [load]);
 
-  const leave = () => router.push('/dashboard/ai-voice-agents');
+  // Opened from somewhere else — the Voice Agents rail's "Customize" — it
+  // goes back there, so the person lands on the page they left.
+  const returnTo = safeReturnTo(searchParams.get('returnTo'));
+  const leave = () => router.push(returnTo ?? '/dashboard/ai-voice-agents');
 
   return (
     <AgentScreen onClose={leave} confirmClose={dirty}>

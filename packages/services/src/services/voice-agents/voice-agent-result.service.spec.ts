@@ -79,6 +79,8 @@ function build(
     alreadyTranscribed?: boolean;
     completedCall?: Record<string, unknown> | null;
     insightOutcome?: string;
+    /** The reminder execution that placed the call (AGENT-017/019). */
+    execution?: Record<string, unknown> | null;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
@@ -88,6 +90,7 @@ function build(
   const outcomeEvents: Array<Record<string, unknown>> = [];
   const callOutcomes: Array<Record<string, unknown>> = [];
   const completions: Array<Record<string, unknown>> = [];
+  const settledExecutions: Array<Record<string, unknown>> = [];
   const seededAgentCall = {
     ...AGENT_CALL,
     ...(over.byControlId ?? {}),
@@ -228,10 +231,22 @@ function build(
         outcomeEvents.push(event);
       },
     } as never,
+    {
+      findByAgentCallId: async () => over.execution ?? null,
+      finishByAgentCall: async (
+        agentCallId: string,
+        status: string,
+        from: string[],
+      ) => {
+        settledExecutions.push({ agentCallId, status, from });
+        return true;
+      },
+    } as never,
   );
 
   return {
     service,
+    settledExecutions,
     updates,
     transcripts,
     attached,
@@ -781,5 +796,67 @@ describe("VoiceAgentResultService transcript recovery", () => {
     await service.recoverTranscript(AGENT_CALL as never);
 
     assert.deepEqual(transcripts, []);
+  });
+});
+
+describe("VoiceAgentResultService on calls about a scheduled meeting (AGENT-017)", () => {
+  const EXECUTION = { id: "exec-1", meetingId: "meeting-1" };
+
+  it("never lets the analysis confirm attendance — only the tool does", async () => {
+    const { service, updates, callOutcomes } = build({
+      execution: EXECUTION,
+      insightOutcome: "confirmed",
+    });
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    // The summary still lands; the analysed "confirmed" does not.
+    assert.deepEqual(updates, [{ summary: "Booked a demo." }]);
+    assert.deepEqual(callOutcomes, []);
+  });
+
+  it("keeps the answer the tool recorded when the analysis reads it differently", async () => {
+    const { service, updates } = build({
+      execution: EXECUTION,
+      agentCall: { ...AGENT_CALL, outcome: "confirmed" },
+      insightOutcome: "not_interested",
+    });
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.deepEqual(updates, [{ summary: "Booked a demo." }]);
+  });
+
+  it("still takes an analysed confirmation on a call that is not about a meeting", async () => {
+    const { service, updates } = build({
+      execution: null,
+      insightOutcome: "confirmed",
+    });
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.deepEqual(updates, [
+      { summary: "Booked a demo." },
+      { outcome: "confirmed" },
+    ]);
+  });
+
+  it("settles the reminder execution when the call ends unanswered", async () => {
+    const { service, settledExecutions } = build({ execution: EXECUTION });
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "no-answer",
+      callControlId: "cc-1",
+    });
+
+    assert.deepEqual(settledExecutions, [
+      { agentCallId: "call-1", status: "no_answer", from: ["placed"] },
+    ]);
   });
 });

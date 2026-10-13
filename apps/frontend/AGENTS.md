@@ -92,6 +92,13 @@ session. On answer, `IncomingCall` writes the offer's `callId`, caller number
 and contact into the call store; the call screen and the post-call outcome read
 them from there.
 
+**The right edge holds one auxiliary surface at a time.** The quick dialer
+(`DialerShortcutView`) and the "Ringee IA Voice Agents" rail
+(`features/ai-voice-agents/automations`) share it: opening one closes the
+other. Closing the quick dialer only hides its keypad — the WebRTC client lives
+in the sidebar — so switching panels never ends or unmounts a call. Keep any
+new right-edge panel on the same rule.
+
 **A manual call starts through `useDial`** (`features/calls/hooks/use.dial.ts`),
 wherever it is started from — keypad, contact, callback, recent call, call
 detail. It dials in place (the active-call modal opens over the current page),

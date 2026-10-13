@@ -71,6 +71,7 @@ import {
   OfferAnalyticsService,
 } from "./offers";
 import { MeetingService } from "./meeting.service";
+import { MeetingEmailService } from "./meeting-email.service";
 import { MyDayService } from "./my-day";
 import {
   AppointmentBookingBlueprint,
@@ -88,6 +89,9 @@ import {
   VoiceAgentTestSessionService,
   VoiceAgentToolService,
   VOICE_AGENT_BLUEPRINTS,
+  MeetingReminderCallService,
+  VoiceAgentAutomationService,
+  VoiceAgentConversationContextService,
 } from "./voice-agents";
 import { CalendarService } from "./calendar.service";
 import {
@@ -404,6 +408,11 @@ const servicesProviders = [
   VoiceCloneReadingSampleService,
   VoiceAgentToolService,
   CompanyProfileService,
+  // AI Voice Agent automations (the "Ringee IA Voice Agents" rail)
+  VoiceAgentConversationContextService,
+  MeetingReminderCallService,
+  VoiceAgentAutomationService,
+  MeetingEmailService,
 ];
 
 /**

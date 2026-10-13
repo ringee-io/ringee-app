@@ -102,6 +102,10 @@ import { OfferEventRepository } from "./repositories/offer-event.repository";
 import { OfferStatsRepository } from "./repositories/offer-stats.repository";
 import { AiVoiceAgentRepository } from "./repositories/ai-voice-agent.repository";
 import { AiVoiceAgentCallRepository } from "./repositories/ai-voice-agent-call.repository";
+import { AiVoiceAgentAutomationRepository } from "./repositories/ai-voice-agent-automation.repository";
+import { MeetingReminderPolicyRepository } from "./repositories/meeting-reminder-policy.repository";
+import { MeetingReminderExecutionRepository } from "./repositories/meeting-reminder-execution.repository";
+import { MeetingEmailDeliveryRepository } from "./repositories/meeting-email-delivery.repository";
 import { WorkspaceCompanyProfileRepository } from "./repositories/workspace-company-profile.repository";
 
 const databaseProviders = [
@@ -204,6 +208,10 @@ const databaseProviders = [
   InfrastructureRepository,
   AiVoiceAgentRepository,
   AiVoiceAgentCallRepository,
+  AiVoiceAgentAutomationRepository,
+  MeetingReminderPolicyRepository,
+  MeetingReminderExecutionRepository,
+  MeetingEmailDeliveryRepository,
   WorkspaceCompanyProfileRepository,
   // Inbound call routing
   InboundRouteRepository,

@@ -9,6 +9,8 @@ import {
   CallOutcome,
   CallRepository,
   CallStatus,
+  MeetingReminderExecutionRepository,
+  MeetingReminderExecutionStatus,
 } from "@ringee/database";
 import {
   hashApiKey,
@@ -27,6 +29,13 @@ import {
 } from "../custom-integrations/custom-integration-event-builders";
 import { VoiceAgentService } from "./voice-agent.service";
 import type { VoiceAgentAnalysisSettings } from "./voice-agent.types";
+import { executionStatusFor } from "./automations/reminder-execution-status";
+
+/** The attendance answers only the confirmation tool may record (AGENT-017). */
+const ATTENDANCE_OUTCOMES: ReadonlySet<AiVoiceAgentOutcome> = new Set([
+  AiVoiceAgentOutcome.confirmed,
+  AiVoiceAgentOutcome.cannot_attend,
+]);
 
 /** Who produced an agent call's transcript, recorded on the header. */
 const VOICE_AGENT_TRANSCRIPT_PROVIDER = "telnyx";
@@ -80,6 +89,7 @@ export class VoiceAgentResultService {
     private readonly provider: VoiceAgentProviderService,
     private readonly transcriptions: TranscriptionService,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly reminderExecutions: MeetingReminderExecutionRepository,
   ) {}
 
   /**
@@ -226,7 +236,7 @@ export class VoiceAgentResultService {
     event: TelephonyEvent,
     conversation: TelephonyConversationDetails,
   ): Promise<void> {
-    await this.agentCalls.update(agentCall.id, {
+    const ended = await this.agentCalls.update(agentCall.id, {
       providerConversationId:
         agentCall.providerConversationId ?? conversation.conversationId,
       providerCallControlId:
@@ -237,6 +247,7 @@ export class VoiceAgentResultService {
         ? { status: AiVoiceAgentCallStatus.completed }
         : {}),
     });
+    await this.settleReminderExecution(ended);
 
     // Bind the telephony row too. The control id is already on it — the dial
     // path writes it down — but the session and leg handles are not, and this
@@ -315,6 +326,22 @@ export class VoiceAgentResultService {
             this.logger.warn(
               `Ignoring unconfirmed tool-backed outcome "${analyzedOutcome}" for agent call ${agentCall.id}`,
             );
+            break;
+          }
+          // On a call about a scheduled meeting the attendance answer is the
+          // confirmation tool's: the analysis neither overwrites the one it
+          // recorded nor manufactures one from what it read (AGENT-017).
+          if (
+            (ATTENDANCE_OUTCOMES.has(analyzedOutcome) ||
+              (agentCall.outcome !== null &&
+                ATTENDANCE_OUTCOMES.has(agentCall.outcome))) &&
+            (await this.isAboutAMeeting(agentCall))
+          ) {
+            if (ATTENDANCE_OUTCOMES.has(analyzedOutcome)) {
+              this.logger.warn(
+                `Ignoring analysed attendance "${analyzedOutcome}" for meeting call ${agentCall.id}: only the tool records it`,
+              );
+            }
             break;
           }
           update.outcome = analyzedOutcome;
@@ -512,9 +539,49 @@ export class VoiceAgentResultService {
           await this.applyKnownOutcome(updated, AiVoiceAgentOutcome.no_answer);
         }
       }
+
+      await this.settleReminderExecution(updated);
     }
 
     return updated;
+  }
+
+  /**
+   * Closes the reminder execution that placed this call, with how the call
+   * ended. An answer the attendance tool recorded closed it already; this
+   * settles the calls that ended without one (no answer, a conversation with
+   * no explicit answer, a failure). Best-effort: the reminder worker settles
+   * anything still open from the agent call's own row later.
+   */
+  private async settleReminderExecution(
+    agentCall: AiVoiceAgentCall,
+  ): Promise<void> {
+    const status = executionStatusFor(agentCall);
+    if (!status) return;
+    await this.reminderExecutions
+      .finishByAgentCall(agentCall.id, status, [
+        MeetingReminderExecutionStatus.placed,
+      ])
+      .catch((error: unknown) => {
+        this.logger.warn(
+          `Could not settle the reminder execution of agent call ${agentCall.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+  }
+
+  /** Whether a reminder execution placed this call about a meeting. */
+  private async isAboutAMeeting(agentCall: AiVoiceAgentCall): Promise<boolean> {
+    try {
+      return Boolean(
+        await this.reminderExecutions.findByAgentCallId(agentCall.id),
+      );
+    } catch {
+      // Unknown is treated as "about a meeting": refusing an analysed answer
+      // is safe, inventing a confirmation is not.
+      return true;
+    }
   }
 
   private isTerminal(status: AiVoiceAgentCallStatus | null): boolean {

@@ -48,6 +48,15 @@ enum MeetingStatus {
   rescheduled
 }
 
+/// Whether the lead said they will attend. Kept apart from `MeetingStatus`: a
+/// confirmed meeting is still `scheduled`, and "I can't make it" never cancels
+/// one. Only an AI agent's confirmation tool writes it (AGENT-017).
+enum MeetingAttendanceStatus {
+  pending
+  confirmed
+  declined
+}
+
 /// How far a Ringee meeting has got in reaching its calendar's external
 /// destination. `not_required` means the calendar has no Google connection, so
 /// there is nothing to sync — it is not a failure state.
@@ -469,6 +478,12 @@ model User {
   contactListsCreated     ContactList[]              @relation("contactListCreator")
   contactListsAssigned    ContactList[]              @relation("contactListAssignee")
   contactListEntriesAdded ContactListEntry[]         @relation("contactListEntryAdder")
+  meetingsResponsibleFor  Meeting[]                  @relation("meetingResponsible")
+  aiVoiceAgentCallsFor    AiVoiceAgentCall[]         @relation("aiVoiceAgentCallResponsible")
+  aiVoiceAgentAutomations AiVoiceAgentAutomation[]
+  meetingReminderPolicies MeetingReminderPolicy[]
+  meetingReminderCalls    MeetingReminderExecution[]
+  meetingEmailDeliveries  MeetingEmailDelivery[]
 
   @@index([clerkId])
 }
@@ -553,50 +568,54 @@ model Organization {
   createdBy     String?
   encryptionKey String?  @db.Text
 
-  members                OrganizationMembership[]
-  chatAuths              ChatAuth[]
-  calls                  Call[]
-  userNumbers            UserNumber[]
-  numbersPurchased       NumberPurchased[]
-  sipDevices             SipDevice[]
-  externalCarriers       ExternalCarrier[]
-  blockedCalls           BlockedCallLog[]
-  contacts               Contact[]
-  credits                Credit[]
-  creditAutoReload       CreditAutoReload?
-  subscriptions          Subscription[]
-  campaigns              Campaign[]
-  dispositions           Disposition[]
-  tags                   Tag[]
-  contactLists           ContactList[]
-  meetings               Meeting[]
-  calendars              Calendar[]
-  calendarIntegrations   CalendarIntegration[]
-  calendarAvailability   CalendarAvailabilityRule[]
-  crmConnections         CrmConnection[]
-  companies              Company[]
-  enrichmentConnections  EnrichmentConnection[]
-  enrichmentJobs         EnrichmentJob[]
-  leadSearchJobs         LeadSearchJob[]
-  callScripts            CallScript[]
-  customFieldDefinitions CustomFieldDefinition[]
-  callbacks              CallbackTask[]
-  dncEntries             DNCEntry[]
-  reminders              Reminder[]
-  aiConversations        AiConversation[]
-  customIntegrations     CustomIntegration[]
-  callSessions           CallSession[]
-  callRecordingSettings  CallRecordingSettings?
-  callTranscriptions     CallTranscription[]
-  regulatoryDocuments    RegulatoryDocument[]
-  callerIdRotation       CallerIdRotationSettings?
-  callerIdPoolMembers    CallerIdPoolMember[]
-  customAgentVoices      AiVoiceAgentCustomVoice[]
-  aiVoiceAgents          AiVoiceAgent[]
-  aiVoiceAgentCalls      AiVoiceAgentCall[]
-  companyProfile         WorkspaceCompanyProfile?
-  inboundRoutes          InboundRoute[]
-  ringGroups             RingGroup[]
+  members                 OrganizationMembership[]
+  chatAuths               ChatAuth[]
+  calls                   Call[]
+  userNumbers             UserNumber[]
+  numbersPurchased        NumberPurchased[]
+  sipDevices              SipDevice[]
+  externalCarriers        ExternalCarrier[]
+  blockedCalls            BlockedCallLog[]
+  contacts                Contact[]
+  credits                 Credit[]
+  creditAutoReload        CreditAutoReload?
+  subscriptions           Subscription[]
+  campaigns               Campaign[]
+  dispositions            Disposition[]
+  tags                    Tag[]
+  contactLists            ContactList[]
+  meetings                Meeting[]
+  calendars               Calendar[]
+  calendarIntegrations    CalendarIntegration[]
+  calendarAvailability    CalendarAvailabilityRule[]
+  crmConnections          CrmConnection[]
+  companies               Company[]
+  enrichmentConnections   EnrichmentConnection[]
+  enrichmentJobs          EnrichmentJob[]
+  leadSearchJobs          LeadSearchJob[]
+  callScripts             CallScript[]
+  customFieldDefinitions  CustomFieldDefinition[]
+  callbacks               CallbackTask[]
+  dncEntries              DNCEntry[]
+  reminders               Reminder[]
+  aiConversations         AiConversation[]
+  customIntegrations      CustomIntegration[]
+  callSessions            CallSession[]
+  callRecordingSettings   CallRecordingSettings?
+  callTranscriptions      CallTranscription[]
+  regulatoryDocuments     RegulatoryDocument[]
+  callerIdRotation        CallerIdRotationSettings?
+  callerIdPoolMembers     CallerIdPoolMember[]
+  customAgentVoices       AiVoiceAgentCustomVoice[]
+  aiVoiceAgents           AiVoiceAgent[]
+  aiVoiceAgentCalls       AiVoiceAgentCall[]
+  companyProfile          WorkspaceCompanyProfile?
+  inboundRoutes           InboundRoute[]
+  ringGroups              RingGroup[]
+  aiVoiceAgentAutomations AiVoiceAgentAutomation[]
+  meetingReminderPolicies MeetingReminderPolicy[]
+  meetingReminderCalls    MeetingReminderExecution[]
+  meetingEmailDeliveries  MeetingEmailDelivery[]
 
   @@index([clerkId])
 }
@@ -1977,18 +1996,42 @@ model Meeting {
   externalSyncAttempts          Int                       @default(0)
   externalSyncedAt              DateTime?
 
+  /// Bumped whenever the meeting moves, is cancelled or changes hands. Reminder
+  /// calls and attendance confirmations carry the version they were made for,
+  /// so a stale one is refused instead of confirming a time that no longer
+  /// exists (CAL-003).
+  scheduleVersion   Int     @default(1)
+  /// The member this meeting is with. Null on rows that predate it, which fall
+  /// back to whoever created the meeting. Ownership (`userId`) never changes to
+  /// stand in for it.
+  responsibleUserId String? @db.Uuid
+  /// The address chosen for this meeting's lead — at booking, or confirmed on a
+  /// reminder call. Where the shared confirmation email goes.
+  leadEmail         String?
+
+  attendanceStatus          MeetingAttendanceStatus @default(pending)
+  attendanceUpdatedAt       DateTime?
+  /// Evidence: the agent call whose tool recorded the answer, and the schedule
+  /// version that answer was given for.
+  attendanceAgentCallId     String?                 @db.Uuid
+  attendanceScheduleVersion Int?
+  attendanceNote            String?                 @db.Text
+
   cancelledAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact             Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  call                Call?                @relation(fields: [callId], references: [id], onDelete: SetNull)
-  calendar            Calendar?            @relation(fields: [calendarId], references: [id], onDelete: SetNull)
-  externalIntegration CalendarIntegration? @relation("meetingExternalIntegration", fields: [externalCalendarIntegrationId], references: [id], onDelete: SetNull)
+  user                User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization        Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact             Contact                    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  call                Call?                      @relation(fields: [callId], references: [id], onDelete: SetNull)
+  calendar            Calendar?                  @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  externalIntegration CalendarIntegration?       @relation("meetingExternalIntegration", fields: [externalCalendarIntegrationId], references: [id], onDelete: SetNull)
+  responsibleUser     User?                      @relation("meetingResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   inboxEvents         InboxEvent[]
   aiVoiceAgentCalls   AiVoiceAgentCall[]
+  reminderCalls       MeetingReminderExecution[]
+  emailDeliveries     MeetingEmailDelivery[]
 
   @@index([userId])
   @@index([organizationId])
@@ -1998,6 +2041,7 @@ model Meeting {
   @@index([scheduledAt])
   @@index([status])
   @@index([externalSyncStatus])
+  @@index([responsibleUserId])
 }
 
 /// A Ringee calendar: the thing that owns availability windows, a time zone and
@@ -2040,6 +2084,7 @@ model Calendar {
   meetings          Meeting[]
   aiVoiceAgents     AiVoiceAgent[]
   aiVoiceAgentCalls AiVoiceAgentCall[]
+  reminderPolicy    MeetingReminderPolicy?
 
   @@index([userId])
   @@index([organizationId])
@@ -4561,6 +4606,9 @@ model AiVoiceAgent {
   callerNumber        NumberPurchased?              @relation("aiVoiceAgentCallerNumber", fields: [callerNumberId], references: [id], onDelete: SetNull)
   knowledgeSources    AiVoiceAgentKnowledgeSource[]
   calls               AiVoiceAgentCall[]
+  automations         AiVoiceAgentAutomation[]
+  reminderPolicies    MeetingReminderPolicy[]
+  reminderCalls       MeetingReminderExecution[]
 
   @@index([userId])
   @@index([organizationId])
@@ -4645,6 +4693,14 @@ model AiVoiceAgentCall {
   /// one whose times were offered.
   calendarId String? @db.Uuid
 
+  /// Correlation a durable caller (a reminder execution) persists before the
+  /// leg is placed. Unique, so a worker that crashed after dialing finds this
+  /// row on its retry instead of placing a second call.
+  idempotencyKey    String? @unique
+  /// The member a meeting booked on this call is with ("Call to schedule").
+  /// Copied onto `Meeting.responsibleUserId` by the booking tool.
+  responsibleUserId String? @db.Uuid
+
   /// Provider-reported AI cost in USD, and what Ringee charged for it.
   aiCostUsd        Float?
   aiChargedCredits Float?
@@ -4670,11 +4726,15 @@ model AiVoiceAgentCall {
   meeting      Meeting?      @relation(fields: [meetingId], references: [id], onDelete: SetNull)
   calendar     Calendar?     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
 
+  responsibleUser   User?                     @relation("aiVoiceAgentCallResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  reminderExecution MeetingReminderExecution?
+
   @@index([agentId])
   @@index([userId])
   @@index([organizationId])
   @@index([agentId, createdAt])
   @@index([status])
+  @@index([responsibleUserId])
 }
 
 /// Workspace-wide company context: the fallback an AI voice agent uses when it
@@ -4699,6 +4759,224 @@ model WorkspaceCompanyProfile {
 
   @@index([userId])
   @@index([organizationId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI voice agent automations — the "Ringee IA Voice Agents" rail
+//
+// Quick actions sit on top of ordinary agents: they never add a second agent
+// model, a second call path or a second calendar. See AGENT-018..AGENT-020.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One quick-action capability configured for an organization: which agent the
+/// rail's card drives, whether it is switched on, and what it was set up with.
+///
+/// The unique key is what keeps two tabs from creating two agents on a double
+/// click: the first setup claims the row, the second finds it. It does not limit
+/// how many agents the advanced editor creates — a workspace that runs several
+/// brands still has every agent it built.
+model AiVoiceAgentAutomation {
+  id             String           @id @default(uuid()) @db.Uuid
+  /// The admin who last configured it.
+  userId         String           @db.Uuid
+  organizationId String           @db.Uuid
+  /// The capability, named by the agent type that provides it.
+  capability     AiVoiceAgentType
+  /// Brand or calendar context the preference applies to. "workspace" is the
+  /// organization-wide default the rail drives.
+  contextKey     String           @default("workspace")
+  agentId        String?          @db.Uuid
+  enabled        Boolean          @default(true)
+  /// What pausing and resuming need to know, e.g. the numbers a receptionist
+  /// answers and where they go back to.
+  settings       Json?
+  /// Held while a quick setup creates the agent; a stale claim can be taken
+  /// over, so a crashed request never blocks the card for good.
+  claimToken     String?          @db.Uuid
+  claimedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        AiVoiceAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, capability, contextKey])
+  @@index([agentId])
+  @@index([userId])
+}
+
+/// Calls the lead of every eligible meeting on one calendar before it starts,
+/// through one reminders agent. One policy per calendar, so two agents never
+/// call the same lead about the same meeting.
+model MeetingReminderPolicy {
+  id                String   @id @default(uuid()) @db.Uuid
+  /// The admin who last configured it.
+  userId            String   @db.Uuid
+  organizationId    String   @db.Uuid
+  agentId           String   @db.Uuid
+  calendarId        String   @unique @db.Uuid
+  /// Minutes before the meeting a call is placed, one execution per offset.
+  offsetsMinutes    Int[]
+  /// Calling window, as wall-clock minutes and weekdays (0 = Sunday) in the
+  /// calendar's time zone. A call is never placed outside it.
+  windowStartMinute Int      @default(540)
+  windowEndMinute   Int      @default(1200)
+  windowDays        Int[]    @default([0, 1, 2, 3, 4, 5, 6])
+  enabled           Boolean  @default(true)
+  /// When the policy was last switched on. Offsets that were already in the
+  /// past at that moment are never called late.
+  activatedAt       DateTime @default(now())
+  /// Bumped on every change to which calls are due; a pending execution
+  /// planned for an older version is cancelled and replanned.
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        AiVoiceAgent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  calendar     Calendar                   @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  executions   MeetingReminderExecution[]
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([userId])
+}
+
+/// Where one reminder call stands. `scheduled` → `claimed` → `placed`, then
+/// exactly one terminal state. Only `scheduled` rows are ever claimed.
+enum MeetingReminderExecutionStatus {
+  /// Waiting for `fireAt`.
+  scheduled
+  /// A worker holds the lease and is about to dial.
+  claimed
+  /// The provider leg exists (`agentCallId`); the conversation decides the rest.
+  placed
+  /// The lead explicitly confirmed attendance on this call.
+  confirmed
+  /// The lead explicitly said they will not attend.
+  declined
+  /// The call ended without a conversation.
+  no_answer
+  /// A conversation happened without an explicit answer.
+  completed
+  /// Not placed on purpose: outside the window, DNC, the meeting changed...
+  skipped
+  /// Could not be placed after the bounded retries, or its placement could not
+  /// be confirmed — never redialed blindly.
+  failed
+  /// Superseded: the meeting moved or was cancelled, or the policy was paused.
+  cancelled
+}
+
+/// One automated reminder call for one meeting. Planned ahead of time, claimed
+/// atomically when due, and re-validated against the meeting right before the
+/// dial (AGENT-019).
+model MeetingReminderExecution {
+  id              String                         @id @default(uuid()) @db.Uuid
+  /// The meeting's workspace; the call itself is placed as the agent's owner.
+  userId          String                         @db.Uuid
+  organizationId  String                         @db.Uuid
+  meetingId       String                         @db.Uuid
+  policyId        String?                        @db.Uuid
+  agentId         String                         @db.Uuid
+  /// "policy" for an automated offset, "manual" for a call someone asked for.
+  trigger         String                         @default("policy")
+  /// The meeting and policy versions this call was planned for. Either one
+  /// moving on makes the execution stale.
+  scheduleVersion Int
+  policyVersion   Int?
+  offsetMinutes   Int?
+  attempt         Int                            @default(1)
+  /// meeting + schedule version + policy/offset (or manual) + attempt.
+  idempotencyKey  String                         @unique
+  fireAt          DateTime
+  status          MeetingReminderExecutionStatus @default(scheduled)
+  /// Dial tries inside this attempt. Each try gets its own agent-call key, and
+  /// a retry is only taken when the previous try provably placed nothing.
+  dialTries       Int                            @default(0)
+  leaseExpiresAt  DateTime?
+  agentCallId     String?                        @unique @db.Uuid
+  /// Machine-readable reason for `skipped`, `failed` or `cancelled`.
+  reason          String?
+  lastError       String?                        @db.Text
+  finishedAt      DateTime?
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
+
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  meeting      Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  policy       MeetingReminderPolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  agent        AiVoiceAgent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentCall    AiVoiceAgentCall?      @relation(fields: [agentCallId], references: [id], onDelete: SetNull)
+
+  @@index([status, fireAt])
+  @@index([meetingId, status])
+  @@index([policyId, status])
+  @@index([organizationId, updatedAt])
+  @@index([agentId])
+  @@index([userId])
+}
+
+enum MeetingEmailKind {
+  /// The shared confirmation: lead and member in To, admins in CC.
+  attendance_confirmed
+  /// The lead cannot attend: the member and admins hear about it.
+  attendance_declined
+}
+
+enum MeetingEmailDeliveryStatus {
+  pending
+  sending
+  sent
+  /// Waiting for the lead's address ("Complete email").
+  needs_email
+  /// The responsible member left; reassign before their address is used.
+  needs_member
+  failed
+  cancelled
+}
+
+/// One email about one meeting, delivered durably by the worker. The key makes
+/// a repeated confirmation a no-op instead of a second email; the provider's
+/// own idempotency only lasts a day, so this row is what is checked first.
+model MeetingEmailDelivery {
+  id              String                     @id @default(uuid()) @db.Uuid
+  userId          String                     @db.Uuid
+  organizationId  String                     @db.Uuid
+  meetingId       String                     @db.Uuid
+  kind            MeetingEmailKind
+  /// meeting + schedule version + kind.
+  idempotencyKey  String                     @unique
+  status          MeetingEmailDeliveryStatus @default(pending)
+  /// Recipients as actually sent; resolved at send time, never stored as
+  /// authorization from a client.
+  toAddresses     String[]                   @default([])
+  ccAddresses     String[]                   @default([])
+  replyTo         String?
+  subject         String?
+  /// The provider's id for the send, and the RFC 5322 Message-ID it reported,
+  /// which the next email about the same meeting threads under.
+  providerEmailId String?
+  messageId       String?
+  inReplyTo       String?
+  attempts        Int                        @default(0)
+  lastError       String?                    @db.Text
+  leaseExpiresAt  DateTime?
+  sentAt          DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  meeting      Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt])
+  @@index([meetingId])
+  @@index([organizationId, updatedAt])
+  @@index([userId])
 }
 
 /// Organization-owned PBX/carrier. Never used by purchased-number billing.
@@ -4850,6 +5128,18 @@ model InboundRoute {
   destinationType InboundDestinationType
   /// The row the destination addresses: a User, RingGroup or SipDevice id.
   destinationId   String                 @db.Uuid
+
+  /// Incremented on every write, so a bulk change (pausing a receptionist)
+  /// compares-and-sets instead of overwriting a route another admin changed
+  /// in the meantime.
+  version Int @default(1)
+
+  /// Where calls go back to when the AI receptionist this route names is
+  /// paused: the destination the number had before the receptionist took it,
+  /// or a backup chosen at setup. Both null means the number's default
+  /// behavior. Only meaningful while `destinationType` is `ai_receptionist`.
+  restoreDestinationType InboundDestinationType?
+  restoreDestinationId   String?                 @db.Uuid
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

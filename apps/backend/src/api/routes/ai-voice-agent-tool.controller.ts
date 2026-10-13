@@ -100,6 +100,26 @@ export class AiVoiceAgentToolController {
     );
   }
 
+  /**
+   * The lead's explicit answer about attending (AGENT-017). The meeting is
+   * derived from the call the header names, never from the body.
+   */
+  @Public()
+  @Post(":agentId/confirm-attendance")
+  confirmAttendance(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { attendance?: string; email?: string; note?: string },
+  ) {
+    return this.tools.confirmMeetingAttendance(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
+
   @Public()
   @Post(":agentId/schedule-callback")
   scheduleCallback(

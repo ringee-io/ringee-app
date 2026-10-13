@@ -16,6 +16,20 @@ export type InboundRouteNumberRef = {
   id: string;
 };
 
+/** Where a paused AI receptionist's number goes back to. */
+export type InboundRouteRestoreTarget = {
+  destinationType: InboundDestinationType;
+  destinationId: string;
+};
+
+/** A route as it was read, for a compare-and-set write. */
+export type InboundRouteVersion = {
+  id: string;
+  destinationType: InboundDestinationType;
+  destinationId: string;
+  version: number;
+};
+
 function numberWhere(
   ref: InboundRouteNumberRef,
 ): Prisma.InboundRouteWhereInput {
@@ -100,7 +114,11 @@ export class InboundRouteRepository {
 
   /**
    * One route per number: a second write for the same number replaces the
-   * destination rather than adding a competing row.
+   * destination rather than adding a competing row. Every write moves the
+   * route's version, which is what a later compare-and-set checks.
+   *
+   * `restore` is where calls go back to when an AI receptionist route is
+   * paused; the service decides it (it is only kept on receptionist routes).
    */
   async saveForNumber(
     ctx: OwnershipContext,
@@ -109,22 +127,64 @@ export class InboundRouteRepository {
       destinationType: InboundDestinationType;
       destinationId: string;
     },
+    restore: InboundRouteRestoreTarget | null = null,
   ): Promise<InboundRoute> {
     const where =
       ref.kind === "ringee"
         ? { numberId: ref.id }
         : { externalNumberId: ref.id };
+    const restoreData = {
+      restoreDestinationType: restore?.destinationType ?? null,
+      restoreDestinationId: restore?.destinationId ?? null,
+    };
     return this.prisma.inboundRoute.upsert({
       where,
-      update: destination,
+      update: { ...destination, ...restoreData, version: { increment: 1 } },
       create: {
         ...buildOwnershipData(ctx),
         ...(ref.kind === "ringee"
           ? { numberId: ref.id }
           : { externalNumberId: ref.id }),
         ...destination,
+        ...restoreData,
       },
     });
+  }
+
+  /**
+   * Points a route somewhere else only if nobody changed it since `expected`
+   * was read. Returns the new row, or null when another write got there first
+   * — which the caller reports instead of overwriting.
+   */
+  async replaceIfUnchanged(
+    ctx: OwnershipContext,
+    expected: InboundRouteVersion,
+    destination: {
+      destinationType: InboundDestinationType;
+      destinationId: string;
+    },
+  ): Promise<InboundRoute | null> {
+    const [updated] = await this.prisma.inboundRoute.updateManyAndReturn({
+      where: { ...buildOwnershipFilter(ctx), ...expected },
+      data: {
+        ...destination,
+        restoreDestinationType: null,
+        restoreDestinationId: null,
+        version: { increment: 1 },
+      },
+    });
+    return updated ?? null;
+  }
+
+  /** Resets a route to the number's default, under the same compare-and-set. */
+  async deleteIfUnchanged(
+    ctx: OwnershipContext,
+    expected: InboundRouteVersion,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.inboundRoute.deleteMany({
+      where: { ...buildOwnershipFilter(ctx), ...expected },
+    });
+    return count === 1;
   }
 
   /** Resets a number to the default inbound behavior. */

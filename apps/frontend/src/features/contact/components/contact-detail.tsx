@@ -58,6 +58,7 @@ import {
 import { toast } from 'sonner';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 import { ContactEnrichButton } from '@/features/integrations/components/contact-enrich-button';
+import { ScheduleCallButton } from '@/features/ai-voice-agents/automations/components/schedule-call-button';
 import { ContactRevealButtons } from '@/features/integrations/components/contact-reveal-buttons';
 import { useTranslations } from 'next-intl';
 
@@ -283,6 +284,7 @@ export default function ContactDetail({
             <PhoneCall className='mr-2 h-4 w-4' />
             {t('call')}
           </Button>
+          <ScheduleCallButton contact={contact} />
           <ContactEnrichButton
             contactId={contact.id}
             variant='outline'

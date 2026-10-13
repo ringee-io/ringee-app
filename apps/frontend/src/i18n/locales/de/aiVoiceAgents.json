@@ -420,5 +420,217 @@
     "voice": "eine Stimme",
     "apiKey": "einen geprüften API-Schlüssel",
     "calendar": "einen Kalender"
+  },
+  "automations": {
+    "title": "Ringee KI Voice Agents",
+    "titleShort": "KI Voice Agents",
+    "railLabel": "Ringee KI Voice Agents, {count, plural, =0 {noch keiner aktiv} one {# aktiv} other {# aktiv}}",
+    "attentionHint": "Etwas braucht Ihre Aufmerksamkeit",
+    "subtitle": "{count, plural, =0 {Bereit zum Einschalten} one {# Agent aktiv} other {# Agenten aktiv}}",
+    "subtitleLoading": "Wird geladen…",
+    "close": "Ringee KI Voice Agents schließen",
+    "loadError": "Die Agenten konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "unavailable": "KI Voice Agents sind in diesem Workspace noch nicht verfügbar.",
+    "announce": "{title}: {state}",
+    "capabilities": {
+      "reminders": {
+        "title": "Erinnerungen & Bestätigungen",
+        "purpose": "Ruft jeden Lead vor seinem Termin an und bestätigt die Teilnahme."
+      },
+      "receptionist": {
+        "title": "KI-Rezeption",
+        "purpose": "Nimmt Anrufe auf Ihrer Nummer an, hilft dem Anrufer und verbindet mit Ihrem Team."
+      },
+      "scheduling": {
+        "title": "Terminvereinbarung",
+        "purpose": "Ruft einen Lead an und trägt den Termin in Ihren Kalender ein."
+      }
+    },
+    "state": {
+      "unconfigured": "Nicht eingerichtet",
+      "activating": "Wird aktiviert…",
+      "active": "Aktiv",
+      "paused": "Pausiert",
+      "needs_attention": "Handlung nötig"
+    },
+    "toast": {
+      "resumed": "{title} ist aktiv",
+      "paused": "{title} ist pausiert",
+      "toggleError": "Das konnte nicht geändert werden.",
+      "saved": "{title} ist eingerichtet"
+    },
+    "sentence": {
+      "reminders": "{name} · ruft {when} vorher an · {calendars}",
+      "receptionist": "{name} · nimmt {count, plural, =0 {noch keine Nummer} one {# Nummer} other {# Nummern}} an",
+      "scheduling": "{name} · bucht in {calendar}"
+    },
+    "nextStep": {
+      "set_up": "Richten Sie es ein, um es einzuschalten.",
+      "fix_agent": "Der Agent konnte nicht eingerichtet werden.",
+      "turn_on_agent": "Der Agent ist ausgeschaltet.",
+      "add_number": "Es gibt keine Nummer zum Anrufen.",
+      "choose_number": "Wählen Sie, von welcher Nummer er anruft.",
+      "add_credit": "Laden Sie Guthaben auf, damit er anrufen kann.",
+      "choose_calendar": "Wählen Sie den Kalender, dessen Termine er bestätigt.",
+      "answer_a_number": "Wählen Sie eine Nummer, die er annimmt.",
+      "inbound_unavailable": "Eingehende Anrufe per KI sind noch nicht verfügbar."
+    },
+    "nextStepAction": {
+      "set_up": "Einrichten",
+      "fix_agent": "Agent öffnen",
+      "turn_on_agent": "Agent öffnen",
+      "add_number": "Nummer kaufen",
+      "choose_number": "Nummer wählen",
+      "add_credit": "Guthaben aufladen",
+      "choose_calendar": "Kalender wählen",
+      "answer_a_number": "Nummer wählen"
+    },
+    "toggle": {
+      "pause": "{title} pausieren",
+      "resume": "{title} einschalten"
+    },
+    "activate": "Aktivieren",
+    "askAdmin": "Ein Administrator kann es einschalten.",
+    "scheduling": {
+      "call": "Anrufen zum Terminieren",
+      "noCalls": "Einschalten ruft niemanden an: Es bucht nur, wenn Sie „Anrufen zum Terminieren“ drücken."
+    },
+    "customize": "Anpassen",
+    "customizeGreeting": "Begrüßung anpassen",
+    "test": "Testen",
+    "details": "Details",
+    "speaksFor": "Spricht für {company}",
+    "noCompany": "Fügen Sie Ihr Unternehmen unter Anpassen hinzu, damit der Agent sagt, für wen er anruft.",
+    "reminders": {
+      "callsFrom": "Ruft von {number} an",
+      "recipients": "Bei einer Bestätigung eine einzige E-Mail an Lead und Mitglied{count, plural, =0 {} one { · CC # Administrator} other { · CC # Administratoren}}."
+    },
+    "editSetup": "Einrichtung bearbeiten",
+    "receptionist": {
+      "pauseGoesTo": "Pausiert geht es an {destination}",
+      "default": "das übliche Ziel",
+      "notAnswering": "Nimmt nicht an",
+      "manageNumbers": "Nummern ändern"
+    },
+    "units": {
+      "day": "T",
+      "hour": "Std.",
+      "minute": "Min."
+    },
+    "setup": {
+      "name": "Name des Agenten",
+      "agentChoice": "Welcher Agent?",
+      "useExisting": "{name} verwenden",
+      "createNew": "Neuen erstellen",
+      "cancel": "Abbrechen",
+      "activating": "Wird aktiviert…",
+      "noNumber": "Sie brauchen eine Nummer zum Anrufen.",
+      "buyNumber": "Nummer kaufen",
+      "defaultNames": {
+        "reminders": "Sophie",
+        "receptionist": "Lena",
+        "scheduling": "Clara"
+      },
+      "error": "Die Einrichtung ist fehlgeschlagen. Versuchen Sie es erneut.",
+      "save": "Speichern",
+      "activate": "Aktivieren",
+      "calendars": "Kalender",
+      "callFrom": "Anrufen von",
+      "callFromHint": "Leads sehen diese Nummer und rufen sie zurück.",
+      "chooseNumber": "Nummer wählen",
+      "when": "Wann anrufen",
+      "custom": "Andere",
+      "before": "{value} vorher",
+      "units": {
+        "days": "Tage",
+        "hours": "Stunden",
+        "minutes": "Minuten"
+      },
+      "offsetRange": "Zwischen 5 Minuten und 14 Tagen.",
+      "scope": "Ruft ab jetzt wegen {calls, plural, =0 {keinem} one {# Termin} other {# Terminen}} von {meetings} anstehenden an.",
+      "scopeUnknown": "Wählen Sie einen Kalender, um zu sehen, welche Termine abgedeckt sind.",
+      "noLateCalls": "Termine, die für diese Vorlaufzeit zu nah sind, werden nie verspätet angerufen.",
+      "recipients": "Wenn ein Lead bestätigt: eine E-Mail an Lead und Mitglied, Administratoren in CC.",
+      "recipientsWithCount": "Wenn ein Lead bestätigt: eine E-Mail an Lead und Mitglied, {count, plural, one {# Administrator} other {# Administratoren}} in CC.",
+      "answerNumbers": "Nummern, die er annimmt",
+      "todayReceptionist": "Heute nimmt {name} an",
+      "today": "Heute klingelt: {destination}",
+      "defaultRoute": "das Standardziel",
+      "remindersCallBack": "Ihre Erinnerungen rufen von hier an – Leads rufen diese Nummer zurück",
+      "fallback": "Wenn Sie pausieren",
+      "fallbackHint": "Wohin Anrufe gehen, solange die Rezeption pausiert ist.",
+      "fallbackPrevious": "Zurück zu dem, was jede Nummer vorher tat",
+      "routeChange": "Was sich ändert",
+      "routeChangeLine": "{number}: {name} nimmt an · pausiert zurück an {back}",
+      "someNumbersFailed": "Einige Nummern konnten nicht zugewiesen werden: {reasons}",
+      "calendar": "Kalender",
+      "chooseCalendar": "Kalender wählen",
+      "schedulingNoCalls": "Einschalten ruft niemanden an. Jeder Anruf beginnt, wenn Sie bei einem Lead „Anrufen zum Terminieren“ drücken."
+    },
+    "upcoming": {
+      "title": "{count, plural, =0 {Keine Anrufe geplant} one {# Anruf geplant} other {# Anrufe geplant}}",
+      "loadError": "Die anstehenden Anrufe konnten nicht geladen werden.",
+      "empty": "Noch nichts geplant.",
+      "line": "Anruf {call} · Termin {meeting}",
+      "callNow": "Jetzt anrufen",
+      "callNowFor": "{name} jetzt anrufen",
+      "theLead": "der Lead",
+      "calling": "{name} wird angerufen…",
+      "notPlaced": "Nicht angerufen: {reason}",
+      "callError": "Der Anruf konnte nicht gestartet werden."
+    },
+    "scheduleCall": {
+      "button": "Anrufen zum Terminieren",
+      "title": "Anrufen zum Terminieren",
+      "hint": "Der Agent ruft den Lead an, findet einen freien Termin im Kalender und bucht ihn.",
+      "lead": "Lead",
+      "changeLead": "Anderen Lead wählen",
+      "firstName": "Begrüßen als",
+      "firstNameHint": "Der Vorname, den der Agent verwendet.",
+      "member": "Termin mit",
+      "chooseMember": "Mitglied wählen",
+      "you": "(Sie)",
+      "booksOn": "Bucht in {calendar}",
+      "callsFrom": "Ruft von {number} an",
+      "onlyThisCall": "Nur dieser Anruf wird berechnet.",
+      "start": "Anrufen zum Terminieren",
+      "calling": "{name} wird angerufen…",
+      "error": "Der Anruf konnte nicht gestartet werden."
+    },
+    "activity": {
+      "title": "Letzte Aktivität",
+      "empty": "Noch nichts – was die Agenten tun, erscheint hier.",
+      "someone": "ein Lead",
+      "kinds": {
+        "attendance_confirmed": "{name} hat die Teilnahme bestätigt",
+        "attendance_declined": "{name} kann nicht teilnehmen",
+        "no_answer": "Keine Antwort: {name}",
+        "call_completed": "Gespräch mit {name}, ohne klare Antwort",
+        "call_failed": "{name} konnte nicht angerufen werden",
+        "needs_email": "E-Mail fehlt: {name}",
+        "needs_member": "Termin von {name} neu zuweisen",
+        "email_failed": "E-Mail an {name} fehlgeschlagen",
+        "meeting_booked": "Termin gebucht"
+      },
+      "completeEmail": "E-Mail ergänzen",
+      "emailLabel": "E-Mail von {name}",
+      "emailPlaceholder": "name@firma.de",
+      "send": "Senden",
+      "emailQueued": "Die Bestätigungs-E-Mail geht jetzt raus.",
+      "emailError": "Die E-Mail konnte nicht gespeichert werden."
+    },
+    "attendance": {
+      "label": "Teilnahme",
+      "status": {
+        "pending": "Noch nicht bestätigt",
+        "confirmed": "Vom Lead bestätigt",
+        "declined": "Der Lead kann nicht teilnehmen"
+      },
+      "callNow": "Jetzt zur Bestätigung anrufen",
+      "calling": "Lead wird angerufen…",
+      "notPlaced": "Nicht angerufen: {reason}",
+      "callError": "Der Anruf konnte nicht gestartet werden."
+    }
   }
 }

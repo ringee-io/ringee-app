@@ -91,6 +91,10 @@ export * from "./offer-event.repository";
 export * from "./offer-stats.repository";
 export * from "./ai-voice-agent.repository";
 export * from "./ai-voice-agent-call.repository";
+export * from "./ai-voice-agent-automation.repository";
+export * from "./meeting-reminder-policy.repository";
+export * from "./meeting-reminder-execution.repository";
+export * from "./meeting-email-delivery.repository";
 export * from "./workspace-company-profile.repository";
 
 export * from "./external-carrier.repository";

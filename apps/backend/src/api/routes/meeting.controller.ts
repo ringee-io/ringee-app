@@ -27,6 +27,8 @@ import {
 import {
   CurrentUser,
   CurrentUserData,
+  OrgAdminOnly,
+  SetMeetingResponsibleDto,
   createOwnershipContext,
 } from "@ringee/platform";
 import {
@@ -212,6 +214,22 @@ export class MeetingController {
   ) {
     const ctx = createOwnershipContext(user);
     return this.meetingService.retryExternalSync(ctx, id);
+  }
+
+  /**
+   * Who the meeting is with (CAL-003). An admin's call: the confirmation email
+   * goes to this member, and a reminder call names them. The meeting's owner
+   * does not change.
+   */
+  @OrgAdminOnly()
+  @Patch(":id/responsible")
+  async setResponsible(
+    @Param("id") id: string,
+    @Body() dto: SetMeetingResponsibleDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.meetingService.setResponsible(ctx, id, dto.userId);
   }
 
   @Patch(":id/cancel")

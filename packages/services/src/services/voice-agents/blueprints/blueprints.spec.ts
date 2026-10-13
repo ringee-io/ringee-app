@@ -306,19 +306,50 @@ describe("AppointmentBookingBlueprint", () => {
 describe("RemindersNotificationsBlueprint", () => {
   const blueprint = new RemindersNotificationsBlueprint();
 
-  it("needs no calendar and can schedule callbacks or request support", () => {
+  it("needs no calendar and can record attendance, schedule callbacks or request support", () => {
     assert.equal(blueprint.requiresCalendar, false);
     const tools = blueprint.buildTools(toolContext);
     assert.deepEqual(
       tools.map((t) => t.kind),
-      ["webhook", "webhook", "hangup"],
+      ["webhook", "webhook", "webhook", "hangup"],
     );
     assert.deepEqual(
       tools
         .filter((tool) => tool.kind === "webhook")
         .map((tool) => tool.kind === "webhook" && tool.name),
-      ["schedule_callback", "request_human_support"],
+      [
+        "confirm_meeting_attendance",
+        "schedule_callback",
+        "request_human_support",
+      ],
     );
+  });
+
+  it("lets the model name an answer, never the meeting it is about (AGENT-017)", () => {
+    const tool = blueprint
+      .buildTools(toolContext)
+      .find(
+        (candidate) =>
+          candidate.kind === "webhook" &&
+          candidate.name === "confirm_meeting_attendance",
+      );
+    assert.ok(tool && tool.kind === "webhook");
+    const properties = Object.keys(tool.parameters?.properties ?? {});
+    assert.deepEqual(properties.sort(), ["attendance", "email", "note"]);
+    assert.deepEqual(tool.parameters?.required, ["attendance"]);
+    // The call is identified by the provider-filled header, not an argument.
+    assert.ok(
+      tool.headers?.some((header) => header.value === "{{call_control_id}}"),
+    );
+  });
+
+  it("counts only an explicit answer, after the tool, as attendance", () => {
+    const instructions = blueprint.buildInstructions(promptContext);
+    assert.match(instructions, /Only a clear yes is a/);
+    assert.match(instructions, /Never say an\n {2}email was already sent/);
+    const safety = blueprint.buildSafetyInstructions(promptContext);
+    assert.match(safety, /Only `confirm_meeting_attendance` records an answer/);
+    assert.match(safety, /never say a confirmation email was already sent/);
   });
 
   it("requires the notification it is calling about", () => {
