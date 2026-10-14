@@ -31,7 +31,11 @@
     "create": "Aanmaken",
     "test": "Testen",
     "voiceSet": "Stem ingesteld",
-    "noVoice": "Nog geen stem"
+    "noVoice": "Nog geen stem",
+    "searchPlaceholder": "Agents zoeken…",
+    "allStatuses": "Alle statussen",
+    "noMatches": "Geen agents gevonden voor je zoekopdracht.",
+    "calls": "{count, plural, one {# gesprek} other {# gesprekken}}"
   },
   "wizard": {
     "title": "Nieuwe agent",

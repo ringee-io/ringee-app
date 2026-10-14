@@ -8,14 +8,23 @@ import {
   BellRing,
   Bot,
   CalendarCheck,
+  Eye,
   Mic,
   PhoneCall,
   PhoneIncoming,
   Plus,
-  RotateCw
+  RotateCw,
+  Search
 } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Card } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@ringee/frontend-shared/components/ui/card';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   Dialog,
   DialogContent,
@@ -24,11 +33,26 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { Input } from '@ringee/frontend-shared/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@ringee/frontend-shared/components/ui/select';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import { useVoiceAgentApi } from '../api';
 import { describeApiError } from '../lib/api-error';
 import { flagEmoji } from '../lib/voice-format';
-import type { VoiceAgent, VoiceAgentType, VoiceAgentTypeInfo } from '../types';
+import type {
+  VoiceAgent,
+  VoiceAgentStatus,
+  VoiceAgentType,
+  VoiceAgentTypeInfo
+} from '../types';
 import { AgentStatusBadge } from './agent-status-badge';
 import { AgentTypeCards } from './agent-type-cards';
 
@@ -38,16 +62,134 @@ const TYPE_ICONS: Record<VoiceAgentType, typeof CalendarCheck> = {
   receptionist: PhoneIncoming
 };
 
+const STATUSES: VoiceAgentStatus[] = ['active', 'draft', 'disabled', 'error'];
+
+/**
+ * One agent, laid out like a campaign card: the whole card opens it and the
+ * rest of what you can do sits behind its actions menu, so a page of agents
+ * does not turn into a wall of buttons.
+ */
+function AgentCard({
+  agent,
+  typeTitle,
+  voiceFlag
+}: {
+  agent: VoiceAgent;
+  typeTitle: string;
+  voiceFlag: string;
+}) {
+  const t = useTranslations('aiVoiceAgents.list');
+  const tCommon = useTranslations('common');
+  const Icon = TYPE_ICONS[agent.type] ?? Bot;
+  const href = `/dashboard/ai-voice-agents/${agent.id}`;
+
+  return (
+    <Card className='relative gap-4 transition-shadow hover:shadow-md'>
+      <CardHeader className='flex items-start justify-between gap-2'>
+        <div className='flex min-w-0 items-center gap-3'>
+          <div className='bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg'>
+            <Icon className='size-4' />
+          </div>
+          <div className='min-w-0 space-y-1'>
+            <CardTitle className='truncate text-lg'>
+              {/* Stretched over the card: the whole card opens the agent. */}
+              <Link
+                href={href}
+                className='focus-visible:ring-ring rounded-sm outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:ring-2'
+              >
+                {agent.name}
+              </Link>
+            </CardTitle>
+            <CardDescription className='truncate'>{typeTitle}</CardDescription>
+          </div>
+        </div>
+        {/* Above the stretched link, so the menu opens instead of the agent. */}
+        <div className='relative z-10 flex shrink-0 items-center gap-1'>
+          <AgentStatusBadge status={agent.status} />
+          <TableRowActions
+            label={tCommon('openActions')}
+            menuLabel={tCommon('actions')}
+          >
+            <DropdownMenuItem asChild>
+              <Link href={href}>
+                <Eye className='h-4 w-4' />
+                {tCommon('view')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`${href}?tab=test`}>
+                <Mic className='h-4 w-4' />
+                {t('test')}
+              </Link>
+            </DropdownMenuItem>
+            <CopyIdMenuItem id={agent.id} />
+          </TableRowActions>
+        </div>
+      </CardHeader>
+      <CardContent className='space-y-2'>
+        {/* An agent in `error` is not going to answer anything; the reason
+            belongs on the card, not two clicks away. */}
+        {agent.status === 'error' && agent.lastError ? (
+          <p className='text-destructive line-clamp-2 text-xs'>
+            {agent.lastError}
+          </p>
+        ) : null}
+        <div className='text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm'>
+          <span className='flex min-w-0 items-center gap-1'>
+            {agent.voiceId ? (
+              <>
+                <span aria-hidden>{voiceFlag}</span>
+                <span className='truncate'>
+                  {agent.voiceLabel ?? t('voiceSet')}
+                </span>
+              </>
+            ) : (
+              t('noVoice')
+            )}
+          </span>
+          <span className='flex items-center gap-1'>
+            <PhoneCall className='h-4 w-4' />
+            {t('calls', { count: agent.callCount ?? 0 })}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AgentListSkeleton() {
+  return (
+    <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Card key={i} className='gap-4'>
+          <CardHeader>
+            <Skeleton className='h-6 w-3/4' />
+            <Skeleton className='h-4 w-1/2' />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className='h-4 w-full' />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 /** The module's home: the agents you have, and one way to add another. */
 export function AgentsList() {
   const t = useTranslations('aiVoiceAgents.list');
   const tCommon = useTranslations('aiVoiceAgents.common');
+  const tStatus = useTranslations('aiVoiceAgents.status');
   const api = useVoiceAgentApi();
   const [types, setTypes] = useState<VoiceAgentTypeInfo[]>([]);
   const [agents, setAgents] = useState<VoiceAgent[]>([]);
   const [voiceFlags, setVoiceFlags] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<VoiceAgentStatus | 'all'>(
+    'all'
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,16 +217,16 @@ export function AgentsList() {
   }, [load]);
 
   const titleByType = new Map(types.map((t) => [t.type, t.title]));
+  const query = search.trim().toLowerCase();
+  const visible = agents.filter(
+    (agent) =>
+      (statusFilter === 'all' || agent.status === statusFilter) &&
+      (!query ||
+        agent.name.toLowerCase().includes(query) ||
+        (titleByType.get(agent.type) ?? '').toLowerCase().includes(query))
+  );
 
-  if (loading) {
-    return (
-      <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className='h-40 w-full rounded-lg' />
-        ))}
-      </div>
-    );
-  }
+  if (loading) return <AgentListSkeleton />;
 
   if (failure) {
     return (
@@ -121,11 +263,39 @@ export function AgentsList() {
 
   return (
     <div className='space-y-4'>
-      <div className='flex justify-end'>
+      <div className='flex flex-col gap-3 sm:flex-row'>
+        <div className='relative flex-1'>
+          <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+          <Input
+            placeholder={t('searchPlaceholder')}
+            aria-label={t('searchPlaceholder')}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className='pl-9'
+          />
+        </div>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) =>
+            setStatusFilter(value as VoiceAgentStatus | 'all')
+          }
+        >
+          <SelectTrigger className='w-full sm:w-[160px]'>
+            <SelectValue placeholder={t('allStatuses')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>{t('allStatuses')}</SelectItem>
+            {STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {tStatus(status)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Dialog>
           <DialogTrigger asChild>
-            <Button className='h-10 rounded-lg'>
-              <Plus className='size-4' />
+            <Button>
+              <Plus className='mr-2 h-4 w-4' />
               {t('newAgent')}
             </Button>
           </DialogTrigger>
@@ -139,81 +309,22 @@ export function AgentsList() {
         </Dialog>
       </div>
 
-      <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-        {agents.map((agent) => {
-          const Icon = TYPE_ICONS[agent.type] ?? Bot;
-          return (
-            <Card
+      {visible.length === 0 ? (
+        <Card className='items-center py-12 text-center'>
+          <p className='text-muted-foreground text-sm'>{t('noMatches')}</p>
+        </Card>
+      ) : (
+        <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+          {visible.map((agent) => (
+            <AgentCard
               key={agent.id}
-              className='hover:border-primary/40 flex flex-col gap-3 rounded-lg p-4 transition-colors'
-            >
-              <div className='flex items-start justify-between gap-2'>
-                <div className='flex min-w-0 items-center gap-2'>
-                  <div className='bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
-                    <Icon className='size-4' />
-                  </div>
-                  <Link
-                    href={`/dashboard/ai-voice-agents/${agent.id}`}
-                    className='truncate font-medium hover:underline'
-                  >
-                    {agent.name}
-                  </Link>
-                </div>
-                <AgentStatusBadge status={agent.status} />
-              </div>
-
-              <p className='text-muted-foreground text-sm'>
-                {titleByType.get(agent.type) ?? agent.type}
-              </p>
-
-              {/* An agent in `error` is not going to answer anything; the
-                  reason belongs on the card, not two clicks away. */}
-              {agent.status === 'error' && agent.lastError ? (
-                <p className='text-destructive line-clamp-2 text-xs'>
-                  {agent.lastError}
-                </p>
-              ) : null}
-
-              <div className='text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs'>
-                <span>
-                  {agent.voiceId ? (
-                    <>
-                      <span aria-hidden>{voiceFlags[agent.voiceId] ?? ''}</span>{' '}
-                      {agent.voiceLabel ?? t('voiceSet')}
-                    </>
-                  ) : (
-                    t('noVoice')
-                  )}
-                </span>
-                <span className='flex items-center gap-1'>
-                  <PhoneCall className='size-3' />
-                  {agent.callCount ?? 0}
-                </span>
-              </div>
-
-              <div className='mt-auto flex gap-2 pt-1'>
-                <Button
-                  asChild
-                  variant='outline'
-                  className='h-10 flex-1 rounded-lg'
-                >
-                  <Link
-                    href={`/dashboard/ai-voice-agents/${agent.id}?tab=test`}
-                  >
-                    <Mic className='size-3.5' />
-                    {t('test')}
-                  </Link>
-                </Button>
-                <Button asChild className='h-10 flex-1 rounded-lg'>
-                  <Link href={`/dashboard/ai-voice-agents/${agent.id}`}>
-                    {tCommon('open')}
-                  </Link>
-                </Button>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+              agent={agent}
+              typeTitle={titleByType.get(agent.type) ?? agent.type}
+              voiceFlag={agent.voiceId ? (voiceFlags[agent.voiceId] ?? '') : ''}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

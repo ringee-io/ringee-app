@@ -31,7 +31,11 @@
     "create": "Crear",
     "test": "Probar",
     "voiceSet": "Voz asignada",
-    "noVoice": "Sin voz todavía"
+    "noVoice": "Sin voz todavía",
+    "searchPlaceholder": "Buscar agentes…",
+    "allStatuses": "Todos los estados",
+    "noMatches": "Ningún agente coincide con tu búsqueda.",
+    "calls": "{count, plural, one {# llamada} other {# llamadas}}"
   },
   "wizard": {
     "title": "Nuevo agente",

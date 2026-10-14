@@ -31,7 +31,11 @@
     "create": "Create",
     "test": "Test",
     "voiceSet": "Voice set",
-    "noVoice": "No voice yet"
+    "noVoice": "No voice yet",
+    "searchPlaceholder": "Search agents…",
+    "allStatuses": "All statuses",
+    "noMatches": "No agents match your search.",
+    "calls": "{count, plural, one {# call} other {# calls}}"
   },
   "wizard": {
     "title": "New agent",
