@@ -497,7 +497,7 @@
       "pause": "{title} pauzeren",
       "resume": "{title} inschakelen"
     },
-    "activate": "Agent instellen",
+    "activate": "Inschakelen",
     "askAdmin": "Een beheerder kan deze agent instellen.",
     "scheduling": {
       "call": "Bellen om te plannen",
@@ -583,7 +583,14 @@
       "someNumbersFailed": "Sommige nummers konden niet worden toegewezen: {reasons}",
       "calendar": "Agenda",
       "chooseCalendar": "Kies een agenda",
-      "schedulingNoCalls": "Inschakelen belt niemand: hij komt in actie elke keer dat je bij een lead op „Bellen om te plannen” drukt."
+      "voice": "Stem",
+      "voiceHint": "De agent spreekt de taal van de stem. Beluister de stemmen en wijzig hem bij Aanpassen.",
+      "chooseVoice": "Kies een stem",
+      "moreOptions": "Meer opties",
+      "summary": {
+        "reminders": "{name} belt elke lead {when} voor de afspraak om de aanwezigheid te bevestigen.",
+        "scheduling": "Als je bij een lead op „Bellen om te plannen” drukt, belt {name} hem en plant de afspraak. Inschakelen belt niemand."
+      }
     },
     "upcoming": {
       "title": "{count, plural, =0 {Geen gesprekken gepland} one {# gesprek gepland} other {# gesprekken gepland}}",

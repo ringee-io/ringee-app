@@ -497,7 +497,7 @@
       "pause": "Metti in pausa {title}",
       "resume": "Attiva {title}"
     },
-    "activate": "Configura agente",
+    "activate": "Attiva",
     "askAdmin": "Un amministratore può configurare questo agente.",
     "scheduling": {
       "call": "Chiama per fissare",
@@ -583,7 +583,14 @@
       "someNumbersFailed": "Alcuni numeri non sono stati assegnati: {reasons}",
       "calendar": "Calendario",
       "chooseCalendar": "Scegli un calendario",
-      "schedulingNoCalls": "Attivarlo non chiama nessuno: scatta ogni volta che premi «Chiama per fissare» su un lead."
+      "voice": "Voce",
+      "voiceHint": "L'agente parla la lingua della voce. Puoi ascoltarle e cambiarla in Personalizza.",
+      "chooseVoice": "Scegli una voce",
+      "moreOptions": "Altre opzioni",
+      "summary": {
+        "reminders": "{name} chiamerà ogni lead {when} prima della riunione per confermare la presenza.",
+        "scheduling": "Quando premi «Chiama per fissare» su un lead, {name} lo chiama e fissa la riunione. Attivarlo non chiama nessuno."
+      }
     },
     "upcoming": {
       "title": "{count, plural, =0 {Nessuna chiamata pianificata} one {# chiamata pianificata} other {# chiamate pianificate}}",

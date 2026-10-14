@@ -230,6 +230,8 @@ interface QuickAgentInput {
   agentId?: string;
   name?: string;
   language?: string;
+  /** A new agent's voice; without one, the first curated voice in `language`. */
+  voiceId?: string;
 }
 
 /**
@@ -695,7 +697,18 @@ export class VoiceAgentAutomationService {
       }
     }
 
-    await this.automations.removeForOwner(ctx, automation.id, agentId);
+    // Deleted only while the row still drives this agent: another window may
+    // have moved the card to another one meanwhile.
+    const removed = await this.automations.removeForOwner(
+      ctx,
+      automation.id,
+      agentId,
+    );
+    if (!removed) {
+      throw new ConflictException(
+        "This trigger changed in another window. Reload it.",
+      );
+    }
     return this.card(ctx, capability);
   }
 
@@ -806,8 +819,9 @@ export class VoiceAgentAutomationService {
 
   /**
    * The agent a capability runs on: the one the person picked, the one the
-   * card already drives, or — once, under the row's claim — a new one with a
-   * voice in the person's language and the workspace's company context.
+   * card already drives, or — once, under the row's claim — a new one with the
+   * voice the person picked (else one in their language) and the workspace's
+   * company context.
    */
   private async resolveAgent(
     ctx: OrganizationOwnershipContext,
@@ -885,7 +899,10 @@ export class VoiceAgentAutomationService {
     }
 
     try {
-      const voice = await this.defaultVoice(input.language);
+      // A chosen voice is validated by `create` against the catalogue and the
+      // workspace's own clones, like a voice picked in the editor.
+      const voice =
+        input.voiceId?.trim() || (await this.defaultVoice(input.language));
       const created = await this.voiceAgents.create(
         ctx,
         {

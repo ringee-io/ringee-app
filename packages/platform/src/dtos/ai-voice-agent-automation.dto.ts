@@ -51,6 +51,15 @@ class QuickAgentChoiceDto {
     message: "Choose a supported language.",
   })
   language?: string;
+
+  /**
+   * The voice a new agent speaks with, picked in the rail. Wins over
+   * `language`; checked against the catalogue when the agent is created.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  voiceId?: string;
 }
 
 export class ReminderAutomationSetupDto extends QuickAgentChoiceDto {

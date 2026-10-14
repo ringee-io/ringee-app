@@ -21,6 +21,8 @@ interface QuickAgentBody {
   name?: string;
   /** Base language of a new agent's voice — the interface language. */
   language?: string;
+  /** A new agent's voice, picked in the rail; wins over `language`. */
+  voiceId?: string;
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   Loader2,
   Mic,
   PhoneIncoming,
+  Power,
   Settings2
 } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -324,6 +325,7 @@ export function CapabilityCard({
               className='h-11 rounded-lg md:h-8'
               onClick={openForm}
             >
+              <Power className='size-3.5' />
               {t('activate')}
             </Button>
           ) : (

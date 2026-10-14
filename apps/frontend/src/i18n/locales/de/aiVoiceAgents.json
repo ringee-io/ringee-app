@@ -497,7 +497,7 @@
       "pause": "{title} pausieren",
       "resume": "{title} einschalten"
     },
-    "activate": "Agent einrichten",
+    "activate": "Einschalten",
     "askAdmin": "Ein Administrator kann diesen Agenten einrichten.",
     "scheduling": {
       "call": "Anrufen zum Terminieren",
@@ -583,7 +583,14 @@
       "someNumbersFailed": "Einige Nummern konnten nicht zugewiesen werden: {reasons}",
       "calendar": "Kalender",
       "chooseCalendar": "Kalender wählen",
-      "schedulingNoCalls": "Einschalten ruft niemanden an: Er wird jedes Mal ausgelöst, wenn Sie bei einem Lead „Anrufen zum Terminieren“ drücken."
+      "voice": "Stimme",
+      "voiceHint": "Der Agent spricht die Sprache der Stimme. Unter Anpassen können Sie die Stimmen anhören und sie ändern.",
+      "chooseVoice": "Stimme wählen",
+      "moreOptions": "Weitere Optionen",
+      "summary": {
+        "reminders": "{name} ruft jeden Lead {when} vor seinem Termin an, um die Teilnahme zu bestätigen.",
+        "scheduling": "Wenn Sie bei einem Lead „Anrufen zum Terminieren“ drücken, ruft {name} ihn an und bucht den Termin. Einschalten ruft niemanden an."
+      }
     },
     "upcoming": {
       "title": "{count, plural, =0 {Keine Anrufe geplant} one {# Anruf geplant} other {# Anrufe geplant}}",

@@ -48,6 +48,8 @@ function build(
     routes?: Row[];
     released?: Row;
     members?: string[];
+    /** What the conditional delete of the automation row reports. */
+    removes?: boolean;
   } = {},
 ) {
   const calls: Row[] = [];
@@ -86,6 +88,7 @@ function build(
       },
       clearAgent: async () => true,
       removeForOwner: async (_ctx: Row, id: string, agentId: string) => {
+        if (over.removes === false) return false;
         deleted.push({ automation: id, agentId });
         removed = true;
         return true;
@@ -243,6 +246,20 @@ describe("VoiceAgentAutomationService quick setup", () => {
     assert.equal(created[0]!.voiceId, "voice-es");
     assert.ok(calls.some((call) => call.completeClaim === "agent-new"));
     assert.ok(calls.some((call) => call.planned));
+  });
+
+  it("creates the agent with the voice the person picked, over their language", async () => {
+    const { service, created } = build({ automation: null });
+
+    await service.setupScheduling(CTX, {
+      name: "Carmen",
+      language: "es",
+      voiceId: "voice-picked",
+      calendarId: "calendar-1",
+    });
+
+    assert.equal(created.length, 1);
+    assert.equal(created[0]!.voiceId, "voice-picked");
   });
 
   it("does not create a second agent while another window is setting one up", async () => {
@@ -656,6 +673,15 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
       ConflictException,
     );
     assert.deepEqual(deleted, []);
+  });
+
+  it("reports a conflict when another window moved the card meanwhile", async () => {
+    const { service, deleted } = build({ removes: false });
+    await assert.rejects(
+      () => service.removeAutomation(CTX, "reminders"),
+      ConflictException,
+    );
+    assert.deepEqual(deleted, [{ policies: ["policy-1"] }]);
   });
 
   it("puts the card back to not set up, offering the same agent again", async () => {

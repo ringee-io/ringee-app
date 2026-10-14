@@ -572,7 +572,7 @@
       "resting": "Pausiert bis {date}: Die Rotation überspringt sie vorerst",
       "balance": "Guthaben",
       "addCredit": "Guthaben hinzufügen",
-      "balanceError": "Dein Guthaben konnte nicht geladen werden.",
+      "balanceError": "Ihr Guthaben konnte nicht geladen werden.",
       "retry": "Erneut versuchen"
     },
     "today": {

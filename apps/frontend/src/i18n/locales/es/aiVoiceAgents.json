@@ -497,7 +497,7 @@
       "pause": "Pausar {title}",
       "resume": "Activar {title}"
     },
-    "activate": "Configurar agente",
+    "activate": "Activar",
     "askAdmin": "Un administrador puede configurar este agente.",
     "scheduling": {
       "call": "Llamar para agendar",
@@ -556,7 +556,7 @@
       "callFrom": "Llamar desde",
       "callFromHint": "Los leads ven este número y devuelven la llamada a él.",
       "chooseNumber": "Elige un número",
-      "when": "Cuándo se dispara",
+      "when": "Cuándo llama",
       "custom": "Otro",
       "before": "{value} antes",
       "units": {
@@ -583,7 +583,14 @@
       "someNumbersFailed": "Algunos números no se pudieron asignar: {reasons}",
       "calendar": "Calendario",
       "chooseCalendar": "Elige un calendario",
-      "schedulingNoCalls": "Activarlo no llama a nadie: se dispara cada vez que pulsas «Llamar para agendar» en un lead."
+      "voice": "Voz",
+      "voiceHint": "El agente habla el idioma de la voz. Puedes escucharlas y cambiarla en Personalizar.",
+      "chooseVoice": "Elige una voz",
+      "moreOptions": "Más opciones",
+      "summary": {
+        "reminders": "{name} llamará a cada lead {when} antes de su reunión para confirmar su asistencia.",
+        "scheduling": "Cuando pulses «Llamar para agendar» en un lead, {name} lo llama y agenda la reunión. Activarlo no llama a nadie."
+      }
     },
     "upcoming": {
       "title": "{count, plural, =0 {Ninguna llamada programada} one {# llamada programada} other {# llamadas programadas}}",

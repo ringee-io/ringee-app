@@ -168,10 +168,8 @@ export function VoiceAgentsRail() {
                 : 'bg-background hover:bg-foreground/5 shadow-sm'
             )}
           >
-            {/* Closed, the tab is only its title; the Ringee mark joins it open. */}
-            {/* {open ? ( */}
-              <RingeeMark className='animate-in fade-in-0 zoom-in-90 size-6 duration-200 motion-reduce:animate-none' />
-            {/* // ) : null} */}
+            {/* The Ringee mark heads the tab, open or closed. */}
+            <RingeeMark className='size-6' />
             <span className='text-base font-semibold tracking-wide whitespace-nowrap [writing-mode:vertical-rl]'>
               {t('title')}
             </span>

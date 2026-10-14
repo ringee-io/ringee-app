@@ -1761,6 +1761,12 @@ limits how many agents a workspace creates there.
   would leave it unrouted keeps the receptionist until someone says where its
   calls go. The agent is switched off only once every number is handed back.
 - Switching scheduling on dials nobody: "Call to schedule" is what spends.
+- Quick setup asks only what has no safe default (an agent among several
+  candidates, a number among several — AGENT-008, a calendar when none is the
+  global one); the rest is pre-filled under "More options". A new agent speaks
+  with the voice picked in the rail, validated by `VoiceAgentService.create`
+  like one picked in the editor, else the first curated voice in the
+  interface language.
 
 - **Source of truth:** `VoiceAgentAutomationService`,
   `AiVoiceAgentAutomationRepository.claim`,

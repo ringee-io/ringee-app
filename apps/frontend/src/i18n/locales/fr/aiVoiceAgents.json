@@ -497,7 +497,7 @@
       "pause": "Mettre en pause {title}",
       "resume": "Activer {title}"
     },
-    "activate": "Configurer l'agent",
+    "activate": "Activer",
     "askAdmin": "Un administrateur peut configurer cet agent.",
     "scheduling": {
       "call": "Appeler pour planifier",
@@ -583,7 +583,14 @@
       "someNumbersFailed": "Certains numéros n'ont pas pu être attribués : {reasons}",
       "calendar": "Calendrier",
       "chooseCalendar": "Choisissez un calendrier",
-      "schedulingNoCalls": "L'activer n'appelle personne : il se déclenche chaque fois que vous appuyez sur « Appeler pour planifier » sur un prospect."
+      "voice": "Voix",
+      "voiceHint": "L'agent parle la langue de la voix. Écoutez les voix et changez-la dans Personnaliser.",
+      "chooseVoice": "Choisissez une voix",
+      "moreOptions": "Plus d'options",
+      "summary": {
+        "reminders": "{name} appellera chaque prospect {when} avant sa réunion pour confirmer sa présence.",
+        "scheduling": "Quand vous appuyez sur « Appeler pour planifier » sur un prospect, {name} l'appelle et réserve la réunion. L'activer n'appelle personne."
+      }
     },
     "upcoming": {
       "title": "{count, plural, =0 {Aucun appel prévu} one {# appel prévu} other {# appels prévus}}",

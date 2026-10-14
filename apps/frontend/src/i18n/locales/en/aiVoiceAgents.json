@@ -497,7 +497,7 @@
       "pause": "Pause {title}",
       "resume": "Turn on {title}"
     },
-    "activate": "Set up agent",
+    "activate": "Turn on",
     "askAdmin": "An admin can set up this agent.",
     "scheduling": {
       "call": "Call to schedule",
@@ -556,7 +556,7 @@
       "callFrom": "Call from",
       "callFromHint": "Leads see this number — and call it back.",
       "chooseNumber": "Choose a number",
-      "when": "When it fires",
+      "when": "When it calls",
       "custom": "Other",
       "before": "{value} before",
       "units": {
@@ -583,7 +583,14 @@
       "someNumbersFailed": "Some numbers could not be assigned: {reasons}",
       "calendar": "Calendar",
       "chooseCalendar": "Choose a calendar",
-      "schedulingNoCalls": "Switching it on calls nobody: it fires each time you press “Call to schedule” on a lead."
+      "voice": "Voice",
+      "voiceHint": "The agent speaks the voice's language. Listen to the voices and change it in Customize.",
+      "chooseVoice": "Choose a voice",
+      "moreOptions": "More options",
+      "summary": {
+        "reminders": "{name} will call each lead {when} before their meeting to confirm they will attend.",
+        "scheduling": "When you press “Call to schedule” on a lead, {name} calls them and books the meeting. Switching it on calls nobody."
+      }
     },
     "upcoming": {
       "title": "{count, plural, =0 {No calls planned} one {# call planned} other {# calls planned}}",
