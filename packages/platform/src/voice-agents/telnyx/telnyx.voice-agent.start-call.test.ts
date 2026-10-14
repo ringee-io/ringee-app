@@ -42,6 +42,17 @@ describe("Telnyx outbound agent call start", () => {
     });
   });
 
+  it("passes a 4xx that proves nothing through: the leg may exist", async () => {
+    // 408/425 can come from a hop after the request was forwarded, and a
+    // throttled request is not promised to have had no effect.
+    for (const status of [408, 425, 429]) {
+      const error = new HttpException("uncertain", status);
+      await expect(serviceRejecting(error).startCall(REQUEST)).rejects.toBe(
+        error,
+      );
+    }
+  });
+
   it("passes a 5xx or a lost connection through: the leg may exist", async () => {
     // The client reports a request that got no answer as a 502.
     for (const status of [500, 502, 504]) {

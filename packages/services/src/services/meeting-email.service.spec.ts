@@ -2,7 +2,7 @@
 
 import "reflect-metadata";
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   MeetingEmailService,
@@ -18,6 +18,12 @@ import {
 type Row = Record<string, any>;
 
 const MEETING_AT = new Date("2026-10-14T19:00:00Z");
+
+// `build()` and the pilot-disabled test change the shared configuration.
+const PILOT_ORG_IDS = apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+afterEach(() => {
+  apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = PILOT_ORG_IDS;
+});
 
 const user = (id: string, email: string, firstName = id) => ({
   id,

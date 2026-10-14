@@ -152,6 +152,37 @@ describe("CallRepository carrier lifecycle persistence", () => {
     assert.equal(queries[1].where.organizationId, null);
     assert.equal(queries[0].where.callControlId, null);
   });
+
+  it("does not let an ended call or an abandoned pre-dial hold a number", async () => {
+    let query: any;
+    const repo = new CallRepository({
+      call: {
+        count: async (args: unknown) => {
+          query = args;
+          return 0;
+        },
+      },
+    } as never);
+    const before = Date.now();
+    assert.equal(
+      await repo.hasActiveWithNumber(
+        { userId: "member", organizationId: "org" },
+        "+13055550123",
+      ),
+      false,
+    );
+    assert.equal(query.where.endedAt, null);
+    const [live, pending] = query.where.AND[0].OR;
+    assert.deepEqual(live.status.in, [
+      CallStatus.ringing,
+      CallStatus.answered,
+      CallStatus.recording,
+    ]);
+    assert.equal(live.createdAt, undefined);
+    assert.equal(pending.status, CallStatus.pending);
+    const age = before - pending.createdAt.gte.getTime();
+    assert.ok(age <= 10 * 60_000 && age > 10 * 60_000 - 1_000);
+  });
 });
 
 describe("CallRepository receptionist transfer concurrency", () => {
