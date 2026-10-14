@@ -617,6 +617,33 @@ export class CallRepository {
     });
   }
 
+  /** A lead already talking to this workspace, on either side of the call. */
+  async hasActiveWithNumber(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+    excludeId?: string,
+  ): Promise<boolean> {
+    const count = await this.prisma.call.count({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        status: {
+          in: [
+            CallStatus.pending,
+            CallStatus.ringing,
+            CallStatus.answered,
+            CallStatus.recording,
+          ],
+        },
+        OR: [
+          { direction: "outbound", toNumber: phoneNumber },
+          { direction: "inbound", fromNumber: phoneNumber },
+        ],
+      },
+    });
+    return count > 0;
+  }
+
   async findActiveByOwner(ctx: OwnershipContext): Promise<Call[]> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     return this.prisma.call.findMany({

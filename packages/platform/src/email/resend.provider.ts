@@ -18,6 +18,7 @@ const RETRYABLE_ERRORS = new Set([
 
 export class ResendProvider implements EmailInterface {
   name = "resend";
+  readonly idempotencyWindowMs = 24 * 60 * 60_000;
   validateEnvKeys = ["RESEND_API_KEY"];
   async sendEmail(
     to: string | string[],

@@ -46,3 +46,58 @@ describe("AiVoiceAgentRepository.reserveCustomVoice", () => {
     await assert.rejects(repository.reserveCustomVoice(ctx, data), error);
   });
 });
+
+describe("AiVoiceAgentRepository.createForAutomation", () => {
+  it("rejects a replaced claim before creating an agent", async () => {
+    let creations = 0;
+    const repository = new AiVoiceAgentRepository({
+      $transaction: async (fn: (tx: unknown) => unknown) =>
+        fn({
+          $queryRaw: async () => [{ claimToken: "replacement", agentId: null }],
+          aiVoiceAgent: {
+            create: async () => {
+              creations++;
+              return {};
+            },
+          },
+        }),
+    } as never);
+    assert.equal(
+      await repository.createForAutomation(
+        ctx,
+        { name: "Agent", type: "appointment_booking" },
+        { id: "automation", token: "old" },
+      ),
+      null,
+    );
+    assert.equal(creations, 0);
+  });
+
+  it("associates the local agent in the same transaction before provisioning", async () => {
+    const events: string[] = [];
+    const repository = new AiVoiceAgentRepository({
+      $transaction: async (fn: (tx: unknown) => unknown) =>
+        fn({
+          $queryRaw: async () => [{ claimToken: "owner", agentId: null }],
+          aiVoiceAgent: {
+            create: async () => {
+              events.push("create");
+              return { id: "agent" };
+            },
+          },
+          aiVoiceAgentAutomation: {
+            update: async () => {
+              events.push("associate");
+            },
+          },
+        }),
+    } as never);
+    const agent = await repository.createForAutomation(
+      ctx,
+      { name: "Agent", type: "appointment_booking" },
+      { id: "automation", token: "owner" },
+    );
+    assert.equal(agent?.id, "agent");
+    assert.deepEqual(events, ["create", "associate"]);
+  });
+});

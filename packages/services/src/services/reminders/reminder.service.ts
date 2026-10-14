@@ -190,19 +190,45 @@ export class ReminderService {
     );
     if (!calendar || calendar.archivedAt) return 0;
     const now = new Date();
-    const meetings = await this.meetingRepo.listUpcomingOnCalendars(ctx, {
-      calendarIds: [calendar.id],
-      includeUnassigned: calendar.isDefault,
-      after: now,
-    });
-    const used = await this.callExecutions.listUsedOffsets(
-      meetings.map((meeting) => meeting.id),
-    );
-    return this.callExecutions.createMany(
-      meetings.flatMap((meeting) =>
-        this.callsFor(meeting, policy, calendar.timezone, used, now),
-      ),
-    );
+    let planned = 0;
+    for await (const meetings of this.upcomingMeetingPages(
+      ctx,
+      calendar,
+      now,
+    )) {
+      const used = await this.callExecutions.listUsedOffsets(
+        meetings.map((meeting) => meeting.id),
+      );
+      planned += await this.callExecutions.createMany(
+        meetings.flatMap((meeting) =>
+          this.callsFor(meeting, policy, calendar.timezone, used, now),
+        ),
+      );
+    }
+    return planned;
+  }
+
+  private async *upcomingMeetingPages(
+    ctx: OrganizationOwnershipContext,
+    calendar: { id: string; isDefault: boolean },
+    now: Date,
+  ): AsyncGenerator<Meeting[]> {
+    const take = 500;
+    let afterCursor: { scheduledAt: Date; id: string } | undefined;
+    while (true) {
+      const page = await this.meetingRepo.listUpcomingOnCalendars(ctx, {
+        calendarIds: [calendar.id],
+        includeUnassigned: calendar.isDefault,
+        after: now,
+        take,
+        afterCursor,
+      });
+      if (!page.length) return;
+      yield page;
+      if (page.length < take) return;
+      const last = page[page.length - 1]!;
+      afterCursor = { scheduledAt: last.scheduledAt, id: last.id };
+    }
   }
 
   /** A paused or replaced policy withdraws what it had planned. */
@@ -234,23 +260,21 @@ export class ReminderService {
       const window = existing
         ? readCallingWindow(existing)
         : DEFAULT_CALLING_WINDOW;
-      const upcoming = (
-        await this.meetingRepo.listUpcomingOnCalendars(ctx, {
-          calendarIds: [calendar.id],
-          includeUnassigned: calendar.isDefault,
-          after: now,
-        })
-      ).filter((meeting) => meeting.attendanceStatus === "pending");
-      meetings += upcoming.length;
-      calls += upcoming.filter((meeting) =>
-        planReminderCallAt({
-          meetingAt: meeting.scheduledAt,
-          offsetMinutes: input.offsetMinutes,
-          window,
-          timeZone: calendar.timezone,
-          notBefore,
-        }),
-      ).length;
+      for await (const page of this.upcomingMeetingPages(ctx, calendar, now)) {
+        const upcoming = page.filter(
+          (meeting) => meeting.attendanceStatus === "pending",
+        );
+        meetings += upcoming.length;
+        calls += upcoming.filter((meeting) =>
+          planReminderCallAt({
+            meetingAt: meeting.scheduledAt,
+            offsetMinutes: input.offsetMinutes,
+            window,
+            timeZone: calendar.timezone,
+            notBefore,
+          }),
+        ).length;
+      }
     }
     return { meetings, calls };
   }

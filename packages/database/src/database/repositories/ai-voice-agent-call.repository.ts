@@ -98,11 +98,13 @@ export class AiVoiceAgentCallRepository {
     ctx: OwnershipContext,
     toNumber: string,
     since: Date,
+    excludeId?: string,
   ): Promise<boolean> {
     const count = await this.prisma.aiVoiceAgentCall.count({
       where: {
         ...buildOwnershipFilter(ctx),
         toNumber,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
         createdAt: { gte: since },
         status: {
           in: [

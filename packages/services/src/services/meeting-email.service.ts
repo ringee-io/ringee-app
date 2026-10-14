@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   AiVoiceAgentCallRepository,
   AiVoiceAgentRepository,
@@ -11,16 +11,22 @@ import {
   MeetingEmailKind,
   MeetingRepository,
   MeetingStatus,
+  Prisma,
   OrganizationRepository,
   User,
   UserEmail,
   UserRepository,
 } from "@ringee/database";
 import {
-  ResendProvider,
+  EMAIL_PROVIDER,
+  type EmailMessage,
   type EmailInterface,
   type OrganizationOwnershipContext,
 } from "@ringee/platform";
+import {
+  automationOrganizationFilter,
+  voiceAgentAutomationsEnabled,
+} from "./voice-agents/automations/automation-access";
 import { normalizeEmail } from "./meeting.service";
 import { CompanyProfileService } from "./voice-agents/company-profile.service";
 
@@ -64,7 +70,9 @@ export interface MeetingEmailPeople {
 @Injectable()
 export class MeetingEmailService {
   private readonly logger = new Logger(MeetingEmailService.name);
-  private readonly email: EmailInterface = new ResendProvider();
+  private now(): Date {
+    return new Date();
+  }
 
   constructor(
     private readonly deliveries: MeetingEmailDeliveryRepository,
@@ -75,15 +83,20 @@ export class MeetingEmailService {
     private readonly agents: AiVoiceAgentRepository,
     private readonly calendars: CalendarRepository,
     private readonly companyProfiles: CompanyProfileService,
+    @Inject(EMAIL_PROVIDER) private readonly email: EmailInterface,
   ) {}
 
   /** Worker entry point, on the reminder schedule's tick. */
   async drain(now = new Date()): Promise<number> {
+    const organizations = automationOrganizationFilter();
+    if (organizations?.length === 0) return 0;
     await this.backfillMessageIds(now);
+    const claimAt = this.now();
     const claimed = await this.deliveries.claimDue(
-      now,
-      new Date(now.getTime() + LEASE_MS),
+      claimAt,
+      new Date(claimAt.getTime() + LEASE_MS),
       BATCH,
+      organizations,
     );
     let sent = 0;
     for (const delivery of claimed) {
@@ -96,6 +109,7 @@ export class MeetingEmailService {
           delivery.id,
           delivery.attempts >= MAX_ATTEMPTS ? D.failed : D.pending,
           message,
+          delivery.claimToken!,
         );
       }
     }
@@ -131,6 +145,35 @@ export class MeetingEmailService {
   }
 
   private async deliver(delivery: MeetingEmailDelivery): Promise<boolean> {
+    if (!delivery.claimToken) return false;
+    const release = (status: MeetingEmailDeliveryStatus, reason: string) =>
+      this.deliveries.release(
+        delivery.id,
+        status,
+        reason,
+        delivery.claimToken!,
+      );
+    if (!voiceAgentAutomationsEnabled(delivery.organizationId)) {
+      await release(D.pending, "automations_disabled");
+      return false;
+    }
+    // A timeout or failed database acknowledgment may already have sent it.
+    // Keep margin before the provider expires the key; never reset this clock.
+    const safeWindow = Math.max(
+      0,
+      (this.email.idempotencyWindowMs ?? 0) - 5 * 60_000,
+    );
+    if (
+      delivery.firstAttemptAt &&
+      (!delivery.sendPayload ||
+        this.now().getTime() - delivery.firstAttemptAt.getTime() >= safeWindow)
+    ) {
+      await release(
+        D.failed,
+        "Delivery may already have been sent; the provider idempotency window expired. Reconcile before retrying.",
+      );
+      return false;
+    }
     const meeting = (await this.meetings.findById(delivery.meetingId)) as
       | (Meeting & { contact?: Contact | null })
       | null;
@@ -139,6 +182,7 @@ export class MeetingEmailService {
         delivery.id,
         D.cancelled,
         "meeting_missing",
+        delivery.claimToken,
       );
       return false;
     }
@@ -150,10 +194,22 @@ export class MeetingEmailService {
         delivery.id,
         D.cancelled,
         "meeting_cancelled",
+        delivery.claimToken,
       );
       return false;
     }
 
+    const expectedAttendance =
+      delivery.kind === MeetingEmailKind.attendance_confirmed
+        ? "confirmed"
+        : "declined";
+    if (
+      meeting.attendanceScheduleVersion !== delivery.scheduleVersion ||
+      meeting.attendanceStatus !== expectedAttendance
+    ) {
+      await release(D.cancelled, "attendance_changed");
+      return false;
+    }
     const people = await this.people(meeting);
     const memberEmail = primaryEmail(people.responsible);
     if (!people.responsible || !memberEmail) {
@@ -163,6 +219,7 @@ export class MeetingEmailService {
         delivery.id,
         D.needs_member,
         "The member this meeting is with is no longer in the organization.",
+        delivery.claimToken,
       );
       return false;
     }
@@ -177,6 +234,7 @@ export class MeetingEmailService {
         delivery.id,
         D.needs_email,
         "There is no email address for the lead yet.",
+        delivery.claimToken,
       );
       return false;
     }
@@ -218,7 +276,7 @@ export class MeetingEmailService {
       ? `Re: ${previous.subject.replace(/^(Re:\s*)+/i, "")}`
       : content.subject;
 
-    const result = await this.email.send({
+    const proposed: EmailMessage = {
       to,
       cc,
       subject,
@@ -230,7 +288,49 @@ export class MeetingEmailService {
         ? { "In-Reply-To": inReplyTo, References: inReplyTo }
         : undefined,
       idempotencyKey: delivery.id,
-    });
+    };
+    const frozen = delivery.sendPayload as unknown as EmailMessage | null;
+    if (
+      frozen &&
+      (JSON.stringify([...frozen.to].sort()) !==
+        JSON.stringify([...to].sort()) ||
+        JSON.stringify([...(frozen.cc ?? [])].sort()) !==
+          JSON.stringify([...cc].sort()) ||
+        frozen.replyTo !== memberEmail)
+    ) {
+      await release(
+        D.failed,
+        "Recipients changed after an uncertain send; reconcile the original delivery before retrying.",
+      );
+      return false;
+    }
+    if (!voiceAgentAutomationsEnabled(delivery.organizationId)) {
+      await release(D.pending, "automations_disabled");
+      return false;
+    }
+    const atSend = this.now();
+    if (
+      delivery.firstAttemptAt &&
+      atSend.getTime() - delivery.firstAttemptAt.getTime() >= safeWindow
+    ) {
+      await release(
+        D.failed,
+        "Provider idempotency window expired during preparation; reconcile before retrying.",
+      );
+      return false;
+    }
+    const prepared = await this.deliveries.prepareSend(
+      delivery,
+      meeting.scheduleVersion,
+      atSend,
+      JSON.parse(JSON.stringify(proposed)) as Prisma.InputJsonObject,
+    );
+    if (!prepared) {
+      await release(D.pending, "meeting_or_claim_changed");
+      return false;
+    }
+    const message = prepared.sendPayload as unknown as EmailMessage;
+    const result = await this.email.send(message);
 
     if (!result.accepted) {
       const exhausted = !result.retryable || delivery.attempts >= MAX_ATTEMPTS;
@@ -238,22 +338,26 @@ export class MeetingEmailService {
         delivery.id,
         exhausted ? D.failed : D.pending,
         result.error,
+        delivery.claimToken,
       );
       return false;
     }
 
-    const messageId = result.providerEmailId
-      ? await this.email.getMessageId(result.providerEmailId)
-      : null;
-    await this.deliveries.markSent(delivery.id, {
-      providerEmailId: result.providerEmailId,
-      messageId,
-      toAddresses: to,
-      ccAddresses: cc,
-      replyTo: memberEmail,
-      subject,
-      inReplyTo,
-    });
+    // Persist acceptance before any further provider request. Message-ID is
+    // recovered by the existing backfill, which cannot cause another send.
+    await this.deliveries.markSent(
+      delivery.id,
+      {
+        providerEmailId: result.providerEmailId,
+        messageId: null,
+        toAddresses: message.to,
+        ccAddresses: message.cc ?? [],
+        replyTo: typeof message.replyTo === "string" ? message.replyTo : null,
+        subject: message.subject,
+        inReplyTo: message.headers?.["In-Reply-To"] ?? null,
+      },
+      delivery.claimToken,
+    );
     return true;
   }
 

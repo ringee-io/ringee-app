@@ -14,6 +14,8 @@ import {
 import { Global, Module, Provider } from "@nestjs/common";
 import { UserService } from "./user.service";
 import {
+  EMAIL_PROVIDER,
+  ResendProvider,
   AuthModule,
   NotificationModule,
   TelephonyModule,
@@ -457,6 +459,7 @@ const reminderChannelsProvider: Provider = {
 };
 
 const allProviders: Provider[] = [
+  { provide: EMAIL_PROVIDER, useClass: ResendProvider },
   ...servicesProviders,
   reminderChannelsProvider,
   pipelineDefinitionsProvider,

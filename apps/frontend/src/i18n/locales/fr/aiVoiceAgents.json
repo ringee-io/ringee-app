@@ -547,7 +547,7 @@
         "hours": "Heures",
         "minutes": "Minutes"
       },
-      "offsetRange": "Entre 5 minutes et 14 jours.",
+      "offsetRange": "Entre 15 minutes et 14 jours.",
       "scope": "Se déclenchera pour {calls, plural, =0 {aucun} one {# rendez-vous} other {# rendez-vous}} sur {meetings} à venir, dès maintenant.",
       "scopeUnknown": "Choisissez un calendrier pour voir les rendez-vous qui le déclenchent.",
       "noLateCalls": "Si un rendez-vous est plus proche que ce délai, il ne se déclenche jamais en retard.",

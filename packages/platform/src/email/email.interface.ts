@@ -34,7 +34,11 @@ export type EmailSendResult =
   | { accepted: true; providerEmailId: string | null }
   | { accepted: false; error: string; retryable: boolean };
 
+export const EMAIL_PROVIDER = Symbol("EMAIL_PROVIDER");
+
 export interface EmailInterface {
+  /** Guaranteed deduplication window; absent means uncertain sends cannot be retried. */
+  readonly idempotencyWindowMs?: number;
   name: string;
   validateEnvKeys: string[];
   /**

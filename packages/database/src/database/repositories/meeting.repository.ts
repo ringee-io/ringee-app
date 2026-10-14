@@ -332,11 +332,23 @@ export class MeetingRepository {
               organizationId: meeting.organizationId,
               meetingId: meeting.id,
               kind: input.email.kind,
+              scheduleVersion: row.scheduleVersion,
               idempotencyKey: input.email.idempotencyKey,
             },
           ],
           skipDuplicates: true,
         });
+        if (input.leadEmail) {
+          await tx.meetingEmailDelivery.updateMany({
+            where: {
+              idempotencyKey: input.email.idempotencyKey,
+              organizationId: meeting.organizationId,
+              status: "needs_email",
+              firstAttemptAt: null,
+            },
+            data: { status: "pending", lastError: null, attempts: 0 },
+          });
+        }
       }
 
       if (input.executionId) {
@@ -443,6 +455,7 @@ export class MeetingRepository {
       includeUnassigned: boolean;
       after: Date;
       take?: number;
+      afterCursor?: { scheduledAt: Date; id: string };
     },
   ): Promise<Meeting[]> {
     return this.prisma.meeting.findMany({
@@ -450,12 +463,27 @@ export class MeetingRepository {
         ...buildOwnershipFilter(ctx),
         status: { in: ACTIVE_MEETING_STATUSES },
         scheduledAt: { gt: options.after },
+        ...(options.afterCursor
+          ? {
+              AND: [
+                {
+                  OR: [
+                    { scheduledAt: { gt: options.afterCursor.scheduledAt } },
+                    {
+                      scheduledAt: options.afterCursor.scheduledAt,
+                      id: { gt: options.afterCursor.id },
+                    },
+                  ],
+                },
+              ],
+            }
+          : {}),
         OR: [
           { calendarId: { in: options.calendarIds } },
           ...(options.includeUnassigned ? [{ calendarId: null }] : []),
         ],
       },
-      orderBy: { scheduledAt: "asc" },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
       take: options.take ?? 1000,
     });
   }

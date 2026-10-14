@@ -27,8 +27,8 @@ import { CURATED_VOICE_LANGUAGES } from "../voice-agents/voices.catalog";
  * permission to use a number, a calendar or a member.
  */
 
-/** Shortest and longest reminder lead time the rail accepts: 5 min to 14 days. */
-export const REMINDER_OFFSET_MIN_MINUTES = 5;
+/** Shortest and longest reminder lead time the rail accepts: 15 min to 14 days. */
+export const REMINDER_OFFSET_MIN_MINUTES = 15;
 export const REMINDER_OFFSET_MAX_MINUTES = 14 * 24 * 60;
 
 class QuickAgentChoiceDto {
@@ -67,7 +67,7 @@ export class ReminderAutomationSetupDto extends QuickAgentChoiceDto {
   @Type(() => Number)
   @IsInt({ message: "The reminder time must be a whole number of minutes." })
   @Min(REMINDER_OFFSET_MIN_MINUTES, {
-    message: "A reminder has to be at least 5 minutes before the meeting.",
+    message: "A reminder has to be at least 15 minutes before the meeting.",
   })
   @Max(REMINDER_OFFSET_MAX_MINUTES, {
     message: "A reminder can be at most 14 days before the meeting.",

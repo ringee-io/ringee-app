@@ -743,7 +743,35 @@ export class VoiceAgentAutomationService {
         ctx,
         existing.agentId,
       );
-      if (agent) return this.prepare(ctx, agent, input.name, settings);
+      if (agent) {
+        if (existing.claimToken) {
+          if (
+            (existing.claimedAt &&
+              existing.claimedAt.getTime() > Date.now() - CLAIM_STALE_MS) ||
+            agent.status === AiVoiceAgentStatus.draft
+          ) {
+            throw new ConflictException(
+              "This agent is still being set up. Open Customize to inspect or finish it.",
+            );
+          }
+          // Provisioning completed before the request died. Recover the same
+          // associated agent, never create or re-provision an untracked one.
+          const recovered = await this.automations.completeClaim(
+            existing.id,
+            existing.claimToken,
+            {
+              userId: ctx.userId,
+              agentId: agent.id,
+              enabled: true,
+            },
+          );
+          if (!recovered)
+            throw new ConflictException(
+              "This setup changed in another window. Reload it.",
+            );
+        }
+        return this.prepare(ctx, agent, input.name, settings);
+      }
       // The agent the card drove was deleted. While the row names it, the
       // claim below sees a card already set up and every setup is refused.
       await this.automations.clearAgent(ctx, existing.id, existing.agentId);
@@ -760,7 +788,8 @@ export class VoiceAgentAutomationService {
       const agent = claim.row.agentId
         ? await this.agentRepo.findByIdForOwner(ctx, claim.row.agentId)
         : null;
-      if (agent) return this.prepare(ctx, agent, input.name, settings);
+      if (agent && !claim.row.claimToken)
+        return this.prepare(ctx, agent, input.name, settings);
       throw new ConflictException(
         "This agent is being set up in another window. Try again in a moment.",
       );
@@ -768,23 +797,27 @@ export class VoiceAgentAutomationService {
 
     try {
       const voice = await this.defaultVoice(input.language);
-      const created = await this.voiceAgents.create(ctx, {
-        name: input.name?.trim() || DEFAULT_NAMES[capability],
-        type,
-        voiceId: voice,
-        ...(settings.callerNumberId
-          ? { callerNumberId: settings.callerNumberId }
-          : {}),
-        ...(settings.calendarId ? { calendarId: settings.calendarId } : {}),
-      });
+      const created = await this.voiceAgents.create(
+        ctx,
+        {
+          name: input.name?.trim() || DEFAULT_NAMES[capability],
+          type,
+          voiceId: voice,
+          ...(settings.callerNumberId
+            ? { callerNumberId: settings.callerNumberId }
+            : {}),
+          ...(settings.calendarId ? { calendarId: settings.calendarId } : {}),
+        },
+        { id: claim.row.id, token },
+      );
       const completed = await this.automations.completeClaim(
         claim.row.id,
         token,
         { userId: ctx.userId, agentId: created.id, enabled: true },
       );
       if (!completed) {
-        this.logger.warn(
-          `Quick setup of ${capability} lost its claim after creating agent ${created.id}`,
+        throw new ConflictException(
+          "This setup changed while the agent was being provisioned. Reload it before saving again.",
         );
       }
       return created;

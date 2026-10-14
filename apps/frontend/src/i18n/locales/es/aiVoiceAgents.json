@@ -547,7 +547,7 @@
         "hours": "Horas",
         "minutes": "Minutos"
       },
-      "offsetRange": "Entre 5 minutos y 14 días.",
+      "offsetRange": "Entre 15 minutos y 14 días.",
       "scope": "Se disparará en {calls, plural, =0 {ninguna} one {# reunión} other {# reuniones}} de {meetings} próximas, a partir de ahora.",
       "scopeUnknown": "Elige un calendario para ver qué reuniones lo disparan.",
       "noLateCalls": "Si una reunión está más cerca que este aviso, no se dispara tarde.",

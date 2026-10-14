@@ -1728,6 +1728,10 @@ limits how many agents a workspace creates there.
 
 - The row's unique key is the claim that stops a double click or a second tab
   from creating two agents; a claim left by a crashed request can be taken over.
+  Creating the local agent and attaching it to the claim are one transaction,
+  before provisioning. A stale request cannot create or publish another agent.
+  An attached draft is recovered through Customize, never by provisioning a
+  second agent from quick setup.
 - A capability's state is computed on the server from what actually works — the
   agent provisioned and on, a usable caller ID by the AGENT-008 rule, credit, a
   calendar, and for a receptionist a number routed to it — never from `status`
@@ -1735,8 +1739,11 @@ limits how many agents a workspace creates there.
 - Configuring an automation is admin-only (`@OrgAdminOnly()`). Reading the rail,
   and acting on a meeting or contact the member can already see, is not.
 - Organization-only (AGENT-011), and only for organizations listed in
-  `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every one). The reminder worker
-  applies the same flag to every row it claims.
+  `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every one). Both the reminder and
+  attendance-email workers apply the flag before causing a provider side effect.
+- Rail drafts and cached summaries belong to the authenticated user and active
+  organization. Switching either clears the visible state before loading that
+  workspace's draft; an old request cannot publish a summary in the new one.
 - Pausing a receptionist hands each of its numbers back first — to where the
   number rang before the receptionist took it, or to the backup chosen at
   setup — under compare-and-set on the route's `version`. A number another admin
@@ -1759,6 +1766,10 @@ window _earlier_ — to half an hour before the window closed, never before it
 opened, so a late tick, a retry or a deferral still lands inside it — never
 later. An offset that already had a call for the same meeting version is not
 planned again, and a meeting whose lead already answered gets none.
+New offsets must be at least 15 minutes. The planner reserves five extra minutes
+before that hard cutoff (including existing shorter policies), then applies the
+calling window. Policy planning and previews page through all upcoming meetings;
+a repository page limit must not silently limit the meetings covered.
 
 The worker claims due executions with `FOR UPDATE SKIP LOCKED` under a lease and
 re-checks right before the dial: the meeting still on, at the same version,
@@ -1774,6 +1785,16 @@ the provider refused it (`VoiceAgentCallRefusedError`); a timeout, a dropped
 connection or a 5xx may have rung the lead and is reconciled, never redialed.
 Moving or cancelling the meeting, or pausing or changing the policy, withdraws
 what was planned.
+
+Every claim has a token: reclaiming replaces it, and all worker writes compare
+it. A dial reservation survives lease expiry with the same attempt number and
+idempotency key; only a proven unplaced retry clears it. The final authorization
+runs after provider preparation, with a fresh clock, and serializes with meeting
+and policy changes in the database. That authorization is the dispatch commit
+point: changes committed earlier prevent dispatch; a request already dispatched
+cannot be recalled by changing a meeting. The overlap check includes ordinary
+inbound and outbound calls in the same workspace, excluding the pending call
+being prepared.
 
 - **Source of truth:** `ReminderService.planMeetingCalls` / `planPolicyCalls`,
   `planReminderCallAt`, `MeetingReminderCallService`,
@@ -1801,6 +1822,20 @@ the provider accepted it. A later email about the same meeting threads under
 the previous one's Message-ID. The email carries the meeting's title, time with
 its zone, place and the answer — never a recording, transcript or internal
 summary.
+
+The delivery stores the version of the attendance answer. Rescheduling invalidates
+it; merely changing the responsible member preserves the answer and resolves the
+new recipient. Recording the same answer with a newly supplied lead address
+requeues its existing `needs_email` delivery, never a second delivery.
+
+Claims are token-fenced. Before the first send, the worker verifies the answer
+under the meeting lock and persists the exact request and first-attempt time.
+Retries use that immutable request within the provider's idempotency lifetime,
+with a five-minute margin. An expired window, missing recovery metadata or changed
+recipients after an uncertain send requires reconciliation, never a blind resend.
+Requeueing cannot reset that lifetime. Acceptance is persisted before Message-ID
+backfill. The email adapter is injected through `EMAIL_PROVIDER` and owns the
+provider's deduplication lifetime.
 
 - **Source of truth:** `MeetingEmailService`, `MeetingEmailDeliveryRepository`,
   `EmailInterface.send`

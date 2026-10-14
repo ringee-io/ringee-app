@@ -4896,6 +4896,10 @@ model MeetingReminderExecution {
   /// Dial tries inside this attempt. Each try gets its own agent-call key, and
   /// a retry is only taken when the previous try provably placed nothing.
   dialTries       Int                            @default(0)
+  /// Fences workers after a lease has been reclaimed.
+  claimToken      String?                        @db.Uuid
+  /// Retained across claims; only a proven unplaced attempt clears it.
+  dialReservedAt  DateTime?
   leaseExpiresAt  DateTime?
   agentCallId     String?                        @unique @db.Uuid
   /// Machine-readable reason for `skipped`, `failed` or `cancelled`.
@@ -4948,6 +4952,11 @@ model MeetingEmailDelivery {
   organizationId  String                     @db.Uuid
   meetingId       String                     @db.Uuid
   kind            MeetingEmailKind
+  scheduleVersion Int                        @default(1)
+  claimToken      String?                    @db.Uuid
+  /// The immutable provider request and the start of its deduplication window.
+  sendPayload     Json?
+  firstAttemptAt  DateTime?
   /// meeting + schedule version + kind.
   idempotencyKey  String                     @unique
   status          MeetingEmailDeliveryStatus @default(pending)

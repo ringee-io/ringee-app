@@ -547,7 +547,7 @@
         "hours": "Hours",
         "minutes": "Minutes"
       },
-      "offsetRange": "Between 5 minutes and 14 days.",
+      "offsetRange": "Between 15 minutes and 14 days.",
       "scope": "Will fire for {calls, plural, =0 {none} one {# meeting} other {# meetings}} of {meetings} upcoming, starting now.",
       "scopeUnknown": "Choose a calendar to see which meetings trigger it.",
       "noLateCalls": "If a meeting is closer than this, it never fires late.",

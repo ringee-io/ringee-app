@@ -20,6 +20,12 @@ export function voiceAgentAutomationsEnabled(
   return allowed.includes("*") || allowed.includes(organizationId);
 }
 
+/** Queue filtering uses the same pilot allowlist, without starving enabled tenants. */
+export function automationOrganizationFilter(): string[] | null {
+  const allowed = apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+  return allowed.includes("*") ? null : allowed;
+}
+
 /**
  * The service-side gate every automation entry point runs first. The worker
  * applies the same rule per row, so taking an organization off the flag stops

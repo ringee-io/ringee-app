@@ -70,12 +70,13 @@ function useDraft<T extends RailDraft>(
     | T
     | undefined;
   const setDraft = useVoiceAgentsRail((state) => state.setDraft);
+  const workspaceKey = useVoiceAgentsRail((state) => state.workspaceKey);
   const [fallback] = useState(initial);
   const draft = stored ?? fallback;
   return [
     draft,
-    (patch) => setDraft(capability, { ...draft, ...patch }),
-    () => setDraft(capability, null)
+    (patch) => setDraft(capability, { ...draft, ...patch }, workspaceKey),
+    () => setDraft(capability, null, workspaceKey)
   ];
 }
 
@@ -310,7 +311,7 @@ export function RemindersSetup({
 
   const offsetMinutes =
     draft.preset === 'custom' ? joinOffset(draft.custom) : Number(draft.preset);
-  const offsetValid = offsetMinutes >= 5 && offsetMinutes <= 14 * 24 * 60;
+  const offsetValid = offsetMinutes >= 15 && offsetMinutes <= 14 * 24 * 60;
 
   const scopeKey = calendarIds.join(',');
   useEffect(() => {

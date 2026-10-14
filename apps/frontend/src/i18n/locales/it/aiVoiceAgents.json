@@ -547,7 +547,7 @@
         "hours": "Ore",
         "minutes": "Minuti"
       },
-      "offsetRange": "Tra 5 minuti e 14 giorni.",
+      "offsetRange": "Tra 15 minuti e 14 giorni.",
       "scope": "Scatterà per {calls, plural, =0 {nessuno} one {# appuntamento} other {# appuntamenti}} su {meetings} in arrivo, da adesso.",
       "scopeUnknown": "Scegli un calendario per vedere quali appuntamenti lo fanno scattare.",
       "noLateCalls": "Se un appuntamento è più vicino di questo preavviso, non scatta mai in ritardo.",

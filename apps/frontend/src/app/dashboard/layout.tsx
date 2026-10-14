@@ -48,7 +48,7 @@ export default async function DashboardLayout({
                   nothing when no offer applies. */}
               <OfferBanner placement='TOP_BANNER' />
               <Header />
-              <div className='flex gap-4 mt-4'>
+              <div className='mt-4 flex gap-4'>
                 <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />
               </div>

@@ -64,6 +64,37 @@ export class AiVoiceAgentRepository {
     });
   }
 
+  /** Publish the local agent and its automation association before provider I/O. */
+  async createForAutomation(
+    ctx: OwnershipContext,
+    data: Omit<
+      Prisma.AiVoiceAgentUncheckedCreateInput,
+      "userId" | "organizationId"
+    >,
+    claim: { id: string; token: string },
+  ): Promise<AiVoiceAgent | null> {
+    if (!ctx.organizationId) return null;
+    return this.prisma.$transaction(async (tx) => {
+      const [owner] = await tx.$queryRaw<
+        Array<{ claimToken: string | null; agentId: string | null }>
+      >`
+        SELECT "claimToken", "agentId" FROM "AiVoiceAgentAutomation"
+        WHERE "id" = ${claim.id}::uuid AND "organizationId" = ${ctx.organizationId}::uuid
+        FOR UPDATE
+      `;
+      if (!owner || owner.claimToken !== claim.token || owner.agentId)
+        return null;
+      const agent = await tx.aiVoiceAgent.create({
+        data: { ...data, ...buildOwnershipData(ctx) },
+      });
+      await tx.aiVoiceAgentAutomation.update({
+        where: { id: claim.id },
+        data: { agentId: agent.id },
+      });
+      return agent;
+    });
+  }
+
   /** Workspace-checked lookup. Never load an agent by id alone. */
   findByIdForOwner(
     ctx: OwnershipContext,

@@ -1,3 +1,4 @@
+import { REMINDER_OFFSET_MIN_MINUTES } from "@ringee/platform";
 import { zonedTimeToUtc } from "../calendar.service";
 
 /**
@@ -90,7 +91,10 @@ export function planReminderCallAt(params: {
   if (window.endMinute <= window.startMinute || window.days.length === 0) {
     return null;
   }
-  const ideal = new Date(meetingAt.getTime() - offsetMinutes * 60_000);
+  // Leave a scheduler tick and preparation margin before the hard dial cutoff.
+  // Existing shorter policies are pulled earlier too; they never bypass it.
+  const leadMinutes = Math.max(offsetMinutes, REMINDER_OFFSET_MIN_MINUTES + 5);
+  const ideal = new Date(meetingAt.getTime() - leadMinutes * 60_000);
   if (ideal.getTime() <= notBefore.getTime()) return null;
   if (isWithinCallingWindow(ideal, window, timeZone)) return ideal;
 

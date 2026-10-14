@@ -3,6 +3,7 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { apiConfiguration } from "@ringee/configuration";
 import {
   MeetingEmailService,
   composeMeetingEmail,
@@ -35,11 +36,16 @@ function build(
     bookingCall?: Row | null;
   } = {},
 ) {
+  apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1"];
   const delivery: Row = {
     id: "delivery-1",
     organizationId: "org-1",
     meetingId: "meeting-1",
     kind: "attendance_confirmed",
+    scheduleVersion: 1,
+    claimToken: "email-claim-1",
+    firstAttemptAt: null,
+    sendPayload: null,
     attempts: 1,
   };
   const released: Row[] = [];
@@ -54,6 +60,16 @@ function build(
   const service = new MeetingEmailService(
     {
       claimDue: async () => [delivery],
+      prepareSend: async (
+        claimed: Row,
+        _version: number,
+        now: Date,
+        payload: Row,
+      ) => {
+        claimed.firstAttemptAt ??= now;
+        claimed.sendPayload ??= payload;
+        return claimed;
+      },
       listMissingMessageId: async () => [],
       findLatestSentForMeeting: async () => over.previous ?? null,
       markSent: async (_id: string, data: Row) => {
@@ -71,6 +87,9 @@ function build(
         organizationId: "org-1",
         userId: "creator-1",
         status: "scheduled",
+        scheduleVersion: 1,
+        attendanceScheduleVersion: 1,
+        attendanceStatus: "confirmed",
         title: "Demo",
         scheduledAt: MEETING_AT,
         location: "https://meet.example/abc",
@@ -108,15 +127,18 @@ function build(
       findDefault: async () => null,
     } as never,
     {} as never,
+    {
+      idempotencyWindowMs: 24 * 60 * 60_000,
+      send: async (message: Row) => {
+        sends.push(message);
+        return over.sendResult ?? { accepted: true, providerEmailId: "re_1" };
+      },
+      getMessageId: async () => "<msg-1@resend.test>",
+    } as never,
   );
-  (service as unknown as { email: Row }).email = {
-    send: async (message: Row) => {
-      sends.push(message);
-      return over.sendResult ?? { accepted: true, providerEmailId: "re_1" };
-    },
-    getMessageId: async () => "<msg-1@resend.test>",
-  };
-  return { service, released, sentRows, sends };
+  (service as unknown as { now: () => Date }).now = () =>
+    new Date("2026-10-13T19:00:00Z");
+  return { service, released, sentRows, sends, delivery };
 }
 
 describe("MeetingEmailService.drain", () => {
@@ -136,7 +158,7 @@ describe("MeetingEmailService.drain", () => {
     assert.equal(sends[0]!.replyTo, "carlos@acme.test");
     // The provider de-duplicates on the delivery's own id.
     assert.equal(sends[0]!.idempotencyKey, "delivery-1");
-    assert.equal(sentRows[0]!.messageId, "<msg-1@resend.test>");
+    assert.equal(sentRows[0]!.messageId, null);
   });
 
   it("waits for the lead's address instead of sending without them", async () => {
@@ -183,7 +205,9 @@ describe("MeetingEmailService.drain", () => {
   });
 
   it("tells the member, not the lead, when the lead cannot attend", async () => {
-    const { service, sends } = build();
+    const { service, sends } = build({
+      meeting: { attendanceStatus: "declined" },
+    });
     // The delivery the claim returns, as a declined answer.
     (service as unknown as { deliveries: Row }).deliveries.claimDue =
       async () => [
@@ -192,6 +216,9 @@ describe("MeetingEmailService.drain", () => {
           organizationId: "org-1",
           meetingId: "meeting-1",
           kind: "attendance_declined",
+          scheduleVersion: 1,
+          claimToken: "declined-claim",
+          firstAttemptAt: null,
           attempts: 1,
         },
       ];
@@ -245,5 +272,68 @@ describe("composeMeetingEmail", () => {
     });
     assert.doesNotMatch(email.html, /<script>/);
     assert.match(email.html, /&lt;script&gt;/);
+  });
+});
+
+describe("durable attendance email regressions", () => {
+  it("does not send with the pilot disabled", async () => {
+    const { service, sends } = build();
+    apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = [];
+    await service.drain();
+    assert.equal(sends.length, 0);
+  });
+  it("cancels an old confirmation after the meeting was rescheduled", async () => {
+    const { service, sends, released } = build({
+      meeting: {
+        scheduleVersion: 2,
+        attendanceScheduleVersion: null,
+        attendanceStatus: "pending",
+      },
+    });
+    await service.drain();
+    assert.equal(sends.length, 0);
+    assert.equal(released[0]!.status, "cancelled");
+  });
+  it("rechecks the meeting and claim at the send boundary", async () => {
+    const { service, sends } = build();
+    (service as unknown as Row).deliveries.prepareSend = async () => null;
+    await service.drain();
+    assert.equal(sends.length, 0);
+  });
+  it("does not replay an uncertain send after the provider key expires", async () => {
+    const { service, sends, released, delivery } = build();
+    const internal = service as unknown as Row;
+    internal.deliveries.markSent = async () => {
+      throw new Error("database unavailable after acceptance");
+    };
+    await service.drain();
+    assert.equal(sends.length, 1);
+    assert(delivery.firstAttemptAt);
+    internal.now = () => new Date("2026-10-14T20:00:00Z");
+    await service.drain();
+    assert.equal(sends.length, 1);
+    assert.equal(released.at(-1)!.status, "failed");
+  });
+  it("replays the frozen payload inside the provider window", async () => {
+    const { service, sends } = build({
+      sendResult: { accepted: false, retryable: true, error: "timeout" },
+    });
+    await service.drain();
+    const internal = service as unknown as Row;
+    const original = internal.meetings.findById;
+    internal.meetings.findById = async () => ({
+      ...(await original()),
+      title: "Edited after first send",
+    });
+    await service.drain();
+    assert.equal(sends.length, 2);
+    assert.deepEqual(sends[1], sends[0]);
+  });
+  it("allows a member reassignment that preserves the recorded attendance", async () => {
+    const { service, sends } = build({
+      meeting: { scheduleVersion: 2, attendanceScheduleVersion: 1 },
+    });
+    await service.drain();
+    assert.equal(sends.length, 1);
   });
 });

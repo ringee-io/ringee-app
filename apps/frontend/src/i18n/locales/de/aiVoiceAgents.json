@@ -547,7 +547,7 @@
         "hours": "Stunden",
         "minutes": "Minuten"
       },
-      "offsetRange": "Zwischen 5 Minuten und 14 Tagen.",
+      "offsetRange": "Zwischen 15 Minuten und 14 Tagen.",
       "scope": "Wird ab jetzt bei {calls, plural, =0 {keinem} one {# Termin} other {# Terminen}} von {meetings} anstehenden ausgelöst.",
       "scopeUnknown": "Wählen Sie einen Kalender, um zu sehen, welche Termine ihn auslösen.",
       "noLateCalls": "Liegt ein Termin näher als diese Vorlaufzeit, wird der Agent nie verspätet ausgelöst.",

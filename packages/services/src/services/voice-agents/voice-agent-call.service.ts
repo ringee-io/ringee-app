@@ -72,6 +72,11 @@ export interface StartVoiceAgentCallInput {
   responsibleUserId?: string;
 }
 
+export type VoiceAgentPlacementGuard = (call: {
+  agentCallId: string;
+  callId: string;
+}) => Promise<void>;
+
 export interface StartVoiceAgentCallResult {
   id: string;
   status: AiVoiceAgentCallStatus;
@@ -186,9 +191,10 @@ export class VoiceAgentCallService {
     ctx: OwnershipContext,
     agentId: string,
     input: StartVoiceAgentCallInput,
+    beforePlacement?: VoiceAgentPlacementGuard,
   ): Promise<StartVoiceAgentCallResult> {
     try {
-      return await this.startCallInternal(ctx, agentId, input);
+      return await this.startCallInternal(ctx, agentId, input, beforePlacement);
     } catch (error) {
       if (error instanceof VoiceAgentCallStartError) throw error;
       throw new VoiceAgentCallStartError(
@@ -204,6 +210,7 @@ export class VoiceAgentCallService {
     ctx: OwnershipContext,
     agentId: string,
     input: StartVoiceAgentCallInput,
+    beforePlacement?: VoiceAgentPlacementGuard,
   ): Promise<StartVoiceAgentCallResult> {
     assertVoiceAgentAccess(ctx);
     const agent = await this.agents.require(ctx, agentId);
@@ -318,10 +325,14 @@ export class VoiceAgentCallService {
     try {
       await this.ensureInsightDelivery(agent);
       await this.ensureToolDelivery(ctx, agent);
+      const callingAppId = await this.requireCallingApp(agent);
+      // All potentially slow preparation is done. Durable callers commit their
+      // current authorization immediately before the external side effect.
+      await beforePlacement?.({ agentCallId: agentCall.id, callId });
       const handle = await this.provider
         .startCall({
           assistantId: agent.providerAssistantId!,
-          callingAppId: await this.requireCallingApp(agent),
+          callingAppId,
           from,
           to,
           // The assistant is long-lived, but the clock is not. Override the
@@ -421,7 +432,9 @@ export class VoiceAgentCallService {
         `Agent call ${agentCall.id} failed to start: ${message}`,
       );
       throw new VoiceAgentCallStartError(
-        VoiceAgentCallStartOutcome.retryable_before_placement,
+        this.isTerminalPolicyRejection(error)
+          ? VoiceAgentCallStartOutcome.terminal_rejection
+          : VoiceAgentCallStartOutcome.retryable_before_placement,
         error,
         agentCall.id,
       );

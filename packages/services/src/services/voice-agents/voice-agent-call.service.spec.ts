@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HttpException } from "@nestjs/common";
+import { BadRequestException, HttpException } from "@nestjs/common";
 import { VoiceAgentCallRefusedError } from "@ringee/platform";
 import {
   VoiceAgentCallService,
@@ -539,5 +539,25 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
         error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
     );
     assert.deepEqual(placed, []);
+  });
+});
+
+describe("VoiceAgentCallService final placement guard", () => {
+  it("runs the guard after provider preparation and never dials when it refuses", async () => {
+    const { service, placed, deliveryEvents, forciblyEnded } = build({
+      usable: [NUMBERS.miami],
+    });
+    await assert.rejects(
+      service.startCall(CTX, "agent-1", { to: TO }, async () => {
+        assert(deliveryEvents.includes("tools:agent-1"));
+        assert(!deliveryEvents.includes("call:placed"));
+        throw new BadRequestException("meeting_changed");
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.terminal_rejection,
+    );
+    assert.equal(placed.length, 0);
+    assert.deepEqual(forciblyEnded, ["call-1"]);
   });
 });

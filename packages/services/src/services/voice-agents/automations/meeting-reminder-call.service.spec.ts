@@ -35,6 +35,7 @@ function build(
     /** Agent calls already persisted, by idempotency key. */
     agentCallsByKey?: Record<string, Row>;
     liveCallToNumber?: boolean;
+    liveHumanCall?: boolean;
     otherActiveForMeeting?: boolean;
     startError?: Error;
   } = {},
@@ -55,6 +56,9 @@ function build(
     fireAt: NOW,
     status: "claimed",
     dialTries: 0,
+    claimToken: "claim-1",
+    dialReservedAt: null,
+    leaseExpiresAt: new Date(NOW.getTime() + 300_000),
     agentCallId: null,
     ...over.execution,
   };
@@ -65,8 +69,10 @@ function build(
     {
       claimDue: async () => [execution],
       claimScheduled: async () => execution,
+      authorizeDial: async () => true,
       beginDial: async () => {
-        execution.dialTries += 1;
+        if (!execution.dialReservedAt) execution.dialTries += 1;
+        execution.dialReservedAt = NOW;
         events.push({ beginDial: execution.dialTries });
         return { ...execution };
       },
@@ -175,14 +181,25 @@ function build(
         ctx: Record<string, unknown>,
         agentId: string,
         input: Record<string, unknown>,
+        beforePlacement?: (call: {
+          agentCallId: string;
+          callId: string;
+        }) => Promise<void>,
       ) => {
+        if (over.startError) throw over.startError;
+        await beforePlacement?.({
+          agentCallId: "agent-call-9",
+          callId: "call-9",
+        });
         starts.push({ ctx, agentId, ...input });
         if (over.startError) throw over.startError;
         return { id: "agent-call-9", status: "initiating" };
       },
     } as never,
     { previousInteractions: async () => "" } as never,
+    { hasActiveWithNumber: async () => over.liveHumanCall ?? false } as never,
   );
+  (service as unknown as { now: () => Date }).now = () => NOW;
   return { service, execution, events, starts };
 }
 
@@ -267,7 +284,9 @@ describe("MeetingReminderCallService.processDue", () => {
   it("skips, rather than rings, outside the calling window after downtime", async () => {
     const { service, starts, events } = build();
     // 23:30 New York.
-    await service.processDue(new Date("2026-10-14T03:30:00Z"));
+    const late = new Date("2026-10-14T03:30:00Z");
+    (service as unknown as { now: () => Date }).now = () => late;
+    await service.processDue(late);
     assert.equal(starts.length, 0);
     assert.equal(events.at(-1)!.reason, "outside_window");
   });
@@ -469,5 +488,55 @@ describe("MeetingReminderCallService.callNow", () => {
     );
     assert.deepEqual(claimedIds, ["exec-manual"]);
     assert.deepEqual(planned, []);
+  });
+});
+
+describe("reminder placement revalidation", () => {
+  it("does not dial a meeting cancelled while history was loading", async () => {
+    const { service, starts, events } = build();
+    const internal = service as unknown as Row;
+    const meeting = await internal.meetings.findById("meeting-1");
+    internal.meetings.findById = async () => meeting;
+    internal.context.previousInteractions = async () => {
+      meeting.status = "cancelled";
+      meeting.scheduleVersion++;
+      return "";
+    };
+    await service.processDue(NOW);
+    assert.equal(starts.length, 0);
+    assert(events.some((event) => event.reason === "meeting_changed"));
+  });
+  it("uses the current time after preparation crosses the closing time", async () => {
+    const { service, starts, events } = build();
+    const internal = service as unknown as Row;
+    let clock = new Date("2026-10-13T23:59:00Z");
+    internal.now = () => clock;
+    internal.context.previousInteractions = async () => {
+      clock = new Date("2026-10-14T00:01:00Z");
+      return "";
+    };
+    await service.processDue(clock);
+    assert.equal(starts.length, 0);
+    assert(events.some((event) => event.reason === "outside_window"));
+  });
+  it("does not overlap a human call to the lead", async () => {
+    const { service, starts, events } = build({ liveHumanCall: true });
+    await service.processDue(NOW);
+    assert.equal(starts.length, 0);
+    assert(events.some((event) => event.reason === "lead_on_a_call"));
+  });
+  it("refuses placement when the final claim or version check lost the race", async () => {
+    const { service, starts } = build();
+    (service as unknown as Row).executions.authorizeDial = async () => false;
+    await service.processDue(NOW);
+    assert.equal(starts.length, 0);
+  });
+  it("reuses an already reserved dial key after a worker died before creating its call row", async () => {
+    const { service, starts } = build({
+      execution: { dialTries: 1, dialReservedAt: NOW },
+    });
+    await service.processDue(NOW);
+    assert.equal(starts.length, 1);
+    assert.match(String(starts[0]!.idempotencyKey), /:d1$/);
   });
 });

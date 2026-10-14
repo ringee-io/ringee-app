@@ -63,7 +63,7 @@ export function AutomationPanel({
       {/* As tall as the dashboard header beside it, so their edges line up. */}
       <header className='flex h-20 shrink-0 items-center gap-3 px-4 transition-[height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-18'>
         {/* <RingeeMark className='size-8 shrink-0' /> */}
-        <div className='min-w-0 flex-1 mt-8'>
+        <div className='mt-8 min-w-0 flex-1'>
           {/* In the sheet, Radix names the dialog by its own title id. */}
           <Title
             {...(inSheet ? {} : { id: titleId })}
@@ -95,7 +95,7 @@ export function AutomationPanel({
         </Button>
       </header>
 
-      <div className='min-h-0 flex-1 space-y-3 mt-6 overflow-y-auto p-4'>
+      <div className='mt-6 min-h-0 flex-1 space-y-3 overflow-y-auto p-4'>
         {status === 'loading' ? (
           <>
             <Skeleton className='h-24 w-full rounded-xl' />

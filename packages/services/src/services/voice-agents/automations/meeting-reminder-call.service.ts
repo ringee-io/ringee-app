@@ -14,6 +14,7 @@ import {
   AiVoiceAgentType,
   AiVoiceAgentAutomationRepository,
   CalendarRepository,
+  CallRepository,
   Contact,
   Meeting,
   MeetingReminderExecution,
@@ -24,9 +25,11 @@ import {
   MeetingStatus,
   UserRepository,
 } from "@ringee/database";
-import type {
-  OrganizationOwnershipContext,
-  OwnershipContext,
+import {
+  normalizePhoneE164,
+  REMINDER_OFFSET_MIN_MINUTES,
+  type OrganizationOwnershipContext,
+  type OwnershipContext,
 } from "@ringee/platform";
 import {
   CallingWindow,
@@ -56,7 +59,7 @@ const CLAIM_BATCH = 20;
 /** Dial tries inside one execution, only for failures before placement. */
 const MAX_DIAL_TRIES = 3;
 /** A reminder never rings this close to the meeting. */
-const MIN_LEAD_MS = 15 * 60_000;
+const MIN_LEAD_MS = REMINDER_OFFSET_MIN_MINUTES * 60_000;
 /** How long a reminder waits when the lead is already on a call with us. */
 const OVERLAP_DEFER_MS = 10 * 60_000;
 /** A claim or placement younger than this may still be a live call. */
@@ -118,20 +121,26 @@ export class MeetingReminderCallService {
     private readonly users: UserRepository,
     private readonly calls: VoiceAgentCallService,
     private readonly context: VoiceAgentConversationContextService,
+    private readonly humanCalls: CallRepository,
   ) {}
+
+  private now(): Date {
+    return new Date();
+  }
 
   /** Worker entry point, on the reminder schedule's tick. */
   async processDue(now = new Date()): Promise<number> {
     await this.settleStalePlacements(now);
+    const claimAt = this.now();
     const claimed = await this.executions.claimDue(
-      now,
-      new Date(now.getTime() + LEASE_MS),
+      claimAt,
+      new Date(claimAt.getTime() + LEASE_MS),
       CLAIM_BATCH,
     );
     let placed = 0;
     for (const execution of claimed) {
       try {
-        if ((await this.run(execution, now)) === S.placed) placed++;
+        if ((await this.run(execution, this.now())) === S.placed) placed++;
       } catch (error) {
         // Left claimed on purpose: the lease runs out and the next tick
         // reconciles by the dial key before it would ever dial again.
@@ -174,7 +183,7 @@ export class MeetingReminderCallService {
         "Set up Reminders & confirmations before calling a lead about a meeting.",
       );
     }
-    const now = new Date();
+    const now = this.now();
     if (
       await this.executions.hasActiveForMeeting(
         meeting.id,
@@ -271,15 +280,23 @@ export class MeetingReminderCallService {
     execution: MeetingReminderExecution,
     now: Date,
   ): Promise<MeetingReminderExecutionStatus> {
+    const claimToken = execution.claimToken;
+    if (!claimToken) return S.cancelled;
     const end = async (
       status: MeetingReminderExecutionStatus,
       reason: string,
       lastError?: string,
     ) => {
-      await this.executions.finish(execution.id, status, [S.claimed], {
-        reason,
-        lastError,
-      });
+      await this.executions.finish(
+        execution.id,
+        status,
+        [S.claimed],
+        {
+          reason,
+          lastError,
+        },
+        claimToken,
+      );
       return status;
     };
 
@@ -290,7 +307,7 @@ export class MeetingReminderCallService {
         dialKey(execution, execution.dialTries),
       );
       if (earlier && !provablyUnplaced(earlier)) {
-        await this.executions.markPlaced(execution.id, earlier.id);
+        await this.executions.markPlaced(execution.id, earlier.id, claimToken);
         await this.recordCallEnded(earlier);
         return S.placed;
       }
@@ -357,6 +374,8 @@ export class MeetingReminderCallService {
 
     const contact = (meeting as Meeting & { contact?: Contact | null }).contact;
     if (!contact?.phoneNumber) return end(S.skipped, "no_phone");
+    const phoneNumber = normalizePhoneE164(contact.phoneNumber);
+    if (!phoneNumber) return end(S.skipped, "no_phone");
     const name = personName(contact);
     if (!name.first) return end(S.skipped, "contact_without_name");
 
@@ -369,16 +388,22 @@ export class MeetingReminderCallService {
       )) ||
       (await this.agentCalls.hasLiveCallToNumber(
         ctx,
-        contact.phoneNumber,
+        phoneNumber,
         activeSince,
-      ))
+      )) ||
+      (await this.humanCalls.hasActiveWithNumber(ctx, phoneNumber))
     ) {
       const later = new Date(now.getTime() + OVERLAP_DEFER_MS);
       if (
         meeting.scheduledAt.getTime() - later.getTime() >= MIN_LEAD_MS &&
         isWithinCallingWindow(later, window, timeZone)
       ) {
-        await this.executions.defer(execution.id, later, "lead_on_a_call");
+        await this.executions.defer(
+          execution.id,
+          later,
+          "lead_on_a_call",
+          claimToken,
+        );
         return S.scheduled;
       }
       return end(S.skipped, "lead_on_a_call");
@@ -390,9 +415,12 @@ export class MeetingReminderCallService {
       name,
     });
 
+    const reservationTime = this.now();
     const dialing = await this.executions.beginDial(
       execution.id,
-      new Date(now.getTime() + LEASE_MS),
+      claimToken,
+      reservationTime,
+      new Date(reservationTime.getTime() + LEASE_MS),
     );
     if (!dialing) return S.cancelled;
 
@@ -401,13 +429,99 @@ export class MeetingReminderCallService {
         { userId: execution.userId, organizationId: execution.organizationId },
         agent.id,
         {
-          to: contact.phoneNumber,
+          to: phoneNumber,
           variables,
           metadata: {},
           idempotencyKey: dialKey(dialing, dialing.dialTries),
         },
+        async ({ agentCallId, callId }) => {
+          const reject = async (
+            reason: string,
+            status: MeetingReminderExecutionStatus = S.cancelled,
+          ): Promise<never> => {
+            await end(status, reason);
+            throw new BadRequestException(reason);
+          };
+          if (!voiceAgentAutomationsEnabled(execution.organizationId)) {
+            await reject("automations_disabled", S.skipped);
+          }
+          const current = await this.meetings.findById(execution.meetingId);
+          if (
+            !current ||
+            current.organizationId !== ctx.organizationId ||
+            !isActive(current) ||
+            current.scheduleVersion !== execution.scheduleVersion
+          ) {
+            await reject("meeting_changed");
+          }
+          if (current!.attendanceStatus !== "pending")
+            await reject("already_answered", S.skipped);
+          const currentCalendar = current!.calendarId
+            ? await this.calendars.findByIdForOwner(ctx, current!.calendarId)
+            : await this.calendars.findDefault(ctx);
+          const currentPolicy =
+            execution.trigger === "policy"
+              ? execution.policyId
+                ? await this.policies.findById(execution.policyId)
+                : null
+              : currentCalendar
+                ? await this.policies.findForCalendar(ctx, currentCalendar.id)
+                : null;
+          if (
+            execution.trigger === "policy" &&
+            (!currentPolicy?.enabled ||
+              currentPolicy.version !== execution.policyVersion)
+          ) {
+            await reject("policy_changed");
+          }
+          const currentAgent = await this.agents.findByIdForOwner(
+            ctx,
+            execution.agentId,
+          );
+          if (currentAgent?.status !== AiVoiceAgentStatus.active)
+            await reject("agent_unavailable", S.skipped);
+          if (
+            (await this.humanCalls.hasActiveWithNumber(
+              ctx,
+              phoneNumber,
+              callId,
+            )) ||
+            (await this.agentCalls.hasLiveCallToNumber(
+              ctx,
+              phoneNumber,
+              new Date(this.now().getTime() - ACTIVE_WINDOW_MS),
+              agentCallId,
+            ))
+          ) {
+            await reject("lead_on_a_call", S.skipped);
+          }
+          const atDial = this.now();
+          if (current!.scheduledAt.getTime() - atDial.getTime() < MIN_LEAD_MS)
+            await reject("too_late", S.skipped);
+          if (
+            !isWithinCallingWindow(
+              atDial,
+              currentPolicy
+                ? readCallingWindow(currentPolicy)
+                : DEFAULT_CALLING_WINDOW,
+              currentCalendar?.timezone ?? "UTC",
+            )
+          ) {
+            await reject("outside_window", S.skipped);
+          }
+          if (
+            !(await this.executions.authorizeDial(
+              dialing,
+              atDial,
+              new Date(atDial.getTime() + MIN_LEAD_MS),
+              new Date(atDial.getTime() + LEASE_MS),
+            ))
+          ) {
+            await reject("claim_or_meeting_changed");
+          }
+        },
       );
-      await this.executions.markPlaced(execution.id, started.id);
+      await this.executions.markPlaced(execution.id, started.id, claimToken);
       return S.placed;
     } catch (error) {
       const outcome =
@@ -415,6 +529,7 @@ export class MeetingReminderCallService {
           ? error.outcome
           : VoiceAgentCallStartOutcome.terminal_rejection;
       const message = error instanceof Error ? error.message : String(error);
+      const failedAt = this.now();
 
       if (
         outcome === VoiceAgentCallStartOutcome.placed_pending_reconciliation
@@ -424,7 +539,11 @@ export class MeetingReminderCallService {
         const agentCallId =
           error instanceof VoiceAgentCallStartError ? error.agentCallId : null;
         if (agentCallId) {
-          await this.executions.markPlaced(execution.id, agentCallId);
+          await this.executions.markPlaced(
+            execution.id,
+            agentCallId,
+            claimToken,
+          );
           return S.placed;
         }
         return end(S.failed, "placement_unconfirmed", message);
@@ -435,7 +554,7 @@ export class MeetingReminderCallService {
         dialing.dialTries < MAX_DIAL_TRIES
       ) {
         const retryAt = new Date(
-          now.getTime() + 2 ** dialing.dialTries * 60_000,
+          failedAt.getTime() + 2 ** dialing.dialTries * 60_000,
         );
         if (
           meeting.scheduledAt.getTime() - retryAt.getTime() >= MIN_LEAD_MS &&
@@ -445,6 +564,8 @@ export class MeetingReminderCallService {
             execution.id,
             retryAt,
             "retry_before_placement",
+            claimToken,
+            true,
           );
           return S.scheduled;
         }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { RingeeMark } from '@ringee/frontend-shared/components/ringee-mark';
@@ -68,7 +69,11 @@ function useDockable(): boolean {
  */
 export function VoiceAgentsRail() {
   const t = useTranslations('aiVoiceAgents.automations');
-  const { enabled, summary, refresh } = useRailSummary();
+  const { userId, orgId, isLoaded } = useAuth();
+  const workspaceKey =
+    isLoaded && userId ? JSON.stringify([userId, orgId ?? null]) : null;
+  const storedWorkspaceKey = useVoiceAgentsRail((state) => state.workspaceKey);
+  const { enabled, summary, refresh } = useRailSummary(workspaceKey);
   const open = useVoiceAgentsRail((state) => state.open);
   const resume = useVoiceAgentsRail((state) => state.resume);
   const setOpen = useVoiceAgentsRail((state) => state.setOpen);
@@ -82,8 +87,8 @@ export function VoiceAgentsRail() {
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    hydrate(workspaceKey);
+  }, [hydrate, workspaceKey]);
 
   // The quick dialer was just opened: it takes the edge back. Only the
   // dialer *opening* decides this — the rail opening first closes the dialer.
@@ -128,7 +133,8 @@ export function VoiceAgentsRail() {
     }, 0);
   }, [refresh, setOpen]);
 
-  if (!enabled) return null;
+  if (!enabled || !workspaceKey || storedWorkspaceKey !== workspaceKey)
+    return null;
 
   const operational = summary?.operational ?? 0;
   const attention = (summary?.attention ?? 0) > 0;

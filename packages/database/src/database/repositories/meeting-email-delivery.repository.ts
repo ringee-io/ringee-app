@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import {
   MeetingEmailDelivery,
   MeetingEmailDeliveryStatus,
+  Prisma,
 } from "@prisma/client";
 import type { OrganizationOwnershipContext } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
@@ -42,25 +44,68 @@ export class MeetingEmailDeliveryRepository {
     now: Date,
     leaseUntil: Date,
     limit: number,
+    organizationIds: string[] | null = null,
   ): Promise<MeetingEmailDelivery[]> {
     return this.prisma.$queryRaw<MeetingEmailDelivery[]>`
       UPDATE "MeetingEmailDelivery"
       SET "status" = 'sending'::"MeetingEmailDeliveryStatus",
+          "claimToken" = ${randomUUID()}::uuid,
           "leaseExpiresAt" = (${leaseUntil}::timestamptz AT TIME ZONE 'UTC'),
           "attempts" = "attempts" + 1,
           "updatedAt" = (now() AT TIME ZONE 'UTC')
       WHERE "id" IN (
         SELECT "id"
         FROM "MeetingEmailDelivery"
-        WHERE "status" = 'pending'
+        WHERE ("status" = 'pending'
            OR ("status" = 'sending'
-                AND "leaseExpiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC'))
+                AND "leaseExpiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC')))
+          ${organizationIds === null ? Prisma.empty : Prisma.sql`AND "organizationId"::text = ANY(${organizationIds}::text[])`}
         ORDER BY "createdAt" ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
       )
       RETURNING *
     `;
+  }
+
+  /** Freeze the first provider request while holding the current meeting version. */
+  async prepareSend(
+    delivery: MeetingEmailDelivery,
+    expectedMeetingVersion: number,
+    now: Date,
+    payload: Prisma.InputJsonObject,
+  ): Promise<MeetingEmailDelivery | null> {
+    if (!delivery.claimToken) return null;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Meeting"
+        WHERE "id" = ${delivery.meetingId}::uuid
+          AND "organizationId" = ${delivery.organizationId}::uuid FOR UPDATE`;
+      const where: Prisma.MeetingEmailDeliveryWhereInput = {
+        id: delivery.id,
+        status: D.sending,
+        claimToken: delivery.claimToken,
+        leaseExpiresAt: { gt: now },
+        meeting: {
+          organizationId: delivery.organizationId,
+          scheduleVersion: expectedMeetingVersion,
+          attendanceScheduleVersion: delivery.scheduleVersion,
+          attendanceStatus:
+            delivery.kind === "attendance_confirmed" ? "confirmed" : "declined",
+          status: { in: ["scheduled", "rescheduled"] },
+        },
+      };
+      const [row] = await tx.meetingEmailDelivery.updateManyAndReturn({
+        where,
+        data: {
+          leaseExpiresAt: delivery.leaseExpiresAt,
+          // Retries must carry precisely the same provider request.
+          ...(delivery.firstAttemptAt
+            ? {}
+            : { firstAttemptAt: now, sendPayload: payload }),
+        },
+      });
+      return row ?? null;
+    });
   }
 
   async markSent(
@@ -74,9 +119,10 @@ export class MeetingEmailDeliveryRepository {
       subject: string;
       inReplyTo: string | null;
     },
+    claimToken: string,
   ): Promise<boolean> {
     const { count } = await this.prisma.meetingEmailDelivery.updateMany({
-      where: { id, status: D.sending },
+      where: { id, status: D.sending, claimToken },
       data: {
         ...data,
         status: D.sent,
@@ -93,9 +139,10 @@ export class MeetingEmailDeliveryRepository {
     id: string,
     status: MeetingEmailDeliveryStatus,
     lastError: string | null,
+    claimToken: string,
   ): Promise<boolean> {
     const { count } = await this.prisma.meetingEmailDelivery.updateMany({
-      where: { id, status: D.sending },
+      where: { id, status: D.sending, claimToken },
       data: {
         status,
         leaseExpiresAt: null,

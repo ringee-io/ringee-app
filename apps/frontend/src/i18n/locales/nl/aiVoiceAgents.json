@@ -547,7 +547,7 @@
         "hours": "Uren",
         "minutes": "Minuten"
       },
-      "offsetRange": "Tussen 5 minuten en 14 dagen.",
+      "offsetRange": "Tussen 15 minuten en 14 dagen.",
       "scope": "Komt vanaf nu in actie voor {calls, plural, =0 {geen} one {# afspraak} other {# afspraken}} van {meetings} komende.",
       "scopeUnknown": "Kies een agenda om te zien welke afspraken hem triggeren.",
       "noLateCalls": "Ligt een afspraak dichterbij dan deze termijn, dan komt hij nooit te laat in actie.",

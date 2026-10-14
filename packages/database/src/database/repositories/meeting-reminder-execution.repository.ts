@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import {
   MeetingReminderExecution,
@@ -74,9 +75,8 @@ export class MeetingReminderExecutionRepository {
   }
 
   /**
-   * Cancels what is still only planned. A claimed execution is left to its
-   * worker, which re-reads the meeting right before dialing and skips a stale
-   * one — cancelling it here would race that dial.
+   * Withdraws planned work. Claimed work must pass authorizeDial against the
+   * current meeting and policy before it may start a provider request.
    */
   async cancelScheduled(
     where: {
@@ -119,6 +119,7 @@ export class MeetingReminderExecutionRepository {
     return this.prisma.$queryRaw<MeetingReminderExecution[]>`
       UPDATE "MeetingReminderExecution"
       SET "status" = 'claimed'::"MeetingReminderExecutionStatus",
+          "claimToken" = ${randomUUID()}::uuid,
           "leaseExpiresAt" = (${leaseUntil}::timestamptz AT TIME ZONE 'UTC'),
           "updatedAt" = (now() AT TIME ZONE 'UTC')
       WHERE "id" IN (
@@ -141,33 +142,107 @@ export class MeetingReminderExecutionRepository {
     id: string,
     leaseUntil: Date,
   ): Promise<MeetingReminderExecution | null> {
-    const { count } = await this.prisma.meetingReminderExecution.updateMany({
-      where: { id, status: S.scheduled },
-      data: { status: S.claimed, leaseExpiresAt: leaseUntil },
-    });
-    return count === 1 ? this.findById(id) : null;
-  }
-
-  /**
-   * Counts a dial try against a claimed execution and extends its lease. The
-   * returned row's `dialTries` names the agent-call key for this try.
-   */
-  async beginDial(
-    id: string,
-    leaseUntil: Date,
-  ): Promise<MeetingReminderExecution | null> {
     const [row] =
       await this.prisma.meetingReminderExecution.updateManyAndReturn({
-        where: { id, status: S.claimed },
-        data: { dialTries: { increment: 1 }, leaseExpiresAt: leaseUntil },
+        where: { id, status: S.scheduled },
+        data: {
+          status: S.claimed,
+          claimToken: randomUUID(),
+          leaseExpiresAt: leaseUntil,
+        },
       });
     return row ?? null;
   }
 
-  async markPlaced(id: string, agentCallId: string): Promise<boolean> {
+  /** Reserve one stable dial key. A reclaimed reservation keeps the same key. */
+  async beginDial(
+    id: string,
+    claimToken: string,
+    now: Date,
+    leaseUntil: Date,
+  ): Promise<MeetingReminderExecution | null> {
+    const where = {
+      id,
+      status: S.claimed,
+      claimToken,
+      leaseExpiresAt: { gt: now },
+    };
+    const [row] =
+      await this.prisma.meetingReminderExecution.updateManyAndReturn({
+        where: { ...where, dialReservedAt: null },
+        data: {
+          dialTries: { increment: 1 },
+          dialReservedAt: now,
+          leaseExpiresAt: leaseUntil,
+        },
+      });
+    return row ?? this.prisma.meetingReminderExecution.findFirst({ where });
+  }
+
+  /**
+   * The dial's commit point. Locks serialize this check with meeting changes
+   * and policy updates; no provider I/O is performed in the transaction.
+   */
+  async authorizeDial(
+    execution: MeetingReminderExecution,
+    now: Date,
+    earliestMeetingAt: Date,
+    leaseUntil: Date,
+  ): Promise<boolean> {
+    if (!execution.claimToken) return false;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Meeting"
+        WHERE "id" = ${execution.meetingId}::uuid
+          AND "organizationId" = ${execution.organizationId}::uuid FOR UPDATE`;
+      if (execution.policyId) {
+        await tx.$queryRaw`SELECT "id" FROM "MeetingReminderPolicy"
+          WHERE "id" = ${execution.policyId}::uuid FOR UPDATE`;
+      }
+      const { count } = await tx.meetingReminderExecution.updateMany({
+        where: {
+          id: execution.id,
+          status: S.claimed,
+          claimToken: execution.claimToken,
+          leaseExpiresAt: { gt: now },
+          agent: {
+            status: "active",
+            deletedAt: null,
+            organizationId: execution.organizationId,
+          },
+          meeting: {
+            organizationId: execution.organizationId,
+            scheduleVersion: execution.scheduleVersion,
+            status: { in: ["scheduled", "rescheduled"] },
+            attendanceStatus: "pending",
+            scheduledAt: { gte: earliestMeetingAt },
+          },
+          ...(execution.trigger === "policy"
+            ? {
+                policy: {
+                  is: { enabled: true, version: execution.policyVersion ?? -1 },
+                },
+              }
+            : {}),
+        },
+        data: { leaseExpiresAt: leaseUntil },
+      });
+      return count === 1;
+    });
+  }
+
+  async markPlaced(
+    id: string,
+    agentCallId: string,
+    claimToken: string,
+  ): Promise<boolean> {
     const { count } = await this.prisma.meetingReminderExecution.updateMany({
-      where: { id, status: S.claimed },
-      data: { status: S.placed, agentCallId, leaseExpiresAt: null },
+      where: { id, status: S.claimed, claimToken },
+      data: {
+        status: S.placed,
+        agentCallId,
+        leaseExpiresAt: null,
+        claimToken: null,
+      },
     });
     return count === 1;
   }
@@ -178,9 +253,16 @@ export class MeetingReminderExecutionRepository {
     status: MeetingReminderExecutionStatus,
     from: MeetingReminderExecutionStatus[],
     data?: { reason?: string; lastError?: string; agentCallId?: string },
+    claimToken?: string,
   ): Promise<boolean> {
     const { count } = await this.prisma.meetingReminderExecution.updateMany({
-      where: { id, status: { in: from } },
+      where: {
+        id,
+        status: { in: from },
+        ...(from.includes(S.claimed)
+          ? { claimToken: claimToken ?? "00000000-0000-0000-0000-000000000000" }
+          : {}),
+      },
       data: {
         status,
         finishedAt: new Date(),
@@ -196,10 +278,23 @@ export class MeetingReminderExecutionRepository {
   }
 
   /** Hands a claimed execution back for later — a deferral, not a failure. */
-  async defer(id: string, fireAt: Date, reason: string): Promise<boolean> {
+  async defer(
+    id: string,
+    fireAt: Date,
+    reason: string,
+    claimToken: string,
+    unplaced = false,
+  ): Promise<boolean> {
     const { count } = await this.prisma.meetingReminderExecution.updateMany({
-      where: { id, status: S.claimed },
-      data: { status: S.scheduled, fireAt, leaseExpiresAt: null, reason },
+      where: { id, status: S.claimed, claimToken },
+      data: {
+        status: S.scheduled,
+        fireAt,
+        leaseExpiresAt: null,
+        claimToken: null,
+        reason,
+        ...(unplaced ? { dialReservedAt: null } : {}),
+      },
     });
     return count === 1;
   }

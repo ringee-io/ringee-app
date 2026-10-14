@@ -83,6 +83,7 @@ export function CapabilityCard({
   const setOpen = useVoiceAgentsRail((state) => state.setOpen);
   const setResume = useVoiceAgentsRail((state) => state.setResume);
   const setDraft = useVoiceAgentsRail((state) => state.setDraft);
+  const workspaceKey = useVoiceAgentsRail((state) => state.workspaceKey);
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function CapabilityCard({
   const cancelForm = () => {
     setEditing(false);
     // What was typed is dropped: the next open starts from the saved setup.
-    setDraft(card.capability, null);
+    setDraft(card.capability, null, workspaceKey);
     // An unconfigured card shows its form for as long as it is focused.
     setFocus(focusBeforeForm.current);
   };

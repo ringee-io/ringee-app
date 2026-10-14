@@ -557,3 +557,34 @@ describe("VoiceAgentAutomationService pilot flag", () => {
     );
   });
 });
+
+describe("quick setup claim recovery", () => {
+  it("does not save a stale setup after losing its claim", async () => {
+    const { service, automationUpdates } = build({ automation: null });
+    const internal = service as unknown as Row;
+    internal.automations.completeClaim = async () => false;
+    await assert.rejects(
+      internal.resolveAgent(CTX, "reminders", { name: "New" }, {}),
+      ConflictException,
+    );
+    assert.equal(automationUpdates.length, 0);
+  });
+
+  it("does not re-provision a locally associated draft while the original request is still running", async () => {
+    const { service, created, statuses } = build({
+      automation: {
+        id: "automation",
+        agentId: "agent-1",
+        claimToken: "owner",
+        claimedAt: new Date(0),
+      },
+      agent: AGENT({ status: "draft" }),
+    });
+    await assert.rejects(
+      (service as unknown as Row).resolveAgent(CTX, "reminders", {}, {}),
+      ConflictException,
+    );
+    assert.equal(created.length, 0);
+    assert.equal(statuses.length, 0);
+  });
+});

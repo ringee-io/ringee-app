@@ -13,37 +13,42 @@ const PANEL_REFRESH_MS = 60_000;
  * Two light requests per page load: the ungated access check, and — only when
  * the pilot flag is on — the summary. Nothing else loads until it opens.
  */
-export function useRailSummary() {
+export function useRailSummary(workspaceKey: string | null) {
   const api = useAutomationApi();
   const [enabled, setEnabled] = useState(false);
   const summary = useVoiceAgentsRail((state) => state.summary);
   const setSummary = useVoiceAgentsRail((state) => state.setSummary);
 
   const refresh = useCallback(async () => {
+    if (!workspaceKey) return;
     try {
       const next = await api.summary();
-      setSummary(next);
+      if (useVoiceAgentsRail.getState().workspaceKey !== workspaceKey) return;
+      setSummary(next, workspaceKey);
       setEnabled(next.enabled);
     } catch {
       // A rail that cannot load its counter still opens; the panel says why.
     }
-  }, [api, setSummary]);
+  }, [api, setSummary, workspaceKey]);
 
   useEffect(() => {
     let active = true;
+    setEnabled(false);
+    if (!workspaceKey) return;
+    setSummary(null, workspaceKey);
     void api
       .access()
       .then(async (access) => {
         if (!active || !access?.automations) return;
         setEnabled(true);
         const next = await api.summary().catch(() => null);
-        if (active && next) setSummary(next);
+        if (active && next) setSummary(next, workspaceKey);
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [api, setSummary]);
+  }, [api, setSummary, workspaceKey]);
 
   return { enabled, summary, refresh };
 }
