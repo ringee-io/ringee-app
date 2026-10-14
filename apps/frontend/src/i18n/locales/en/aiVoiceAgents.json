@@ -25,13 +25,18 @@
     "loadError": "Could not load your agents.",
     "emptyTitle": "Create your first agent",
     "emptyHint": "Pick what it should do. Ringee starts it from a tested conversation blueprint.",
+    "createAskAdmin": "Only an admin can create agents.",
     "newAgent": "New agent",
     "pickTitle": "What should the agent do?",
     "pickHint": "Ringee provides the conversation defaults, tools and follow-up.",
     "create": "Create",
     "test": "Test",
     "voiceSet": "Voice set",
-    "noVoice": "No voice yet"
+    "noVoice": "No voice yet",
+    "searchPlaceholder": "Search agents…",
+    "allStatuses": "All statuses",
+    "noMatches": "No agents match your search.",
+    "calls": "{count, plural, one {# call} other {# calls}}"
   },
   "wizard": {
     "title": "New agent",
@@ -420,5 +425,236 @@
     "voice": "a voice",
     "apiKey": "a verified API key",
     "calendar": "a calendar"
+  },
+  "automations": {
+    "title": "Trigger AI Voice Agents",
+    "titleShort": "Trigger AI Voice Agents",
+    "railLabel": "Trigger AI Voice Agents, {count, plural, =0 {no agent ready yet} one {# agent ready to fire} other {# agents ready to fire}}",
+    "attentionHint": "Something needs your attention",
+    "subtitle": "{count, plural, =0 {Choose what triggers each agent} one {# agent ready to fire} other {# agents ready to fire}}",
+    "subtitleLoading": "Loading…",
+    "close": "Close Trigger AI Voice Agents",
+    "loadError": "The agents could not be loaded.",
+    "retry": "Try again",
+    "unavailable": "Trigger AI Voice Agents are not available in this workspace yet.",
+    "announce": "{title}: {state}",
+    "capabilities": {
+      "reminders": {
+        "title": "Reminders & confirmations",
+        "purpose": "When a meeting is coming up, the agent calls the lead to confirm they will attend."
+      },
+      "receptionist": {
+        "title": "AI receptionist",
+        "purpose": "When someone calls your number, the agent answers, helps and transfers to your team."
+      },
+      "scheduling": {
+        "title": "Appointment scheduling",
+        "purpose": "When you press “Call to schedule”, the agent calls the lead and books the meeting."
+      }
+    },
+    "state": {
+      "unconfigured": "Not set up",
+      "activating": "Activating…",
+      "active": "Active",
+      "paused": "Paused",
+      "needs_attention": "Needs attention"
+    },
+    "toast": {
+      "resumed": "{title}: the agent will fire again",
+      "paused": "{title}: paused, the agent won't fire",
+      "toggleError": "That could not be changed.",
+      "saved": "{title}: the agent is ready to fire",
+      "triggerDeleted": "{title}: trigger deleted",
+      "triggerDeleteError": "The trigger could not be deleted."
+    },
+    "sentence": {
+      "reminders": "{when} before each meeting → {name} calls · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} answers no number yet} one {A call to your number → {name} answers} other {A call to any of your # numbers → {name} answers}}",
+      "scheduling": "You press “Call to schedule” → {name} books on {calendar}"
+    },
+    "nextStep": {
+      "set_up": "Set this up to switch it on.",
+      "fix_agent": "The agent could not be set up.",
+      "turn_on_agent": "The agent is switched off.",
+      "add_number": "There is no number to call from.",
+      "choose_number": "Choose which number it calls from.",
+      "add_credit": "Add credit so it can call.",
+      "choose_calendar": "Choose the calendar whose meetings it confirms.",
+      "answer_a_number": "Choose a number for it to answer.",
+      "inbound_unavailable": "Inbound AI calling is not available yet."
+    },
+    "nextStepAction": {
+      "set_up": "Set up",
+      "fix_agent": "Open agent",
+      "turn_on_agent": "Open agent",
+      "add_number": "Buy a number",
+      "choose_number": "Choose number",
+      "add_credit": "Add credit",
+      "choose_calendar": "Choose calendar",
+      "answer_a_number": "Choose number"
+    },
+    "toggle": {
+      "pause": "Pause {title}",
+      "resume": "Turn on {title}"
+    },
+    "activate": "Turn on",
+    "askAdmin": "An admin can set up this agent.",
+    "scheduling": {
+      "call": "Call to schedule",
+      "noCalls": "It only fires when you press “Call to schedule” — switching it on calls nobody."
+    },
+    "customize": "Customize",
+    "customizeGreeting": "Customize greeting",
+    "test": "Test",
+    "details": "Details",
+    "speaksFor": "Speaks for {company}",
+    "noCompany": "Add your company in Customize so the agent says who it calls for.",
+    "reminders": {
+      "callsFrom": "Calls from {number}",
+      "recipients": "On a confirmation, one email to the lead and the member{count, plural, =0 {} one { · CC # admin} other { · CC # admins}}."
+    },
+    "editSetup": "Edit setup",
+    "deleteTrigger": {
+      "button": "Delete trigger",
+      "title": "Delete the {title} trigger?",
+      "confirm": "Delete trigger",
+      "hint": {
+        "reminders": "Planned reminder calls are cancelled and no calendar is watched any more. {name} stays in your agents, ready to set up again.",
+        "receptionist": "Its numbers ring where they did before the receptionist. {name} stays in your agents, ready to set up again.",
+        "scheduling": "Nobody can call to schedule until an admin sets it up again. {name} stays in your agents."
+      }
+    },
+    "receptionist": {
+      "pauseGoesTo": "If paused, goes to {destination}",
+      "default": "its usual destination",
+      "notAnswering": "Not answering",
+      "manageNumbers": "Change numbers"
+    },
+    "units": {
+      "day": "d",
+      "hour": "h",
+      "minute": "min"
+    },
+    "setup": {
+      "name": "Agent name",
+      "agentChoice": "Which agent?",
+      "useExisting": "Use {name}",
+      "createNew": "Create a new one",
+      "cancel": "Cancel",
+      "activating": "Activating…",
+      "noNumber": "You need a number to call from.",
+      "buyNumber": "Buy a number",
+      "defaultNames": {
+        "reminders": "Sofia",
+        "receptionist": "Lucy",
+        "scheduling": "Carmen"
+      },
+      "error": "It could not be set up. Try again.",
+      "save": "Save",
+      "activate": "Turn on agent",
+      "calendars": "Meetings that trigger it",
+      "callFrom": "Call from",
+      "callFromHint": "Leads see this number — and call it back.",
+      "chooseNumber": "Choose a number",
+      "when": "When it calls",
+      "custom": "Other",
+      "before": "{value} before",
+      "units": {
+        "days": "Days",
+        "hours": "Hours",
+        "minutes": "Minutes"
+      },
+      "offsetRange": "Between 15 minutes and 14 days.",
+      "scope": "Will fire for {calls, plural, =0 {none} one {# meeting} other {# meetings}} of {meetings} upcoming, starting now.",
+      "scopeUnknown": "Choose a calendar to see which meetings trigger it.",
+      "noLateCalls": "If a meeting is closer than this, it never fires late.",
+      "recipients": "When a lead confirms: one email to the lead and the member, admins in CC.",
+      "recipientsWithCount": "When a lead confirms: one email to the lead and the member, {count, plural, one {# admin} other {# admins}} in CC.",
+      "answerNumbers": "Numbers that trigger it",
+      "todayReceptionist": "Answered by {name} today",
+      "today": "Today it rings {destination}",
+      "defaultRoute": "its default",
+      "remindersCallBack": "Your reminders call from here — leads will call it back",
+      "fallback": "If you pause it",
+      "fallbackHint": "Where calls go while the receptionist is paused.",
+      "fallbackPrevious": "Back to what each number did before",
+      "routeChange": "What changes",
+      "routeChangeLine": "{number}: {name} answers · if paused, back to {back}",
+      "someNumbersFailed": "Some numbers could not be assigned: {reasons}",
+      "calendar": "Calendar",
+      "chooseCalendar": "Choose a calendar",
+      "voice": "Voice",
+      "voiceHint": "The agent speaks the voice's language. Listen to the voices and change it in Customize.",
+      "chooseVoice": "Choose a voice",
+      "moreOptions": "More options",
+      "summary": {
+        "reminders": "{name} will call each lead {when} before their meeting to confirm they will attend.",
+        "scheduling": "When you press “Call to schedule” on a lead, {name} calls them and books the meeting. Switching it on calls nobody."
+      }
+    },
+    "upcoming": {
+      "title": "{count, plural, =0 {No calls planned} one {# call planned} other {# calls planned}}",
+      "loadError": "Upcoming calls could not be loaded.",
+      "empty": "Nothing planned yet.",
+      "line": "Calls {call} · meeting {meeting}",
+      "callNow": "Call now",
+      "callNowFor": "Call {name} now",
+      "theLead": "the lead",
+      "calling": "Calling {name}…",
+      "notPlaced": "Not called: {reason}",
+      "callError": "The call could not be started."
+    },
+    "scheduleCall": {
+      "button": "Call to schedule",
+      "title": "Call to schedule",
+      "hint": "The agent calls the lead, finds a time on the calendar and books the meeting.",
+      "lead": "Lead",
+      "changeLead": "Choose another lead",
+      "firstName": "Greet them as",
+      "firstNameHint": "The first name the agent uses.",
+      "member": "Meeting with",
+      "chooseMember": "Choose a member",
+      "you": "(you)",
+      "booksOn": "Books on {calendar}",
+      "callsFrom": "Calls from {number}",
+      "onlyThisCall": "Only this call is charged.",
+      "start": "Call to schedule",
+      "calling": "Calling {name}…",
+      "error": "The call could not be started."
+    },
+    "activity": {
+      "title": "Recently triggered",
+      "empty": "Nothing has fired yet — each call the agents make shows up here.",
+      "someone": "a lead",
+      "kinds": {
+        "attendance_confirmed": "{name} confirmed they will attend",
+        "attendance_declined": "{name} can't attend",
+        "no_answer": "No answer: {name}",
+        "call_completed": "Talked to {name}, no answer given",
+        "call_failed": "Could not call {name}",
+        "needs_email": "Needs an email: {name}",
+        "needs_member": "Reassign {name}'s meeting",
+        "email_failed": "Email to {name} failed",
+        "meeting_booked": "Meeting booked"
+      },
+      "completeEmail": "Complete email",
+      "emailLabel": "{name}'s email",
+      "emailPlaceholder": "name@company.com",
+      "send": "Send",
+      "emailQueued": "The confirmation email goes out now.",
+      "emailError": "The email could not be saved."
+    },
+    "attendance": {
+      "label": "Attendance",
+      "status": {
+        "pending": "Not confirmed yet",
+        "confirmed": "Confirmed by the lead",
+        "declined": "The lead can't attend"
+      },
+      "callNow": "Call to confirm now",
+      "calling": "Calling the lead…",
+      "notPlaced": "Not called: {reason}",
+      "callError": "The call could not be started."
+    }
   }
 }

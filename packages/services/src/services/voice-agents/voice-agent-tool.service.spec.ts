@@ -67,6 +67,10 @@ function build(
     callbackError?: Error;
     callbackOutcomeError?: Error;
     callbackOutcomeErrors?: Error[];
+    /** The reminder execution that placed the call, if any. */
+    execution?: Record<string, unknown> | null;
+    /** What the attendance transaction reports. */
+    attendance?: Record<string, unknown>;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
@@ -78,6 +82,7 @@ function build(
   const supportRequests: Array<Record<string, unknown>> = [];
   const callbacks: Array<Record<string, unknown>> = [];
   const callbackOutcomes: Array<Record<string, unknown>> = [];
+  const attendanceWrites: Array<Record<string, unknown>> = [];
   let updateAttempt = 0;
   let callbackOutcomeAttempt = 0;
 
@@ -153,6 +158,23 @@ function build(
           over.meeting ?? { id: "meeting-1", location: "https://meet.test/x" }
         );
       },
+      recordAttendance: async (
+        _ctx: unknown,
+        input: Record<string, unknown>,
+      ) => {
+        attendanceWrites.push(input);
+        return (
+          over.attendance ?? {
+            result: "recorded",
+            repeated: false,
+            meeting: {
+              id: "meeting-9",
+              contactId: "contact-1",
+              leadEmail: "elena@acme.test",
+            },
+          }
+        );
+      },
       getMeetingById: async (_ctx: unknown, id: string) => {
         lookups.push(id);
         return (
@@ -221,10 +243,15 @@ function build(
     {} as never,
     {} as never,
     {} as never,
+    {
+      findByAgentCallId: async () =>
+        over.execution === undefined ? null : over.execution,
+    } as never,
   );
 
   return {
     service,
+    attendanceWrites,
     updates,
     created,
     lookups,
@@ -765,6 +792,146 @@ describe("VoiceAgentToolService calendar resolution", () => {
           date: "2026-09-04",
         }),
       /does not belong to this agent/,
+    );
+  });
+});
+
+describe("VoiceAgentToolService.confirmMeetingAttendance (AGENT-017)", () => {
+  const EXECUTION = {
+    id: "exec-1",
+    organizationId: "org-1",
+    meetingId: "meeting-9",
+    scheduleVersion: 3,
+  };
+
+  it("records the answer against the meeting the call was placed for, never one the model names", async () => {
+    const { service, attendanceWrites, callbackOutcomes } = build({
+      execution: EXECUTION,
+    });
+    const result = await service.confirmMeetingAttendance(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { attendance: "confirmed", note: "  See you there  " },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(attendanceWrites.length, 1);
+    assert.deepEqual(
+      {
+        meetingId: attendanceWrites[0]!.meetingId,
+        expectedScheduleVersion: attendanceWrites[0]!.expectedScheduleVersion,
+        status: attendanceWrites[0]!.status,
+        agentCallId: attendanceWrites[0]!.agentCallId,
+        executionId: attendanceWrites[0]!.executionId,
+        note: attendanceWrites[0]!.note,
+      },
+      {
+        meetingId: "meeting-9",
+        expectedScheduleVersion: 3,
+        status: "confirmed",
+        agentCallId: "call-1",
+        executionId: "exec-1",
+        note: "See you there",
+      },
+    );
+    // The tool's answer is the call's outcome, ahead of any analysis.
+    assert.equal(callbackOutcomes[0]!.outcome, "confirmed");
+    if (result.ok) {
+      assert.equal(result.email, "will_be_sent");
+      assert.match(result.speech_instruction, /will be sent/);
+      assert.match(
+        result.speech_instruction,
+        /Do not say it has already been sent/,
+      );
+    }
+  });
+
+  it("refuses on a call that is not about a scheduled meeting", async () => {
+    const { service, attendanceWrites } = build({ execution: null });
+    const result = await service.confirmMeetingAttendance(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { attendance: "confirmed" },
+    );
+    assert.equal(result.ok, false);
+    assert.equal(attendanceWrites.length, 0);
+  });
+
+  it("refuses an answer that is neither a clear yes nor a clear no", async () => {
+    const { service, attendanceWrites } = build({ execution: EXECUTION });
+    const result = await service.confirmMeetingAttendance(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { attendance: "maybe" },
+    );
+    assert.equal(result.ok, false);
+    assert.equal(attendanceWrites.length, 0);
+  });
+
+  it("does not confirm a meeting that moved after the call started", async () => {
+    const { service, callbackOutcomes } = build({
+      execution: EXECUTION,
+      attendance: { result: "stale" },
+    });
+    const result = await service.confirmMeetingAttendance(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { attendance: "confirmed" },
+    );
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error, /Do not confirm it/);
+    assert.equal(callbackOutcomes.length, 0);
+  });
+
+  it("never promises an email when there is no address to send it to", async () => {
+    const { service } = build({
+      execution: EXECUTION,
+      contact: { id: "contact-1", email: null },
+      attendance: {
+        result: "recorded",
+        repeated: false,
+        meeting: { id: "meeting-9", contactId: "contact-1", leadEmail: null },
+      },
+    });
+    const result = await service.confirmMeetingAttendance(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { attendance: "confirmed" },
+    );
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.email, "no_email_on_file");
+      assert.match(result.speech_instruction, /do not promise an email/);
+    }
+  });
+
+  it("rejects a dictated address that is not an email before writing anything", async () => {
+    const { service, attendanceWrites } = build({ execution: EXECUTION });
+    const result = await service.confirmMeetingAttendance(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { attendance: "confirmed", email: "elena at acme" },
+    );
+    assert.equal(result.ok, false);
+    assert.equal(attendanceWrites.length, 0);
+  });
+
+  it("refuses a call that belongs to another agent", async () => {
+    const { service } = build({
+      execution: EXECUTION,
+      agentCall: { id: "call-x", agentId: "agent-2" },
+    });
+    await assert.rejects(
+      () =>
+        service.confirmMeetingAttendance("agent-1", SECRET, "cc-1", {
+          attendance: "confirmed",
+        }),
+      /Call does not belong to this agent/,
     );
   });
 });

@@ -6,7 +6,10 @@ import { after, before, describe, it, type TestContext } from "node:test";
 import { PrismaClient } from "@prisma/client";
 import { MeetingRepository } from "./meeting.repository";
 
-const prisma = new PrismaClient();
+// Keep all clients on the same explicitly selected test database, including
+// the clients that vary session options below.
+const databaseUrl = process.env.DATABASE_URL;
+const prisma = new PrismaClient({ datasourceUrl: databaseUrl });
 const repository = new MeetingRepository(prisma as never);
 
 const fixture = {
@@ -514,7 +517,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       "America/Santo_Domingo",
       "Pacific/Auckland",
     ].entries()) {
-      const url = new URL(process.env.DATABASE_URL!);
+      const url = new URL(databaseUrl!);
       const options = url.searchParams.get("options") ?? "";
       url.searchParams.set(
         "options",

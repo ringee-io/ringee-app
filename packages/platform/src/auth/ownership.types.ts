@@ -10,6 +10,16 @@ export interface OwnershipContext {
 }
 
 /**
+ * An ownership context already known to be an organization workspace — what
+ * organization-only features (AI voice agents, AGENT-011) work with once their
+ * access check has passed. Its filter is the organization alone, exactly as
+ * `buildOwnershipFilter` builds it for an organization scope.
+ */
+export type OrganizationOwnershipContext = OwnershipContext & {
+  organizationId: string;
+};
+
+/**
  * The current user, as resolved by the @CurrentUser() decorator.
  */
 export interface CurrentUserData {

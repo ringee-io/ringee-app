@@ -124,6 +124,24 @@ not stated anywhere, so it is documented as `Needs confirmation` in
 
 ---
 
+### DEBT-021 — The original email send ignores its `replyTo` argument · Medium · Open
+
+**Where:** `ResendProvider.sendEmail` (`packages/platform/src/email/`)
+
+**What:** the sixth positional argument is never applied; a sender other than a
+`no-reply` address gets a fixed Reply-To instead. Several callers pass other
+addresses in that slot — a CC constant, a requester's email — believing it
+works.
+
+**Why it matters:** honoring it now would silently change the Reply-To of
+emails those callers already send, some of them with an address meant as a CC.
+The meeting confirmation (AGENT-020) needed an exact Reply-To, CC and thread
+headers, so it uses the explicit `send(message)` added beside it, which applies
+every field as given and returns whether the provider accepted the email.
+
+**Direction:** move each `sendEmail` caller to `send` with its intended `cc` and
+`replyTo` spelled out, then retire the positional signature.
+
 ## Won't fix here
 
 ### DEBT-012 — `ServicesModule` is one 232-provider module · Medium

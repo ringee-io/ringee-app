@@ -1,9 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Clock, Moon, TrendingUp } from 'lucide-react';
+import { Clock, Moon, RotateCw, TrendingUp } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { CreditPopover } from '@/features/credit/components/credit.popover';
 import { useCreditStore } from '@/features/credit/store/credit.store';
@@ -19,16 +20,21 @@ import { useMyDayFormat } from './use-my-day-format';
 export function YourLineCard() {
   const t = useTranslations('calls.myDay.line');
   const tDialer = useTranslations('calls.dialer');
+  const api = useApi();
   const lineStatus = useTelnyxStore((s) => s.status);
   // The balance and its top-up are the admin's: an organization member sees
   // neither — not even for the moment before their role has loaded.
   const { canAccessAdminFeatures, isLoaded: roleLoaded } = useOrgRole();
   const showBalance = roleLoaded && canAccessAdminFeatures;
+  // Loaded once for the dashboard (`CreditBalanceLoader`); this card only
+  // reads it, and offers a retry when that first load failed.
   const {
     balance,
     canCall,
     freeCallTrial,
-    status: balanceStatus
+    status: balanceStatus,
+    hasLoaded,
+    fetchBalance
   } = useCreditStore();
 
   return (
@@ -56,7 +62,21 @@ export function YourLineCard() {
 
       {showBalance ? (
         <div className='border-t pt-3'>
-          {balanceStatus !== 'success' ? (
+          {!hasLoaded && balanceStatus === 'error' ? (
+            <div className='flex items-center justify-between gap-3'>
+              <p role='alert' className='text-muted-foreground text-sm'>
+                {t('balanceError')}
+              </p>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => void fetchBalance(api)}
+              >
+                <RotateCw className='size-3.5' />
+                {t('retry')}
+              </Button>
+            </div>
+          ) : !hasLoaded ? (
             <Skeleton className='h-10 w-full' />
           ) : freeCallTrial ? (
             <div className='flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2'>

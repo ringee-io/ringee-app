@@ -36,7 +36,7 @@ export function CommunitySupportButton() {
         </TooltipTrigger>
         <TooltipContent side='bottom' className='max-w-64'>
           <p className='text-xs font-semibold'>{t('tooltipTitle')}</p>
-          <p className='text-primary-foreground/80 mt-1 text-[11px] leading-relaxed font-normal'>
+          <p className='text-background/80 mt-1 text-[11px] leading-relaxed font-normal'>
             {t('tooltipDescription')}
           </p>
         </TooltipContent>

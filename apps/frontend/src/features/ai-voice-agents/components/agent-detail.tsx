@@ -37,6 +37,7 @@ import {
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Switch } from '@ringee/frontend-shared/components/ui/switch';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import {
   Tabs,
   TabsContent,
@@ -61,6 +62,7 @@ import { VoiceSection } from './sections/voice-section';
 import { InboundRoutingButton } from '@ringee/frontend-shared/components/inbound-routing/routing-panel';
 import { StartCallDialog } from './start-call-dialog';
 import { TestPanel } from './test-panel';
+import { safeReturnTo } from '../automations/lib/format';
 
 const TABS = [
   { value: 'setup', icon: Settings2 },
@@ -106,7 +108,10 @@ export function AgentDetail({ agentId }: { agentId: string }) {
     void load();
   }, [load]);
 
-  const leave = () => router.push('/dashboard/ai-voice-agents');
+  // Opened from somewhere else — the Voice Agents rail's "Customize" — it
+  // goes back there, so the person lands on the page they left.
+  const returnTo = safeReturnTo(searchParams.get('returnTo'));
+  const leave = () => router.push(returnTo ?? '/dashboard/ai-voice-agents');
 
   return (
     <AgentScreen onClose={leave} confirmClose={dirty}>
@@ -177,6 +182,8 @@ function AgentDetailView({
   const tCommon = useTranslations('aiVoiceAgents.common');
   const api = useVoiceAgentApi();
   const draft = useAgentDraft(agent.type, agent);
+  // UX only: deleting an agent is admin-only on the server (AGENT-018).
+  const { canAccessAdminFeatures: canDelete } = useOrgRole();
   const [tab, setTab] = useState(initialTab);
   const [callsKey, setCallsKey] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -304,38 +311,40 @@ function AgentDetailView({
             />
           )}
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant='ghost'
-                aria-label={t('deleteAria')}
-                className='size-10 rounded-lg p-0'
-              >
-                <Trash2 className='size-4' />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t('deleteTitle', { name: agent.name })}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t('deleteHint')}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className='rounded-lg'>
-                  {tCommon('cancel')}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className='rounded-lg'
-                  onClick={() => void remove()}
+          {canDelete ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant='ghost'
+                  aria-label={t('deleteAria')}
+                  className='size-10 rounded-lg p-0'
                 >
-                  {tCommon('delete')}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2 className='size-4' />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t('deleteTitle', { name: agent.name })}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('deleteHint')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className='rounded-lg'>
+                    {tCommon('cancel')}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className='rounded-lg'
+                    onClick={() => void remove()}
+                  >
+                    {tCommon('delete')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
         </>
       }
       footer={

@@ -127,6 +127,8 @@ function build(
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
+    {} as never,
   );
 
   return {

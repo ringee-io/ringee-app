@@ -50,6 +50,21 @@ Never assume the caller already checked.
   destination type. Do not add a routing decision to a webhook handler, and do
   not add a second fallback beside `legacyInboundDestination`.
 
+## AI voice agents placing calls on their own
+
+Anything that dials an agent without a person pressing a button — reminder
+calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
+`VoiceAgentCallService.startCall` like every other surface, and:
+
+- persists its correlation first: pass `idempotencyKey`, one per dial try, so a
+  worker that crashed after dialing finds the earlier `AiVoiceAgentCall`
+  instead of placing a second leg;
+- reads `VoiceAgentCallStartError.outcome`: only `retryable_before_placement`
+  may be retried; `placed_pending_reconciliation` means a leg may exist and is
+  linked, never redialed;
+- re-checks what it is calling about right before the dial (versions, calling
+  window, DNC through `startCall`), because the row it planned from may be stale.
+
 ## Campaigns and outbound
 
 - Campaigns are organization-only: `ensureOrganization(ctx)` first.

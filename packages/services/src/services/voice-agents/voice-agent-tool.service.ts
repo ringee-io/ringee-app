@@ -13,6 +13,7 @@ import {
   AiVoiceAgentCallRepository,
   AiVoiceAgentOutcome,
   AiVoiceAgentRepository,
+  MeetingReminderExecutionRepository,
 } from "@ringee/database";
 import {
   RedisService,
@@ -23,7 +24,7 @@ import {
 } from "@ringee/platform";
 import { CalendarService, ResolvedCalendar } from "../calendar.service";
 import { ContactService } from "../contact.service";
-import { MeetingService } from "../meeting.service";
+import { MeetingService, normalizeEmail } from "../meeting.service";
 import { CallbackService } from "../outbound/callback.service";
 import {
   AI_VOICE_AGENT_CONTACT_SOURCE,
@@ -49,6 +50,7 @@ const MAX_OFFERED_SLOTS = 3;
 const SUPPORT_SUBJECT_MAX = 120;
 const SUPPORT_MESSAGE_MAX = 2000;
 const CALLBACK_NOTE_MAX = 2000;
+const ATTENDANCE_NOTE_MAX = 1000;
 
 /** Result shapes the model reads back. Failures are data, not exceptions. */
 export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
@@ -70,6 +72,13 @@ export interface BookAppointmentResult {
 
 export interface ScheduleCallbackResult {
   callback: { id: string; scheduled_at: string; status: string };
+  speech_instruction: string;
+}
+
+export interface AttendanceResult {
+  attendance: "confirmed" | "declined";
+  /** Whether the shared confirmation email has an address to go to. */
+  email: "will_be_sent" | "no_email_on_file" | "not_applicable";
   speech_instruction: string;
 }
 
@@ -114,6 +123,7 @@ export class VoiceAgentToolService {
     private readonly ring: InboundRingService,
     private readonly provider: VoiceAgentProviderService,
     private readonly redis: RedisService,
+    private readonly reminderExecutions: MeetingReminderExecutionRepository,
   ) {}
 
   private async authorizeReceptionist(
@@ -555,6 +565,10 @@ export class VoiceAgentToolService {
         requireAvailableSlot: true,
         bookingTimeZone: timezone,
         agentCallId: agentCall?.id,
+        // Who the meeting is with: the member "Call to schedule" named, or
+        // whoever started the call (CAL-003).
+        responsibleUserId:
+          agentCall?.responsibleUserId ?? agentCall?.userId ?? undefined,
       });
 
       const end = new Date(
@@ -731,6 +745,155 @@ export class VoiceAgentToolService {
             retryError instanceof Error
               ? retryError.message
               : String(retryError)
+          }`,
+        );
+      }
+    }
+  }
+
+  /**
+   * The lead's explicit answer about attending the meeting a reminder call was
+   * placed for (AGENT-017).
+   *
+   * The model supplies the answer and nothing else that matters: the call is
+   * read from the provider-filled header, the meeting from the reminder
+   * execution that placed that call, and the schedule version from the same
+   * row — so an answer can only land on this call's meeting, and only on the
+   * time the person was actually asked about.
+   */
+  async confirmMeetingAttendance(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: { attendance?: string; email?: string; note?: string },
+  ): Promise<ToolResult<AttendanceResult>> {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    const attendance = input.attendance;
+    if (attendance !== "confirmed" && attendance !== "declined") {
+      return {
+        ok: false,
+        error:
+          'Record the answer as "confirmed" (a clear yes) or "declined" (a clear no).',
+      };
+    }
+    if (!callControlId) {
+      return {
+        ok: false,
+        error: "The current call could not be identified.",
+      };
+    }
+
+    const agentCall = await this.agentCalls.findByCallControlId(callControlId);
+    if (!agentCall) {
+      return { ok: false, error: "The current call could not be found." };
+    }
+    if (agentCall.agentId !== agent.id) {
+      throw new UnauthorizedException("Call does not belong to this agent");
+    }
+
+    const execution = await this.reminderExecutions.findByAgentCallId(
+      agentCall.id,
+    );
+    if (!execution || execution.organizationId !== ctx.organizationId) {
+      return {
+        ok: false,
+        error:
+          "This call is not about a scheduled meeting, so there is no attendance to record. Continue the conversation without it.",
+      };
+    }
+
+    const offeredEmail = input.email?.trim()
+      ? normalizeEmail(input.email)
+      : null;
+    if (input.email?.trim() && !offeredEmail) {
+      return {
+        ok: false,
+        error:
+          "That email address is not valid. Read it back to the person and ask again, or continue without it.",
+      };
+    }
+
+    let recorded;
+    try {
+      recorded = await this.meetings.recordAttendance(ctx, {
+        meetingId: execution.meetingId,
+        expectedScheduleVersion: execution.scheduleVersion,
+        status: attendance,
+        agentCallId: agentCall.id,
+        note: this.supportText(input.note, ATTENDANCE_NOTE_MAX) || null,
+        leadEmail: offeredEmail,
+        executionId: execution.id,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Attendance could not be recorded for agent call ${agentCall.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return {
+        ok: false,
+        error:
+          "The answer could not be recorded right now. Do not say it was recorded; tell the person the team will follow up.",
+      };
+    }
+
+    if (recorded.result !== "recorded") {
+      return {
+        ok: false,
+        error:
+          recorded.result === "past"
+            ? "This meeting has already started, so there is nothing to confirm. Apologize for the confusion."
+            : "This meeting was moved or cancelled after the call started. Do not confirm it; tell the person the team will contact them with the current details.",
+      };
+    }
+
+    // The tool's answer is the outcome: the analysis that lands minutes later
+    // may not overwrite it (AGENT-006).
+    await this.recordAttendanceOutcome(
+      agentCall,
+      attendance === "confirmed"
+        ? AiVoiceAgentOutcome.confirmed
+        : AiVoiceAgentOutcome.cannot_attend,
+    );
+
+    if (attendance === "declined") {
+      return {
+        ok: true,
+        attendance,
+        email: "not_applicable",
+        speech_instruction:
+          "Tell the person their answer is recorded and that the team will be told. Do not promise a new time or a response time.",
+      };
+    }
+
+    const contact = recorded.meeting.leadEmail
+      ? null
+      : await this.contacts
+          .findContactByIdForOwner(ctx, recorded.meeting.contactId)
+          .catch(() => null);
+    const hasEmail = Boolean(recorded.meeting.leadEmail || contact?.email);
+    return {
+      ok: true,
+      attendance,
+      email: hasEmail ? "will_be_sent" : "no_email_on_file",
+      speech_instruction: hasEmail
+        ? "Tell the person their attendance is confirmed and that a confirmation email will be sent to everyone in the meeting. Do not say it has already been sent."
+        : "Tell the person their attendance is confirmed. There is no email address on file, so do not promise an email; if they want one, ask for the address, read it back, and call this tool again with `email` once they confirm it.",
+    };
+  }
+
+  private async recordAttendanceOutcome(
+    agentCall: AiVoiceAgentCall,
+    outcome: AiVoiceAgentOutcome,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await this.results.applyKnownOutcome(agentCall, outcome);
+        return;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to record attendance outcome for agent call ${agentCall.id}: ${
+            error instanceof Error ? error.message : String(error)
           }`,
         );
       }

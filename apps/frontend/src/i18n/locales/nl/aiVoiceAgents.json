@@ -25,13 +25,18 @@
     "loadError": "Je agents konden niet worden geladen.",
     "emptyTitle": "Maak je eerste agent",
     "emptyHint": "Kies wat hij moet doen. Ringee start hem met een beproefd gesprekssjabloon.",
+    "createAskAdmin": "Alleen een beheerder kan agents aanmaken.",
     "newAgent": "Nieuwe agent",
     "pickTitle": "Wat moet de agent doen?",
     "pickHint": "Ringee biedt de standaardgespreksinstellingen, tools en opvolging.",
     "create": "Aanmaken",
     "test": "Testen",
     "voiceSet": "Stem ingesteld",
-    "noVoice": "Nog geen stem"
+    "noVoice": "Nog geen stem",
+    "searchPlaceholder": "Agents zoeken…",
+    "allStatuses": "Alle statussen",
+    "noMatches": "Geen agents gevonden voor je zoekopdracht.",
+    "calls": "{count, plural, one {# gesprek} other {# gesprekken}}"
   },
   "wizard": {
     "title": "Nieuwe agent",
@@ -420,5 +425,236 @@
     "voice": "een stem",
     "apiKey": "een geverifieerde API-sleutel",
     "calendar": "een agenda"
+  },
+  "automations": {
+    "title": "Trigger AI Voice Agents",
+    "titleShort": "Trigger AI Voice Agents",
+    "railLabel": "Trigger AI Voice Agents, {count, plural, =0 {nog geen agent klaar} one {# agent wacht op zijn trigger} other {# agents wachten op hun trigger}}",
+    "attentionHint": "Er vraagt iets je aandacht",
+    "subtitle": "{count, plural, =0 {Kies wanneer elke agent in actie komt} one {# agent wacht op zijn trigger} other {# agents wachten op hun trigger}}",
+    "subtitleLoading": "Laden…",
+    "close": "Trigger AI Voice Agents sluiten",
+    "loadError": "De agents konden niet worden geladen.",
+    "retry": "Opnieuw proberen",
+    "unavailable": "Trigger AI Voice Agents zijn nog niet beschikbaar in deze werkruimte.",
+    "announce": "{title}: {state}",
+    "capabilities": {
+      "reminders": {
+        "title": "Herinneringen & bevestigingen",
+        "purpose": "Als er een afspraak nadert, belt de agent de lead om te bevestigen dat ze komen."
+      },
+      "receptionist": {
+        "title": "AI-receptionist",
+        "purpose": "Als iemand je nummer belt, neemt de agent op, helpt en verbindt door met je team."
+      },
+      "scheduling": {
+        "title": "Afspraken plannen",
+        "purpose": "Als je op „Bellen om te plannen” drukt, belt de agent de lead en plant de afspraak."
+      }
+    },
+    "state": {
+      "unconfigured": "Niet ingesteld",
+      "activating": "Wordt geactiveerd…",
+      "active": "Actief",
+      "paused": "Gepauzeerd",
+      "needs_attention": "Actie nodig"
+    },
+    "toast": {
+      "resumed": "{title}: de agent komt weer in actie",
+      "paused": "{title}: gepauzeerd, de agent komt niet in actie",
+      "toggleError": "Dat kon niet worden gewijzigd.",
+      "saved": "{title}: de agent staat klaar",
+      "triggerDeleted": "{title}: trigger verwijderd",
+      "triggerDeleteError": "De trigger kon niet worden verwijderd."
+    },
+    "sentence": {
+      "reminders": "{when} voor elke afspraak → {name} belt · {calendars}",
+      "receptionist": "{count, plural, =0 {{name} neemt nog geen nummer op} one {Oproep naar je nummer → {name} neemt op} other {Oproep naar een van je # nummers → {name} neemt op}}",
+      "scheduling": "Je drukt op „Bellen om te plannen” → {name} plant in {calendar}"
+    },
+    "nextStep": {
+      "set_up": "Stel het in om het in te schakelen.",
+      "fix_agent": "De agent kon niet worden ingesteld.",
+      "turn_on_agent": "De agent staat uit.",
+      "add_number": "Er is geen nummer om vanaf te bellen.",
+      "choose_number": "Kies vanaf welk nummer hij belt.",
+      "add_credit": "Voeg tegoed toe zodat hij kan bellen.",
+      "choose_calendar": "Kies de agenda waarvan hij afspraken bevestigt.",
+      "answer_a_number": "Kies een nummer dat hij opneemt.",
+      "inbound_unavailable": "Inkomende gesprekken via AI zijn nog niet beschikbaar."
+    },
+    "nextStepAction": {
+      "set_up": "Instellen",
+      "fix_agent": "Agent openen",
+      "turn_on_agent": "Agent openen",
+      "add_number": "Nummer kopen",
+      "choose_number": "Nummer kiezen",
+      "add_credit": "Tegoed toevoegen",
+      "choose_calendar": "Agenda kiezen",
+      "answer_a_number": "Nummer kiezen"
+    },
+    "toggle": {
+      "pause": "{title} pauzeren",
+      "resume": "{title} inschakelen"
+    },
+    "activate": "Inschakelen",
+    "askAdmin": "Een beheerder kan deze agent instellen.",
+    "scheduling": {
+      "call": "Bellen om te plannen",
+      "noCalls": "Komt alleen in actie als je op „Bellen om te plannen” drukt: inschakelen belt niemand."
+    },
+    "customize": "Aanpassen",
+    "customizeGreeting": "Begroeting aanpassen",
+    "test": "Testen",
+    "details": "Details",
+    "speaksFor": "Spreekt namens {company}",
+    "noCompany": "Voeg je bedrijf toe bij Aanpassen zodat de agent zegt namens wie hij belt.",
+    "reminders": {
+      "callsFrom": "Belt vanaf {number}",
+      "recipients": "Bij een bevestiging één e-mail aan lead en lid{count, plural, =0 {} one { · CC # beheerder} other { · CC # beheerders}}."
+    },
+    "editSetup": "Instellingen bewerken",
+    "deleteTrigger": {
+      "button": "Trigger verwijderen",
+      "title": "Trigger voor {title} verwijderen?",
+      "confirm": "Trigger verwijderen",
+      "hint": {
+        "reminders": "Geplande herinneringsoproepen worden geannuleerd en er wordt geen agenda meer gevolgd. {name} blijft bij je agents, klaar om opnieuw in te stellen.",
+        "receptionist": "De nummers gaan weer over waar ze vóór de receptionist overgingen. {name} blijft bij je agents, klaar om opnieuw in te stellen.",
+        "scheduling": "Niemand kan nog bellen om te plannen tot een beheerder het opnieuw instelt. {name} blijft bij je agents."
+      }
+    },
+    "receptionist": {
+      "pauseGoesTo": "Gepauzeerd gaat het naar {destination}",
+      "default": "de gebruikelijke bestemming",
+      "notAnswering": "Neemt niet op",
+      "manageNumbers": "Nummers wijzigen"
+    },
+    "units": {
+      "day": "d",
+      "hour": "u",
+      "minute": "min"
+    },
+    "setup": {
+      "name": "Naam van de agent",
+      "agentChoice": "Welke agent?",
+      "useExisting": "{name} gebruiken",
+      "createNew": "Een nieuwe maken",
+      "cancel": "Annuleren",
+      "activating": "Wordt geactiveerd…",
+      "noNumber": "Je hebt een nummer nodig om vanaf te bellen.",
+      "buyNumber": "Nummer kopen",
+      "defaultNames": {
+        "reminders": "Sofie",
+        "receptionist": "Lotte",
+        "scheduling": "Emma"
+      },
+      "error": "Instellen is mislukt. Probeer het opnieuw.",
+      "save": "Opslaan",
+      "activate": "Agent inschakelen",
+      "calendars": "Afspraken die hem triggeren",
+      "callFrom": "Bellen vanaf",
+      "callFromHint": "Leads zien dit nummer en bellen het terug.",
+      "chooseNumber": "Kies een nummer",
+      "when": "Wanneer hij in actie komt",
+      "custom": "Anders",
+      "before": "{value} van tevoren",
+      "units": {
+        "days": "Dagen",
+        "hours": "Uren",
+        "minutes": "Minuten"
+      },
+      "offsetRange": "Tussen 15 minuten en 14 dagen.",
+      "scope": "Komt vanaf nu in actie voor {calls, plural, =0 {geen} one {# afspraak} other {# afspraken}} van {meetings} komende.",
+      "scopeUnknown": "Kies een agenda om te zien welke afspraken hem triggeren.",
+      "noLateCalls": "Ligt een afspraak dichterbij dan deze termijn, dan komt hij nooit te laat in actie.",
+      "recipients": "Als een lead bevestigt: één e-mail aan lead en lid, beheerders in CC.",
+      "recipientsWithCount": "Als een lead bevestigt: één e-mail aan lead en lid, {count, plural, one {# beheerder} other {# beheerders}} in CC.",
+      "answerNumbers": "Nummers die hem triggeren",
+      "todayReceptionist": "Vandaag neemt {name} op",
+      "today": "Vandaag gaat over bij: {destination}",
+      "defaultRoute": "de standaardbestemming",
+      "remindersCallBack": "Je herinneringen bellen vanaf dit nummer: leads bellen het terug",
+      "fallback": "Als je pauzeert",
+      "fallbackHint": "Waar gesprekken heen gaan terwijl de receptionist gepauzeerd is.",
+      "fallbackPrevious": "Terug naar wat elk nummer eerder deed",
+      "routeChange": "Wat er verandert",
+      "routeChangeLine": "{number}: {name} neemt op · gepauzeerd terug naar {back}",
+      "someNumbersFailed": "Sommige nummers konden niet worden toegewezen: {reasons}",
+      "calendar": "Agenda",
+      "chooseCalendar": "Kies een agenda",
+      "voice": "Stem",
+      "voiceHint": "De agent spreekt de taal van de stem. Beluister de stemmen en wijzig hem bij Aanpassen.",
+      "chooseVoice": "Kies een stem",
+      "moreOptions": "Meer opties",
+      "summary": {
+        "reminders": "{name} belt elke lead {when} voor de afspraak om de aanwezigheid te bevestigen.",
+        "scheduling": "Als je bij een lead op „Bellen om te plannen” drukt, belt {name} hem en plant de afspraak. Inschakelen belt niemand."
+      }
+    },
+    "upcoming": {
+      "title": "{count, plural, =0 {Geen gesprekken gepland} one {# gesprek gepland} other {# gesprekken gepland}}",
+      "loadError": "De komende gesprekken konden niet worden geladen.",
+      "empty": "Nog niets gepland.",
+      "line": "Belt {call} · afspraak {meeting}",
+      "callNow": "Nu bellen",
+      "callNowFor": "{name} nu bellen",
+      "theLead": "de lead",
+      "calling": "{name} wordt gebeld…",
+      "notPlaced": "Niet gebeld: {reason}",
+      "callError": "Het gesprek kon niet worden gestart."
+    },
+    "scheduleCall": {
+      "button": "Bellen om te plannen",
+      "title": "Bellen om te plannen",
+      "hint": "De agent belt de lead, vindt een tijd in de agenda en plant de afspraak.",
+      "lead": "Lead",
+      "changeLead": "Andere lead kiezen",
+      "firstName": "Begroeten als",
+      "firstNameHint": "De voornaam die de agent gebruikt.",
+      "member": "Afspraak met",
+      "chooseMember": "Kies een lid",
+      "you": "(jij)",
+      "booksOn": "Plant in {calendar}",
+      "callsFrom": "Belt vanaf {number}",
+      "onlyThisCall": "Alleen dit gesprek wordt in rekening gebracht.",
+      "start": "Bellen om te plannen",
+      "calling": "{name} wordt gebeld…",
+      "error": "Het gesprek kon niet worden gestart."
+    },
+    "activity": {
+      "title": "Recent getriggerd",
+      "empty": "Nog niets getriggerd: elk gesprek van de agents verschijnt hier.",
+      "someone": "een lead",
+      "kinds": {
+        "attendance_confirmed": "{name} heeft bevestigd te komen",
+        "attendance_declined": "{name} kan niet komen",
+        "no_answer": "Geen antwoord: {name}",
+        "call_completed": "Gesproken met {name}, geen duidelijk antwoord",
+        "call_failed": "{name} kon niet worden gebeld",
+        "needs_email": "E-mail ontbreekt: {name}",
+        "needs_member": "Wijs de afspraak van {name} opnieuw toe",
+        "email_failed": "E-mail aan {name} mislukt",
+        "meeting_booked": "Afspraak gepland"
+      },
+      "completeEmail": "E-mail aanvullen",
+      "emailLabel": "E-mail van {name}",
+      "emailPlaceholder": "naam@bedrijf.nl",
+      "send": "Versturen",
+      "emailQueued": "De bevestigingsmail gaat nu de deur uit.",
+      "emailError": "De e-mail kon niet worden opgeslagen."
+    },
+    "attendance": {
+      "label": "Aanwezigheid",
+      "status": {
+        "pending": "Nog niet bevestigd",
+        "confirmed": "Bevestigd door de lead",
+        "declined": "De lead kan niet komen"
+      },
+      "callNow": "Nu bellen om te bevestigen",
+      "calling": "Lead wordt gebeld…",
+      "notPlaced": "Niet gebeld: {reason}",
+      "callError": "Het gesprek kon niet worden gestart."
+    }
   }
 }

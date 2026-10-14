@@ -9,6 +9,8 @@ import {
   DemoRequestReviewService,
   EnrichmentDrainService,
   McpUsageService,
+  MeetingEmailService,
+  MeetingReminderCallService,
   NumberPurchasedService,
   PipelineRunService,
   RecordingProcessingService,
@@ -52,6 +54,8 @@ export function createActivities(app: INestApplicationContext) {
   const crmBulkSyncService = app.get(CrmBulkSyncService);
   const enrichmentDrainService = app.get(EnrichmentDrainService);
   const reminderService = app.get(ReminderService);
+  const reminderCalls = app.get(MeetingReminderCallService);
+  const meetingEmails = app.get(MeetingEmailService);
   const customIntegrationsDelivery = app.get(CustomIntegrationDeliveryService);
   const numberPurchasedService = app.get(NumberPurchasedService);
   const pipelineRunService = app.get(PipelineRunService);
@@ -138,10 +142,38 @@ export function createActivities(app: INestApplicationContext) {
       if (count > 0) logger.debug(`EnrichmentDrain: ${count} jobs processed`);
     },
 
+    /**
+     * The reminder tick: the email/push reminders to the people who scheduled,
+     * the reminder calls to leads (AGENT-019) and the attendance emails those
+     * calls owe (AGENT-020). Each step is isolated so one failing never holds
+     * up the others, and each is claim-based, so a retried tick is a no-op.
+     */
     async processDueReminders() {
-      const count = await reminderService.processDuePending();
-      if (count > 0)
-        logger.debug(`ReminderScheduler: ${count} reminders dispatched`);
+      const failures: string[] = [];
+      try {
+        const count = await reminderService.processDuePending();
+        if (count > 0)
+          logger.debug(`ReminderScheduler: ${count} reminders dispatched`);
+      } catch (error) {
+        failures.push(`reminders: ${(error as Error).message}`);
+      }
+      try {
+        const placed = await reminderCalls.processDue();
+        if (placed > 0)
+          logger.log(`ReminderScheduler: ${placed} reminder calls placed`);
+      } catch (error) {
+        failures.push(`reminder calls: ${(error as Error).message}`);
+      }
+      try {
+        const sent = await meetingEmails.drain();
+        if (sent > 0)
+          logger.log(`ReminderScheduler: ${sent} meeting emails sent`);
+      } catch (error) {
+        failures.push(`meeting emails: ${(error as Error).message}`);
+      }
+      if (failures.length) {
+        throw new Error(`ReminderScheduler: ${failures.join("; ")}`);
+      }
     },
 
     async drainCustomIntegrations() {

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   Injectable,
@@ -19,10 +20,12 @@ import {
   Call,
   CallStatus,
   OutboundSource,
+  Prisma,
 } from "@ringee/database";
 import {
   hashApiKey,
   normalizePhoneE164,
+  VoiceAgentCallRefusedError,
   VoiceAgentProviderService,
   type OwnershipContext,
 } from "@ringee/platform";
@@ -56,7 +59,23 @@ export interface StartVoiceAgentCallInput {
   variables?: Record<string, string>;
   /** Caller-supplied passthrough, echoed back on the result (§12). */
   metadata?: Record<string, unknown>;
+  /**
+   * Internal, never accepted from a client: a durable caller's correlation,
+   * written on the agent call before the leg is placed. A second start under
+   * the same key finds that row and never dials again (AGENT-019).
+   */
+  idempotencyKey?: string;
+  /**
+   * Internal: the member a meeting booked on this call is with. The caller
+   * has already checked they belong to the workspace (CAL-003).
+   */
+  responsibleUserId?: string;
 }
+
+export type VoiceAgentPlacementGuard = (call: {
+  agentCallId: string;
+  callId: string;
+}) => Promise<void>;
 
 export interface StartVoiceAgentCallResult {
   id: string;
@@ -172,9 +191,10 @@ export class VoiceAgentCallService {
     ctx: OwnershipContext,
     agentId: string,
     input: StartVoiceAgentCallInput,
+    beforePlacement?: VoiceAgentPlacementGuard,
   ): Promise<StartVoiceAgentCallResult> {
     try {
-      return await this.startCallInternal(ctx, agentId, input);
+      return await this.startCallInternal(ctx, agentId, input, beforePlacement);
     } catch (error) {
       if (error instanceof VoiceAgentCallStartError) throw error;
       throw new VoiceAgentCallStartError(
@@ -190,6 +210,7 @@ export class VoiceAgentCallService {
     ctx: OwnershipContext,
     agentId: string,
     input: StartVoiceAgentCallInput,
+    beforePlacement?: VoiceAgentPlacementGuard,
   ): Promise<StartVoiceAgentCallResult> {
     assertVoiceAgentAccess(ctx);
     const agent = await this.agents.require(ctx, agentId);
@@ -230,22 +251,47 @@ export class VoiceAgentCallService {
         return null;
       });
 
+    // A durable caller's earlier try under the same key already has its row:
+    // whatever happened to it, this start must not place a second leg.
+    if (input.idempotencyKey) {
+      const earlier = await this.agentCalls.findByIdempotencyKey(
+        input.idempotencyKey,
+      );
+      if (earlier) throw this.alreadyStarted(earlier);
+    }
+
     const callbackToken = `rvc_${randomBytes(24).toString("hex")}`;
     let agentCall: AiVoiceAgentCall | null = null;
     let callId: string | null = null;
     try {
-      agentCall = await this.agentCalls.create({
-        agentId: agent.id,
-        userId: ctx.userId,
-        organizationId: ctx.organizationId ?? null,
-        toNumber: to,
-        fromNumber: from,
-        contactId: contact?.id ?? null,
-        status: AiVoiceAgentCallStatus.created,
-        variables: variables as object,
-        metadata: (input.metadata ?? {}) as object,
-        callbackTokenHash: hashApiKey(callbackToken),
-      });
+      try {
+        agentCall = await this.agentCalls.create({
+          agentId: agent.id,
+          userId: ctx.userId,
+          organizationId: ctx.organizationId ?? null,
+          toNumber: to,
+          fromNumber: from,
+          contactId: contact?.id ?? null,
+          status: AiVoiceAgentCallStatus.created,
+          variables: variables as object,
+          metadata: (input.metadata ?? {}) as object,
+          callbackTokenHash: hashApiKey(callbackToken),
+          idempotencyKey: input.idempotencyKey ?? null,
+          responsibleUserId: input.responsibleUserId ?? null,
+        });
+      } catch (error) {
+        // Two starts raced under one key: the other one owns the call.
+        if (
+          input.idempotencyKey &&
+          isUniqueViolationOn(error, "idempotencyKey")
+        ) {
+          const earlier = await this.agentCalls.findByIdempotencyKey(
+            input.idempotencyKey,
+          );
+          if (earlier) throw this.alreadyStarted(earlier);
+        }
+        throw error;
+      }
 
       // The telephony row is created here, not on a webhook: a provider-placed
       // leg carries none of the headers the browser path uses to attribute a
@@ -265,6 +311,9 @@ export class VoiceAgentCallService {
       callId = call.id;
       await this.agentCalls.update(agentCall.id, { callId: call.id });
     } catch (error) {
+      // An earlier start under the same key: nothing of this one exists to
+      // close, and the earlier row must not be touched.
+      if (error instanceof VoiceAgentCallStartError) throw error;
       await this.closeUnplacedCall(callId, agentCall?.id ?? null, error);
       throw new VoiceAgentCallStartError(
         VoiceAgentCallStartOutcome.retryable_before_placement,
@@ -276,24 +325,45 @@ export class VoiceAgentCallService {
     try {
       await this.ensureInsightDelivery(agent);
       await this.ensureToolDelivery(ctx, agent);
-      const handle = await this.provider.startCall({
-        assistantId: agent.providerAssistantId!,
-        callingAppId: await this.requireCallingApp(agent),
-        from,
-        to,
-        // The assistant is long-lived, but the clock is not. Override the
-        // Ringee-owned runtime values on every dial so web, public API, CLI and
-        // MCP calls all interpret dates in the agent's selected time zone.
-        variables: {
-          ...variables,
-          ...voiceAgentRuntimeVariables(agent.timezone),
-        },
-        conversationCallbackUrl: this.conversationCallbackUrl(),
-        statusCallbackUrl: this.statusCallbackUrl(agentCall.id, callbackToken),
-        ringTimeoutSeconds: RING_TIMEOUT_SECONDS,
-        timeLimitSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
-        record: true,
-      });
+      const callingAppId = await this.requireCallingApp(agent);
+      // All potentially slow preparation is done. Durable callers commit their
+      // current authorization immediately before the external side effect.
+      await beforePlacement?.({ agentCallId: agentCall.id, callId });
+      const handle = await this.provider
+        .startCall({
+          assistantId: agent.providerAssistantId!,
+          callingAppId,
+          from,
+          to,
+          // The assistant is long-lived, but the clock is not. Override the
+          // Ringee-owned runtime values on every dial so web, public API, CLI
+          // and MCP calls all interpret dates in the agent's selected time
+          // zone.
+          variables: {
+            ...variables,
+            ...voiceAgentRuntimeVariables(agent.timezone),
+          },
+          conversationCallbackUrl: this.conversationCallbackUrl(),
+          statusCallbackUrl: this.statusCallbackUrl(
+            agentCall.id,
+            callbackToken,
+          ),
+          ringTimeoutSeconds: RING_TIMEOUT_SECONDS,
+          timeLimitSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
+          record: true,
+        })
+        .catch((error: unknown) => {
+          // Only a refusal the provider stated proves no leg exists. A
+          // timeout, a dropped connection or a 5xx may have placed one: it is
+          // left for the call's own callbacks to reconcile, never dialed
+          // again (AGENT-019).
+          if (error instanceof VoiceAgentCallRefusedError) throw error;
+          throw new VoiceAgentCallStartError(
+            VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+            error,
+            agentCall.id,
+          );
+        });
 
       // Whatever handles the provider gives back are written the moment they
       // exist — an event that arrives before the first status callback (the
@@ -348,11 +418,11 @@ export class VoiceAgentCallService {
         error.outcome ===
           VoiceAgentCallStartOutcome.placed_pending_reconciliation
       ) {
-        // The leg is live. Provider callbacks and the billing sweep can repair
-        // whichever local write failed, so neither row is marked failed and a
-        // durable caller must not initiate a second leg.
+        // The leg is live, or may be. Provider callbacks and the billing sweep
+        // can repair whichever local write failed, so neither row is marked
+        // failed and a durable caller must not initiate a second leg.
         this.logger.error(
-          `Agent call ${agentCall.id} was placed but could not be linked: ${message}`,
+          `Agent call ${agentCall.id} may have a live leg and is left to reconcile: ${message}`,
         );
         throw error;
       }
@@ -362,7 +432,9 @@ export class VoiceAgentCallService {
         `Agent call ${agentCall.id} failed to start: ${message}`,
       );
       throw new VoiceAgentCallStartError(
-        VoiceAgentCallStartOutcome.retryable_before_placement,
+        this.isTerminalPolicyRejection(error)
+          ? VoiceAgentCallStartOutcome.terminal_rejection
+          : VoiceAgentCallStartOutcome.retryable_before_placement,
         error,
         agentCall.id,
       );
@@ -407,6 +479,24 @@ export class VoiceAgentCallService {
           );
         });
     }
+  }
+
+  /**
+   * What a start under an already-used key reports. A try that failed before
+   * the provider accepted a leg is safe to follow with a new try; anything
+   * else may have a live, billable leg and is only reconciled, never redialed.
+   */
+  private alreadyStarted(earlier: AiVoiceAgentCall): VoiceAgentCallStartError {
+    const unplaced =
+      earlier.status === AiVoiceAgentCallStatus.failed &&
+      !earlier.providerCallControlId;
+    return new VoiceAgentCallStartError(
+      unplaced
+        ? VoiceAgentCallStartOutcome.retryable_before_placement
+        : VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+      new ConflictException("This call was already started."),
+      earlier.id,
+    );
   }
 
   private isTerminalPolicyRejection(error: unknown): boolean {
@@ -683,4 +773,18 @@ export class VoiceAgentCallService {
     if (!call) throw new NotFoundException("AI voice agent call not found");
     return call;
   }
+}
+
+/** A unique violation on one column — and only that one is "already exists". */
+function isUniqueViolationOn(error: unknown, column: string): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== "P2002"
+  ) {
+    return false;
+  }
+  const target = error.meta?.target;
+  return Array.isArray(target)
+    ? target.includes(column)
+    : String(target).includes(column);
 }

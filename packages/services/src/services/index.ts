@@ -36,6 +36,7 @@ export * from "./free-trial.service";
 export * from "./demo-requests";
 export * from "./accounts";
 export * from "./meeting.service";
+export * from "./meeting-email.service";
 export * from "./calendar.service";
 export * from "./crm";
 export * from "./enrichment";

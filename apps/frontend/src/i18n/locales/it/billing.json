@@ -195,12 +195,14 @@
     "expiresOn": "Scade il {date}",
     "default": "Predefinito"
   },
-  "portal": {
-    "eyebrow": "Fatturazione sicura con Stripe",
-    "title": "Apertura del portale di fatturazione",
-    "description": "Gestisci abbonamenti, metodi di pagamento, fatture e dati di fatturazione in modo sicuro su Stripe.",
-    "redirecting": "Reindirizzamento a Stripe…",
-    "retry": "Apri il portale di fatturazione Stripe",
-    "error": "Non siamo riusciti ad aprire il portale di fatturazione. Riprova tra un momento."
+  "overview": {
+    "buyCreditTab": "Acquista credito",
+    "subscriptionsTab": "Gestisci abbonamenti",
+    "subscriptionsTitle": "Abbonamenti",
+    "subscriptionsHint": "Piani, metodi di pagamento e fatture sono gestiti in modo sicuro su Stripe.",
+    "openStripe": "Gestisci su Stripe",
+    "portalError": "Non siamo riusciti ad aprire il portale di fatturazione. Riprova tra un momento.",
+    "balanceError": "Non siamo riusciti a caricare il tuo saldo.",
+    "retryBalance": "Riprova"
   }
 }

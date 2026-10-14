@@ -1,15 +1,17 @@
 import KBar from '@ringee/frontend-shared/components/kbar';
 import AppMainSidebar from '@/components/layout/app.main.sidebar';
 import ClerkAppProvider from '@/components/layout/clerk-app-provider';
-import Header from '@/components/layout/header';
+// import Header from '@/components/layout/header';
 import {
   SidebarInset,
   SidebarProvider
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
+import { VoiceAgentsRail } from '@/features/ai-voice-agents/automations/components/voice-agents-rail';
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
 import { AccountLockdownProvider } from '@/features/security';
 import { OfferBanner } from '@/features/offers';
+import { CreditBalanceLoader } from '@/features/credit/components/credit-balance-loader';
 import { cookies } from 'next/headers';
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -39,17 +41,26 @@ export default async function DashboardLayout({
         <KBar>
           <SidebarProvider defaultOpen={defaultOpen}>
             <AppMainSidebar />
-            <SidebarInset>
+            {/* min-w-0: the page shrinks beside the voice agents strip
+                instead of pushing it off screen. */}
+            <SidebarInset className='min-w-0'>
               {/* Above the header on purpose: an offer banner shifts the whole
                   dashboard down rather than competing with the toolbar. Renders
                   nothing when no offer applies. */}
               <OfferBanner placement='TOP_BANNER' />
-              <Header />
-              <div className='flex gap-4'>
-                <div className='w-full'>{children}</div>
+              {/* <Header /> */}
+              {/* The balance's first load, which the header's credit popover
+                  used to do. Renders nothing. */}
+              <CreditBalanceLoader />
+              <div className='mt-4 flex gap-4'>
+                <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />
               </div>
             </SidebarInset>
+            {/* "Trigger AI Voice Agents": full height beside the header and the
+                page. Renders nothing unless the workspace is in the
+                automations pilot (AGENT-018). */}
+            <VoiceAgentsRail />
             <OnboardingGuideWrapper />
             {/* <SupportButton /> */}
           </SidebarProvider>

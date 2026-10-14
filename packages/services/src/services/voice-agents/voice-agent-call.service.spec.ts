@@ -2,6 +2,8 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { BadRequestException, HttpException } from "@nestjs/common";
+import { VoiceAgentCallRefusedError } from "@ringee/platform";
 import {
   VoiceAgentCallService,
   VoiceAgentCallStartError,
@@ -54,6 +56,8 @@ function build(options: {
   timezone?: string | null;
   /** The agent's type; an outbound type unless a test says otherwise. */
   type?: string;
+  /** An agent call an earlier start already persisted under its key. */
+  existingByKey?: Record<string, unknown> | null;
 }) {
   const placed: Array<{ from: string }> = [];
   const providerVariables: Array<Record<string, string>> = [];
@@ -73,6 +77,7 @@ function build(options: {
   const deliveryEvents: string[] = [];
   const agentCallUpdates: Array<Record<string, unknown>> = [];
   const forciblyEnded: string[] = [];
+  const createdAgentCalls: Array<Record<string, unknown>> = [];
   const service = new VoiceAgentCallService(
     {
       require: async () => agent,
@@ -91,7 +96,11 @@ function build(options: {
     } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
     {
-      create: async () => ({ id: "agent-call-1" }),
+      create: async (data: Record<string, unknown>) => {
+        createdAgentCalls.push(data);
+        return { id: "agent-call-1" };
+      },
+      findByIdempotencyKey: async () => options.existingByKey ?? null,
       update: async (id: string, data: Record<string, unknown>) => {
         agentCallUpdates.push(data);
         return { id, status: data.status };
@@ -141,6 +150,7 @@ function build(options: {
   return {
     service,
     placed,
+    createdAgentCalls,
     contacts,
     configured,
     analysisEnsured,
@@ -391,10 +401,12 @@ describe("VoiceAgentCallService start outcomes", () => {
     assert.deepEqual(agentCallUpdates, []);
   });
 
-  it("exposes a retryable failure before a leg is placed", async () => {
+  it("exposes a retryable failure when the provider refused the call", async () => {
     const { service, placed, forciblyEnded } = build({
       usable: [NUMBERS.miami],
-      providerError: new Error("provider unavailable"),
+      providerError: new VoiceAgentCallRefusedError(
+        new HttpException({ errors: [{ title: "Invalid To" }] }, 422),
+      ),
     });
 
     await assert.rejects(
@@ -405,11 +417,40 @@ describe("VoiceAgentCallService start outcomes", () => {
           error.outcome,
           VoiceAgentCallStartOutcome.retryable_before_placement,
         );
+        // REST, CLI and MCP callers still get the provider's own answer.
+        assert.equal(error.getStatus(), 422);
         return true;
       },
     );
     assert.deepEqual(placed, []);
     assert.deepEqual(forciblyEnded, ["call-1"]);
+  });
+
+  it("never treats a dial the provider did not refuse as unplaced", async () => {
+    // A timeout or a 5xx may come back after the provider already rang the
+    // lead: retrying it would place a second leg.
+    const { service, agentCallUpdates, forciblyEnded } = build({
+      usable: [NUMBERS.miami],
+      providerError: new Error("socket hang up"),
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", { to: TO }),
+      (error: unknown) => {
+        assert.ok(error instanceof VoiceAgentCallStartError);
+        assert.equal(
+          error.outcome,
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+        );
+        assert.equal(error.agentCallId, "agent-call-1");
+        return true;
+      },
+    );
+    assert.deepEqual(forciblyEnded, []);
+    assert.equal(
+      agentCallUpdates.some((update) => update.status === "failed"),
+      false,
+    );
   });
 
   it("exposes a placed leg when later persistence needs reconciliation", async () => {
@@ -435,5 +476,88 @@ describe("VoiceAgentCallService start outcomes", () => {
       true,
     );
     assert.deepEqual(forciblyEnded, []);
+  });
+});
+
+describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
+  it("persists the caller's key and member on the agent call before dialing", async () => {
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+    });
+
+    await service.startCall(CTX as never, "agent-1", {
+      to: TO,
+      idempotencyKey: "meeting:m1:v1:policy:p1:p1:T-1440m:a1:d1",
+      responsibleUserId: "member-7",
+    });
+
+    assert.equal(placed.length, 1);
+    assert.equal(
+      createdAgentCalls[0]!.idempotencyKey,
+      "meeting:m1:v1:policy:p1:p1:T-1440m:a1:d1",
+    );
+    assert.equal(createdAgentCalls[0]!.responsibleUserId, "member-7");
+  });
+
+  it("never places a second leg under a key whose call may already exist", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: {
+        id: "agent-call-earlier",
+        status: "initiating",
+        providerCallControlId: "cc-1",
+      },
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", {
+        to: TO,
+        idempotencyKey: "k-1",
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome ===
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation &&
+        error.agentCallId === "agent-call-earlier",
+    );
+    assert.deepEqual(placed, []);
+  });
+
+  it("reports an earlier try that provably placed nothing as safe to follow", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: { id: "agent-call-earlier", status: "failed" },
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", {
+        to: TO,
+        idempotencyKey: "k-1",
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
+    );
+    assert.deepEqual(placed, []);
+  });
+});
+
+describe("VoiceAgentCallService final placement guard", () => {
+  it("runs the guard after provider preparation and never dials when it refuses", async () => {
+    const { service, placed, deliveryEvents, forciblyEnded } = build({
+      usable: [NUMBERS.miami],
+    });
+    await assert.rejects(
+      service.startCall(CTX, "agent-1", { to: TO }, async () => {
+        assert(deliveryEvents.includes("tools:agent-1"));
+        assert(!deliveryEvents.includes("call:placed"));
+        throw new BadRequestException("meeting_changed");
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.terminal_rejection,
+    );
+    assert.equal(placed.length, 0);
+    assert.deepEqual(forciblyEnded, ["call-1"]);
   });
 });

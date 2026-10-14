@@ -14,13 +14,17 @@ export function flagEmoji(countryCode: string | null | undefined): string {
   );
 }
 
-/** "MX" → "Mexico", in the viewer's own language. */
-export function countryName(countryCode: string | null | undefined): string {
+/** "MX" → "Mexico", in the viewer's own language unless one is given. */
+export function countryName(
+  countryCode: string | null | undefined,
+  displayLocale?: string
+): string {
   if (!countryCode) return '';
   try {
     return (
-      new Intl.DisplayNames(undefined, { type: 'region' }).of(countryCode) ??
-      countryCode
+      new Intl.DisplayNames(displayLocale, { type: 'region' }).of(
+        countryCode
+      ) ?? countryCode
     );
   } catch {
     return countryCode;
@@ -47,8 +51,9 @@ export function languageName(code: string, displayLocale?: string): string {
  */
 export function voiceOrigin(
   voice: VoiceAgentVoice,
-  genderLabel: string
+  genderLabel: string,
+  displayLocale?: string
 ): string {
-  const country = countryName(voice.countryCode) || voice.accent;
+  const country = countryName(voice.countryCode, displayLocale) || voice.accent;
   return [country, genderLabel].filter(Boolean).join(' · ');
 }

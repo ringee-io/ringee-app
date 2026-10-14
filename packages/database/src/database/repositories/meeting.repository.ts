@@ -3,7 +3,10 @@ import { PrismaService } from "../prisma.service";
 import {
   Prisma,
   Meeting,
+  MeetingAttendanceStatus,
+  MeetingEmailKind,
   MeetingExternalSyncStatus,
+  MeetingReminderExecutionStatus,
   MeetingStatus,
 } from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
@@ -21,7 +24,37 @@ interface MeetingCreateData {
   calendarId: string;
   /** Voice-agent call to claim atomically with a protected booking. */
   agentCallId?: string;
+  /** The member the meeting is with (CAL-003). */
+  responsibleUserId?: string | null;
+  /** The address chosen for the lead at booking time. */
+  leadEmail?: string | null;
 }
+
+/** An answer to "will you attend?", as the confirmation tool records it. */
+export interface MeetingAttendanceInput {
+  meetingId: string;
+  /** The schedule version the answer was given for. */
+  expectedScheduleVersion: number;
+  status: Extract<MeetingAttendanceStatus, "confirmed" | "declined">;
+  /** The agent call whose tool recorded it — the evidence. */
+  agentCallId: string;
+  note?: string | null;
+  /** An address the lead dictated and confirmed on the call. */
+  leadEmail?: string | null;
+  /** The email this answer owes, created in the same transaction. */
+  email: { kind: MeetingEmailKind; idempotencyKey: string } | null;
+  /** The reminder execution the answer closes, in the same transaction. */
+  executionId?: string | null;
+}
+
+export type MeetingAttendanceOutcome =
+  | { result: "recorded"; meeting: Meeting; repeated: boolean }
+  | { result: "not_found" | "cancelled" | "stale" | "past" };
+
+const ACTIVE_MEETING_STATUSES: MeetingStatus[] = [
+  MeetingStatus.scheduled,
+  MeetingStatus.rescheduled,
+];
 
 /**
  * Which meetings occupy a calendar.
@@ -224,7 +257,235 @@ export class MeetingRepository {
       contact: { connect: { id: data.contactId } },
       call: data.callId ? { connect: { id: data.callId } } : undefined,
       calendar: { connect: { id: data.calendarId } },
+      responsibleUser: data.responsibleUserId
+        ? { connect: { id: data.responsibleUserId } }
+        : undefined,
+      leadEmail: data.leadEmail ?? undefined,
     };
+  }
+
+  /**
+   * Records whether the lead will attend, and the email that answer owes, as
+   * one transaction (AGENT-017).
+   *
+   * The meeting row is locked first, so a reschedule or cancellation running
+   * at the same moment is serialized with it: an answer given for a version
+   * that has since moved is refused as `stale`, never written over the new
+   * time. Repeating the same answer on the same call changes nothing and
+   * creates no second email — the delivery key is the same.
+   */
+  async recordAttendance(
+    ctx: OwnershipContext,
+    input: MeetingAttendanceInput,
+  ): Promise<MeetingAttendanceOutcome> {
+    const { userFilter, organizationFilter } = ownershipSql(ctx);
+    return this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<
+        Array<{
+          status: MeetingStatus;
+          scheduledAt: Date;
+          scheduleVersion: number;
+          attendanceStatus: MeetingAttendanceStatus;
+          attendanceAgentCallId: string | null;
+        }>
+      >`
+        SELECT "status", "scheduledAt", "scheduleVersion",
+               "attendanceStatus", "attendanceAgentCallId"
+        FROM "Meeting"
+        WHERE "id" = ${input.meetingId}::uuid
+          ${userFilter}
+          ${organizationFilter}
+        FOR UPDATE
+      `;
+      if (!row) return { result: "not_found" as const };
+      if (!ACTIVE_MEETING_STATUSES.includes(row.status)) {
+        return { result: "cancelled" as const };
+      }
+      if (row.scheduleVersion !== input.expectedScheduleVersion) {
+        return { result: "stale" as const };
+      }
+      if (new Date(row.scheduledAt).getTime() <= Date.now()) {
+        return { result: "past" as const };
+      }
+
+      const repeated =
+        row.attendanceStatus === input.status &&
+        row.attendanceAgentCallId === input.agentCallId;
+
+      const meeting = await tx.meeting.update({
+        where: { id: input.meetingId },
+        data: {
+          attendanceStatus: input.status,
+          attendanceUpdatedAt: new Date(),
+          attendanceAgentCallId: input.agentCallId,
+          attendanceScheduleVersion: row.scheduleVersion,
+          attendanceNote: input.note?.trim() || null,
+          ...(input.leadEmail ? { leadEmail: input.leadEmail } : {}),
+        },
+      });
+
+      if (input.email && meeting.organizationId) {
+        await tx.meetingEmailDelivery.createMany({
+          data: [
+            {
+              userId: meeting.userId,
+              organizationId: meeting.organizationId,
+              meetingId: meeting.id,
+              kind: input.email.kind,
+              scheduleVersion: row.scheduleVersion,
+              idempotencyKey: input.email.idempotencyKey,
+            },
+          ],
+          skipDuplicates: true,
+        });
+        if (input.leadEmail) {
+          await tx.meetingEmailDelivery.updateMany({
+            where: {
+              idempotencyKey: input.email.idempotencyKey,
+              organizationId: meeting.organizationId,
+              status: "needs_email",
+              firstAttemptAt: null,
+            },
+            data: { status: "pending", lastError: null, attempts: 0 },
+          });
+        }
+      }
+
+      if (input.executionId) {
+        await tx.meetingReminderExecution.updateMany({
+          where: {
+            id: input.executionId,
+            status: {
+              in: [
+                MeetingReminderExecutionStatus.claimed,
+                MeetingReminderExecutionStatus.placed,
+              ],
+            },
+          },
+          data: {
+            status:
+              input.status === MeetingAttendanceStatus.confirmed
+                ? MeetingReminderExecutionStatus.confirmed
+                : MeetingReminderExecutionStatus.declined,
+            finishedAt: new Date(),
+            leaseExpiresAt: null,
+          },
+        });
+      }
+
+      return { result: "recorded" as const, meeting, repeated };
+    });
+  }
+
+  /**
+   * Moves a meeting. A new time is a new schedule version: every reminder
+   * planned for the old one goes stale, and an attendance answer given for
+   * the old time no longer stands (CAL-003).
+   */
+  async reschedule(
+    id: string,
+    data: {
+      scheduledAt: Date;
+      title?: string;
+      duration?: number;
+      location?: string;
+      notes?: string;
+    },
+  ): Promise<Meeting> {
+    return this.prisma.meeting.update({
+      where: { id },
+      data: {
+        ...data,
+        scheduleVersion: { increment: 1 },
+        attendanceStatus: MeetingAttendanceStatus.pending,
+        attendanceUpdatedAt: null,
+        attendanceAgentCallId: null,
+        attendanceScheduleVersion: null,
+        attendanceNote: null,
+      },
+      include: { contact: true },
+    });
+  }
+
+  /** Cancels a meeting; its version moves so nothing planned for it runs. */
+  async cancel(id: string): Promise<Meeting> {
+    return this.prisma.meeting.update({
+      where: { id },
+      data: {
+        status: MeetingStatus.cancelled,
+        cancelledAt: new Date(),
+        scheduleVersion: { increment: 1 },
+      },
+      include: { contact: true },
+    });
+  }
+
+  /**
+   * Hands a meeting to another member. The version moves because a reminder
+   * call names the member; the lead's attendance answer still stands.
+   */
+  async setResponsible(
+    id: string,
+    responsibleUserId: string,
+  ): Promise<Meeting> {
+    return this.prisma.meeting.update({
+      where: { id },
+      data: { responsibleUserId, scheduleVersion: { increment: 1 } },
+      include: { contact: true },
+    });
+  }
+
+  async setLeadEmail(id: string, leadEmail: string): Promise<Meeting> {
+    return this.prisma.meeting.update({
+      where: { id },
+      data: { leadEmail },
+      include: { contact: true },
+    });
+  }
+
+  /**
+   * Upcoming active meetings on some calendars — what a reminder policy plans
+   * calls for. The global calendar also owns meetings that predate calendars
+   * (`calendarId` null), exactly as its capacity does.
+   */
+  listUpcomingOnCalendars(
+    ctx: OwnershipContext,
+    options: {
+      calendarIds: string[];
+      includeUnassigned: boolean;
+      after: Date;
+      take?: number;
+      afterCursor?: { scheduledAt: Date; id: string };
+    },
+  ): Promise<Meeting[]> {
+    return this.prisma.meeting.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        status: { in: ACTIVE_MEETING_STATUSES },
+        scheduledAt: { gt: options.after },
+        ...(options.afterCursor
+          ? {
+              AND: [
+                {
+                  OR: [
+                    { scheduledAt: { gt: options.afterCursor.scheduledAt } },
+                    {
+                      scheduledAt: options.afterCursor.scheduledAt,
+                      id: { gt: options.afterCursor.id },
+                    },
+                  ],
+                },
+              ],
+            }
+          : {}),
+        OR: [
+          { calendarId: { in: options.calendarIds } },
+          ...(options.includeUnassigned ? [{ calendarId: null }] : []),
+        ],
+      },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+      take: options.take ?? 1000,
+    });
   }
 
   /**

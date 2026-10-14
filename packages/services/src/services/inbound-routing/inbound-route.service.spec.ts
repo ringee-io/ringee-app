@@ -26,6 +26,7 @@ function setup() {
   const saved: Row[] = [];
   const deleted: Row[] = [];
   const assignments: string[] = [];
+  const casWrites: Row[] = [];
   const state = {
     route: null as Row | null,
     agent: null as Row | null,
@@ -76,10 +77,54 @@ function setup() {
     {
       listByOwner: async () => (state.route ? [state.route] : []),
       findOwnedByNumber: async () => state.route,
-      saveForNumber: async (_ctx: Row, ref: Row, destination: Row) => {
-        saved.push({ ref, ...destination });
-        state.route = { id: "route-1", updatedAt: new Date(), ...destination };
+      saveForNumber: async (
+        _ctx: Row,
+        ref: Row,
+        destination: Row,
+        restore: Row | null = null,
+      ) => {
+        saved.push({ ref, ...destination, restore });
+        state.route = {
+          id: "route-1",
+          updatedAt: new Date(),
+          numberId: ref.kind === "ringee" ? ref.id : null,
+          externalNumberId: ref.kind === "external" ? ref.id : null,
+          version: (state.route?.version ?? 0) + 1,
+          ...destination,
+          restoreDestinationType: restore?.destinationType ?? null,
+          restoreDestinationId: restore?.destinationId ?? null,
+        };
         return state.route;
+      },
+      listByDestination: async (_ctx: Row, type: string, id: string) =>
+        state.route &&
+        state.route.destinationType === type &&
+        state.route.destinationId === id
+          ? [state.route]
+          : [],
+      replaceIfUnchanged: async (_ctx: Row, expected: Row, target: Row) => {
+        casWrites.push({ expected, target });
+        if (
+          !state.route ||
+          state.route.version !== expected.version ||
+          state.route.destinationId !== expected.destinationId
+        )
+          return null;
+        state.route = {
+          ...state.route,
+          ...target,
+          restoreDestinationType: null,
+          restoreDestinationId: null,
+          version: state.route.version + 1,
+        };
+        return state.route;
+      },
+      deleteIfUnchanged: async (_ctx: Row, expected: Row) => {
+        casWrites.push({ expected, target: null });
+        if (!state.route || state.route.version !== expected.version)
+          return false;
+        state.route = null;
+        return true;
       },
       deleteForNumber: async (_ctx: Row, ref: Row) => {
         deleted.push(ref);
@@ -130,7 +175,7 @@ function setup() {
       compareAndSwap: async () => true,
     } as never,
   );
-  return { service, state, saved, deleted, assignments };
+  return { service, state, saved, deleted, assignments, casWrites };
 }
 
 async function withDeskPhones<T>(run: () => Promise<T>): Promise<T> {
@@ -391,5 +436,134 @@ describe("InboundRouteService", () => {
         }),
         ConflictException,
       );
+    }));
+});
+
+describe("InboundRouteService receptionist pause (AGENT-018)", () => {
+  const ringee = { kind: "ringee" as const, id: "number-r" };
+  const external = { kind: "external" as const, id: "number-x" };
+  const RECEPTIONIST = {
+    destinationType: InboundDestinationType.ai_receptionist,
+    destinationId: "agent-r",
+  };
+
+  async function withApp<T>(run: () => Promise<T>): Promise<T> {
+    const previous = {
+      app: config.TELNYX_CALL_CONTROL_APP_ID,
+      shared: config.TELNYX_CONNECTION_ID,
+    };
+    config.TELNYX_CALL_CONTROL_APP_ID = "receptionist-app";
+    config.TELNYX_CONNECTION_ID = "shared-webrtc";
+    try {
+      return await run();
+    } finally {
+      config.TELNYX_CALL_CONTROL_APP_ID = previous.app;
+      config.TELNYX_CONNECTION_ID = previous.shared;
+    }
+  }
+
+  function receptionistSetup() {
+    const s = setup();
+    s.state.agent = { id: "agent-r", name: "Lucía", type: "receptionist" };
+    return s;
+  }
+
+  it("remembers where a number rang before the receptionist took it", () =>
+    withApp(async () => {
+      const s = receptionistSetup();
+      await s.service.saveForNumber(ADMIN, ringee, {
+        destinationType: InboundDestinationType.ring_group,
+        destinationId: "group-1",
+      });
+      await s.service.saveForNumber(ADMIN, ringee, RECEPTIONIST);
+      assert.deepEqual(s.saved.at(-1)!.restore, {
+        destinationType: InboundDestinationType.ring_group,
+        destinationId: "group-1",
+      });
+      // Saving the receptionist again keeps that, rather than "remembering"
+      // the receptionist itself.
+      await s.service.saveForNumber(ADMIN, ringee, RECEPTIONIST);
+      assert.deepEqual(s.saved.at(-1)!.restore, {
+        destinationType: InboundDestinationType.ring_group,
+        destinationId: "group-1",
+      });
+    }));
+
+  it("stores an explicit backup chosen at setup, once it is checked", () =>
+    withApp(async () => {
+      const s = receptionistSetup();
+      await s.service.saveForNumber(ADMIN, ringee, RECEPTIONIST, {
+        restoreTo: {
+          destinationType: InboundDestinationType.user,
+          destinationId: "user-b",
+        },
+      });
+      assert.deepEqual(s.saved.at(-1)!.restore, {
+        destinationType: InboundDestinationType.user,
+        destinationId: "user-b",
+      });
+      await assert.rejects(
+        s.service.saveForNumber(ADMIN, ringee, RECEPTIONIST, {
+          restoreTo: {
+            destinationType: InboundDestinationType.user,
+            destinationId: "not-a-member",
+          },
+        }),
+        NotFoundException,
+      );
+    }));
+
+  it("hands the number back under compare-and-set and returns the DID to its connection", () =>
+    withApp(async () => {
+      const s = receptionistSetup();
+      await s.service.saveForNumber(ADMIN, ringee, {
+        destinationType: InboundDestinationType.ring_group,
+        destinationId: "group-1",
+      });
+      await s.service.saveForNumber(ADMIN, ringee, RECEPTIONIST);
+      const version = s.state.route!.version;
+
+      const result = await s.service.releaseReceptionist(ADMIN, "agent-r");
+
+      assert.deepEqual(result, { restored: 1, failed: [] });
+      assert.equal(s.casWrites[0]!.expected.version, version);
+      assert.equal(s.state.route!.destinationType, "ring_group");
+      assert.equal(s.state.number.providerConnectionId, "shared-webrtc");
+    }));
+
+  it("leaves a number another admin re-pointed meanwhile exactly as they set it", () =>
+    withApp(async () => {
+      const s = receptionistSetup();
+      await s.service.saveForNumber(ADMIN, ringee, {
+        destinationType: InboundDestinationType.user,
+        destinationId: "user-a",
+      });
+      await s.service.saveForNumber(ADMIN, ringee, RECEPTIONIST);
+      // Read by the release, then moved on by someone else before its write.
+      const service = s.service as unknown as {
+        routes: { listByDestination: () => Promise<Row[]> };
+      };
+      const stale = { ...s.state.route! };
+      s.state.route!.version += 1;
+      service.routes.listByDestination = async () => [stale];
+
+      const result = await s.service.releaseReceptionist(ADMIN, "agent-r");
+
+      assert.equal(result.restored, 0);
+      assert.equal(result.failed.length, 1);
+      assert.match(result.failed[0]!.error, /changed this number's routing/);
+      assert.equal(s.state.route!.destinationType, "ai_receptionist");
+    }));
+
+  it("never leaves a BYOC number unrouted to pause the receptionist", () =>
+    withApp(async () => {
+      const s = receptionistSetup();
+      await s.service.saveForNumber(ADMIN, external, RECEPTIONIST);
+
+      const result = await s.service.releaseReceptionist(ADMIN, "agent-r");
+
+      assert.equal(result.restored, 0);
+      assert.match(result.failed[0]!.error, /Choose where calls/);
+      assert.equal(s.state.route!.destinationId, "agent-r");
     }));
 });

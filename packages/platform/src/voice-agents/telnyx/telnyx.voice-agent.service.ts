@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelnyxClient } from "../../telephony/telnyx/telnyx.client";
 import { TelnyxKnowledgeStore } from "./telnyx.knowledge.store";
 import type {
@@ -23,6 +23,7 @@ import type {
   VoiceAgentUsageRecord,
   VoiceAgentVoice,
 } from "../interfaces/voice-agent.provider";
+import { VoiceAgentCallRefusedError } from "../interfaces/voice-agent.provider";
 import { limitVoiceCloneSample } from "../voice-clone-audio";
 import { curateVoices, type RawProviderVoice } from "../voices.catalog";
 import {
@@ -49,6 +50,14 @@ const MAX_SECRET_PAGES = 50;
  * is what strands a document the user just uploaded.
  */
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * 4xx answers to a call start that do not prove the call was refused. A 408 or
+ * a 425 can come from a hop between Ringee and Telnyx after the request went
+ * through, and Telnyx does not promise that a throttled (429) request had no
+ * effect. A dial that may have rung someone is never retried (AGENT-019).
+ */
+const UNCERTAIN_CALL_START_STATUSES = new Set([408, 425, 429]);
 
 /** Attempts, and the base delay between them, for starting an embedding task. */
 const EMBEDDING_ATTEMPTS = 3;
@@ -259,9 +268,8 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
   async startCall(
     request: VoiceAgentCallRequest,
   ): Promise<VoiceAgentCallHandle> {
-    const raw = await this.telnyxClient.post<Record<string, any>>(
-      `/texml/ai_calls/${request.callingAppId}`,
-      {
+    const raw = await this.telnyxClient
+      .post<Record<string, any>>(`/texml/ai_calls/${request.callingAppId}`, {
         From: request.from,
         To: request.to,
         AIAssistantId: request.assistantId,
@@ -291,8 +299,20 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
         ...(request.record === undefined
           ? {}
           : { Record: request.record, RecordingChannels: "dual" }),
-      },
-    );
+      })
+      .catch((error: unknown) => {
+        // Telnyx answering 4xx refused the call, so no leg exists. A 5xx, a
+        // timeout or a dropped connection says nothing either way.
+        if (
+          error instanceof HttpException &&
+          error.getStatus() >= 400 &&
+          error.getStatus() < 500 &&
+          !UNCERTAIN_CALL_START_STATUSES.has(error.getStatus())
+        ) {
+          throw new VoiceAgentCallRefusedError(error);
+        }
+        throw error;
+      });
 
     const body = raw?.data ?? raw ?? {};
     // In TeXML the call sid *is* the call control id (`v3:…`) — the same value

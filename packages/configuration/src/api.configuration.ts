@@ -268,6 +268,17 @@ const apiConfiguration = {
   AI_VOICE_AGENT_MAX_DOCUMENT_MB: Number(
     process.env.AI_VOICE_AGENT_MAX_DOCUMENT_MB ?? 20,
   ),
+  // Organizations the "Ringee IA Voice Agents" rail and its automations are on
+  // for: a comma-separated list of organization ids, or "*" for every
+  // organization. Empty (the default) ships the feature dark. The pilot flag
+  // for AGENT-018: the rail, its setup endpoints, reminder calls and the
+  // confirmation email all read it.
+  AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS: (
+    process.env.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS ?? ""
+  )
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean),
   // AI Pipeline — Follow-up Intelligence batch enrichment. Context activation
   // is already explicit, so AI runs unless it is deliberately disabled.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED !== "false",

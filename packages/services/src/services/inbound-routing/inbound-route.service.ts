@@ -13,6 +13,7 @@ import {
   InboundDestinationType,
   InboundRoute,
   InboundRouteRepository,
+  InboundRouteRestoreTarget,
   NumberInboundMode,
   NumberPurchasedRepository,
   OrganizationRepository,
@@ -33,6 +34,9 @@ import type {
   InboundNumberRef,
   InboundTransport,
 } from "./inbound-routing.types";
+
+const CHANGED_MEANWHILE =
+  "Someone changed this number's routing meanwhile; it was left as they set it.";
 
 /** Destination types a route may name today. */
 const ROUTABLE: readonly InboundDestinationType[] = [
@@ -70,6 +74,26 @@ export interface InboundRouteView {
   /** Destination types this number can actually be routed to. */
   availableDestinationTypes: InboundDestinationType[];
   updatedAt: Date | null;
+  /**
+   * On an AI receptionist route: where calls go back to when it is paused —
+   * the destination it had before, a chosen backup, or (null) the number's
+   * default. Additive; absent on every other route.
+   */
+  restoreDestination?: {
+    destinationType: InboundDestinationType;
+    destinationId: string;
+    label: string | null;
+  } | null;
+}
+
+/** One number's result when a receptionist's numbers are handed back. */
+export interface ReceptionistReleaseResult {
+  restored: number;
+  failed: Array<{
+    number: InboundNumberRef;
+    phoneNumber: string;
+    error: string;
+  }>;
 }
 
 /**
@@ -148,6 +172,14 @@ export class InboundRouteService {
       destinationType: InboundDestinationType;
       destinationId: string;
     },
+    options?: {
+      /**
+       * Where calls go back to when an AI receptionist route is paused. Left
+       * out, the number keeps what it rang before the receptionist took it;
+       * null is the number's default behavior.
+       */
+      restoreTo?: InboundRouteRestoreTarget | null;
+    },
   ): Promise<InboundRouteView> {
     const number = await this.requireNumber(ctx, ref);
 
@@ -169,6 +201,10 @@ export class InboundRouteService {
       );
 
     await this.assertDestinationInWorkspace(ctx, input);
+    const toAgent =
+      input.destinationType === InboundDestinationType.ai_receptionist;
+    if (toAgent && options?.restoreTo)
+      await this.assertRestoreTarget(ctx, ref, options.restoreTo);
     const lock = `inbound-route:${ref.kind}:${ref.id}`;
     const token = randomUUID();
     if (!(await this.redis.setIfAbsent(lock, token, 120)))
@@ -176,14 +212,16 @@ export class InboundRouteService {
         "This number's routing is being updated. Try again.",
       );
     try {
+      const current = await this.routes.findOwnedByNumber(ctx, ref);
+      const restore = toAgent
+        ? this.restoreTargetFor(current, options?.restoreTo)
+        : null;
       // The number reaches the application before the route names the AI, so
       // no call is ever routed to an agent it cannot be delivered to. Leaving
       // the AI saves the route first; either way a retry converges.
-      const toAgent =
-        input.destinationType === InboundDestinationType.ai_receptionist;
       if (ref.kind === "ringee" && toAgent)
         await this.syncRingeeConnection(ref.id, input.destinationType);
-      const route = await this.routes.saveForNumber(ctx, ref, input);
+      const route = await this.routes.saveForNumber(ctx, ref, input, restore);
       if (ref.kind === "ringee" && !toAgent)
         await this.syncRingeeConnection(ref.id, input.destinationType);
       return this.view(ctx, ref, number, route);
@@ -211,6 +249,173 @@ export class InboundRouteService {
     } finally {
       await this.redis.compareAndSwap(lock, token, null);
     }
+  }
+
+  /**
+   * Hands every number an AI receptionist answers back to where it went
+   * before (AGENT-018) — its restore target, or the number's default.
+   *
+   * Each route is written under compare-and-set on the version it was read
+   * at: a number another admin re-pointed in the meantime is reported, never
+   * overwritten. A number whose default would leave it unrouted (a BYOC DID
+   * with no desk phone) is not handed back blind either — the receptionist
+   * keeps answering it until someone says where its calls go.
+   */
+  async releaseReceptionist(
+    ctx: OwnershipContext,
+    agentId: string,
+    /** Only these numbers; every number the receptionist answers when omitted. */
+    only?: InboundNumberRef[],
+  ): Promise<ReceptionistReleaseResult> {
+    const routes = (
+      await this.routes.listByDestination(
+        ctx,
+        InboundDestinationType.ai_receptionist,
+        agentId,
+      )
+    ).filter(
+      (route) =>
+        !only ||
+        only.some((ref) =>
+          ref.kind === "ringee"
+            ? route.numberId === ref.id
+            : route.externalNumberId === ref.id,
+        ),
+    );
+    const failed: ReceptionistReleaseResult["failed"] = [];
+    let restored = 0;
+
+    for (const route of routes) {
+      const ref: InboundNumberRef = route.numberId
+        ? { kind: "ringee", id: route.numberId }
+        : { kind: "external", id: route.externalNumberId! };
+      let phoneNumber = "";
+      const lock = `inbound-route:${ref.kind}:${ref.id}`;
+      const token = randomUUID();
+      if (!(await this.redis.setIfAbsent(lock, token, 120))) {
+        failed.push({
+          number: ref,
+          phoneNumber,
+          error: "This number's routing is being updated. Try again.",
+        });
+        continue;
+      }
+      try {
+        const number = await this.requireNumber(ctx, ref);
+        phoneNumber = number.phoneNumber;
+        const expected = {
+          id: route.id,
+          destinationType: route.destinationType,
+          destinationId: route.destinationId,
+          version: route.version,
+        };
+        let target: InboundRouteRestoreTarget | null =
+          route.restoreDestinationType && route.restoreDestinationId
+            ? {
+                destinationType: route.restoreDestinationType,
+                destinationId: route.restoreDestinationId,
+              }
+            : null;
+        if (target) {
+          // A backup that has since gone (a deleted ring group) falls back to
+          // the number's default rather than to a destination that is not
+          // there.
+          try {
+            await this.assertDestinationInWorkspace(ctx, target);
+          } catch {
+            target = null;
+          }
+        }
+
+        if (target) {
+          const replaced = await this.routes.replaceIfUnchanged(
+            ctx,
+            expected,
+            target,
+          );
+          if (!replaced) throw new ConflictException(CHANGED_MEANWHILE);
+          if (ref.kind === "ringee")
+            await this.syncRingeeConnection(ref.id, target.destinationType);
+        } else {
+          const fallback = legacyInboundDestination({
+            ref,
+            phoneNumber: number.phoneNumber,
+            organizationId: ctx.organizationId ?? null,
+            ownerUserId: number.ownerUserId,
+            legacyMode: number.legacyMode,
+            legacySipDeviceId: number.inboundSipDeviceId,
+          });
+          if (!fallback)
+            throw new ConflictException(
+              "Choose where calls to this number go before pausing the receptionist.",
+            );
+          if (!(await this.routes.deleteIfUnchanged(ctx, expected)))
+            throw new ConflictException(CHANGED_MEANWHILE);
+          if (ref.kind === "ringee")
+            await this.syncRingeeConnection(ref.id, null);
+        }
+        restored++;
+      } catch (error) {
+        failed.push({
+          number: ref,
+          phoneNumber,
+          error:
+            error instanceof Error
+              ? error.message
+              : "This number could not be handed back.",
+        });
+      } finally {
+        await this.redis.compareAndSwap(lock, token, null);
+      }
+    }
+    return { restored, failed };
+  }
+
+  /** Where a receptionist route should go back to, decided on save. */
+  private restoreTargetFor(
+    current: InboundRoute | null,
+    explicit: InboundRouteRestoreTarget | null | undefined,
+  ): InboundRouteRestoreTarget | null {
+    if (explicit !== undefined) return explicit;
+    if (!current) return null;
+    if (current.destinationType === InboundDestinationType.ai_receptionist)
+      return current.restoreDestinationType && current.restoreDestinationId
+        ? {
+            destinationType: current.restoreDestinationType,
+            destinationId: current.restoreDestinationId,
+          }
+        : null;
+    return {
+      destinationType: current.destinationType,
+      destinationId: current.destinationId,
+    };
+  }
+
+  /**
+   * A backup chosen at setup must be a person or team of this workspace the
+   * number can actually ring — the same rule a route itself is held to.
+   */
+  private async assertRestoreTarget(
+    ctx: OwnershipContext,
+    ref: InboundNumberRef,
+    target: InboundRouteRestoreTarget,
+  ): Promise<void> {
+    if (
+      target.destinationType !== InboundDestinationType.user &&
+      target.destinationType !== InboundDestinationType.ring_group
+    )
+      throw new BadRequestException(
+        "Calls can fall back to a person or a ring group.",
+      );
+    if (
+      !this.router
+        .transportsFor(target.destinationType)
+        .includes(transportOf(ref))
+    )
+      throw new ConflictException(
+        `This number cannot ring a ${target.destinationType} destination.`,
+      );
+    await this.assertDestinationInWorkspace(ctx, target);
   }
 
   async listNumbers(ctx: OwnershipContext): Promise<InboundRouteView[]> {
@@ -497,6 +702,22 @@ export class InboundRouteService {
         configured: true,
         availableDestinationTypes: available,
         updatedAt: route.updatedAt,
+        ...(route.destinationType === InboundDestinationType.ai_receptionist
+          ? {
+              restoreDestination:
+                route.restoreDestinationType && route.restoreDestinationId
+                  ? {
+                      destinationType: route.restoreDestinationType,
+                      destinationId: route.restoreDestinationId,
+                      label: await this.label(
+                        ctx,
+                        route.restoreDestinationType,
+                        route.restoreDestinationId,
+                      ),
+                    }
+                  : null,
+            }
+          : {}),
       };
 
     // No route: show what the number does today, so the caller sees the same

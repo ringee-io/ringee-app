@@ -171,7 +171,7 @@ function dayOfWeek(date: string): number {
  * Derived by formatting the instant in that zone and reading the wall-clock
  * time back — the standard way to do this without a date library.
  */
-function zoneOffsetMs(instant: Date, timeZone: string): number {
+export function zoneOffsetMs(instant: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hour12: false,
@@ -202,7 +202,7 @@ function zoneOffsetMs(instant: Date, timeZone: string): number {
  * time. Applied twice so a slot that straddles a daylight-saving change still
  * lands on the right instant.
  */
-function zonedTimeToUtc(
+export function zonedTimeToUtc(
   dateStr: string,
   hour: number,
   minute: number,

@@ -24,6 +24,7 @@ import {
   CurrentUser,
   CurrentUserData,
   GenerateCompanyProfileDto,
+  OrgAdminOnly,
   ReuseKnowledgeSourceDto,
   SaveCompanyProfileDto,
   SaveVoiceAgentDto,
@@ -222,6 +223,8 @@ export class AiVoiceAgentController {
     });
   }
 
+  /** Creating and deleting agents is an admin's (AGENT-018). */
+  @OrgAdminOnly()
   @Post()
   create(
     @CurrentUser() user: CurrentUserData,
@@ -250,6 +253,7 @@ export class AiVoiceAgentController {
     return this.agents.update(createOwnershipContext(user), id, dto);
   }
 
+  @OrgAdminOnly()
   @Delete(":id")
   async remove(
     @CurrentUser() user: CurrentUserData,

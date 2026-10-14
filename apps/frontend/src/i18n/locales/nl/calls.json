@@ -571,7 +571,9 @@
       "performanceHint": "Opgenomen door een persoon of voicemail.",
       "resting": "In rust tot {date}: rotatie slaat het nummer voorlopig over",
       "balance": "Saldo",
-      "addCredit": "Tegoed toevoegen"
+      "addCredit": "Tegoed toevoegen",
+      "balanceError": "Je saldo kon niet worden geladen.",
+      "retry": "Opnieuw proberen"
     },
     "today": {
       "title": "Vandaag",

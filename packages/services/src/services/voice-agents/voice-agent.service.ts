@@ -587,6 +587,7 @@ export class VoiceAgentService {
   async create(
     ctx: OwnershipContext,
     dto: CreateVoiceAgentInput,
+    automationClaim?: { id: string; token: string },
   ): Promise<AiVoiceAgent> {
     assertVoiceAgentAccess(ctx);
     const blueprint = this.blueprints.require(dto.type);
@@ -610,7 +611,7 @@ export class VoiceAgentService {
     const voice = await this.resolveVoice(ctx, dto.voiceId);
 
     const toolSecret = this.generateToolSecret();
-    const agent = await this.agents.create(ctx, {
+    const data: Parameters<AiVoiceAgentRepository["create"]>[1] = {
       name,
       type: blueprint.type,
       status: AiVoiceAgentStatus.draft,
@@ -634,7 +635,14 @@ export class VoiceAgentService {
       timezone: dto.timezone ?? null,
       meetingTitle: dto.meetingTitle ?? null,
       toolSecretHash: hashApiKey(toolSecret),
-    });
+    };
+    const agent = automationClaim
+      ? await this.agents.createForAutomation(ctx, data, automationClaim)
+      : await this.agents.create(ctx, data);
+    if (!agent)
+      throw new ConflictException(
+        "This setup was replaced by another request. Reload the automation.",
+      );
 
     return this.syncToProvider(ctx, agent.id, { toolSecret });
   }

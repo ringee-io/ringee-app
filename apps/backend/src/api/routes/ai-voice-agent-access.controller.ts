@@ -1,6 +1,9 @@
 import { Controller, Get, Req } from "@nestjs/common";
 import type { Request } from "express";
-import { hasVoiceAgentAccess } from "@ringee/services";
+import {
+  hasVoiceAgentAccess,
+  voiceAgentAutomationsEnabled,
+} from "@ringee/services";
 
 /**
  * Tells the caller whether the active workspace may use AI Voice Agents.
@@ -21,11 +24,13 @@ export class AiVoiceAgentAccessController {
   @Get()
   getAccess(@Req() req: Request & { clerkOrgId?: string }): {
     hasAccess: boolean;
+    /** Whether the "Ringee IA Voice Agents" rail is on (AGENT-018). Additive. */
+    automations: boolean;
   } {
+    const organizationId = req.clerkOrgId ?? null;
     return {
-      hasAccess: hasVoiceAgentAccess({
-        organizationId: req.clerkOrgId ?? null,
-      }),
+      hasAccess: hasVoiceAgentAccess({ organizationId }),
+      automations: voiceAgentAutomationsEnabled(organizationId),
     };
   }
 }

@@ -10,6 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
+import { buildConfirmAttendanceTool } from "./attendance.tool";
 import { buildScheduleCallbackTool } from "./callback.tool";
 import { buildHumanSupportTool } from "./human-support.tool";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
@@ -19,9 +20,10 @@ import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
  *
  * The agent calls a person to deliver one specific piece of information — a
  * reminder, a confirmation, an update — talks about it, and establishes where
- * the person stands. There is no scheduler in V1: the caller supplies the
- * whole message when it starts the call (§10), and the agent's real job is the
- * outcome it comes back with.
+ * the person stands. A caller can supply the whole message when it starts the
+ * call (§10); a meeting reminder policy places the same call before a Ringee
+ * meeting, and then the attendance answer is recorded by a tool rather than
+ * read back out of the transcript (AGENT-017).
  */
 @Injectable()
 export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
@@ -125,11 +127,36 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  succeeds. This schedules a new call; it does not move an appointment.",
       "- If they cannot make an appointment and need it moved, note what they",
       "  said, call `request_human_support`, and only if it succeeds tell them",
-      "  someone will follow up. You cannot reschedule an appointment.",
+      "  someone will follow up. You cannot reschedule an appointment. For a",
+      "  scheduled meeting, use `confirm_meeting_attendance` instead (below).",
       "- If they explicitly ask to speak with a person, call",
       "  `request_human_support` with a short subject and useful message.",
       "- If they ask to be removed or say they are not interested, accept it",
       "  immediately, apologise for the interruption and end the call.",
+      "",
+      "## Scheduled meetings",
+      "",
+      "When the additional context says this call is about a scheduled",
+      "meeting, your one question is whether the person will attend it.",
+      "",
+      "- Before you mention any meeting detail, check briefly that you are",
+      "  speaking with {{first_name}}. If it is someone else, do not share the",
+      "  details; ask when {{first_name}} can be reached and end politely.",
+      "- Ask directly whether they will attend. Only a clear yes is a",
+      '  confirmation — "maybe", "I\'ll try", silence or a voicemail greeting',
+      "  is not.",
+      "- On a clear yes, call `confirm_meeting_attendance` with attendance",
+      '  "confirmed". On a clear no, call it with attendance "declined" and a',
+      "  short note of what they said, for example that they would like",
+      "  another time.",
+      "- Say their answer is recorded only after the tool succeeds, and follow",
+      "  its speech_instruction about the confirmation email. Never say an",
+      "  email was already sent.",
+      "- If the context says there is no email on file and the person wants the",
+      "  confirmation by email, ask for the address, read it back, and only",
+      "  after they confirm it pass it as `email`.",
+      "- You cannot move or cancel the meeting. If they want another time,",
+      '  record "declined" with that in the note; the team will follow up.',
       "",
       "## Ending the call",
       "",
@@ -170,11 +197,18 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  follow-up after that tool succeeds.",
       "- Honor a request to stop or a clear refusal immediately, apologize for",
       "  the interruption and end the call.",
+      "- Only `confirm_meeting_attendance` records an answer about a scheduled",
+      "  meeting, and only after an explicit yes or no from the person. Never",
+      "  say attendance is confirmed unless that tool returned success, and",
+      "  never say a confirmation email was already sent.",
+      "- Never share a meeting's details with anyone other than the person the",
+      "  call is for.",
     ].join("\n");
   }
 
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {
     const tools: VoiceAgentTool[] = [
+      buildConfirmAttendanceTool(ctx),
       buildScheduleCallbackTool(ctx),
       buildHumanSupportTool(ctx),
       {
@@ -196,7 +230,8 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       [
         `Use "${AiVoiceAgentOutcome.confirmed}" when they confirmed the`,
         `appointment or acknowledged the update. Use "${AiVoiceAgentOutcome.cannot_attend}"`,
-        "when they said they cannot make it, and",
+        "when they said they cannot make it (on a call about a scheduled",
+        "meeting only the attendance tool's answer counts), and",
         `"${AiVoiceAgentOutcome.callback_scheduled}" only when the callback tool`,
         "actually scheduled another call. A request to rearrange an appointment",
         "without a scheduled callback is not a callback outcome.",
