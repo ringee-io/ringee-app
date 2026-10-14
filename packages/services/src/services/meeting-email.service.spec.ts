@@ -276,7 +276,7 @@ describe("composeMeetingEmail", () => {
       memberName: "Carlos",
       timeZone: "UTC",
     });
-    assert.doesNotMatch(email.html, /<script>/);
+    assert.doesNotMatch(email.html, /<script/i);
     assert.match(email.html, /&lt;script&gt;/);
   });
 });
