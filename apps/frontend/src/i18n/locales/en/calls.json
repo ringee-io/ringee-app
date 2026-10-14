@@ -780,7 +780,9 @@
       "performanceHint": "Picked up by a person or by voicemail.",
       "resting": "Resting until {date}: rotation skips it for now",
       "balance": "Balance",
-      "addCredit": "Add credit"
+      "addCredit": "Add credit",
+      "balanceError": "Your balance couldn't be loaded.",
+      "retry": "Try again"
     },
     "today": {
       "title": "Today",

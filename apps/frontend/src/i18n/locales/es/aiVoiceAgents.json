@@ -25,6 +25,7 @@
     "loadError": "No se pudieron cargar tus agentes.",
     "emptyTitle": "Crea tu primer agente",
     "emptyHint": "Elige qué debe hacer. Ringee lo inicia con un guion de conversación probado.",
+    "createAskAdmin": "Solo un administrador puede crear agentes.",
     "newAgent": "Nuevo agente",
     "pickTitle": "¿Qué debe hacer el agente?",
     "pickHint": "Ringee proporciona la configuración predeterminada de la conversación, las herramientas y el seguimiento.",
@@ -462,7 +463,9 @@
       "resumed": "{title}: el agente se volverá a disparar",
       "paused": "{title}: en pausa, el agente no se disparará",
       "toggleError": "No se pudo cambiar.",
-      "saved": "{title}: el agente está listo para dispararse"
+      "saved": "{title}: el agente está listo para dispararse",
+      "triggerDeleted": "{title}: trigger eliminado",
+      "triggerDeleteError": "No se pudo eliminar el trigger."
     },
     "sentence": {
       "reminders": "{when} antes de cada reunión → llama {name} · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "Al confirmar, un solo correo al lead y al miembro{count, plural, =0 {} one { · CC # administrador} other { · CC # administradores}}."
     },
     "editSetup": "Editar configuración",
+    "deleteTrigger": {
+      "button": "Eliminar trigger",
+      "title": "¿Eliminar el trigger de {title}?",
+      "confirm": "Eliminar trigger",
+      "hint": {
+        "reminders": "Se cancelan las llamadas de recordatorio planificadas y deja de vigilar calendarios. {name} sigue en tus agentes, listo para configurarlo de nuevo.",
+        "receptionist": "Sus números vuelven a sonar donde sonaban antes de la recepcionista. {name} sigue en tus agentes, listo para configurarlo de nuevo.",
+        "scheduling": "Nadie podrá llamar para agendar hasta que un administrador lo configure de nuevo. {name} sigue en tus agentes."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "Si se pausa, va a {destination}",
       "default": "su destino habitual",

@@ -25,6 +25,7 @@
     "loadError": "Deine Agenten konnten nicht geladen werden.",
     "emptyTitle": "Erstelle deinen ersten Agenten",
     "emptyHint": "Wähle seine Aufgabe. Ringee startet ihn mit einem erprobten Gesprächsleitfaden.",
+    "createAskAdmin": "Nur ein Administrator kann Agenten erstellen.",
     "newAgent": "Neuer Agent",
     "pickTitle": "Was soll der Agent tun?",
     "pickHint": "Ringee stellt die Gesprächsvorgaben, Tools und Nachbereitung bereit.",
@@ -462,7 +463,9 @@
       "resumed": "{title}: Der Agent wird wieder ausgelöst",
       "paused": "{title}: pausiert, der Agent wird nicht ausgelöst",
       "toggleError": "Das konnte nicht geändert werden.",
-      "saved": "{title}: Der Agent ist bereit zum Auslösen"
+      "saved": "{title}: Der Agent ist bereit zum Auslösen",
+      "triggerDeleted": "{title}: Trigger gelöscht",
+      "triggerDeleteError": "Der Trigger konnte nicht gelöscht werden."
     },
     "sentence": {
       "reminders": "{when} vor jedem Termin → {name} ruft an · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "Bei einer Bestätigung eine einzige E-Mail an Lead und Mitglied{count, plural, =0 {} one { · CC # Administrator} other { · CC # Administratoren}}."
     },
     "editSetup": "Einrichtung bearbeiten",
+    "deleteTrigger": {
+      "button": "Trigger löschen",
+      "title": "Trigger für {title} löschen?",
+      "confirm": "Trigger löschen",
+      "hint": {
+        "reminders": "Geplante Erinnerungsanrufe werden storniert und kein Kalender wird mehr beobachtet. {name} bleibt bei deinen Agenten und lässt sich wieder einrichten.",
+        "receptionist": "Die Nummern klingeln wieder dort, wo sie vor der Rezeption klingelten. {name} bleibt bei deinen Agenten und lässt sich wieder einrichten.",
+        "scheduling": "Niemand kann mehr zum Terminieren anrufen lassen, bis ein Administrator es wieder einrichtet. {name} bleibt bei deinen Agenten."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "Pausiert geht es an {destination}",
       "default": "das übliche Ziel",

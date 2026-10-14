@@ -1736,8 +1736,18 @@ limits how many agents a workspace creates there.
   agent provisioned and on, a usable caller ID by the AGENT-008 rule, credit, a
   calendar, and for a receptionist a number routed to it — never from `status`
   alone.
-- Configuring an automation is admin-only (`@OrgAdminOnly()`). Reading the rail,
-  and acting on a meeting or contact the member can already see, is not.
+- Configuring an automation, deleting its trigger, and the reminders' calls
+  ("Confirm now", the upcoming reminder calls) are admin-only
+  (`@OrgAdminOnly()`), and so are creating and deleting an agent in the
+  advanced editor. A member gets appointment scheduling only
+  (`MEMBER_AUTOMATION_CAPABILITIES`): its card, counter and bookings in the
+  rail, and "Call to schedule". The server filters the panel and the summary
+  by role; the browser does not hide the rest.
+- Deleting a trigger removes the card's row, never its agent: the agent stays
+  as it was among the workspace's agents, and the next setup offers it again.
+  What the trigger did stops first — reminders withdraw their planned calls and
+  drop their calendar policies; a receptionist hands every number back, and if
+  one cannot be, nothing is removed.
 - Organization-only (AGENT-011), and only for organizations listed in
   `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every one). Both the reminder and
   attendance-email workers apply the flag before causing a provider side effect.

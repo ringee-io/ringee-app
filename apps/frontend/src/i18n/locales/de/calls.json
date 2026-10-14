@@ -571,7 +571,9 @@
       "performanceHint": "Von einer Person oder Mailbox angenommen.",
       "resting": "Pausiert bis {date}: Die Rotation überspringt sie vorerst",
       "balance": "Guthaben",
-      "addCredit": "Guthaben hinzufügen"
+      "addCredit": "Guthaben hinzufügen",
+      "balanceError": "Dein Guthaben konnte nicht geladen werden.",
+      "retry": "Erneut versuchen"
     },
     "today": {
       "title": "Heute",

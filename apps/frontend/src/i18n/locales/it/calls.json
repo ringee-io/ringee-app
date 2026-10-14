@@ -564,7 +564,9 @@
       "performanceHint": "Risposte da una persona o dalla segreteria telefonica.",
       "resting": "A riposo fino a {date}: la rotazione lo salta per ora",
       "balance": "Saldo",
-      "addCredit": "Aggiungi credito"
+      "addCredit": "Aggiungi credito",
+      "balanceError": "Impossibile caricare il tuo saldo.",
+      "retry": "Riprova"
     },
     "today": {
       "title": "Oggi",

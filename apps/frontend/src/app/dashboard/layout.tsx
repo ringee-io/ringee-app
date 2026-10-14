@@ -11,6 +11,7 @@ import { VoiceAgentsRail } from '@/features/ai-voice-agents/automations/componen
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
 import { AccountLockdownProvider } from '@/features/security';
 import { OfferBanner } from '@/features/offers';
+import { CreditBalanceLoader } from '@/features/credit/components/credit-balance-loader';
 import { cookies } from 'next/headers';
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -48,6 +49,9 @@ export default async function DashboardLayout({
                   nothing when no offer applies. */}
               <OfferBanner placement='TOP_BANNER' />
               {/* <Header /> */}
+              {/* The balance's first load, which the header's credit popover
+                  used to do. Renders nothing. */}
+              <CreditBalanceLoader />
               <div className='mt-4 flex gap-4'>
                 <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />

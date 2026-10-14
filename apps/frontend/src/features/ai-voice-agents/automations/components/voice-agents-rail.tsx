@@ -151,7 +151,7 @@ export function VoiceAgentsRail() {
           if (event.key === 'Escape' && docked) close();
         }}
       >
-        <div className='bg-sidebar flex w-18 shrink-0 flex-col items-center border-l px-2 py-3'>
+        <div className='bg-sidebar flex w-16 shrink-0 flex-col items-center border-l px-2 py-3'>
           <button
             ref={triggerRef}
             type='button'
@@ -169,9 +169,9 @@ export function VoiceAgentsRail() {
             )}
           >
             {/* Closed, the tab is only its title; the Ringee mark joins it open. */}
-            {open ? (
-              <RingeeMark className='animate-in fade-in-0 zoom-in-90 size-9 duration-200 motion-reduce:animate-none' />
-            ) : null}
+            {/* {open ? ( */}
+              <RingeeMark className='animate-in fade-in-0 zoom-in-90 size-6 duration-200 motion-reduce:animate-none' />
+            {/* // ) : null} */}
             <span className='text-base font-semibold tracking-wide whitespace-nowrap [writing-mode:vertical-rl]'>
               {t('title')}
             </span>

@@ -28,6 +28,7 @@ import type {
   AutomationNextStepCode,
   AutomationState
 } from '../types';
+import { DeleteTriggerButton } from './delete-trigger-button';
 import { ScheduleCallDialog } from './schedule-call-dialog';
 import {
   ReceptionistSetup,
@@ -461,16 +462,6 @@ export function CapabilityCard({
                 {t('reminders.recipients', { count: card.reminders.ccAdmins })}
               </p>
               <UpcomingCalls count={card.reminders.upcomingCalls} />
-              {canConfigure ? (
-                <Button
-                  size='sm'
-                  variant='outline'
-                  className='h-11 rounded-lg md:h-8'
-                  onClick={openForm}
-                >
-                  {t('editSetup')}
-                </Button>
-              ) : null}
             </>
           ) : null}
 
@@ -494,16 +485,6 @@ export function CapabilityCard({
                   </li>
                 ))}
               </ul>
-              {canConfigure ? (
-                <Button
-                  size='sm'
-                  variant='outline'
-                  className='h-11 rounded-lg md:h-8'
-                  onClick={openForm}
-                >
-                  {t('receptionist.manageNumbers')}
-                </Button>
-              ) : null}
             </>
           ) : null}
 
@@ -517,17 +498,34 @@ export function CapabilityCard({
                   : null}
               </p>
               <p className='text-muted-foreground'>{t('scheduling.noCalls')}</p>
-              {canConfigure ? (
-                <Button
-                  size='sm'
-                  variant='outline'
-                  className='h-11 rounded-lg md:h-8'
-                  onClick={openForm}
-                >
-                  {t('editSetup')}
-                </Button>
-              ) : null}
             </>
+          ) : null}
+
+          {canConfigure && card.agent ? (
+            <div className='flex flex-wrap items-center gap-1.5'>
+              <Button
+                size='sm'
+                variant='outline'
+                className='h-11 rounded-lg md:h-8'
+                onClick={openForm}
+              >
+                {card.capability === 'receptionist'
+                  ? t('receptionist.manageNumbers')
+                  : t('editSetup')}
+              </Button>
+              <DeleteTriggerButton
+                card={card}
+                agent={card.agent}
+                className='ml-auto'
+                onDeleted={(next) => {
+                  // Not set up any more: closed, so its setup form does not
+                  // open on its own, and with no draft of the old setup.
+                  setFocus(null);
+                  setDraft(card.capability, null, workspaceKey);
+                  onChanged(next);
+                }}
+              />
+            </div>
           ) : null}
         </div>
       ) : null}

@@ -76,6 +76,9 @@ export function useAutomationApi() {
       ) => api.post<AutomationCard>(`${BASE}/scheduling/setup`, body),
       setEnabled: (capability: AutomationCapability, enabled: boolean) =>
         api.post<AutomationCard>(`${BASE}/${capability}/enabled`, { enabled }),
+      /** Deletes the trigger — never its agent; the card comes back not set up. */
+      removeAutomation: (capability: AutomationCapability) =>
+        api.delete<AutomationCard>(`${BASE}/${capability}`),
 
       confirmationCall: (meetingId: string) =>
         api.post<ReminderCallNowResult>(

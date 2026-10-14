@@ -25,6 +25,7 @@
     "loadError": "Impossible de charger vos agents.",
     "emptyTitle": "Créez votre premier agent",
     "emptyHint": "Choisissez sa mission. Ringee le lance à partir d'un scénario de conversation éprouvé.",
+    "createAskAdmin": "Seul un administrateur peut créer des agents.",
     "newAgent": "Nouvel agent",
     "pickTitle": "Que doit faire l'agent ?",
     "pickHint": "Ringee fournit les paramètres de conversation par défaut, les outils et le suivi.",
@@ -462,7 +463,9 @@
       "resumed": "{title} : l'agent se déclenchera à nouveau",
       "paused": "{title} : en pause, l'agent ne se déclenchera pas",
       "toggleError": "Impossible de modifier.",
-      "saved": "{title} : l'agent est prêt à se déclencher"
+      "saved": "{title} : l'agent est prêt à se déclencher",
+      "triggerDeleted": "{title} : trigger supprimé",
+      "triggerDeleteError": "Le trigger n'a pas pu être supprimé."
     },
     "sentence": {
       "reminders": "{when} avant chaque rendez-vous → {name} appelle · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "À la confirmation, un seul e-mail au prospect et au membre{count, plural, =0 {} one { · CC # administrateur} other { · CC # administrateurs}}."
     },
     "editSetup": "Modifier la configuration",
+    "deleteTrigger": {
+      "button": "Supprimer le trigger",
+      "title": "Supprimer le trigger {title} ?",
+      "confirm": "Supprimer le trigger",
+      "hint": {
+        "reminders": "Les appels de rappel prévus sont annulés et aucun calendrier n'est plus surveillé. {name} reste dans vos agents, prêt à être reconfiguré.",
+        "receptionist": "Ses numéros sonnent de nouveau là où ils sonnaient avant la réceptionniste. {name} reste dans vos agents, prêt à être reconfiguré.",
+        "scheduling": "Personne ne peut plus appeler pour planifier tant qu'un administrateur ne l'a pas reconfiguré. {name} reste dans vos agents."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "En pause, va vers {destination}",
       "default": "sa destination habituelle",

@@ -25,6 +25,7 @@
     "loadError": "Je agents konden niet worden geladen.",
     "emptyTitle": "Maak je eerste agent",
     "emptyHint": "Kies wat hij moet doen. Ringee start hem met een beproefd gesprekssjabloon.",
+    "createAskAdmin": "Alleen een beheerder kan agents aanmaken.",
     "newAgent": "Nieuwe agent",
     "pickTitle": "Wat moet de agent doen?",
     "pickHint": "Ringee biedt de standaardgespreksinstellingen, tools en opvolging.",
@@ -462,7 +463,9 @@
       "resumed": "{title}: de agent komt weer in actie",
       "paused": "{title}: gepauzeerd, de agent komt niet in actie",
       "toggleError": "Dat kon niet worden gewijzigd.",
-      "saved": "{title}: de agent staat klaar"
+      "saved": "{title}: de agent staat klaar",
+      "triggerDeleted": "{title}: trigger verwijderd",
+      "triggerDeleteError": "De trigger kon niet worden verwijderd."
     },
     "sentence": {
       "reminders": "{when} voor elke afspraak → {name} belt · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "Bij een bevestiging één e-mail aan lead en lid{count, plural, =0 {} one { · CC # beheerder} other { · CC # beheerders}}."
     },
     "editSetup": "Instellingen bewerken",
+    "deleteTrigger": {
+      "button": "Trigger verwijderen",
+      "title": "Trigger voor {title} verwijderen?",
+      "confirm": "Trigger verwijderen",
+      "hint": {
+        "reminders": "Geplande herinneringsoproepen worden geannuleerd en er wordt geen agenda meer gevolgd. {name} blijft bij je agents, klaar om opnieuw in te stellen.",
+        "receptionist": "De nummers gaan weer over waar ze vóór de receptionist overgingen. {name} blijft bij je agents, klaar om opnieuw in te stellen.",
+        "scheduling": "Niemand kan nog bellen om te plannen tot een beheerder het opnieuw instelt. {name} blijft bij je agents."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "Gepauzeerd gaat het naar {destination}",
       "default": "de gebruikelijke bestemming",

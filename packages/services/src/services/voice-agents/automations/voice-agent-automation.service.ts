@@ -66,6 +66,20 @@ export const AUTOMATION_CAPABILITIES: AutomationCapability[] = [
   "scheduling",
 ];
 
+/**
+ * What an organization member gets from the rail: appointment scheduling and
+ * its "Call to schedule". Every other capability, and setting any of them up
+ * or deleting its trigger, is an admin's.
+ */
+export const MEMBER_AUTOMATION_CAPABILITIES: AutomationCapability[] = [
+  "scheduling",
+];
+
+/** Who is looking at the rail — the role comes from the auth layer. */
+export interface AutomationViewer {
+  admin: boolean;
+}
+
 const AGENT_TYPE: Record<AutomationCapability, AiVoiceAgentType> = {
   reminders: AiVoiceAgentType.reminders_notifications,
   receptionist: AiVoiceAgentType.receptionist,
@@ -257,13 +271,20 @@ export class VoiceAgentAutomationService {
 
   // ── Reads ──────────────────────────────────────────────────────────
 
-  /** The closed rail: whether to show it, the counter and the dot. */
-  async summary(ctx: OwnershipContext): Promise<AutomationSummary> {
+  /**
+   * The closed rail: whether to show it, the counter and the dot — counted
+   * over the capabilities this viewer gets.
+   */
+  async summary(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+  ): Promise<AutomationSummary> {
     if (!voiceAgentAutomationsEnabled(ctx.organizationId)) {
       return { enabled: false, operational: 0, attention: 0, capabilities: {} };
     }
     const cards = await this.cards(ctx as OrganizationOwnershipContext, {
       details: false,
+      capabilities: visibleCapabilities(viewer),
     });
     return {
       enabled: true,
@@ -276,13 +297,22 @@ export class VoiceAgentAutomationService {
     };
   }
 
-  /** The open panel: three cards, and what happened lately. */
-  async panel(ctx: OwnershipContext): Promise<AutomationPanel> {
+  /**
+   * The open panel: the viewer's cards — all three for an admin, scheduling
+   * for a member — and what they did lately.
+   */
+  async panel(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+  ): Promise<AutomationPanel> {
     if (!voiceAgentAutomationsEnabled(ctx.organizationId)) {
       return { enabled: false, operational: 0, cards: [], activity: [] };
     }
     assertVoiceAgentAutomations(ctx);
-    const cards = await this.cards(ctx, { details: true });
+    const cards = await this.cards(ctx, {
+      details: true,
+      capabilities: visibleCapabilities(viewer),
+    });
     const activity = await this.activity(ctx, cards);
     return {
       enabled: true,
@@ -610,6 +640,65 @@ export class VoiceAgentAutomationService {
     return this.card(ctx, capability);
   }
 
+  /**
+   * Deletes the trigger, not the agent: the card goes back to "not set up"
+   * and the agent stays, as it is, among the workspace's agents — the next
+   * setup offers it again. What the trigger was doing stops first: reminders
+   * withdraw their planned calls and forget their calendars, and a
+   * receptionist hands every number back — if one cannot be handed back,
+   * nothing is deleted and the reason says why. A call already on the phone
+   * finishes.
+   */
+  async removeAutomation(
+    ctx: OwnershipContext,
+    capability: AutomationCapability,
+  ): Promise<AutomationCard> {
+    assertVoiceAgentAutomations(ctx);
+    const automation = await this.automations.findForOwner(
+      ctx,
+      AGENT_TYPE[capability],
+    );
+    if (!automation?.agentId) {
+      throw new NotFoundException("This trigger is not set up.");
+    }
+    if (
+      automation.claimToken &&
+      automation.claimedAt &&
+      automation.claimedAt.getTime() > Date.now() - CLAIM_STALE_MS
+    ) {
+      throw new ConflictException(
+        "This trigger is still being set up. Try again in a moment.",
+      );
+    }
+    const agentId = automation.agentId;
+
+    if (capability === "reminders") {
+      const policies = await this.policies.listForOwner(ctx, { agentId });
+      for (const policy of policies) {
+        await this.reminders.cancelPolicyCalls(policy.id, "policy_removed");
+      }
+      await this.policies.deleteForOwner(
+        ctx,
+        policies.map((policy) => policy.id),
+      );
+    } else if (capability === "receptionist") {
+      const released = await this.inboundRoutes.releaseReceptionist(
+        ctx,
+        agentId,
+      );
+      if (released.failed.length) {
+        throw new ConflictException({
+          message:
+            "The receptionist keeps answering some numbers: they could not be handed back.",
+          failed: released.failed,
+        });
+      }
+    }
+
+    await this.automations.removeForOwner(ctx, automation.id, agentId);
+    return this.card(ctx, capability);
+  }
+
   // ── Actions ────────────────────────────────────────────────────────
 
   /** "Confirm now": a reminder call about one meeting, placed immediately. */
@@ -889,14 +978,14 @@ export class VoiceAgentAutomationService {
 
   private async cards(
     ctx: OrganizationOwnershipContext,
-    options: { details: boolean },
+    options: { details: boolean; capabilities: AutomationCapability[] },
   ): Promise<AutomationCard[]> {
     const [automations, env] = await Promise.all([
       this.automations.listForOwner(ctx),
       this.environment(ctx),
     ]);
     return Promise.all(
-      AUTOMATION_CAPABILITIES.map((capability) =>
+      options.capabilities.map((capability) =>
         this.buildCard(
           ctx,
           capability,
@@ -1114,9 +1203,16 @@ export class VoiceAgentAutomationService {
     const since = new Date(Date.now() - ACTIVITY_WINDOW_MS);
     const schedulingAgentId =
       cards.find((card) => card.capability === "scheduling")?.agent?.id ?? null;
+    // Reminder calls and the emails they owe show only beside the reminders
+    // card — never to a member, who does not get it.
+    const reminders = cards.some((card) => card.capability === "reminders");
     const [finished, attention, bookings] = await Promise.all([
-      this.executions.listFinishedForOwner(ctx, { since, take: 5 }),
-      this.deliveries.listAttentionForOwner(ctx, { since, take: 5 }),
+      reminders
+        ? this.executions.listFinishedForOwner(ctx, { since, take: 5 })
+        : Promise.resolve([]),
+      reminders
+        ? this.deliveries.listAttentionForOwner(ctx, { since, take: 5 })
+        : Promise.resolve([]),
       schedulingAgentId
         ? this.agentCalls.listRecentForAgents(
             ctx,
@@ -1175,6 +1271,12 @@ export class VoiceAgentAutomationService {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+function visibleCapabilities(viewer: AutomationViewer): AutomationCapability[] {
+  return viewer.admin
+    ? AUTOMATION_CAPABILITIES
+    : MEMBER_AUTOMATION_CAPABILITIES;
+}
 
 function summarize(agent: AiVoiceAgent): AutomationAgentSummary {
   return {

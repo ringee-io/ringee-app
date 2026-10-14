@@ -571,7 +571,9 @@
       "performanceHint": "Décrochés par une personne ou une messagerie vocale.",
       "resting": "Au repos jusqu’au {date} : la rotation l’ignore pour le moment",
       "balance": "Solde",
-      "addCredit": "Ajouter du crédit"
+      "addCredit": "Ajouter du crédit",
+      "balanceError": "Impossible de charger votre solde.",
+      "retry": "Réessayer"
     },
     "today": {
       "title": "Aujourd’hui",

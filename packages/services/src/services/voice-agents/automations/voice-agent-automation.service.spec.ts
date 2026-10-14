@@ -3,7 +3,7 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentAutomationService } from "./voice-agent-automation.service";
 
@@ -55,20 +55,24 @@ function build(
   const statuses: Row[] = [];
   const automationUpdates: Row[] = [];
   const releasedClaims: string[] = [];
+  const deleted: Row[] = [];
   const agent = over.agent === undefined ? AGENT() : over.agent;
+  let removed = false;
 
   const service = new VoiceAgentAutomationService(
     {
       findForOwner: async () =>
-        over.automation === undefined
-          ? {
-              id: "automation-1",
-              capability: "reminders_notifications",
-              agentId: "agent-1",
-              enabled: true,
-              settings: null,
-            }
-          : over.automation,
+        removed
+          ? null
+          : over.automation === undefined
+            ? {
+                id: "automation-1",
+                capability: "reminders_notifications",
+                agentId: "agent-1",
+                enabled: true,
+                settings: null,
+              }
+            : over.automation,
       listForOwner: async () =>
         over.automation === null ? [] : [over.automation ?? {}],
       claim: async () =>
@@ -81,6 +85,11 @@ function build(
         releasedClaims.push(id);
       },
       clearAgent: async () => true,
+      removeForOwner: async (_ctx: Row, id: string, agentId: string) => {
+        deleted.push({ automation: id, agentId });
+        removed = true;
+        return true;
+      },
       upsertForOwner: async (_ctx: Row, _type: string, data: Row) => {
         automationUpdates.push(data);
         return data;
@@ -104,15 +113,26 @@ function build(
         id: "policy-1",
         ...input,
       }),
-      deleteForOwner: async () => 0,
+      deleteForOwner: async (_ctx: Row, ids: string[]) => {
+        deleted.push({ policies: ids });
+        return ids.length;
+      },
       setEnabled: async (_ctx: Row, ids: string[], enabled: boolean) =>
         ids.map((id) => ({ id, enabled })),
     } as never,
     {
       countUpcomingForOwner: async () => 4,
-      listFinishedForOwner: async () => [],
+      listFinishedForOwner: async () => {
+        calls.push({ listed: "reminder-executions" });
+        return [];
+      },
     } as never,
-    { listAttentionForOwner: async () => [] } as never,
+    {
+      listAttentionForOwner: async () => {
+        calls.push({ listed: "email-deliveries" });
+        return [];
+      },
+    } as never,
     { listByDestination: async () => over.routes ?? [] } as never,
     {
       findAdminMembersWithEmails: async () => [{ id: "admin-1" }],
@@ -124,6 +144,9 @@ function build(
     } as never,
     {
       require: async () => agent,
+      delete: async (_ctx: Row, id: string) => {
+        deleted.push({ agent: id });
+      },
       create: async (_ctx: Row, input: Row) => {
         created.push(input);
         return AGENT({ id: "agent-new", name: input.name, type: input.type });
@@ -200,6 +223,7 @@ function build(
     statuses,
     automationUpdates,
     releasedClaims,
+    deleted,
   };
 }
 
@@ -540,11 +564,138 @@ describe("VoiceAgentAutomationService.startSchedulingCall", () => {
   });
 });
 
+describe("VoiceAgentAutomationService members", () => {
+  it("shows a member appointment scheduling only, without what reminders did", async () => {
+    const { service, calls } = build({
+      agent: AGENT({ type: "appointment_booking" }),
+      automation: {
+        id: "automation-3",
+        capability: "appointment_booking",
+        agentId: "agent-1",
+        enabled: true,
+      },
+    });
+    const member = { userId: "member-1", organizationId: "org-1" };
+
+    const panel = await service.panel(member, { admin: false });
+    assert.deepEqual(
+      panel.cards.map((card) => card.capability),
+      ["scheduling"],
+    );
+    assert.ok(!calls.some((call) => call.listed));
+
+    const summary = await service.summary(member, { admin: false });
+    assert.deepEqual(Object.keys(summary.capabilities), ["scheduling"]);
+    assert.equal(summary.operational, 1);
+  });
+
+  it("shows an admin all three cards and the reminders' activity", async () => {
+    const { service, calls } = build();
+    const panel = await service.panel(CTX, { admin: true });
+    assert.deepEqual(
+      panel.cards.map((card) => card.capability),
+      ["reminders", "receptionist", "scheduling"],
+    );
+    assert.ok(calls.some((call) => call.listed === "reminder-executions"));
+  });
+});
+
+describe("VoiceAgentAutomationService.removeAutomation", () => {
+  const RECEPTIONIST = {
+    id: "automation-2",
+    capability: "receptionist",
+    agentId: "agent-1",
+    enabled: true,
+    settings: { numbers: [{ kind: "external", id: "x" }] },
+  };
+
+  it("withdraws the reminders' planned calls and calendars, and keeps the agent", async () => {
+    const { service, calls, deleted } = build();
+    await service.removeAutomation(CTX, "reminders");
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.cancelled === "policy-1" && call.reason === "policy_removed",
+      ),
+    );
+    assert.deepEqual(deleted, [
+      { policies: ["policy-1"] },
+      { automation: "automation-1", agentId: "agent-1" },
+    ]);
+  });
+
+  it("hands the receptionist's numbers back, and leaves the agent as it was", async () => {
+    const { service, deleted, statuses } = build({
+      agent: AGENT({ type: "receptionist" }),
+      automation: RECEPTIONIST,
+    });
+    await service.removeAutomation(CTX, "receptionist");
+    assert.deepEqual(deleted, [
+      { automation: "automation-2", agentId: "agent-1" },
+    ]);
+    assert.deepEqual(statuses, []);
+  });
+
+  it("removes nothing while a receptionist's number cannot be handed back", async () => {
+    const { service, deleted } = build({
+      agent: AGENT({ type: "receptionist" }),
+      automation: RECEPTIONIST,
+      released: {
+        restored: 0,
+        failed: [
+          {
+            number: { kind: "external", id: "x" },
+            phoneNumber: "+18095551234",
+            error: "Choose where calls to this number go.",
+          },
+        ],
+      },
+    });
+    await assert.rejects(
+      () => service.removeAutomation(CTX, "receptionist"),
+      ConflictException,
+    );
+    assert.deepEqual(deleted, []);
+  });
+
+  it("puts the card back to not set up, offering the same agent again", async () => {
+    const { service, deleted } = build({
+      agent: AGENT({ type: "appointment_booking" }),
+      automation: {
+        id: "automation-3",
+        capability: "appointment_booking",
+        agentId: "agent-1",
+        enabled: true,
+      },
+    });
+    const card = await service.removeAutomation(CTX, "scheduling");
+    assert.deepEqual(deleted, [
+      { automation: "automation-3", agentId: "agent-1" },
+    ]);
+    assert.equal(card.state, "unconfigured");
+    assert.deepEqual(
+      card.candidates.map((candidate) => candidate.id),
+      ["agent-1"],
+    );
+  });
+
+  it("refuses a trigger that is not set up", async () => {
+    const { service } = build({ automation: null });
+    await assert.rejects(
+      () => service.removeAutomation(CTX, "scheduling"),
+      NotFoundException,
+    );
+  });
+});
+
 describe("VoiceAgentAutomationService pilot flag", () => {
   it("reports the rail off for an organization outside the pilot", async () => {
     const { service } = build();
     assert.deepEqual(
-      await service.summary({ userId: "u", organizationId: "org-2" }),
+      await service.summary(
+        { userId: "u", organizationId: "org-2" },
+        { admin: true },
+      ),
       { enabled: false, operational: 0, attention: 0, capabilities: {} },
     );
     await assert.rejects(

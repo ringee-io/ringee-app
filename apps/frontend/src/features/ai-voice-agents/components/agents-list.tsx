@@ -44,6 +44,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/select';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useVoiceAgentApi } from '../api';
 import { describeApiError } from '../lib/api-error';
 import { flagEmoji } from '../lib/voice-format';
@@ -181,6 +182,8 @@ export function AgentsList() {
   const tCommon = useTranslations('aiVoiceAgents.common');
   const tStatus = useTranslations('aiVoiceAgents.status');
   const api = useVoiceAgentApi();
+  // UX only: creating an agent is admin-only on the server (AGENT-018).
+  const { canAccessAdminFeatures: canCreate } = useOrgRole();
   const [types, setTypes] = useState<VoiceAgentTypeInfo[]>([]);
   const [agents, setAgents] = useState<VoiceAgent[]>([]);
   const [voiceFlags, setVoiceFlags] = useState<Record<string, string>>({});
@@ -254,9 +257,13 @@ export function AgentsList() {
         </div>
         <div>
           <p className='font-medium'>{t('emptyTitle')}</p>
-          <p className='text-muted-foreground text-sm'>{t('emptyHint')}</p>
+          <p className='text-muted-foreground text-sm'>
+            {canCreate ? t('emptyHint') : t('createAskAdmin')}
+          </p>
         </div>
-        <AgentTypeCards types={types} className='w-full max-w-2xl' />
+        {canCreate ? (
+          <AgentTypeCards types={types} className='w-full max-w-2xl' />
+        ) : null}
       </Card>
     );
   }
@@ -292,21 +299,23 @@ export function AgentsList() {
             ))}
           </SelectContent>
         </Select>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className='mr-2 h-4 w-4' />
-              {t('newAgent')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className='sm:max-w-2xl'>
-            <DialogHeader>
-              <DialogTitle>{t('pickTitle')}</DialogTitle>
-              <DialogDescription>{t('pickHint')}</DialogDescription>
-            </DialogHeader>
-            <AgentTypeCards types={types} />
-          </DialogContent>
-        </Dialog>
+        {canCreate ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className='mr-2 h-4 w-4' />
+                {t('newAgent')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className='sm:max-w-2xl'>
+              <DialogHeader>
+                <DialogTitle>{t('pickTitle')}</DialogTitle>
+                <DialogDescription>{t('pickHint')}</DialogDescription>
+              </DialogHeader>
+              <AgentTypeCards types={types} />
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
 
       {visible.length === 0 ? (

@@ -25,6 +25,7 @@
     "loadError": "Could not load your agents.",
     "emptyTitle": "Create your first agent",
     "emptyHint": "Pick what it should do. Ringee starts it from a tested conversation blueprint.",
+    "createAskAdmin": "Only an admin can create agents.",
     "newAgent": "New agent",
     "pickTitle": "What should the agent do?",
     "pickHint": "Ringee provides the conversation defaults, tools and follow-up.",
@@ -462,7 +463,9 @@
       "resumed": "{title}: the agent will fire again",
       "paused": "{title}: paused, the agent won't fire",
       "toggleError": "That could not be changed.",
-      "saved": "{title}: the agent is ready to fire"
+      "saved": "{title}: the agent is ready to fire",
+      "triggerDeleted": "{title}: trigger deleted",
+      "triggerDeleteError": "The trigger could not be deleted."
     },
     "sentence": {
       "reminders": "{when} before each meeting → {name} calls · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "On a confirmation, one email to the lead and the member{count, plural, =0 {} one { · CC # admin} other { · CC # admins}}."
     },
     "editSetup": "Edit setup",
+    "deleteTrigger": {
+      "button": "Delete trigger",
+      "title": "Delete the {title} trigger?",
+      "confirm": "Delete trigger",
+      "hint": {
+        "reminders": "Planned reminder calls are cancelled and no calendar is watched any more. {name} stays in your agents, ready to set up again.",
+        "receptionist": "Its numbers ring where they did before the receptionist. {name} stays in your agents, ready to set up again.",
+        "scheduling": "Nobody can call to schedule until an admin sets it up again. {name} stays in your agents."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "If paused, goes to {destination}",
       "default": "its usual destination",

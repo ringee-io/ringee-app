@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { RoleGuard } from '@ringee/frontend-shared/components/role-guard';
 import { NewAgent } from '@/features/ai-voice-agents/components/new-agent';
 import type { VoiceAgentType } from '@/features/ai-voice-agents/types';
 
@@ -16,6 +17,9 @@ export const metadata = { title: 'New AI voice agent' };
  * opens it, so a refresh, a shared link and the browser's back button all keep
  * working. `NewAgent` renders the panel itself — there is no page container
  * around it, because the panel *is* the screen.
+ *
+ * Creating an agent is an admin's (AGENT-018); the guard is UX, the API
+ * refuses a member's create.
  */
 export default async function NewAiVoiceAgentPage({
   searchParams
@@ -25,5 +29,9 @@ export default async function NewAiVoiceAgentPage({
   const { type } = await searchParams;
   if (!type || !TYPES.includes(type as VoiceAgentType)) notFound();
 
-  return <NewAgent type={type as VoiceAgentType} />;
+  return (
+    <RoleGuard>
+      <NewAgent type={type as VoiceAgentType} />
+    </RoleGuard>
+  );
 }

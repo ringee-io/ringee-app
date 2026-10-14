@@ -25,6 +25,7 @@
     "loadError": "Impossibile caricare i tuoi agenti.",
     "emptyTitle": "Crea il tuo primo agente",
     "emptyHint": "Scegli cosa deve fare. Ringee lo avvia con uno schema di conversazione collaudato.",
+    "createAskAdmin": "Solo un amministratore può creare agenti.",
     "newAgent": "Nuovo agente",
     "pickTitle": "Cosa deve fare l'agente?",
     "pickHint": "Ringee fornisce le impostazioni predefinite della conversazione, gli strumenti e il follow-up.",
@@ -462,7 +463,9 @@
       "resumed": "{title}: l'agente scatterà di nuovo",
       "paused": "{title}: in pausa, l'agente non scatterà",
       "toggleError": "Impossibile modificare.",
-      "saved": "{title}: l'agente è pronto a scattare"
+      "saved": "{title}: l'agente è pronto a scattare",
+      "triggerDeleted": "{title}: trigger eliminato",
+      "triggerDeleteError": "Non è stato possibile eliminare il trigger."
     },
     "sentence": {
       "reminders": "{when} prima di ogni appuntamento → chiama {name} · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "Alla conferma, un'unica email al lead e al membro{count, plural, =0 {} one { · CC # amministratore} other { · CC # amministratori}}."
     },
     "editSetup": "Modifica configurazione",
+    "deleteTrigger": {
+      "button": "Elimina trigger",
+      "title": "Eliminare il trigger {title}?",
+      "confirm": "Elimina trigger",
+      "hint": {
+        "reminders": "Le chiamate di promemoria pianificate vengono annullate e nessun calendario viene più seguito. {name} resta tra i tuoi agenti, pronto da riconfigurare.",
+        "receptionist": "I suoi numeri tornano a squillare dove squillavano prima della receptionist. {name} resta tra i tuoi agenti, pronto da riconfigurare.",
+        "scheduling": "Nessuno potrà chiamare per fissare appuntamenti finché un amministratore non lo configura di nuovo. {name} resta tra i tuoi agenti."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "In pausa, va a {destination}",
       "default": "la destinazione abituale",

@@ -25,6 +25,7 @@
     "loadError": "Não foi possível carregar os teus agentes.",
     "emptyTitle": "Cria o teu primeiro agente",
     "emptyHint": "Escolhe o que deve fazer. O Ringee inicia-o com um guião de conversa testado.",
+    "createAskAdmin": "Só um administrador pode criar agentes.",
     "newAgent": "Novo agente",
     "pickTitle": "O que deve fazer o agente?",
     "pickHint": "O Ringee fornece as predefinições da conversa, as ferramentas e o seguimento.",
@@ -462,7 +463,9 @@
       "resumed": "{title}: o agente voltará a disparar",
       "paused": "{title}: pausado, o agente não vai disparar",
       "toggleError": "Não foi possível alterar.",
-      "saved": "{title}: o agente está pronto para disparar"
+      "saved": "{title}: o agente está pronto para disparar",
+      "triggerDeleted": "{title}: trigger eliminado",
+      "triggerDeleteError": "Não foi possível eliminar o trigger."
     },
     "sentence": {
       "reminders": "{when} antes de cada reunião → {name} liga · {calendars}",
@@ -511,6 +514,16 @@
       "recipients": "Na confirmação, um único e-mail para o lead e o membro{count, plural, =0 {} one { · CC # administrador} other { · CC # administradores}}."
     },
     "editSetup": "Editar configuração",
+    "deleteTrigger": {
+      "button": "Eliminar trigger",
+      "title": "Eliminar o trigger de {title}?",
+      "confirm": "Eliminar trigger",
+      "hint": {
+        "reminders": "As chamadas de lembrete planeadas são canceladas e deixa de acompanhar calendários. {name} continua nos teus agentes, pronto a configurar de novo.",
+        "receptionist": "Os seus números voltam a tocar onde tocavam antes da rececionista. {name} continua nos teus agentes, pronto a configurar de novo.",
+        "scheduling": "Ninguém pode ligar para agendar até um administrador o configurar de novo. {name} continua nos teus agentes."
+      }
+    },
     "receptionist": {
       "pauseGoesTo": "Se pausado, vai para {destination}",
       "default": "o destino habitual",

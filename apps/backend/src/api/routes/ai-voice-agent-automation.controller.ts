@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -34,10 +35,11 @@ import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.
  *
  * Thin by design, like the agents controller beside it. Its own path rather
  * than `ai-voice-agents/automations`, because `ai-voice-agents/:id` would
- * swallow that segment. Configuring an automation is an admin's job, enforced
- * here with `@OrgAdminOnly()`; reading the rail and acting on a contact or a
- * meeting the member can already see is open to members. The service checks
- * the pilot flag on every call.
+ * swallow that segment. Configuring an automation, deleting its trigger and
+ * placing or listing reminder calls are an admin's, enforced here with
+ * `@OrgAdminOnly()`. A member gets appointment scheduling: the rail shows them
+ * that card, and "Call to schedule" is theirs. The service checks the pilot
+ * flag on every call.
  */
 @UseGuards(VoiceAgentOrganizationGuard)
 @Controller("ai-voice-agent-automations")
@@ -49,14 +51,19 @@ export class AiVoiceAgentAutomationController {
   /** The closed rail: the counter and whether anything needs attention. */
   @Get("summary")
   summary(@CurrentUser() user: CurrentUserData) {
-    return this.automations.summary(createOwnershipContext(user));
+    return this.automations.summary(createOwnershipContext(user), {
+      admin: isAdmin(user),
+    });
   }
 
   @Get()
   async panel(@CurrentUser() user: CurrentUserData) {
-    const panel = await this.automations.panel(createOwnershipContext(user));
+    const admin = isAdmin(user);
+    const panel = await this.automations.panel(createOwnershipContext(user), {
+      admin,
+    });
     // UX only: the setup routes below enforce the same rule.
-    return { ...panel, canConfigure: isAdmin(user) };
+    return { ...panel, canConfigure: admin };
   }
 
   @OrgAdminOnly()
@@ -82,6 +89,7 @@ export class AiVoiceAgentAutomationController {
     });
   }
 
+  @OrgAdminOnly()
   @Get("reminders/upcoming")
   upcomingReminderCalls(@CurrentUser() user: CurrentUserData) {
     return this.automations.upcomingReminderCalls(createOwnershipContext(user));
@@ -136,9 +144,26 @@ export class AiVoiceAgentAutomationController {
     );
   }
 
-  // ── Actions (members, on what they can see) ──────────────────
+  /** "Delete trigger": the card is not set up any more; its agent stays. */
+  @OrgAdminOnly()
+  @Delete(":capability")
+  removeAutomation(
+    @CurrentUser() user: CurrentUserData,
+    @Param("capability") capability: string,
+  ) {
+    if (!AUTOMATION_CAPABILITIES.includes(capability as AutomationCapability)) {
+      throw new BadRequestException("Unknown automation.");
+    }
+    return this.automations.removeAutomation(
+      createOwnershipContext(user),
+      capability as AutomationCapability,
+    );
+  }
+
+  // ── Actions ──────────────────────────────────────────────────
 
   /** "Confirm now": a reminder call about one meeting, placed immediately. */
+  @OrgAdminOnly()
   @Post("meetings/:meetingId/confirmation-call")
   confirmationCall(
     @CurrentUser() user: CurrentUserData,
@@ -150,7 +175,7 @@ export class AiVoiceAgentAutomationController {
     );
   }
 
-  /** "Call to schedule": what spends, not switching scheduling on. */
+  /** "Call to schedule": what spends, not switching scheduling on. Members too. */
   @Post("scheduling/calls")
   startSchedulingCall(
     @CurrentUser() user: CurrentUserData,

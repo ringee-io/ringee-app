@@ -571,7 +571,9 @@
       "performanceHint": "Atendidas por uma pessoa ou pelo correio de voz.",
       "resting": "Em descanso até {date}: a rotação ignora-a por agora",
       "balance": "Saldo",
-      "addCredit": "Adicionar crédito"
+      "addCredit": "Adicionar crédito",
+      "balanceError": "Não foi possível carregar o teu saldo.",
+      "retry": "Tentar de novo"
     },
     "today": {
       "title": "Hoje",
