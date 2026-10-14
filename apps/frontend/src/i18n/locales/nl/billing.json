@@ -201,6 +201,8 @@
     "subscriptionsTitle": "Abonnementen",
     "subscriptionsHint": "Plannen, betaalmethoden en facturen worden veilig beheerd in Stripe.",
     "openStripe": "Beheren in Stripe",
-    "portalError": "We konden het facturatieportaal niet openen. Probeer het zo meteen opnieuw."
+    "portalError": "We konden het facturatieportaal niet openen. Probeer het zo meteen opnieuw.",
+    "balanceError": "We konden je saldo niet laden.",
+    "retryBalance": "Opnieuw proberen"
   }
 }

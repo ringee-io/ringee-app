@@ -201,6 +201,8 @@
     "subscriptionsTitle": "Suscripciones",
     "subscriptionsHint": "Los planes, los métodos de pago y las facturas se administran de forma segura en Stripe.",
     "openStripe": "Administrar en Stripe",
-    "portalError": "No pudimos abrir el portal de facturación. Inténtalo de nuevo en un momento."
+    "portalError": "No pudimos abrir el portal de facturación. Inténtalo de nuevo en un momento.",
+    "balanceError": "No pudimos cargar tu saldo.",
+    "retryBalance": "Reintentar"
   }
 }

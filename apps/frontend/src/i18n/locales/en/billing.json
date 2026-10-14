@@ -201,6 +201,8 @@
     "subscriptionsTitle": "Subscriptions",
     "subscriptionsHint": "Plans, payment methods and invoices are managed securely in Stripe.",
     "openStripe": "Manage in Stripe",
-    "portalError": "We could not open the billing portal. Please try again in a moment."
+    "portalError": "We could not open the billing portal. Please try again in a moment.",
+    "balanceError": "We could not load your balance.",
+    "retryBalance": "Try again"
   }
 }

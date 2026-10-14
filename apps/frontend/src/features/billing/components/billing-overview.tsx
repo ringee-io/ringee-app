@@ -1,7 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CreditCard, ExternalLink, Loader2, Wallet } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  CreditCard,
+  ExternalLink,
+  Loader2,
+  RotateCw,
+  Wallet
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -76,19 +82,45 @@ export function BillingOverview() {
 
 function BuyCredit({ flow }: { flow: FundingFlowState }) {
   const api = useApi();
+  const t = useTranslations('billing.overview');
   const hasLoaded = useCreditStore((s) => s.hasLoaded);
+  const failed = useCreditStore((s) => s.status === 'error');
   const { refreshFunding, presetLastTopup } = flow;
 
+  // Silent only once a balance is on screen: a failed first load has to reach
+  // the store's error state, or the skeleton below never gives way.
+  const loadBalance = useCallback(() => {
+    const { hasLoaded, fetchBalance } = useCreditStore.getState();
+    void fetchBalance(api, false, hasLoaded);
+  }, [api]);
+
   // What opening the header's popover does: a fresh balance and funding state.
-  // The header's own CreditPopover does the first balance load.
   useEffect(() => {
-    useCreditStore.getState().fetchBalance(api, false, true);
+    loadBalance();
     refreshFunding();
-  }, [api, refreshFunding]);
+  }, [loadBalance, refreshFunding]);
 
   useEffect(() => {
     if (hasLoaded) presetLastTopup();
   }, [hasLoaded, presetLastTopup]);
+
+  if (!hasLoaded && failed) {
+    return (
+      <div className='bg-background w-full max-w-[440px] rounded-2xl border p-6 shadow-sm'>
+        <p role='alert' className='text-destructive text-sm'>
+          {t('balanceError')}
+        </p>
+        <Button
+          variant='outline'
+          className='mt-4 w-full gap-2'
+          onClick={loadBalance}
+        >
+          <RotateCw className='size-4' />
+          {t('retryBalance')}
+        </Button>
+      </div>
+    );
+  }
 
   if (!hasLoaded) {
     return <Skeleton className='h-[460px] w-full max-w-[440px] rounded-2xl' />;

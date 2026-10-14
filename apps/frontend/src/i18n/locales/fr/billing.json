@@ -201,6 +201,8 @@
     "subscriptionsTitle": "Abonnements",
     "subscriptionsHint": "Les formules, moyens de paiement et factures sont gérés en toute sécurité dans Stripe.",
     "openStripe": "Gérer dans Stripe",
-    "portalError": "Nous n'avons pas pu ouvrir le portail de facturation. Veuillez réessayer dans un instant."
+    "portalError": "Nous n'avons pas pu ouvrir le portail de facturation. Veuillez réessayer dans un instant.",
+    "balanceError": "Nous n'avons pas pu charger votre solde.",
+    "retryBalance": "Réessayer"
   }
 }

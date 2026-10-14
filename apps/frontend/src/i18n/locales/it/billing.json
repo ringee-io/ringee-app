@@ -201,6 +201,8 @@
     "subscriptionsTitle": "Abbonamenti",
     "subscriptionsHint": "Piani, metodi di pagamento e fatture sono gestiti in modo sicuro su Stripe.",
     "openStripe": "Gestisci su Stripe",
-    "portalError": "Non siamo riusciti ad aprire il portale di fatturazione. Riprova tra un momento."
+    "portalError": "Non siamo riusciti ad aprire il portale di fatturazione. Riprova tra un momento.",
+    "balanceError": "Non siamo riusciti a caricare il tuo saldo.",
+    "retryBalance": "Riprova"
   }
 }

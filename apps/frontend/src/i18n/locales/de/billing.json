@@ -201,6 +201,8 @@
     "subscriptionsTitle": "Abonnements",
     "subscriptionsHint": "Pläne, Zahlungsmethoden und Rechnungen werden sicher in Stripe verwaltet.",
     "openStripe": "In Stripe verwalten",
-    "portalError": "Das Abrechnungsportal konnte nicht geöffnet werden. Bitte versuchen Sie es gleich noch einmal."
+    "portalError": "Das Abrechnungsportal konnte nicht geöffnet werden. Bitte versuchen Sie es gleich noch einmal.",
+    "balanceError": "Ihr Guthaben konnte nicht geladen werden.",
+    "retryBalance": "Erneut versuchen"
   }
 }
