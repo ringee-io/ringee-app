@@ -64,10 +64,6 @@ export class RingeeDialer {
             .catch((err) => this.emitError(toRingeeError(err)));
         },
         onConnectionError: (err) => this.emitError(err),
-        onCallQuality: (quality) => {
-          if (this.activeCall?.state === "active")
-            this.bus.emit("callQuality", { call: this.activeCall, quality });
-        },
       },
       options.debug ?? false,
     );

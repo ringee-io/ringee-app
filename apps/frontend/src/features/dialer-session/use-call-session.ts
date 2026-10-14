@@ -443,7 +443,6 @@ export function useCallSession(token: string) {
     stats,
     mode,
     telnyxStatus: telnyx.status,
-    activeCall: sessionCall.call,
     call: {
       state: sessionCall.callState,
       isMuted: sessionCall.isMuted,

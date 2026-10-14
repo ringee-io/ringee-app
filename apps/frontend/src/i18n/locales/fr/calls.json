@@ -598,24 +598,5 @@
       "clear": "Effacer la recherche",
       "hint": "Ils sont désactivés pendant la saisie, un appel ou lorsqu’une fenêtre de dialogue est ouverte."
     }
-  },
-  "callQuality": {
-    "status": "Connexion : {quality}",
-    "title": "Qualité de la connexion",
-    "description": "Ces mesures couvrent la connexion de votre navigateur au réseau vocal. Elles ne mesurent ni le réseau téléphonique du destinataire ni la qualité du microphone.",
-    "good": "Bonne",
-    "fair": "Moyenne",
-    "poor": "Mauvaise",
-    "unknown": "En attente de données",
-    "latency": "Délai aller-retour",
-    "jitter": "Gigue audio reçue",
-    "packetLoss": "Paquets reçus perdus",
-    "outboundLatency": "Audio envoyé : délai aller-retour",
-    "outboundPacketLoss": "Paquets envoyés perdus",
-    "unavailable": "Indisponible",
-    "ms": "{value} ms",
-    "percent": "{value} %",
-    "poorConnectionHint": "Si le son est haché, essayez une connexion filaire ou un autre réseau.",
-    "outboundJitter": "Gigue audio envoyée"
   }
 }

@@ -22,19 +22,6 @@ import {
 export type { Call, INotification };
 export { buildCallHeaders, type CallAttribution };
 
-const WEBRTC_REGIONS = [
-  "eu",
-  "us-central",
-  "us-east",
-  "us-west",
-  "ca-central",
-  "apac",
-  "south-asia",
-] as const;
-
-/** Supported Telnyx signaling regions. Omission preserves automatic routing. */
-export type WebRtcRegion = (typeof WEBRTC_REGIONS)[number];
-
 export interface TelnyxClientConfig {
   /** SIP username — env-provided (web) or backend-minted credential (extension). */
   login: string;
@@ -44,8 +31,6 @@ export interface TelnyxClientConfig {
   ringbackFile?: string;
   /** Local ringtone for inbound calls (web app only today). */
   ringtoneFile?: string;
-  /** Override only for a measured regional requirement; auto is the default. */
-  region?: WebRtcRegion;
   debug?: boolean;
 }
 
@@ -86,10 +71,6 @@ export function createTelnyxClient(config: TelnyxClientConfig): TelnyxRTC {
     ringtoneFile: config.ringtoneFile,
     debug: config.debug ?? false,
     keepConnectionAliveOnSocketClose: true,
-    enableCallReports: true,
-    ...(config.region && WEBRTC_REGIONS.includes(config.region)
-      ? { region: config.region }
-      : {}),
   });
 }
 

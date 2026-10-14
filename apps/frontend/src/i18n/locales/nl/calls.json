@@ -598,24 +598,5 @@
       "clear": "Zoekopdracht wissen",
       "hint": "Ze werken niet terwijl je typt, tijdens een gesprek of als er een dialoogvenster openstaat."
     }
-  },
-  "callQuality": {
-    "status": "Verbinding: {quality}",
-    "title": "Verbindingskwaliteit",
-    "description": "Deze metingen gaan over de verbinding van uw browser met het spraaknetwerk. Ze meten niet het telefoonnetwerk van de ontvanger of de microfoonkwaliteit.",
-    "good": "Goed",
-    "fair": "Matig",
-    "poor": "Slecht",
-    "unknown": "Wachten op gegevens",
-    "latency": "Vertraging heen en terug",
-    "jitter": "Jitter van ontvangen audio",
-    "packetLoss": "Verlies van ontvangen pakketten",
-    "outboundLatency": "Verzonden audio: heen en terug",
-    "outboundPacketLoss": "Verlies van verzonden pakketten",
-    "unavailable": "Niet beschikbaar",
-    "ms": "{value} ms",
-    "percent": "{value}%",
-    "poorConnectionHint": "Probeer bij haperend geluid een bekabelde verbinding of een ander netwerk.",
-    "outboundJitter": "Jitter van verzonden audio"
   }
 }

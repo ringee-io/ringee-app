@@ -5,12 +5,6 @@
  * integrator needs to build a fully custom dialer UI is here. Telnyx is never
  * referenced: the SDK owns the provider entirely.
  */
-// The relative type-only import lets tsup inline the canonical type into the
-// published declarations instead of referencing the private workspace package.
-import type { CallQualitySnapshot } from "../../dialer-core/src/engine/call-quality";
-
-/** Network quality for the browser leg, without provider payloads or media. */
-export type CallQuality = CallQualitySnapshot;
 
 /** Authentication lifecycle of the agent (email OTP). */
 export type AuthState =
@@ -131,7 +125,6 @@ export interface RingeeEventPayloads {
   unmuted: { call: RingeeCall };
   ended: { call: RingeeCall };
   failed: { call: RingeeCall | null; error: RingeeErrorLike };
-  callQuality: { call: RingeeCall; quality: CallQuality };
   tokenExpiring: Record<string, never>;
   microphoneDenied: Record<string, never>;
   deviceChanged: Record<string, never>;
