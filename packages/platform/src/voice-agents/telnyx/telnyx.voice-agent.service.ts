@@ -51,6 +51,14 @@ const MAX_SECRET_PAGES = 50;
  */
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
+/**
+ * 4xx answers to a call start that do not prove the call was refused. A 408 or
+ * a 425 can come from a hop between Ringee and Telnyx after the request went
+ * through, and Telnyx does not promise that a throttled (429) request had no
+ * effect. A dial that may have rung someone is never retried (AGENT-019).
+ */
+const UNCERTAIN_CALL_START_STATUSES = new Set([408, 425, 429]);
+
 /** Attempts, and the base delay between them, for starting an embedding task. */
 const EMBEDDING_ATTEMPTS = 3;
 const EMBEDDING_RETRY_MS = 800;
@@ -298,7 +306,8 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
         if (
           error instanceof HttpException &&
           error.getStatus() >= 400 &&
-          error.getStatus() < 500
+          error.getStatus() < 500 &&
+          !UNCERTAIN_CALL_START_STATUSES.has(error.getStatus())
         ) {
           throw new VoiceAgentCallRefusedError(error);
         }

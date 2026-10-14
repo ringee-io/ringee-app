@@ -167,6 +167,9 @@ export type CallEventDetail = Prisma.CallGetPayload<{
   include: typeof CALL_EVENT_DETAIL_INCLUDE;
 }>;
 
+/** How long a `pending` call row still reads as a call about to start. */
+const PENDING_CALL_LIVE_MS = 10 * 60_000;
+
 /** The disposition a person picked, as a call records it (DISP-005). */
 export interface RecordedDisposition {
   id: string;
@@ -617,27 +620,44 @@ export class CallRepository {
     });
   }
 
-  /** A lead already talking to this workspace, on either side of the call. */
+  /**
+   * A lead already talking to this workspace, on either side of the call.
+   *
+   * A `pending` row counts only while it is young: no sweep closes a pre-dial
+   * that never got a leg, so an old one would block the number forever.
+   */
   async hasActiveWithNumber(
     ctx: OwnershipContext,
     phoneNumber: string,
     excludeId?: string,
   ): Promise<boolean> {
+    const pendingSince = new Date(Date.now() - PENDING_CALL_LIVE_MS);
     const count = await this.prisma.call.count({
       where: {
         ...buildOwnershipFilter(ctx),
         ...(excludeId ? { id: { not: excludeId } } : {}),
-        status: {
-          in: [
-            CallStatus.pending,
-            CallStatus.ringing,
-            CallStatus.answered,
-            CallStatus.recording,
-          ],
-        },
-        OR: [
-          { direction: "outbound", toNumber: phoneNumber },
-          { direction: "inbound", fromNumber: phoneNumber },
+        endedAt: null,
+        AND: [
+          {
+            OR: [
+              {
+                status: {
+                  in: [
+                    CallStatus.ringing,
+                    CallStatus.answered,
+                    CallStatus.recording,
+                  ],
+                },
+              },
+              { status: CallStatus.pending, createdAt: { gte: pendingSince } },
+            ],
+          },
+          {
+            OR: [
+              { direction: "outbound", toNumber: phoneNumber },
+              { direction: "inbound", fromNumber: phoneNumber },
+            ],
+          },
         ],
       },
     });

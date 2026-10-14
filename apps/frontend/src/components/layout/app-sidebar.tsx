@@ -281,7 +281,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     <p className='font-semibold'>
                       {tNav('sidebar.outreachLocked')}
                     </p>
-                    <p className='text-muted-foreground mt-0.5 text-[11px]'>
+                    <p className='text-background/70 mt-0.5 text-[11px]'>
                       {tNav('sidebar.outreachLockedDescription')}
                     </p>
                   </TooltipContent>
@@ -340,7 +340,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                               <p className='text-xs font-semibold'>
                                 {tNav('voiceAgentsTooltip.title')}
                               </p>
-                              <p className='text-muted-foreground mt-0.5 text-[11px]'>
+                              <p className='text-background/70 mt-0.5 text-[11px]'>
                                 {tNav('voiceAgentsTooltip.description')}
                               </p>
                             </TooltipContent>
@@ -373,7 +373,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                               <p className='text-xs font-semibold'>
                                 {tNav('inboxTooltip.title')}
                               </p>
-                              <p className='text-muted-foreground mt-0.5 text-[11px]'>
+                              <p className='text-background/70 mt-0.5 text-[11px]'>
                                 {tNav('inboxTooltip.description')}
                               </p>
                             </TooltipContent>
