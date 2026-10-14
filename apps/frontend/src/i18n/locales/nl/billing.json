@@ -195,12 +195,12 @@
     "expiresOn": "Vervalt op {date}",
     "default": "Standaard"
   },
-  "portal": {
-    "eyebrow": "Veilige facturatie via Stripe",
-    "title": "Je facturatieportaal wordt geopend",
-    "description": "Beheer abonnementen, betaalmethoden, facturen en factuurgegevens veilig in Stripe.",
-    "redirecting": "Doorsturen naar Stripe…",
-    "retry": "Stripe-facturatieportaal openen",
-    "error": "We konden het facturatieportaal niet openen. Probeer het zo meteen opnieuw."
+  "overview": {
+    "buyCreditTab": "Tegoed kopen",
+    "subscriptionsTab": "Abonnementen beheren",
+    "subscriptionsTitle": "Abonnementen",
+    "subscriptionsHint": "Plannen, betaalmethoden en facturen worden veilig beheerd in Stripe.",
+    "openStripe": "Beheren in Stripe",
+    "portalError": "We konden het facturatieportaal niet openen. Probeer het zo meteen opnieuw."
   }
 }

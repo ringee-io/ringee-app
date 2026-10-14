@@ -42,6 +42,7 @@ import type { NavItem } from '@ringee/frontend-shared/types';
 import { useUser, useOrganization } from '@clerk/nextjs';
 import {
   IconAddressBook,
+  IconArrowsShuffle,
   IconChevronsDown,
   IconLogout,
   IconMail,
@@ -205,6 +206,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const dialer = useDialerStore();
   const inboxUnread = useUnreadCount();
   const tNav = useTranslations('navigation');
+  const tRotation = useTranslations('numberRotation');
   const tCommon = useTranslations('common');
 
   const { user } = useMock
@@ -542,6 +544,14 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                         {/* @ts-ignore */}
                         <Icons.phoneCall className='mr-2 h-4 w-4' />
                         {tNav('userMenu.buyNumber')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          router.push('/dashboard/number-rotation')
+                        }
+                      >
+                        <IconArrowsShuffle className='mr-2 h-4 w-4' />
+                        {tRotation('header.label')}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => router.push('/dashboard/billing')}

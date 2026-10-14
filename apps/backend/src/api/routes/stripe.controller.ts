@@ -152,7 +152,7 @@ export class StripeController {
     const customerId = await this.getOrCreateCustomer(user);
     return this.stripeService.createBillingPortalSession(
       customerId,
-      `${apiConfiguration.FRONTEND_URL.replace(/\/$/, "")}/dashboard/overview`,
+      `${apiConfiguration.FRONTEND_URL.replace(/\/$/, "")}/dashboard/billing`,
     );
   }
 

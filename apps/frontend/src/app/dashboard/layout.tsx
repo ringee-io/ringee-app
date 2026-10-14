@@ -1,7 +1,7 @@
 import KBar from '@ringee/frontend-shared/components/kbar';
 import AppMainSidebar from '@/components/layout/app.main.sidebar';
 import ClerkAppProvider from '@/components/layout/clerk-app-provider';
-import Header from '@/components/layout/header';
+// import Header from '@/components/layout/header';
 import {
   SidebarInset,
   SidebarProvider
@@ -47,7 +47,7 @@ export default async function DashboardLayout({
                   dashboard down rather than competing with the toolbar. Renders
                   nothing when no offer applies. */}
               <OfferBanner placement='TOP_BANNER' />
-              <Header />
+              {/* <Header /> */}
               <div className='mt-4 flex gap-4'>
                 <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />

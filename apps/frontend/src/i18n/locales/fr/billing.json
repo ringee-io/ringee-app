@@ -195,12 +195,12 @@
     "expiresOn": "Expire le {date}",
     "default": "Par défaut"
   },
-  "portal": {
-    "eyebrow": "Facturation sécurisée par Stripe",
-    "title": "Ouverture de votre portail de facturation",
-    "description": "Gérez vos abonnements, moyens de paiement, factures et informations de facturation en toute sécurité dans Stripe.",
-    "redirecting": "Redirection vers Stripe…",
-    "retry": "Ouvrir le portail de facturation Stripe",
-    "error": "Nous n'avons pas pu ouvrir le portail de facturation. Veuillez réessayer dans un instant."
+  "overview": {
+    "buyCreditTab": "Acheter du crédit",
+    "subscriptionsTab": "Gérer les abonnements",
+    "subscriptionsTitle": "Abonnements",
+    "subscriptionsHint": "Les formules, moyens de paiement et factures sont gérés en toute sécurité dans Stripe.",
+    "openStripe": "Gérer dans Stripe",
+    "portalError": "Nous n'avons pas pu ouvrir le portail de facturation. Veuillez réessayer dans un instant."
   }
 }
