@@ -9,6 +9,7 @@ import {
   Sheet,
   SheetContent
 } from '@ringee/frontend-shared/components/ui/sheet';
+import { useSidebar } from '@ringee/frontend-shared/components/ui/sidebar';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useDialerStore } from '@/features/calls/store/dialer.store';
 import { useRailSummary } from '../hooks/use-automation-data';
@@ -56,6 +57,32 @@ function useDockable(): boolean {
 }
 
 /**
+ * The open panel takes the sidebar's room: opening it collapses an expanded
+ * sidebar to its icons, and closing it expands the sidebar again. A sidebar
+ * that was already collapsed stays collapsed. The collapse is not saved as the
+ * person's preference, so after a reload with the panel open the sidebar
+ * starts expanded, collapses again, and still comes back on close. Phones are
+ * left alone: there the sidebar is a sheet of its own.
+ */
+function useSidebarMakesRoom(panelOpen: boolean) {
+  const { open: sidebarOpen, setOpen: setSidebarOpen, isMobile } = useSidebar();
+  const panelWasOpen = useRef(false);
+  const collapsedForPanel = useRef(false);
+
+  useEffect(() => {
+    if (panelOpen === panelWasOpen.current) return;
+    panelWasOpen.current = panelOpen;
+    if (panelOpen) {
+      collapsedForPanel.current = sidebarOpen && !isMobile;
+      if (collapsedForPanel.current) setSidebarOpen(false, { persist: false });
+    } else if (collapsedForPanel.current) {
+      collapsedForPanel.current = false;
+      setSidebarOpen(true);
+    }
+  }, [panelOpen, sidebarOpen, setSidebarOpen, isMobile]);
+}
+
+/**
  * "Trigger AI Voice Agents": a strip down the whole right edge of the
  * dashboard, beside the header and the page (AGENT-018). Its tab carries the
  * vertical title and a counter of what is really working. Open, the tab stays
@@ -65,7 +92,9 @@ function useDockable(): boolean {
  *
  * It shares the right edge with the quick dialer: one auxiliary surface at a
  * time. Closing the dialer only hides its keypad — the call engine lives in
- * the sidebar, so switching panels never ends or unmounts a call.
+ * the sidebar, so switching panels never ends or unmounts a call. While the
+ * panel is open the sidebar stays collapsed to its icons
+ * (`useSidebarMakesRoom`).
  */
 export function VoiceAgentsRail() {
   const t = useTranslations('aiVoiceAgents.automations');
@@ -133,8 +162,13 @@ export function VoiceAgentsRail() {
     }, 0);
   }, [refresh, setOpen]);
 
-  if (!enabled || !workspaceKey || storedWorkspaceKey !== workspaceKey)
-    return null;
+  // A stored `open` alone does not collapse the sidebar: the panel has to be
+  // on screen — the workspace in the pilot and its own rail state loaded.
+  const available =
+    enabled && workspaceKey !== null && storedWorkspaceKey === workspaceKey;
+  useSidebarMakesRoom(available && open);
+
+  if (!available) return null;
 
   const operational = summary?.operational ?? 0;
   const attention = (summary?.attention ?? 0) > 0;
