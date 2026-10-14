@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { SupportChat } from '@/components/layout/support-chat';
 import { AskAi } from '@/features/marketing/components/ask-ai';
 import { MarketingTopBanner } from '@/features/marketing/components/banner-top';
+import { CallUs } from '@/features/marketing/components/call-us';
 import { MarketingFooter } from '@/features/marketing/components/footer';
 import { MarketingNavbar } from '@/features/marketing/components/navbar';
 import {
@@ -46,6 +47,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           <MarketingFooter />
         </div>
         <AskAi />
+        <CallUs />
       </div>
 
       {/* Canonical entity anchors — one Organization + WebSite per marketing

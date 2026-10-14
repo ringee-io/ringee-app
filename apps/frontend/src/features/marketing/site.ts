@@ -49,6 +49,11 @@ export const SDK_NPM_URL = 'https://www.npmjs.com/package/@ringee/dialer-sdk';
 export const SIGN_IN_URL = '/auth/sign-in';
 export const SIGN_UP_URL = '/auth/sign-up';
 export const REQUEST_DEMO_URL = '/request-demo';
+/** Ringee's phone line, dialed from the floating call button on every page. */
+export const CONTACT_PHONE = {
+  e164: '+18145434034',
+  display: '+1 (814) 543-4034'
+} as const;
 
 /**
  * ISO timestamp used as a freshness signal across the site (schema
@@ -433,6 +438,8 @@ const SITE_TEXT_ES: Record<string, string> = {
     'Consulta copiada: pégala en Gemini',
   'Page copied as Markdown': 'Página copiada como Markdown',
   'Could not copy to clipboard': 'No se pudo copiar al portapapeles',
+  'Call us': 'Llámanos',
+  'Open 24/7': 'Activo 24/7',
   'Preview Ringee Manual Dialer': 'Ver el marcador manual de Ringee',
   'Manual Dialer': 'Marcador manual',
   'Call any number instantly from Ringee.':
