@@ -1,0 +1,60 @@
+/* The handset rings once, a moment after the page settles, and again on
+   hover or keyboard focus. The first ring is on the key and the hover ring on
+   the icon, so leaving the button never replays the delayed one. The "open
+   24/7" dot breathes slowly — it stays on screen, so it must not nag. A reader
+   who asked for less motion gets a still icon and a still dot. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .key {
+    animation: call-us-ring 0.9s ease-in-out 2.5s both;
+  }
+
+  .trigger:hover .icon,
+  .trigger:focus-visible .icon {
+    animation: call-us-ring 0.9s ease-in-out;
+  }
+
+  .live {
+    animation: call-us-live 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+}
+
+@keyframes call-us-live {
+  0% {
+    transform: none;
+    opacity: 0.6;
+  }
+
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes call-us-ring {
+  0%,
+  100% {
+    transform: none;
+  }
+
+  15% {
+    transform: rotate(-14deg);
+  }
+
+  30% {
+    transform: rotate(12deg);
+  }
+
+  45% {
+    transform: rotate(-9deg);
+  }
+
+  60% {
+    transform: rotate(6deg);
+  }
+
+  75% {
+    transform: rotate(-3deg);
+  }
+}
