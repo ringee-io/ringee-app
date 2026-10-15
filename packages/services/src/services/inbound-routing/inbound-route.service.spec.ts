@@ -32,6 +32,8 @@ function setup() {
     route: null as Row | null,
     /** A route the number kept from the workspace it was moved out of. */
     leftover: null as Row | null,
+    /** Runs as the number's route lock is granted, e.g. a transfer that won. */
+    onLock: null as (() => void) | null,
     agent: null as Row | null,
     number: {
       id: "number-r",
@@ -187,7 +189,10 @@ function setup() {
       },
     } as never,
     {
-      setIfAbsent: async () => true,
+      setIfAbsent: async () => {
+        state.onLock?.();
+        return true;
+      },
       compareAndSwap: async () => true,
     } as never,
   );
@@ -400,6 +405,40 @@ describe("InboundRouteService", () => {
     assert.deepEqual(s.droppedLeftovers, ["personal-route"]);
     assert.equal(view.configured, false);
   });
+
+  // The number was checked, then moved to another workspace before this write
+  // got the lock: the route that workspace wrote meanwhile is not a leftover to
+  // drop, and no route may be written back for the workspace it left.
+  for (const write of ["save", "reset"] as const)
+    it(`touches no route when the number moved away before the ${write} got the lock`, async () => {
+      const s = setup();
+      const newOwners = {
+        id: "org-2-route",
+        userId: "user-z",
+        organizationId: "org-2",
+        numberId: "number-r",
+        destinationType: InboundDestinationType.user,
+        destinationId: "user-z",
+        version: 1,
+      };
+      s.state.onLock = () => {
+        s.state.number.organizationId = "org-2";
+        s.state.leftover = newOwners;
+      };
+      await assert.rejects(
+        write === "save"
+          ? s.service.saveForNumber(ADMIN, ringee, {
+              destinationType: InboundDestinationType.ring_group,
+              destinationId: "group-1",
+            })
+          : s.service.deleteForNumber(ADMIN, ringee),
+        NotFoundException,
+      );
+      assert.deepEqual(s.droppedLeftovers, []);
+      assert.equal(s.state.leftover, newOwners);
+      assert.deepEqual(s.saved, []);
+      assert.deepEqual(s.deleted, []);
+    });
 
   it("refuses a number in another workspace as if it did not exist", async () => {
     const s = setup();

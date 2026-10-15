@@ -78,6 +78,7 @@ export function InboundRoutingButton({
           <RoutingEditor
             agentId={agentId}
             number={number}
+            onChanged={() => onSaved?.()}
             onSaved={() => {
               onSaved?.();
               setOpen(false);
@@ -92,10 +93,13 @@ export function InboundRoutingButton({
 function RoutingEditor({
   agentId,
   number,
+  onChanged,
   onSaved,
 }: {
   agentId?: string;
   number?: NumberRef;
+  /** Part of a save went through; the editor stays open on the rest. */
+  onChanged: () => void;
   onSaved: () => void;
 }) {
   const api = useApi();
@@ -221,6 +225,14 @@ function RoutingEditor({
     if (failed.length) {
       setError(true);
       setFailures(failed);
+      if (failed.length < changes.length) {
+        // What did save shows now — in these rows and in whatever lists the
+        // numbers behind the dialog — while the failed ones wait for a retry.
+        onChanged();
+        void api
+          .get<Route[]>("/inbound-routes/numbers")
+          .then(setNumbers, () => undefined);
+      }
     } else onSaved();
   };
   if (loading) return <Skeleton className="h-40 w-full" />;

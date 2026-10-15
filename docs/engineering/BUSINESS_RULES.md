@@ -682,6 +682,10 @@ route the number still carries from a workspace that no longer owns it — moves
 made before that left one behind — is dropped when the new workspace saves or
 resets the number's route: that workspace cannot see it, yet the resolver
 follows it and the upsert used to land on it, so the save never showed up.
+Route writes and the move hold the same per-number lock and re-check the
+number's workspace under it, so neither acts for a workspace the number has
+just left. A DID an AI route held on the Call Control application goes back to
+its own connection after the move, as when any route leaves the AI.
 
 A number with no route keeps its previous behavior exactly: a desk-phone-pinned
 number rings that phone, any other Ringee DID rings its owner, and a carrier DID

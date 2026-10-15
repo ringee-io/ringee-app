@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import {
   NumberPurchased,
   NumberPurchasedRepository,
@@ -21,6 +23,7 @@ import {
   NumberOrderRequirements,
   NumberVerificationOutcome,
   DraftRegulatoryRequirementInput,
+  RedisService,
   RegulatoryRequirementValue,
   RequirementDraft,
   ResendProvider,
@@ -29,6 +32,7 @@ import {
 import { apiConfiguration } from "@ringee/configuration";
 import { RegulatoryDocumentService } from "./regulatory-document.service";
 import { OrganizationService } from "./organization.service";
+import { inboundRouteLockKey } from "./inbound-routing/inbound-route-lock";
 
 /** Internal address copied on every regulatory-submission follow-up email. */
 const REGULATORY_FOLLOWUP_CC = "edisonpadilla.dev@gmail.com";
@@ -46,6 +50,7 @@ export class NumberPurchasedService {
     private readonly requirementValueRepository: NumberRequirementValueRepository,
     private readonly regulatoryDocumentService: RegulatoryDocumentService,
     private readonly organizationService: OrganizationService,
+    private readonly redis: RedisService,
   ) {}
 
   /**
@@ -221,17 +226,69 @@ export class NumberPurchasedService {
       }
     }
 
-    return this.numberPurchasedRepository.transferWorkspace(
-      numberId,
-      {
-        userId: user.id,
-        organizationId: number.organizationId ?? null,
-      },
-      {
-        userId: user.id,
-        organizationId: targetOrganizationId,
-      },
-    );
+    // The lock every inbound route writer holds: a route save that checked the
+    // number's workspace cannot write after the move, and the transfer's own
+    // route cleanup cannot run in the middle of one.
+    const lock = inboundRouteLockKey({ kind: "ringee", id: numberId });
+    const token = randomUUID();
+    if (!(await this.redis.setIfAbsent(lock, token, 120)))
+      throw new ConflictException(
+        "This number's routing is being updated. Try again.",
+      );
+    try {
+      const moved = await this.numberPurchasedRepository.transferWorkspace(
+        numberId,
+        {
+          userId: user.id,
+          organizationId: number.organizationId ?? null,
+        },
+        {
+          userId: user.id,
+          organizationId: targetOrganizationId,
+        },
+      );
+      return await this.leaveCallControlApplication(moved);
+    } finally {
+      await this.redis.compareAndSwap(lock, token, null);
+    }
+  }
+
+  /**
+   * Only an AI receptionist route keeps a Ringee DID on the Call Control
+   * application (NUM-009), and the transfer just dropped the number's route:
+   * the DID goes back to the shared connection, its own once the move reset
+   * any desk-phone pin. The route goes first, as when a route leaves the AI —
+   * a DID still on the application rings its new owner, while an AI route on
+   * a DID that left it would be refused. A carrier failure keeps the transfer
+   * and is logged; the number's next route save or reset moves it.
+   */
+  private async leaveCallControlApplication(
+    number: NumberPurchased,
+  ): Promise<NumberPurchased> {
+    const appId = apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
+    if (
+      !appId ||
+      appId === apiConfiguration.TELNYX_CONNECTION_ID ||
+      number.providerConnectionId !== appId
+    )
+      return number;
+    try {
+      const assigned = await this.telephonyService.assignNumberToConnection(
+        number.phoneNumber,
+        apiConfiguration.TELNYX_CONNECTION_ID,
+      );
+      return await this.numberPurchasedRepository.update(number.id, {
+        providerConnectionId: assigned.connectionId,
+        providerConnectionName: assigned.connectionName,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Number ${number.phoneNumber} changed workspaces but is still on the ` +
+          `Call Control application; its next route save or reset moves it: ` +
+          `${(err as Error).message}`,
+      );
+      return number;
+    }
   }
 
   /**
