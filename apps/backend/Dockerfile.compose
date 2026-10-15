@@ -1,43 +1,45 @@
-# ──────────────────────────────────────────────
-# Ringee Backend — Production Dockerfile
-# ──────────────────────────────────────────────
-FROM node:22-alpine AS base
+# Ringee Backend — ship only the API production dependency graph.
+FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+COPY package.json ./
+RUN corepack enable && corepack install
 
-# ── Build everything in one stage ──
 FROM base AS builder
-WORKDIR /app
-COPY . .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm --filter @ringee/database prisma:generate
-RUN pnpm --filter backend... build
+COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/backend/package.json apps/backend/
+COPY packages/configuration/package.json packages/configuration/
+COPY packages/database/package.json packages/database/
+COPY packages/platform/package.json packages/platform/
+COPY packages/services/package.json packages/services/
+# Cache the selected dependency graph independently of application sources.
+COPY packages/database/prisma packages/database/prisma
+RUN pnpm --filter backend... install --frozen-lockfile --prefer-offline
 
-# ── Final runner image ──
-FROM node:22-alpine AS runner
-WORKDIR /app
+COPY tsconfig.json tsconfig.build.json ./
+COPY packages/configuration/src packages/configuration/src
+COPY packages/database/src packages/database/src
+COPY packages/platform/src packages/platform/src
+COPY packages/services/src packages/services/src
+COPY apps/backend apps/backend
+# Nest compiles the shared packages through the source aliases in this build.
+RUN pnpm run build:backend
+# Prisma was generated during install; the packaging script copies it explicitly.
+# Remove only that completed workspace hook before treating it as a file dependency.
+RUN node -e 'const fs = require("node:fs"); const file = "packages/database/package.json"; const pkg = JSON.parse(fs.readFileSync(file, "utf8")); if (pkg.scripts.postinstall !== "prisma generate") throw new Error("Update runtime packaging for the database postinstall hook"); delete pkg.scripts.postinstall; fs.writeFileSync(file, JSON.stringify(pkg));' \
+    && pnpm --filter backend deploy --prod /prod/apps/backend
+COPY scripts/prepare-service-runtime.mjs scripts/
+RUN node scripts/prepare-service-runtime.mjs apps/backend /prod \
+    && cp package.json pnpm-workspace.yaml /prod/
+
+FROM base AS runner
 ENV NODE_ENV=production
-# Enable pnpm so we can invoke workspace scripts (e.g. prisma migrate deploy)
-RUN corepack enable
-
-# Copy root node_modules (preserves pnpm symlink structure)
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy built backend
-COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
-COPY --from=builder /app/apps/backend/package.json ./apps/backend/package.json
-COPY --from=builder /app/apps/backend/node_modules ./apps/backend/node_modules
-
-# Copy built packages
-COPY --from=builder /app/packages ./packages
-
-# Copy workspace config
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
-
+COPY --from=builder --chown=node:node /prod /app
 USER node
 EXPOSE 3000
-# Run migrations before starting the server (idempotent — safe on already-migrated DBs)
-CMD ["sh", "-c", "pnpm --filter @ringee/database db:deploy && node apps/backend/dist/apps/backend/src/main"]
+# Invoke the bundled Prisma CLI directly; startup never downloads a package manager.
+CMD ["sh", "-c", "node packages/database/node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma && exec node apps/backend/dist/apps/backend/src/main"]

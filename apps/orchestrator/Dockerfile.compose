@@ -1,38 +1,43 @@
-# ──────────────────────────────────────────────
-# Ringee Orchestrator (Temporal worker) — Production Dockerfile
-# ──────────────────────────────────────────────
-FROM node:22-alpine AS base
+# Ringee Orchestrator — Temporal requires glibc, so build and run on Debian.
+FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+COPY package.json ./
+RUN corepack enable && corepack install
 
-# ── Build everything in one stage ──
 FROM base AS builder
-WORKDIR /app
-COPY . .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm --filter @ringee/database prisma:generate
-RUN pnpm --filter @ringee/orchestrator... build
+COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/orchestrator/package.json apps/orchestrator/
+COPY packages/configuration/package.json packages/configuration/
+COPY packages/database/package.json packages/database/
+COPY packages/platform/package.json packages/platform/
+COPY packages/services/package.json packages/services/
+# Cache the selected dependency graph independently of application sources.
+COPY packages/database/prisma packages/database/prisma
+RUN pnpm --filter @ringee/orchestrator... install --frozen-lockfile --prefer-offline
 
-# ── Final runner image ──
-FROM node:22-alpine AS runner
-WORKDIR /app
+COPY tsconfig.json tsconfig.build.json ./
+COPY packages/configuration/src packages/configuration/src
+COPY packages/database/src packages/database/src
+COPY packages/platform/src packages/platform/src
+COPY packages/services/src packages/services/src
+COPY apps/orchestrator apps/orchestrator
+# Nest compiles the shared packages through the source aliases in this build.
+RUN pnpm run build:orchestrator
+# Prisma was generated during install; the packaging script copies it explicitly.
+# Remove only that completed workspace hook before treating it as a file dependency.
+RUN node -e 'const fs = require("node:fs"); const file = "packages/database/package.json"; const pkg = JSON.parse(fs.readFileSync(file, "utf8")); if (pkg.scripts.postinstall !== "prisma generate") throw new Error("Update runtime packaging for the database postinstall hook"); delete pkg.scripts.postinstall; fs.writeFileSync(file, JSON.stringify(pkg));' \
+    && pnpm --filter @ringee/orchestrator deploy --prod /prod/apps/orchestrator
+COPY scripts/prepare-service-runtime.mjs scripts/
+RUN node scripts/prepare-service-runtime.mjs apps/orchestrator /prod \
+    && cp package.json pnpm-workspace.yaml /prod/
+
+FROM base AS runner
 ENV NODE_ENV=production
-
-# Copy root node_modules (preserves pnpm symlink structure)
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy built orchestrator
-COPY --from=builder /app/apps/orchestrator/dist ./apps/orchestrator/dist
-COPY --from=builder /app/apps/orchestrator/package.json ./apps/orchestrator/package.json
-COPY --from=builder /app/apps/orchestrator/node_modules ./apps/orchestrator/node_modules
-
-# Copy built packages
-COPY --from=builder /app/packages ./packages
-
-# Copy workspace config
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-
+COPY --from=builder --chown=node:node /prod /app
 USER node
 CMD ["node", "apps/orchestrator/dist/apps/orchestrator/src/main"]

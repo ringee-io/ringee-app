@@ -15,6 +15,7 @@
 **/node_modules
 **/.next
 **/dist
+**/out
 **/.turbo
 **/.env*
 **/.DS_Store
@@ -27,3 +28,6 @@
 # apps/frontend generates its published /SKILL.md routes from them at build time.
 # (Last matching rule wins, so this negation must stay below `**/*.md`.)
 !packages/agent/skills/**
+
+# Service image packaging runs inside the builder.
+!scripts/
