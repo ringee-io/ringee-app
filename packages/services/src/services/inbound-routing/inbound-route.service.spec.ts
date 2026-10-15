@@ -27,8 +27,11 @@ function setup() {
   const deleted: Row[] = [];
   const assignments: string[] = [];
   const casWrites: Row[] = [];
+  const droppedLeftovers: string[] = [];
   const state = {
     route: null as Row | null,
+    /** A route the number kept from the workspace it was moved out of. */
+    leftover: null as Row | null,
     agent: null as Row | null,
     number: {
       id: "number-r",
@@ -77,6 +80,19 @@ function setup() {
     {
       listByOwner: async () => (state.route ? [state.route] : []),
       findOwnedByNumber: async () => state.route,
+      // Unscoped, as on the inbound path: the workspace's own route, or one
+      // another workspace left on the number.
+      findByNumber: async () =>
+        state.leftover ??
+        (state.route
+          ? { userId: "user-a", organizationId: "org-1", ...state.route }
+          : null),
+      deleteLeftoverForNumber: async (_ref: Row, id: string) => {
+        droppedLeftovers.push(id);
+        if (state.leftover?.id !== id) return 0;
+        state.leftover = null;
+        return 1;
+      },
       saveForNumber: async (
         _ctx: Row,
         ref: Row,
@@ -175,7 +191,15 @@ function setup() {
       compareAndSwap: async () => true,
     } as never,
   );
-  return { service, state, saved, deleted, assignments, casWrites };
+  return {
+    service,
+    state,
+    saved,
+    deleted,
+    assignments,
+    casWrites,
+    droppedLeftovers,
+  };
 }
 
 async function withDeskPhones<T>(run: () => Promise<T>): Promise<T> {
@@ -332,6 +356,49 @@ describe("InboundRouteService", () => {
     const reset = await s.service.deleteForNumber(ADMIN, ringee);
     assert.equal(reset.configured, false);
     assert.deepEqual(s.deleted, [ringee]);
+    assert.deepEqual(s.droppedLeftovers, []);
+  });
+
+  // A number moved out of the personal workspace kept its route there: the
+  // organization could not see it, and its saves landed on it.
+  const personalLeftover = {
+    id: "personal-route",
+    userId: "user-a",
+    organizationId: null,
+    numberId: "number-r",
+    destinationType: InboundDestinationType.user,
+    destinationId: "user-a",
+    version: 3,
+  };
+
+  it("replaces a route the number kept from the workspace it was moved out of", async () => {
+    const previous = config.TELNYX_CALL_CONTROL_APP_ID;
+    config.TELNYX_CALL_CONTROL_APP_ID = "receptionist-app";
+    try {
+      const s = setup();
+      s.state.leftover = { ...personalLeftover };
+      s.state.agent = { id: "lucia", name: "Lucía", type: "receptionist" };
+      const view = await s.service.saveForNumber(ADMIN, ringee, {
+        destinationType: InboundDestinationType.ai_receptionist,
+        destinationId: "lucia",
+      });
+      assert.deepEqual(s.droppedLeftovers, ["personal-route"]);
+      assert.equal(s.state.leftover, null);
+      assert.equal(view.configured, true);
+      assert.equal(view.destinationId, "lucia");
+      // Nothing of the old workspace's route is carried over as a backup.
+      assert.equal(s.saved[0]!.restore, null);
+    } finally {
+      config.TELNYX_CALL_CONTROL_APP_ID = previous;
+    }
+  });
+
+  it("resets a number to its default even when the old workspace's route is still on it", async () => {
+    const s = setup();
+    s.state.leftover = { ...personalLeftover };
+    const view = await s.service.deleteForNumber(ADMIN, ringee);
+    assert.deepEqual(s.droppedLeftovers, ["personal-route"]);
+    assert.equal(view.configured, false);
   });
 
   it("refuses a number in another workspace as if it did not exist", async () => {

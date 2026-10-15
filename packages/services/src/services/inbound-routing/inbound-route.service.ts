@@ -212,6 +212,7 @@ export class InboundRouteService {
         "This number's routing is being updated. Try again.",
       );
     try {
+      await this.dropLeftoverRoute(ctx, ref);
       const current = await this.routes.findOwnedByNumber(ctx, ref);
       const restore = toAgent
         ? this.restoreTargetFor(current, options?.restoreTo)
@@ -243,6 +244,7 @@ export class InboundRouteService {
         "This number's routing is being updated. Try again.",
       );
     try {
+      await this.dropLeftoverRoute(ctx, ref);
       await this.routes.deleteForNumber(ctx, ref);
       if (ref.kind === "ringee") await this.syncRingeeConnection(ref.id, null);
       return this.view(ctx, ref, number, null);
@@ -648,6 +650,23 @@ export class InboundRouteService {
           `${input.destinationType} destinations are not available yet.`,
         );
     }
+  }
+
+  /**
+   * A route the number still carries from a workspace that no longer owns it,
+   * left behind by a workspace transfer. This workspace cannot see it, yet the
+   * upsert landed on it — so every save "worked" and never showed up — and the
+   * resolver follows it, because the workspace is read off the number, never
+   * off the route (NUM-009). It goes before this workspace writes its own.
+   * Callers have already proved the number is this workspace's.
+   */
+  private async dropLeftoverRoute(
+    ctx: OwnershipContext,
+    ref: InboundNumberRef,
+  ): Promise<void> {
+    const route = await this.routes.findByNumber(ref);
+    if (route && !this.rowInWorkspace(ctx, route))
+      await this.routes.deleteLeftoverForNumber(ref, route.id);
   }
 
   private rowInWorkspace(
