@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApi } from "../../hooks/use.api";
 import { useOrgRole } from "../../hooks/use-org-role";
+import { describeApiError } from "../../lib/api-error";
+import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -76,6 +78,7 @@ export function InboundRoutingButton({
           <RoutingEditor
             agentId={agentId}
             number={number}
+            onChanged={() => onSaved?.()}
             onSaved={() => {
               onSaved?.();
               setOpen(false);
@@ -90,10 +93,13 @@ export function InboundRoutingButton({
 function RoutingEditor({
   agentId,
   number,
+  onChanged,
   onSaved,
 }: {
   agentId?: string;
   number?: NumberRef;
+  /** Part of a save went through; the editor stays open on the rest. */
+  onChanged: () => void;
   onSaved: () => void;
 }) {
   const api = useApi();
@@ -114,6 +120,10 @@ function RoutingEditor({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
+  /** Numbers the last save could not change, with the server's reason. */
+  const [failures, setFailures] = useState<{ key: string; reason: string }[]>(
+    [],
+  );
   const [more, setMore] = useState(false);
   useEffect(() => {
     let active = true;
@@ -171,15 +181,21 @@ function RoutingEditor({
       clearTimeout(timer);
     };
   }, [api, query, agentId]);
+  // A receptionist's numbers are saved as a difference: the ones it already
+  // answers are not sent again, so a save never fails on a number it left as
+  // it was. Elsewhere every selected number takes the chosen destination.
+  const added = agentId
+    ? selected.filter((key) => !assigned.includes(key))
+    : selected;
+  const removed = agentId
+    ? assigned.filter((key) => !selected.includes(key))
+    : [];
   const save = async () => {
     setSaving(true);
     setError(false);
+    setFailures([]);
     const [destinationType, destinationId] = destination.split(":");
-    // Keep failed rows selected. Successful assignments are visible immediately on retry.
-    const removed = agentId
-      ? assigned.filter((key) => !selected.includes(key))
-      : [];
-    const changes = [...selected, ...removed];
+    const changes = [...added, ...removed];
     const results = await Promise.allSettled(
       changes.map((key) =>
         destination === "default" || removed.includes(key)
@@ -190,12 +206,33 @@ function RoutingEditor({
             }),
       ),
     );
-    const failed = changes.filter(
-      (_, index) => results[index].status === "rejected",
-    );
+    const failed = changes.flatMap((key, index) => {
+      const result = results[index];
+      return result?.status === "rejected"
+        ? [{ key, reason: describeApiError(result.reason, "") }]
+        : [];
+    });
+    // Failed rows keep their selection; what did save is the new starting
+    // point, so a retry sends only what is still missing.
+    if (agentId) {
+      const done = (key: string) => !failed.some((f) => f.key === key);
+      setAssigned((current) => [
+        ...current.filter((key) => !(removed.includes(key) && done(key))),
+        ...added.filter(done),
+      ]);
+    }
     setSaving(false);
     if (failed.length) {
       setError(true);
+      setFailures(failed);
+      if (failed.length < changes.length) {
+        // What did save shows now — in these rows and in whatever lists the
+        // numbers behind the dialog — while the failed ones wait for a retry.
+        onChanged();
+        void api
+          .get<Route[]>("/inbound-routes/numbers")
+          .then(setNumbers, () => undefined);
+      }
     } else onSaved();
   };
   if (loading) return <Skeleton className="h-40 w-full" />;
@@ -214,9 +251,16 @@ function RoutingEditor({
   return (
     <div className="space-y-4">
       {error && (
-        <p role="alert" className="text-destructive text-sm">
-          {t("error")}
-        </p>
+        <div role="alert" className="text-destructive space-y-1 text-sm">
+          <p>{t("error")}</p>
+          {failures.map((failure) => (
+            <p key={failure.key} className="text-xs">
+              {numbers.find((r) => keyOf(r.number) === failure.key)
+                ?.phoneNumber ?? failure.key}
+              {failure.reason ? ` · ${failure.reason}` : ""}
+            </p>
+          ))}
+        </div>
       )}
       {!agentId && (
         <div className="space-y-2">
@@ -272,7 +316,11 @@ function RoutingEditor({
             return (
               <label
                 key={key}
-                className="hover:bg-muted flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border p-3"
+                className={cn(
+                  "hover:bg-muted flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border p-3",
+                  failures.some((failure) => failure.key === key) &&
+                    "border-destructive",
+                )}
               >
                 <Checkbox
                   checked={selected.includes(key)}
@@ -304,7 +352,7 @@ function RoutingEditor({
           onClick={() => void save()}
           disabled={
             saving ||
-            (!selected.length && !assigned.length) ||
+            (!added.length && !removed.length) ||
             !destination ||
             (Boolean(agentId) && !agents.some((a) => a.id === agentId)) ||
             rows.some(

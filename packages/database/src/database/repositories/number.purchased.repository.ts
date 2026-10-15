@@ -286,6 +286,11 @@ export class NumberPurchasedRepository {
 
       await tx.callerIdPoolMember.deleteMany({ where: { numberId } });
       await tx.userNumber.deleteMany({ where: { numberId } });
+      // Its route names the old workspace's people and agents. Left behind,
+      // calls kept following it while the new workspace could not see it. A
+      // DID an AI route held on the Call Control application is moved back by
+      // `NumberPurchasedService.transferWorkspace` once this commits.
+      await tx.inboundRoute.deleteMany({ where: { numberId } });
 
       if (number.kind === "purchased") {
         const hasPrimary = await tx.userNumber.count({

@@ -187,6 +187,21 @@ export class InboundRouteRepository {
     return count === 1;
   }
 
+  /**
+   * Drops one route of a number whatever workspace wrote it. Only for a route
+   * the number carries from a workspace that no longer owns it, once the
+   * service has proved the number is the caller's.
+   */
+  async deleteLeftoverForNumber(
+    ref: InboundRouteNumberRef,
+    routeId: string,
+  ): Promise<number> {
+    const { count } = await this.prisma.inboundRoute.deleteMany({
+      where: { id: routeId, ...numberWhere(ref) },
+    });
+    return count;
+  }
+
   /** Resets a number to the default inbound behavior. */
   async deleteForNumber(
     ctx: OwnershipContext,

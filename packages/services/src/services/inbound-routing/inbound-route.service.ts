@@ -26,6 +26,7 @@ import {
   type OwnershipContext,
 } from "@ringee/platform";
 import { randomUUID } from "crypto";
+import { inboundRouteLockKey } from "./inbound-route-lock";
 import { InboundRouteResolverService } from "./inbound-route-resolver.service";
 import { UserService } from "../user.service";
 import { InboundCallRouterService } from "./inbound-call-router.service";
@@ -181,7 +182,7 @@ export class InboundRouteService {
       restoreTo?: InboundRouteRestoreTarget | null;
     },
   ): Promise<InboundRouteView> {
-    const number = await this.requireNumber(ctx, ref);
+    await this.requireNumber(ctx, ref);
 
     if (!ROUTABLE.includes(input.destinationType))
       throw new NotImplementedException(
@@ -205,13 +206,18 @@ export class InboundRouteService {
       input.destinationType === InboundDestinationType.ai_receptionist;
     if (toAgent && options?.restoreTo)
       await this.assertRestoreTarget(ctx, ref, options.restoreTo);
-    const lock = `inbound-route:${ref.kind}:${ref.id}`;
+    const lock = inboundRouteLockKey(ref);
     const token = randomUUID();
     if (!(await this.redis.setIfAbsent(lock, token, 120)))
       throw new ConflictException(
         "This number's routing is being updated. Try again.",
       );
     try {
+      // Again under the lock a workspace transfer also takes: the number may
+      // have moved since it was first loaded, and nothing may be cleaned up
+      // or written for a workspace that no longer owns it.
+      const number = await this.requireNumber(ctx, ref);
+      await this.dropLeftoverRoute(ctx, ref);
       const current = await this.routes.findOwnedByNumber(ctx, ref);
       const restore = toAgent
         ? this.restoreTargetFor(current, options?.restoreTo)
@@ -235,14 +241,17 @@ export class InboundRouteService {
     ctx: OwnershipContext,
     ref: InboundNumberRef,
   ): Promise<InboundRouteView> {
-    const number = await this.requireNumber(ctx, ref);
-    const lock = `inbound-route:${ref.kind}:${ref.id}`;
+    await this.requireNumber(ctx, ref);
+    const lock = inboundRouteLockKey(ref);
     const token = randomUUID();
     if (!(await this.redis.setIfAbsent(lock, token, 120)))
       throw new ConflictException(
         "This number's routing is being updated. Try again.",
       );
     try {
+      // Checked again under the lock, as in `saveForNumber`.
+      const number = await this.requireNumber(ctx, ref);
+      await this.dropLeftoverRoute(ctx, ref);
       await this.routes.deleteForNumber(ctx, ref);
       if (ref.kind === "ringee") await this.syncRingeeConnection(ref.id, null);
       return this.view(ctx, ref, number, null);
@@ -290,7 +299,7 @@ export class InboundRouteService {
         ? { kind: "ringee", id: route.numberId }
         : { kind: "external", id: route.externalNumberId! };
       let phoneNumber = "";
-      const lock = `inbound-route:${ref.kind}:${ref.id}`;
+      const lock = inboundRouteLockKey(ref);
       const token = randomUUID();
       if (!(await this.redis.setIfAbsent(lock, token, 120))) {
         failed.push({
@@ -648,6 +657,25 @@ export class InboundRouteService {
           `${input.destinationType} destinations are not available yet.`,
         );
     }
+  }
+
+  /**
+   * A route the number still carries from a workspace that no longer owns it,
+   * left behind by a workspace transfer. This workspace cannot see it, yet the
+   * upsert landed on it — so every save "worked" and never showed up — and the
+   * resolver follows it, because the workspace is read off the number, never
+   * off the route (NUM-009). It goes before this workspace writes its own.
+   * Callers hold the number's route lock and have proved, under it, that the
+   * number is this workspace's — so a transfer cannot turn the route the new
+   * owner just wrote into the "leftover" deleted here.
+   */
+  private async dropLeftoverRoute(
+    ctx: OwnershipContext,
+    ref: InboundNumberRef,
+  ): Promise<void> {
+    const route = await this.routes.findByNumber(ref);
+    if (route && !this.rowInWorkspace(ctx, route))
+      await this.routes.deleteLeftoverForNumber(ref, route.id);
   }
 
   private rowInWorkspace(
