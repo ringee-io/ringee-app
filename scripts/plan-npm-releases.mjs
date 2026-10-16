@@ -40,7 +40,7 @@ for (const directory of directories) {
   // `write=true` is what npm itself sends before a publish: it skips the CDN
   // cache, so a version published a minute ago already counts.
   const response = await fetch(
-    `${REGISTRY}/${name.replace("/", "%2f")}?write=true`,
+    `${REGISTRY}/${encodeURIComponent(name)}?write=true`,
   );
   // Trusted publishing cannot create a package: a new one needs its first
   // version published by hand before it can be released from here.
