@@ -3,6 +3,11 @@
   "version": "0.1.1",
   "description": "Universal headless browser SDK to embed Ringee calling in any web CRM.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ringee-io/ringee-app.git",
+    "directory": "packages/dialer-sdk"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -32,10 +37,8 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {
-    "@ringee/dialer-core": "workspace:*"
-  },
   "devDependencies": {
+    "@ringee/dialer-core": "workspace:*",
     "@telnyx/webrtc": "2.27.9",
     "@types/node": "~22.16.0",
     "tsup": "^8.3.0",

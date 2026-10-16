@@ -14,5 +14,3 @@ export * from "./tools/index.js";
 export * from "./rules/index.js";
 export * from "./flows/index.js";
 export * from "./prompts/index.js";
-
-export const AGENT_VERSION = "0.3.0";

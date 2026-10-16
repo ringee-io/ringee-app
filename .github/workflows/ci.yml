@@ -107,6 +107,13 @@ jobs:
             console.log('Architecture boundaries hold (0 violations).');
           "
 
+      # The builds below compile only the API, the worker and what they import:
+      # never test files, the SDK, the CLI or the extension. The npm publish
+      # workflow typechecks those too, so a break would otherwise first show up
+      # there, after the merge.
+      - name: Typecheck
+        run: pnpm -r run typecheck
+
       - name: Test
         run: pnpm test
 

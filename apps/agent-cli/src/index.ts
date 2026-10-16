@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { AGENT_VERSION } from "@ringee-io/agent";
+import { CLI_VERSION } from "./client.js";
 import { registerContacts } from "./commands/contacts.js";
 import { registerLeads } from "./commands/leads.js";
 import { registerSessions } from "./commands/sessions.js";
@@ -21,7 +21,7 @@ program
     "Operate Ringee — contacts, leads, campaigns, call sessions, callbacks, " +
       "meetings, DNC and analytics — on top of the Ringee backend/MCP.",
   )
-  .version(AGENT_VERSION, "-v, --version")
+  .version(CLI_VERSION, "-v, --version")
   .option("--json", "output raw JSON instead of formatted text")
   .addHelpText(
     "after",

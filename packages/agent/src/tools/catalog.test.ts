@@ -20,6 +20,7 @@ test("find_contacts_by_outcome is registered as a read-only tool", () => {
 
 test("its annotations match a safe read tool", () => {
   const tool = TOOL_BY_NAME["find_contacts_by_outcome"];
+  assert.ok(tool, "tool should be in the catalog");
   assert.deepEqual(tool.annotations, {
     readOnlyHint: true,
     destructiveHint: false,
@@ -30,7 +31,7 @@ test("its annotations match a safe read tool", () => {
 
 test("it renders through the OutcomeContactsCard component", () => {
   assert.equal(
-    TOOL_BY_ACTION["contacts.byOutcome"].component,
+    TOOL_BY_ACTION["contacts.byOutcome"]?.component,
     "OutcomeContactsCard",
   );
 });

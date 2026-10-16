@@ -1,7 +1,6 @@
 import { hostname, platform, release, arch } from "node:os";
 import { Command } from "commander";
 import {
-  AGENT_VERSION,
   DEFAULT_BACKEND_URL,
   RingeeAccount,
   RingeeAuthClient,
@@ -9,7 +8,13 @@ import {
   normalizeBackendUrl,
 } from "@ringee-io/agent";
 import { canOpenBrowser, openBrowser } from "../browser.js";
-import { CLI_USER_AGENT, getClient, resolveConfig, run } from "../client.js";
+import {
+  CLI_USER_AGENT,
+  CLI_VERSION,
+  getClient,
+  resolveConfig,
+  run,
+} from "../client.js";
 import {
   credentialsPath,
   deleteSavedLogin,
@@ -327,7 +332,7 @@ async function browserLogin(auth: RingeeAuthClient, allowBrowser: boolean) {
   const start = await auth.startDeviceLogin({
     deviceName: hostname(),
     platform: `${platform()} ${release()} ${arch()}`,
-    clientVersion: `ringee-cli ${AGENT_VERSION}`,
+    clientVersion: `ringee-cli ${CLI_VERSION}`,
   });
 
   const autoOpen = allowBrowser && canOpenBrowser();
