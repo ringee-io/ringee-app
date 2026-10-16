@@ -1,20 +1,23 @@
 import {
-  AGENT_VERSION,
   RingeeAgentConfig,
   RingeeClient,
   RingeeConfigError,
   hasConfig,
   resolveConfig as resolveAgentConfig,
 } from "@ringee-io/agent";
+import manifest from "../package.json" with { type: "json" };
 import { readSavedLogin } from "./credentials.js";
 import { c, fail, line } from "./ui.js";
+
+/** The published version: what `ringee --version` prints and Ringee sees. */
+export const CLI_VERSION = manifest.version;
 
 /**
  * The `clientInfo` this CLI sends over MCP. Ringee counts CLI usage by it, so
  * keep it stable.
  */
 export const CLI_CLIENT_NAME = "ringee-cli";
-export const CLI_USER_AGENT = `${CLI_CLIENT_NAME}/${AGENT_VERSION}`;
+export const CLI_USER_AGENT = `${CLI_CLIENT_NAME}/${CLI_VERSION}`;
 
 let cached: RingeeClient | null = null;
 
@@ -32,7 +35,7 @@ export function getClient(): RingeeClient {
   try {
     cached = RingeeClient.fromConfig(resolveConfig(), {
       clientName: CLI_CLIENT_NAME,
-      clientVersion: AGENT_VERSION,
+      clientVersion: CLI_VERSION,
     });
     return cached;
   } catch (err) {

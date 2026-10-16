@@ -1,0 +1,164 @@
+name: Publish npm packages
+
+# Publishes what this repo ships to npm: the Dialer SDK (`@ringee/dialer-sdk`,
+# packages/dialer-sdk) and the CLI (`ringee`, apps/agent-cli). On every push to
+# main, a package whose package.json version is not on npm yet is typechecked,
+# tested, built, installed the way a consumer would and published. Releasing is
+# "bump `version` and merge"; a run with no new version publishes nothing.
+# See docs/engineering/NPM_RELEASES.md.
+#
+# There is no npm token: npm trusted publishing exchanges the publish job's OIDC
+# identity for a short-lived publish token. On npmjs.com, each package names
+# this file (npm-publish.yml) and the `npm` environment as its trusted
+# publisher. Only the publish job can ask for that identity, and it runs no code
+# from this repository or its dependencies; all of that runs in the build job,
+# which cannot publish.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer run waits for the current one rather than cancelling a publish half
+# way, and then finds the version already on npm.
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    # workflow_dispatch can be started from any branch; only main releases.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # Only what the plan reads. A package added to the command below
+          # needs its package.json listed here too.
+          sparse-checkout: |
+            scripts/plan-npm-releases.mjs
+            packages/dialer-sdk/package.json
+            apps/agent-cli/package.json
+          sparse-checkout-cone-mode: false
+
+      - name: Find versions that are not on npm yet
+        id: plan
+        run: node scripts/plan-npm-releases.mjs packages/dialer-sdk apps/agent-cli
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.packages != '[]'
+    name: Build ${{ matrix.name }}@${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.packages) }}
+    env:
+      PACKAGE_DIR: ${{ matrix.directory }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # `{dir}...` selects the package and the workspace packages it bundles
+      # (@ringee/dialer-core into the SDK, @ringee-io/agent into the CLI).
+      - name: Install
+        run: pnpm --filter "{./$PACKAGE_DIR}..." install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter "{./$PACKAGE_DIR}..." run --if-present typecheck
+
+      - name: Test
+        run: pnpm --filter "{./$PACKAGE_DIR}..." run --if-present test
+
+      - name: Build
+        run: pnpm --filter "./$PACKAGE_DIR" run build
+
+      # pnpm rewrites `workspace:` versions while packing. This tarball is the
+      # one that gets verified and then published.
+      - name: Pack
+        id: pack
+        working-directory: ${{ matrix.directory }}
+        run: |
+          pnpm pack --pack-destination "$RUNNER_TEMP/pack"
+          echo "tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)" >> "$GITHUB_OUTPUT"
+
+      - name: Install the tarball the way a consumer would
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: node scripts/verify-npm-tarball.mjs "$TARBALL"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.slug }}
+          path: ${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+          # A re-run of this job replaces the tarball of the earlier attempt.
+          overwrite: true
+
+  publish:
+    needs: [plan, build]
+    # Each package goes out once its own build has passed: a failed build
+    # uploads no tarball, so only that package's publish fails.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.packages != '[]' }}
+    name: Publish ${{ matrix.name }}@${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Limit this environment to main (Settings → Environments) so a workflow
+    # started from another branch cannot publish.
+    environment: npm
+    permissions:
+      contents: read
+      # The OIDC token npm exchanges for a publish token. It also signs the
+      # provenance attestation npm attaches to every release.
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.packages) }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-${{ matrix.slug }}
+          path: ${{ runner.temp }}/pack
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Trusted publishing needs npm >= 11.5.1; Node 22 bundles npm 10.
+      - name: Upgrade npm
+        run: npm install --global npm@11
+
+      - name: Publish
+        env:
+          TAG: ${{ matrix.tag }}
+          RELEASE: ${{ matrix.name }}@${{ matrix.version }}
+        run: |
+          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
+          # --tag only for prereleases: without it npm applies `latest` and
+          # refuses to move it below an already published version.
+          if [ -n "$TAG" ]; then
+            npm publish "$tarball" --tag "$TAG"
+          else
+            npm publish "$tarball"
+          fi
+          echo "Published \`$RELEASE\` to npm." >> "$GITHUB_STEP_SUMMARY"

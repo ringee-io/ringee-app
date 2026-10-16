@@ -15,6 +15,7 @@ System knowledge, separated from agent instructions on purpose:
 | [BILLING.md](BILLING.md)                                     | Credits, Stripe, pricing, margins, the ledgers                                                   |
 | [SECURITY.md](SECURITY.md)                                   | Public routes, signatures, tokens, secrets, encryption                                           |
 | [INTEGRATIONS.md](INTEGRATIONS.md)                           | SDK, CLI, extension, MCP, CRM, Attio, outbound webhooks                                          |
+| [NPM_RELEASES.md](NPM_RELEASES.md)                           | You are releasing the Dialer SDK or the CLI, or changing how they are packaged                   |
 | [CANONICAL_IMPLEMENTATIONS.md](CANONICAL_IMPLEMENTATIONS.md) | Before writing any new helper, service or abstraction                                            |
 | [ARCHITECTURE_DEBT.md](ARCHITECTURE_DEBT.md)                 | You hit something that looks wrong — check whether it is known, and whether it was already fixed |
 | [MARKETING_VISUALS.md](MARKETING_VISUALS.md)                 | You are changing the marketing site's imagery, or re-rendering the 3D hero asset                 |

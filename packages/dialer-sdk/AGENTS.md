@@ -8,6 +8,11 @@ pages. Its surface is a public contract with users you cannot grep for.
   breaking and need a version bump in `package.json`.
 - The build is `tsup` and bundles `@ringee/dialer-core` (and `@telnyx/webrtc`)
   into the shipped artifact. A change in dialer-core is a change in this SDK.
+  Bundled packages stay in `devDependencies`: dialer-core is private, so in
+  `dependencies` it makes the published package uninstallable.
+- Merging a `version` bump to main publishes it to npm
+  (`.github/workflows/npm-publish.yml`), and the unversioned unpkg URL serves it
+  to embedding pages right away. See `docs/engineering/NPM_RELEASES.md`.
 - `src/telnyx/telnyx-adapter.ts` is the only Telnyx-aware layer. Everything above
   it speaks Ringee's public vocabulary.
 - Authentication is the publishable key (`pk_live_…`) plus server-side origin,
