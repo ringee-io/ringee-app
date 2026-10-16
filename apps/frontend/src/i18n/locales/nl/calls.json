@@ -117,7 +117,8 @@
       "defaultTitle": "Gespreksopname",
       "callTitle": "Gesprek: {from} → {to}",
       "decrypting": "Opname wordt ontsleuteld…",
-      "errorLoad": "Opname kon niet worden geladen. Probeer het opnieuw."
+      "errorLoad": "Opname kon niet worden geladen. Probeer het opnieuw.",
+      "errorDownload": "Opname kon niet worden gedownload. Probeer het opnieuw."
     }
   },
   "callbacks": {

@@ -208,6 +208,7 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
         recordingUrl={row.original.recordings?.[0]?.url}
         callFrom={row.original.fromNumber}
         callTo={row.original.toNumber}
+        startedAt={row.original.startedAt}
       />
     )
   }

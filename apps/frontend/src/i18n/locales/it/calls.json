@@ -117,7 +117,8 @@
       "defaultTitle": "Registrazione chiamata",
       "callTitle": "Chiamata: {from} → {to}",
       "decrypting": "Decrittazione in corso…",
-      "errorLoad": "Impossibile caricare la registrazione. Riprova."
+      "errorLoad": "Impossibile caricare la registrazione. Riprova.",
+      "errorDownload": "Impossibile scaricare la registrazione. Riprova."
     }
   },
   "callbacks": {

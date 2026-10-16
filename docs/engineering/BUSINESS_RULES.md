@@ -1209,6 +1209,16 @@ server-side origin, OTP and membership checks — never from the key being hidde
 
 ### REC-001 — Recordings are stored twice: a public mp3 and an encrypted private copy
 
+`Recording.url` — the recording URL the API returns with a call — is the
+encrypted copy: `IV | auth tag | ciphertext` under the workspace key (REC-002).
+A client decrypts it with `GET /encryption/key` before it plays or saves it.
+Handing the URL to an `<audio>` element or an `<a download>` gives the user
+ciphertext. The public mp3 is the copy handed to services that fetch by URL:
+CRM sync, Custom Integration events and Deepgram.
+
+- **Source of truth:** `RecordingProcessingService.processCallRecording`;
+  client side `frontend-shared/src/lib/crypto.ts`
+
 ### REC-002 — The encryption key is the workspace's
 
 An org call uses the organization's key; otherwise the user's.

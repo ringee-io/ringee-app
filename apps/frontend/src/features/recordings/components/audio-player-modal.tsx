@@ -3,6 +3,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@ringee/frontend-shared/components/ui/dialog';
@@ -13,11 +14,14 @@ import { decryptRecordingToBlob } from '@ringee/frontend-shared/lib/crypto';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { RecordingDownloadButton } from './recording-download-button';
 
 interface AudioPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   audioUrl: string;
+  /** Name the recording is saved under when downloaded from the player. */
+  fileName: string;
   title?: string;
 }
 
@@ -25,6 +29,7 @@ export function AudioPlayerModal({
   isOpen,
   onClose,
   audioUrl,
+  fileName,
   title
 }: AudioPlayerModalProps) {
   const t = useTranslations('calls.recordings.player');
@@ -111,6 +116,16 @@ export function AudioPlayerModal({
             />
           )}
         </div>
+        {decryptedUrl && !isLoading && !error ? (
+          <DialogFooter>
+            {/* Saves the copy this player already decrypted. */}
+            <RecordingDownloadButton
+              recordingUrl={audioUrl}
+              decryptedUrl={decryptedUrl}
+              fileName={fileName}
+            />
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

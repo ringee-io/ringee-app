@@ -23,6 +23,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import {
@@ -241,8 +242,16 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
     : useOrganization();
 
   const hasActiveOrg = !!activeOrg;
-  const { state: sidebarState } = useSidebar();
+  const { state: sidebarState, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = sidebarState === 'collapsed';
+  const closeMobileSidebar = () => setOpenMobile(false);
+
+  // On a phone the sidebar is a sheet over the page: a navigation from it (or
+  // from anywhere else) closes it, or it stays on top of the page just opened.
+  React.useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
+
   const sidebarNavGroups = React.useMemo(
     () => navGroups.filter((group) => group.label !== 'Settings'),
     []
@@ -251,7 +260,14 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   return (
     <Sidebar collapsible='icon'>
       <SidebarHeader>
-        <OrgSwitcher useMock={useMock} />
+        <div className='flex items-center gap-1'>
+          <div className='min-w-0 flex-1'>
+            <OrgSwitcher useMock={useMock} />
+          </div>
+          {/* The same control that opened the sheet closes it. Desktop keeps
+              the rail and ⌘B. */}
+          {isMobile ? <SidebarTrigger className='size-9 shrink-0' /> : null}
+        </div>
 
         <SidebarMenuButton
           className='mt-4 cursor-pointer'
@@ -396,7 +412,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                           isActive={pathname === item.url}
                         >
                           {/* @ts-ignore */}
-                          <Link href={item.url}>
+                          <Link href={item.url} onClick={closeMobileSidebar}>
                             {/* @ts-ignore */}
                             <Icon />
                             <span>{itemTitle}</span>
@@ -513,11 +529,12 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     {tNav('userMenu.recordings')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() =>
-                      useMock
-                        ? router.push('/dashboard/settings/overview')
-                        : openSettings('general')
-                    }
+                    onClick={() => {
+                      // A dialog, not a route: the effect above never sees it.
+                      closeMobileSidebar();
+                      if (useMock) router.push('/dashboard/settings/overview');
+                      else openSettings('general');
+                    }}
                   >
                     {/* @ts-ignore */}
                     <Icons.settings className='mr-2 h-4 w-4' />

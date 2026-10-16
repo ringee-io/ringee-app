@@ -4,7 +4,8 @@ import ClerkAppProvider from '@/components/layout/clerk-app-provider';
 // import Header from '@/components/layout/header';
 import {
   SidebarInset,
-  SidebarProvider
+  SidebarProvider,
+  SidebarTrigger
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
 import { VoiceAgentsRail } from '@/features/ai-voice-agents/automations/components/voice-agents-rail';
@@ -49,10 +50,17 @@ export default async function DashboardLayout({
                   nothing when no offer applies. */}
               <OfferBanner placement='TOP_BANNER' />
               {/* <Header /> */}
+              {/* What the header's trigger used to be on a phone: below `md`
+                  the sidebar is a sheet off screen, with no rail to grab and
+                  no other way to open it. 48px plus the content's `mt-1` keep
+                  the 52px every page reserves (`100dvh-52px`). */}
+              <div className='flex h-12 shrink-0 items-center px-2 md:hidden'>
+                <SidebarTrigger className='size-9' />
+              </div>
               {/* The balance's first load, which the header's credit popover
                   used to do. Renders nothing. */}
               <CreditBalanceLoader />
-              <div className='mt-4 flex gap-4'>
+              <div className='mt-1 flex gap-4 md:mt-4'>
                 <div className='w-full min-w-0'>{children}</div>
                 <DialerShortcutView defaultOpen={defaultDialerOpen} />
               </div>

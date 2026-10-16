@@ -117,7 +117,8 @@
       "defaultTitle": "Enregistrement d'appel",
       "callTitle": "Appel : {from} → {to}",
       "decrypting": "Déchiffrement en cours…",
-      "errorLoad": "Impossible de charger l'enregistrement. Veuillez réessayer."
+      "errorLoad": "Impossible de charger l'enregistrement. Veuillez réessayer.",
+      "errorDownload": "Impossible de télécharger l'enregistrement. Veuillez réessayer."
     }
   },
   "callbacks": {

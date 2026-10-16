@@ -10,6 +10,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/tooltip';
 import { useState } from 'react';
 import { AudioPlayerModal } from '../audio-player-modal';
+import { recordingFileName } from '../../lib/recording-file-name';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
 import { useTranslations } from 'next-intl';
 
@@ -17,6 +18,8 @@ interface RecordingPlayButtonProps {
   recordingUrl: string;
   callFrom: string;
   callTo: string;
+  /** Download name for the player's own modal; unused with `onPlay`. */
+  fileName?: string;
   asMenuItem?: boolean;
   onPlay?: () => void;
 }
@@ -25,6 +28,7 @@ export function RecordingPlayButton({
   recordingUrl,
   callFrom,
   callTo,
+  fileName,
   asMenuItem = false,
   onPlay
 }: RecordingPlayButtonProps) {
@@ -71,6 +75,9 @@ export function RecordingPlayButton({
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           audioUrl={recordingUrl}
+          fileName={
+            fileName ?? recordingFileName({ from: callFrom, to: callTo })
+          }
           title={tPlayer('callTitle', { from: callFrom, to: callTo })}
         />
       ) : null}

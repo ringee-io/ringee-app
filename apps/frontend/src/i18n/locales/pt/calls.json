@@ -117,7 +117,8 @@
       "defaultTitle": "Gravação de chamada",
       "callTitle": "Chamada: {from} → {to}",
       "decrypting": "A desencriptar gravação…",
-      "errorLoad": "Não foi possível carregar a gravação. Tente novamente."
+      "errorLoad": "Não foi possível carregar a gravação. Tente novamente.",
+      "errorDownload": "Não foi possível transferir a gravação. Tente novamente."
     }
   },
   "callbacks": {

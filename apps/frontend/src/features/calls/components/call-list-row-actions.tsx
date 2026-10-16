@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Download, Eye, PhoneCall } from 'lucide-react';
+import { Eye, PhoneCall } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   DropdownMenuItem,
@@ -15,7 +15,9 @@ import {
   TranscriptDialog
 } from '@/features/transcription';
 import { RecordingPlayButton } from '@/features/recordings/components/recordings.tables/recording-play-button';
+import { RecordingDownloadButton } from '@/features/recordings/components/recording-download-button';
 import { AudioPlayerModal } from '@/features/recordings/components/audio-player-modal';
+import { recordingFileName } from '@/features/recordings/lib/recording-file-name';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 
 interface CallListRowActionsProps {
@@ -25,6 +27,8 @@ interface CallListRowActionsProps {
   recordingUrl?: string | null;
   callFrom?: string;
   callTo?: string;
+  /** When the call started; dates the downloaded recording's file name. */
+  startedAt?: string | null;
   phoneNumber?: string;
   onView?: () => void;
 }
@@ -35,6 +39,7 @@ export function CallListRowActions({
   recordingUrl,
   callFrom,
   callTo,
+  startedAt,
   phoneNumber,
   onView
 }: CallListRowActionsProps) {
@@ -45,6 +50,12 @@ export function CallListRowActions({
   const { handleRecall } = useQuickDialerCall();
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [playerOpen, setPlayerOpen] = useState(false);
+  const recordingName = recordingFileName({
+    from: callFrom,
+    to: callTo,
+    at: startedAt,
+    callId
+  });
 
   return (
     <>
@@ -86,12 +97,11 @@ export function CallListRowActions({
               asMenuItem
               onPlay={() => setPlayerOpen(true)}
             />
-            <DropdownMenuItem asChild>
-              <a href={recordingUrl} download>
-                <Download className='h-4 w-4' />
-                {tRecordings('downloadRecording')}
-              </a>
-            </DropdownMenuItem>
+            <RecordingDownloadButton
+              variant='menu'
+              recordingUrl={recordingUrl}
+              fileName={recordingName}
+            />
           </>
         ) : null}
 
@@ -116,6 +126,7 @@ export function CallListRowActions({
           isOpen={playerOpen}
           onClose={() => setPlayerOpen(false)}
           audioUrl={recordingUrl}
+          fileName={recordingName}
           title={tPlayer('callTitle', { from: callFrom, to: callTo })}
         />
       ) : null}

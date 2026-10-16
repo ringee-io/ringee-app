@@ -14,6 +14,7 @@ import {
   PhoneOutgoing,
   PhoneIncoming
 } from 'lucide-react';
+import { recordingFileName } from '@/features/recordings/lib/recording-file-name';
 import { InboxEvent } from '../types';
 import { EncryptedAudio } from './encrypted-audio';
 import { useTranslations } from 'next-intl';
@@ -106,7 +107,9 @@ function CallCard({ event }: { event: InboxEvent }) {
         >
           <Icon className='h-4 w-4' />
         </div>
-        <div className='flex-1'>
+        {/* `min-w-0`: lets the column shrink to a phone's width, so the
+            recording player and its download button stay inside the card. */}
+        <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
             <p className='text-sm font-medium'>
               {isMissed
@@ -137,7 +140,17 @@ function CallCard({ event }: { event: InboxEvent }) {
           {event.body && (
             <p className='text-muted-foreground mt-2 text-xs'>{event.body}</p>
           )}
-          {recording?.url && <EncryptedAudio url={recording.url} />}
+          {recording?.url && (
+            <EncryptedAudio
+              url={recording.url}
+              fileName={recordingFileName({
+                from: event.fromNumber,
+                to: event.toNumber,
+                at: event.occurredAt,
+                callId: event.callId
+              })}
+            />
+          )}
           {isMissed && event.fromNumber && (
             <div className='mt-2 flex gap-2'>
               <Button
@@ -170,7 +183,7 @@ function VoicemailCard({ event }: { event: InboxEvent }) {
         <div className='flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200'>
           <Voicemail className='h-4 w-4' />
         </div>
-        <div className='flex-1'>
+        <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
             <p className='text-sm font-medium'>{t('voicemailReceived')}</p>
             <span className='text-muted-foreground text-xs'>
@@ -182,7 +195,17 @@ function VoicemailCard({ event }: { event: InboxEvent }) {
               </Badge>
             )}
           </div>
-          {event.audioUrl && <EncryptedAudio url={event.audioUrl} />}
+          {event.audioUrl && (
+            <EncryptedAudio
+              url={event.audioUrl}
+              fileName={recordingFileName({
+                from: event.fromNumber,
+                to: event.toNumber,
+                at: event.occurredAt,
+                callId: event.callId
+              })}
+            />
+          )}
           {event.transcript && (
             <p className='text-muted-foreground mt-2 text-xs italic'>
               “{event.transcript}”

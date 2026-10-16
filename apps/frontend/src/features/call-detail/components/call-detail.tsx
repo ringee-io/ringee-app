@@ -23,6 +23,8 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { FinalTranscript } from '@/features/transcription';
 import { RecordingPlayButton } from '@/features/recordings/components/recordings.tables/recording-play-button';
+import { RecordingDownloadButton } from '@/features/recordings/components/recording-download-button';
+import { recordingFileName } from '@/features/recordings/lib/recording-file-name';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
 import { useCallDetailApi } from '../api';
@@ -130,6 +132,12 @@ export function CallDetail({
   const inbound = call.direction === 'inbound';
   const DirectionIcon = inbound ? PhoneIncoming : PhoneOutgoing;
   const recording = playableRecording(call);
+  const recordingName = recordingFileName({
+    from: call.fromNumber,
+    to: call.toNumber,
+    at: call.startedAt ?? call.createdAt,
+    callId: call.id
+  });
   const extracted = agentCall?.extractedData ?? null;
 
   // A person's outcome reads as the disposition they picked ("Demo booked"),
@@ -183,11 +191,18 @@ export function CallDetail({
 
         <div className='flex shrink-0 flex-wrap items-center gap-2'>
           {recording?.url ? (
-            <RecordingPlayButton
-              recordingUrl={recording.url}
-              callFrom={call.fromNumber}
-              callTo={call.toNumber}
-            />
+            <>
+              <RecordingPlayButton
+                recordingUrl={recording.url}
+                callFrom={call.fromNumber}
+                callTo={call.toNumber}
+                fileName={recordingName}
+              />
+              <RecordingDownloadButton
+                recordingUrl={recording.url}
+                fileName={recordingName}
+              />
+            </>
           ) : null}
           <Button
             variant='outline'

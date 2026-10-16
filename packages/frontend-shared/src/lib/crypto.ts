@@ -67,13 +67,12 @@ export async function fetchEncryptionKey(api: ApiClient): Promise<string> {
 }
 
 /**
- * Download + decrypt an encrypted recording, returning a Blob URL
- * to be used as the `src` attribute for an audio player.
+ * Download + decrypt an encrypted recording into an mp3 Blob.
  */
-export async function decryptRecordingToBlob(
+export async function fetchDecryptedRecording(
   recordingUrl: string,
   api: ApiClient,
-): Promise<string> {
+): Promise<Blob> {
   const key = await fetchEncryptionKey(api);
 
   const response = await fetch(recordingUrl);
@@ -89,10 +88,54 @@ export async function decryptRecordingToBlob(
     decryptedData.byteOffset + decryptedData.byteLength,
   );
 
-  // Correct Blob construction – no casting needed
-  const blob = new Blob([new Uint8Array(arrayBuffer)] as any, {
+  return new Blob([new Uint8Array(arrayBuffer)] as any, {
     type: "audio/mpeg",
   });
+}
 
-  return URL.createObjectURL(blob);
+/**
+ * Download + decrypt an encrypted recording, returning a Blob URL
+ * to be used as the `src` attribute for an audio player.
+ */
+export async function decryptRecordingToBlob(
+  recordingUrl: string,
+  api: ApiClient,
+): Promise<string> {
+  return URL.createObjectURL(await fetchDecryptedRecording(recordingUrl, api));
+}
+
+/**
+ * Save a recording as a playable mp3. The stored object is ciphertext, so a
+ * plain `<a href download>` to it saves an unplayable file — and the browser
+ * ignores `download` on a cross-origin link anyway. Pass `decryptedUrl` when a
+ * player already holds the decrypted Blob URL, to skip a second download.
+ */
+export async function downloadRecording(
+  recordingUrl: string,
+  api: ApiClient,
+  fileName: string,
+  decryptedUrl?: string | null,
+): Promise<void> {
+  if (decryptedUrl) {
+    clickDownloadLink(decryptedUrl, fileName);
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(
+    await fetchDecryptedRecording(recordingUrl, api),
+  );
+  clickDownloadLink(objectUrl, fileName);
+  // Safari reads the URL after click() has returned: revoking it right away
+  // can cancel the download.
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+}
+
+function clickDownloadLink(href: string, fileName: string) {
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = fileName;
+  // Firefox only follows a link that is in the document.
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }

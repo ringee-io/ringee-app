@@ -202,6 +202,8 @@ pick the one matching your runtime.
 | Workspace dispositions (UI)    | `DispositionsPanel` (`#settings/dispositions`), `useWorkspaceDispositions` — `features/dispositions/`         |
 | Picking a campaign's set       | `DispositionPicker` — `features/dispositions/components/disposition-picker.tsx`                               |
 | Canonical outcome → label      | `useEnumLabels().outcome` — `features/call-detail/lib/labels.ts` (`calls.detail.outcomes.*`)                  |
+| Playing / saving a recording   | `decryptRecordingToBlob` / `downloadRecording` — `frontend-shared/src/lib/crypto.ts` (REC-001)                |
+| "Download recording" control   | `RecordingDownloadButton` — `features/recordings/components/recording-download-button.tsx`                    |
 | Validation 400 → `fields` map  | `validationExceptionFactory` — `apps/backend/src/api/validation-error.ts`                                     |
 | `ApiError` → sentence / fields | `describeApiError`, `fieldErrorsFrom` — `features/ai-voice-agents/lib/api-error.ts`                           |
 

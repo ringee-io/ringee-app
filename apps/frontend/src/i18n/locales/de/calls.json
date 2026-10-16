@@ -117,7 +117,8 @@
       "defaultTitle": "Anrufaufzeichnung",
       "callTitle": "Anruf: {from} → {to}",
       "decrypting": "Aufzeichnung wird entschlüsselt…",
-      "errorLoad": "Aufzeichnung konnte nicht geladen werden. Bitte erneut versuchen."
+      "errorLoad": "Aufzeichnung konnte nicht geladen werden. Bitte erneut versuchen.",
+      "errorDownload": "Aufzeichnung konnte nicht heruntergeladen werden. Bitte erneut versuchen."
     }
   },
   "callbacks": {

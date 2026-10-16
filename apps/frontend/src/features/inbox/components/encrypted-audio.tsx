@@ -6,9 +6,12 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { RecordingDownloadButton } from '@/features/recordings/components/recording-download-button';
 
 interface EncryptedAudioProps {
   url: string;
+  /** Name the recording is saved under when downloaded. */
+  fileName: string;
   className?: string;
 }
 
@@ -17,7 +20,11 @@ interface EncryptedAudioProps {
  * recording to a Blob URL (same flow as the recordings feature) before
  * handing it to the <audio> element.
  */
-export function EncryptedAudio({ url, className }: EncryptedAudioProps) {
+export function EncryptedAudio({
+  url,
+  fileName,
+  className
+}: EncryptedAudioProps) {
   const t = useTranslations('calls.recordings.player');
   const api = useApi();
   const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null);
@@ -89,10 +96,16 @@ export function EncryptedAudio({ url, className }: EncryptedAudioProps) {
   }
 
   return (
-    <audio
-      controls
-      src={decryptedUrl}
-      className={cn('mt-2 h-8 w-full', className)}
-    />
+    <div className={cn('mt-2 flex items-center gap-1.5', className)}>
+      {/* `min-w-0`: a native <audio> has an intrinsic minimum width and would
+          otherwise push the download button out of a narrow inbox column. */}
+      <audio controls src={decryptedUrl} className='h-8 min-w-0 flex-1' />
+      <RecordingDownloadButton
+        variant='icon'
+        recordingUrl={url}
+        decryptedUrl={decryptedUrl}
+        fileName={fileName}
+      />
+    </div>
   );
 }

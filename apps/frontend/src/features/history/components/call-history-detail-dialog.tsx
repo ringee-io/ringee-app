@@ -25,12 +25,14 @@ export function HistoryCallRowActions({
   recordingUrl,
   callFrom,
   callTo,
+  startedAt,
   phoneNumber
 }: {
   callId: string;
   recordingUrl?: string | null;
   callFrom?: string;
   callTo?: string;
+  startedAt?: string | null;
   phoneNumber?: string;
 }) {
   const [, setCallId] = useQueryState('callId', callIdQuery);
@@ -41,6 +43,7 @@ export function HistoryCallRowActions({
       recordingUrl={recordingUrl}
       callFrom={callFrom}
       callTo={callTo}
+      startedAt={startedAt}
       phoneNumber={phoneNumber}
       onView={() => void setCallId(callId)}
     />

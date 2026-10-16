@@ -117,7 +117,8 @@
       "defaultTitle": "Call Recording",
       "callTitle": "Call: {from} → {to}",
       "decrypting": "Decrypting recording...",
-      "errorLoad": "Failed to load recording. Please try again."
+      "errorLoad": "Failed to load recording. Please try again.",
+      "errorDownload": "Could not download the recording. Please try again."
     }
   },
   "callbacks": {
