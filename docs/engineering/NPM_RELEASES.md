@@ -68,17 +68,31 @@ attaches a provenance attestation, which only succeeds when the package's
 `repository.url` matches `github.com/ringee-io/ringee-app`.
 
 One-time setup on npmjs.com, for each package: on its **Settings** page, under
-**Trusted Publisher**, choose **GitHub Actions** and enter
+**Trusted publishing**, choose **GitHub Actions** and enter
 
 - Organization or user: `ringee-io`
 - Repository: `ringee-app`
 - Workflow filename: `npm-publish.yml`
 - Environment name: `npm`
+- Allowed actions: **`npm publish`**. A configuration created since 2026-09-03
+  allows only `npm stage publish` (each release waits for a maintainer's 2FA
+  approval) unless this is checked, and the workflow runs `npm publish`.
 
-Then, in GitHub, **Settings → Environments → `npm` → Deployment branches and
-tags**, allow `main` only, so a workflow started from another branch cannot
-publish. Finally, under the package's **Settings → Publishing access**, choose
-"Require two-factor authentication and disallow tokens".
+The same from a terminal logged in to npm with 2FA:
+
+```bash
+npm trust github <package> --file npm-publish.yml --repo ringee-io/ringee-app --env npm --allow-publish
+```
+
+A new configuration expires unless it completes a publish within 2 days, and an
+expired one can only be deleted and created again. Set a package up when a
+version bump for it is about to merge, not ahead of time.
+
+In GitHub, **Settings → Environments → `npm` → Deployment branches and tags**,
+allow `main` only, so a workflow started from another branch cannot publish.
+After the first publish through the workflow, set the package's **Settings →
+Publishing access** to "Require two-factor authentication and disallow tokens";
+trusted publishing is not affected.
 
 Renaming the workflow file or the environment breaks publishing until the
 trusted publisher is updated to match.
