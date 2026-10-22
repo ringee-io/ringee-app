@@ -451,7 +451,30 @@
       "members": "Membros do espaço de trabalho",
       "lists": "Listas",
       "noMembers": "Não foram encontrados membros do espaço de trabalho, ou este fornecedor não suporta a listagem de membros.",
-      "noLists": "Não foram encontradas listas, ou este fornecedor não suporta listas."
+      "noLists": "Não foram encontradas listas, ou este fornecedor não suporta listas.",
+      "links": {
+        "title": "Membros do Ringee → utilizadores do {provider}",
+        "description": "Cada membro do Ringee fica associado ao seu utilizador do {provider}, por e-mail ou manualmente. Os contactos que a sua primeira chamada cria no {provider}, e as suas chamadas, ficam em nome desse utilizador.",
+        "linkedCount": "{linked} de {total} associados",
+        "auto": "Associado por e-mail",
+        "manual": "Associado manualmente",
+        "nobody": "Sem proprietário",
+        "noMatch": "Nenhum utilizador do {provider} com este e-mail",
+        "choose": "Escolher utilizador do {provider}",
+        "pickerLabel": "Utilizador do {provider} para {member}",
+        "search": "Procurar utilizadores do {provider}…",
+        "noResults": "Não foram encontrados utilizadores.",
+        "useEmail": "Associar por e-mail",
+        "crmUsers": "Utilizadores do {provider}",
+        "nobodyOption": "Não atribuir proprietário",
+        "stale": "Este utilizador já não está no {provider}. Escolha outro.",
+        "crmUnavailable": "Não foi possível carregar os seus utilizadores do {provider} agora. As associações são mostradas tal como estão guardadas.",
+        "loadFailed": "Não foi possível carregar a equipa.",
+        "empty": "Ainda não há membros neste espaço de trabalho.",
+        "toasts": {
+          "error": "Não foi possível guardar a associação"
+        }
+      }
     },
     "inboundSync": {
       "title": "Importar de {provider}",

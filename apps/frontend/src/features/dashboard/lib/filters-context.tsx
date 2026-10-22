@@ -51,17 +51,21 @@ export function DashboardFiltersProvider({
   const filters = React.useMemo<DashboardFilters>(() => {
     const rangeParam = searchParams.get('range') as DashboardRangeKey | null;
     const scopeParam = searchParams.get('scope') as DashboardScope | null;
+    const scope =
+      scopeParam && SCOPE_VALUES.includes(scopeParam)
+        ? scopeParam
+        : defaultScope;
     return {
       range:
         rangeParam && RANGE_VALUES.includes(rangeParam) ? rangeParam : '30d',
       from: searchParams.get('from') ?? undefined,
       to: searchParams.get('to') ?? undefined,
-      scope:
-        scopeParam && SCOPE_VALUES.includes(scopeParam)
-          ? scopeParam
-          : defaultScope,
+      scope,
       memberId: searchParams.get('memberId'),
-      campaignId: searchParams.get('campaignId'),
+      // A personal view hides the campaign picker, so a campaign left in the
+      // URL (a shared link, a back navigation) must not filter it unseen.
+      campaignId:
+        scope === 'organization' ? searchParams.get('campaignId') : null,
       outcome: searchParams.get('outcome')
     };
   }, [searchParams, defaultScope]);
@@ -87,7 +91,10 @@ export function DashboardFiltersProvider({
         from: range === 'custom' ? custom?.from : null,
         to: range === 'custom' ? custom?.to : null
       }),
-    setScope: (scope) => update({ scope }),
+    // A personal view has no campaign calls, so a campaign picked for the
+    // organization would only empty it.
+    setScope: (scope) =>
+      update(scope === 'personal' ? { scope, campaignId: null } : { scope }),
     setMemberId: (memberId) => update({ memberId }),
     setCampaignId: (campaignId) => update({ campaignId }),
     setOutcome: (outcome) => update({ outcome }),

@@ -451,7 +451,30 @@
       "members": "Membri dello spazio di lavoro",
       "lists": "Elenchi",
       "noMembers": "Nessun membro dello spazio di lavoro trovato, oppure questo provider non supporta l’elenco dei membri.",
-      "noLists": "Nessun elenco trovato, oppure questo provider non supporta gli elenchi."
+      "noLists": "Nessun elenco trovato, oppure questo provider non supporta gli elenchi.",
+      "links": {
+        "title": "Membri Ringee → utenti {provider}",
+        "description": "Ogni membro di Ringee è collegato al proprio utente {provider}, tramite email o manualmente. I contatti che la sua prima chiamata crea in {provider}, e le sue chiamate, appartengono a quell’utente.",
+        "linkedCount": "{linked} di {total} collegati",
+        "auto": "Collegato tramite email",
+        "manual": "Collegato manualmente",
+        "nobody": "Nessun proprietario",
+        "noMatch": "Nessun utente {provider} con questa email",
+        "choose": "Scegli un utente {provider}",
+        "pickerLabel": "Utente {provider} per {member}",
+        "search": "Cerca utenti {provider}…",
+        "noResults": "Nessun utente trovato.",
+        "useEmail": "Collega tramite email",
+        "crmUsers": "Utenti {provider}",
+        "nobodyOption": "Non assegnare un proprietario",
+        "stale": "Questo utente non è più in {provider}. Scegline un altro.",
+        "crmUnavailable": "Impossibile caricare ora i tuoi utenti {provider}. I collegamenti sono mostrati come sono stati salvati.",
+        "loadFailed": "Impossibile caricare il team.",
+        "empty": "Ancora nessun membro in questo spazio di lavoro.",
+        "toasts": {
+          "error": "Impossibile salvare il collegamento"
+        }
+      }
     },
     "inboundSync": {
       "title": "Importa da {provider}",

@@ -94,6 +94,11 @@ function builderFixture() {
     '@ringee/frontend-shared/hooks/use.api': { useApi: () => api },
     '@/features/ai-voice-agents/lib/api-error': {
       describeApiError: (e) => e.message
+    },
+    '@/features/contact/components/csv-import-fields': {
+      appendCsvFormat: (body, format) => {
+        if (format !== 'ringee') body.append('format', format);
+      }
     }
   });
   const { useFirstListBuilder } = load(

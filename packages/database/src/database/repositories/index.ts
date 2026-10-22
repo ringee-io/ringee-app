@@ -51,6 +51,7 @@ export * from "./crm-company-link.repository";
 export * from "./crm-call-sync.repository";
 export * from "./crm-outbox.repository";
 export * from "./crm-field-mapping.repository";
+export * from "./crm-member-link.repository";
 export * from "./enrichment-connection.repository";
 export * from "./enrichment-job.repository";
 export * from "./lead-search-job.repository";

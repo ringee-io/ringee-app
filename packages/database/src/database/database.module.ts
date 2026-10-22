@@ -57,6 +57,7 @@ import { CrmCompanyLinkRepository } from "./repositories/crm-company-link.reposi
 import { CrmCallSyncRepository } from "./repositories/crm-call-sync.repository";
 import { CrmOutboxRepository } from "./repositories/crm-outbox.repository";
 import { CrmFieldMappingRepository } from "./repositories/crm-field-mapping.repository";
+import { CrmMemberLinkRepository } from "./repositories/crm-member-link.repository";
 import { EnrichmentConnectionRepository } from "./repositories/enrichment-connection.repository";
 import { EnrichmentJobRepository } from "./repositories/enrichment-job.repository";
 import { LeadSearchJobRepository } from "./repositories/lead-search-job.repository";
@@ -162,6 +163,7 @@ const databaseProviders = [
   CrmCallSyncRepository,
   CrmOutboxRepository,
   CrmFieldMappingRepository,
+  CrmMemberLinkRepository,
   EnrichmentConnectionRepository,
   EnrichmentJobRepository,
   LeadSearchJobRepository,

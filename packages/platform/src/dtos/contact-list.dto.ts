@@ -3,12 +3,14 @@ import {
   ArrayMinSize,
   IsArray,
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
 } from "class-validator";
+import { CSV_IMPORT_FORMATS, type CsvImportFormat } from "./csv-import.formats";
 
 /** Column sizes of `ContactList`, and how many contacts one request may add. */
 export const CONTACT_LIST_LIMITS = {
@@ -36,6 +38,11 @@ export class CreateContactListDto {
   @IsOptional()
   @IsUUID()
   assignedToId?: string;
+
+  /** Which tool wrote the `file`; Ringee's template when absent. */
+  @IsOptional()
+  @IsIn(CSV_IMPORT_FORMATS)
+  format?: CsvImportFormat;
 }
 
 export class UpdateContactListDto {

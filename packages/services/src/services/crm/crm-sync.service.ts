@@ -15,6 +15,7 @@ import type {
   CrmTaskInput,
 } from "@ringee/platform";
 import { CrmError, CrmProviderRegistry } from "@ringee/platform";
+import { CrmCallLogService } from "./crm-call-log.service";
 import { CrmConnectionService } from "./crm-connection.service";
 
 const MAX_OUTBOX_ATTEMPTS = 10;
@@ -30,6 +31,7 @@ export class CrmSyncService {
     private readonly connections: CrmConnectionService,
     private readonly outbox: CrmOutboxRepository,
     private readonly syncRepo: CrmCallSyncRepository,
+    private readonly callLog: CrmCallLogService,
   ) {}
 
   async drain(batchSize = 20): Promise<number> {
@@ -107,6 +109,7 @@ export class CrmSyncService {
     if (logInput.endedAt) logInput.endedAt = new Date(logInput.endedAt);
 
     try {
+      await this.callLog.prepareForPush(connection, sync, logInput);
       const result = await this.connections.runWithFreshCredentials(
         connection,
         (creds) => provider.logCall(creds, logInput),
@@ -122,6 +125,7 @@ export class CrmSyncService {
       });
       await this.connections.touchLastSync(connection.id);
       await this.outbox.markSent(event.id);
+      await this.callLog.afterPush(connection, sync, logInput, result);
     } catch (err) {
       await this.handleCallLogError(event, sync, connection, err);
     }

@@ -6,7 +6,7 @@ import type {
   CrmContactSyncResult,
   CrmMeetingInput,
   CrmOwnerRef,
-  CrmPersonInput,
+  CrmPersonDetails,
   CrmRecordMatch,
 } from "../../types";
 import { normalizePhoneE164, phoneMatchesSuffix } from "../../phone";
@@ -54,10 +54,48 @@ export const HUBSPOT_CONTACT_PROPERTIES = [
   "hs_calculated_mobile_number",
   "jobtitle",
   "company",
+  // Read so a gap fill knows they are set: every property the adapter writes
+  // must be read first, or a value someone typed would look like a gap.
+  "website",
+  "hs_linkedin_url",
+  "city",
+  "state",
+  "zip",
+  "country",
   "hubspot_owner_id",
   "associatedcompanyid",
   ...HUBSPOT_CAMPAIGN_PROPERTIES,
 ];
+
+/**
+ * Contact properties a create can do without when the portal rejects one — a
+ * value its validation rules refuse, `hs_linkedin_url` on a portal that does
+ * not define it, an owner who has left. Never `phone`: the contact exists for
+ * the number Ringee called.
+ */
+export const HUBSPOT_CONTACT_OPTIONAL_PROPERTIES = [
+  "email",
+  "firstname",
+  "lastname",
+  "company",
+  "jobtitle",
+  "website",
+  "hs_linkedin_url",
+  "city",
+  "state",
+  "zip",
+  "country",
+  "hubspot_owner_id",
+] as const;
+
+/**
+ * Call properties a log can do without: a built-in outcome an admin deleted,
+ * an owner who has left. The call still belongs on the timeline.
+ */
+export const HUBSPOT_CALL_OPTIONAL_PROPERTIES = [
+  "hs_call_disposition",
+  "hubspot_owner_id",
+] as const;
 
 export const HUBSPOT_COMPANY_PROPERTIES = [
   "name",
@@ -227,18 +265,50 @@ function meaningfulName(value: string | null | undefined): string | null {
   return trimmed && /\p{L}/u.test(trimmed) ? trimmed : null;
 }
 
+/**
+ * The contact properties for what Ringee knows about a person, all of them
+ * HubSpot defaults. The owner is not among them: it is written only when the
+ * contact is created (`HubSpotProvider.upsertPerson`).
+ */
 export function buildHubSpotContactProperties(
-  input: CrmPersonInput,
+  input: CrmPersonDetails,
 ): Record<string, string> {
   const properties: Record<string, string> = { phone: input.phoneE164 };
   const { firstname, lastname } = splitHubSpotName(input);
   if (firstname) properties.firstname = firstname;
   if (lastname) properties.lastname = lastname;
-  const email = input.email?.trim();
-  if (email) properties.email = email;
-  const company = input.company?.trim();
-  if (company) properties.company = company;
+
+  const text: Array<[string, string | null | undefined]> = [
+    ["email", input.email],
+    ["company", input.company],
+    ["jobtitle", input.jobTitle],
+    ["city", input.city],
+    ["state", input.region],
+    ["zip", input.postalCode],
+    ["country", input.country],
+  ];
+  for (const [name, value] of text) {
+    const trimmed = value?.trim();
+    if (trimmed) properties[name] = trimmed;
+  }
+
+  const website = webUrl(input.website);
+  if (website) properties.website = website;
+  const linkedin = webUrl(input.linkedinUrl);
+  if (linkedin) properties.hs_linkedin_url = linkedin;
   return properties;
+}
+
+/** A link stored with or without its scheme ("acme.com") as an http(s) URL. */
+function webUrl(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return (
+    safeHttpUrl(trimmed) ??
+    (/^[^\s/:.]+\.\S+$/.test(trimmed)
+      ? safeHttpUrl(`https://${trimmed}`)
+      : null)
+  );
 }
 
 /**
@@ -504,6 +574,9 @@ export function buildHubSpotCallProperties(
   if (recordingUrl) properties.hs_call_recording_url = recordingUrl;
   const disposition = hubspotCallDisposition(input);
   if (disposition) properties.hs_call_disposition = disposition;
+  // The member who made or took the call, as HubSpot's own calling logs it.
+  if (input.ownerExternalId)
+    properties.hubspot_owner_id = input.ownerExternalId;
   return properties;
 }
 

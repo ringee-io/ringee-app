@@ -451,7 +451,30 @@
       "members": "Workspace Members",
       "lists": "Lists",
       "noMembers": "No workspace members found, or this provider doesn't support member listing.",
-      "noLists": "No lists found, or this provider doesn't support lists."
+      "noLists": "No lists found, or this provider doesn't support lists.",
+      "links": {
+        "title": "Ringee members → {provider} users",
+        "description": "Each Ringee member is linked to their {provider} user, by email or by hand. Contacts a member's first call creates in {provider}, and their calls, are owned by that user.",
+        "linkedCount": "{linked} of {total} linked",
+        "auto": "Matched by email",
+        "manual": "Linked by hand",
+        "nobody": "No owner",
+        "noMatch": "No {provider} user with this email",
+        "choose": "Choose a {provider} user",
+        "pickerLabel": "{provider} user for {member}",
+        "search": "Search {provider} users…",
+        "noResults": "No users found.",
+        "useEmail": "Match by email",
+        "crmUsers": "{provider} users",
+        "nobodyOption": "Don't assign an owner",
+        "stale": "This user is no longer in {provider}. Choose another one.",
+        "crmUnavailable": "Couldn't load your {provider} users right now. The links below are shown as saved.",
+        "loadFailed": "Couldn't load the team.",
+        "empty": "No members in this workspace yet.",
+        "toasts": {
+          "error": "Couldn't save the link"
+        }
+      }
     },
     "inboundSync": {
       "title": "Import from {provider}",

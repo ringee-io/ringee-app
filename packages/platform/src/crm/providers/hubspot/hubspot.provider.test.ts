@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CrmError } from "../../errors";
 import type { CrmCallLogInput, CrmCredentials } from "../../types";
 import { HUBSPOT_CALL_DISPOSITION } from "./hubspot.api";
-import { classifyHubSpotHttpError } from "./hubspot.errors";
+import {
+  classifyHubSpotHttpError,
+  isHubSpotPropertyRejection,
+} from "./hubspot.errors";
 import {
   HubSpotProvider,
   type HubSpotProviderConfig,
@@ -236,6 +239,17 @@ describe("classifyHubSpotHttpError", () => {
     expect(classifyHubSpotHttpError(429, {}, "3").retryAfterMs).toBe(3_000);
   });
 
+  it("only reads a property as rejected when the error names it", () => {
+    const rejection = classifyHubSpotHttpError(400, {
+      status: "error",
+      category: "VALIDATION_ERROR",
+      message:
+        'Property values were not valid: [{"error":"INVALID_PHONE_NUMBER","name":"mobilephone"}]',
+    });
+    expect(isHubSpotPropertyRejection(rejection, "mobilephone")).toBe(true);
+    expect(isHubSpotPropertyRejection(rejection, "phone")).toBe(false);
+  });
+
   it("retries a locked record after HubSpot's two-second lock", () => {
     const err = classifyHubSpotHttpError(423, {});
     expect(err.code).toBe("TRANSIENT");
@@ -394,6 +408,262 @@ describe("HubSpotProvider.upsertPerson", () => {
     expect(patch?.body).toEqual({
       properties: { phone: "+14155552671", lastname: "Lovelace" },
     });
+  });
+});
+
+describe("HubSpotProvider contact owner", () => {
+  /** A portal where nobody has the e-mail or the number yet. */
+  function newContactPortal(
+    onCreate: (properties: Record<string, string>) => Response,
+  ) {
+    const created: Array<Record<string, string>> = [];
+    const requests = stubFetch((request) => {
+      const path = request.url.pathname;
+      if (path === "/crm/objects/2026-09/contacts/ada%40example.com") {
+        return json({ status: "error", category: "OBJECT_NOT_FOUND" }, 404);
+      }
+      if (path.endsWith("/search")) return json({ results: [] });
+      if (
+        path === "/crm/objects/2026-09/contacts" &&
+        request.method === "POST"
+      ) {
+        const { properties } = request.body as {
+          properties: Record<string, string>;
+        };
+        created.push(properties);
+        return onCreate(properties);
+      }
+      if (path === "/crm/objects/2026-09/calls" && request.method === "POST") {
+        return json({ id: "call-20", properties: {} }, 201);
+      }
+      return unexpected(request);
+    });
+    return { requests, created };
+  }
+
+  const ada = {
+    displayName: "Ada Lovelace",
+    email: "ada@example.com",
+    phoneE164: "+14155552671",
+    company: "Analytical Engines",
+    jobTitle: "Head of Research",
+    linkedinUrl: "https://www.linkedin.com/in/ada",
+    city: "London",
+    country: "United Kingdom",
+  };
+
+  it("creates a new contact with every detail, owned by the member's HubSpot user", async () => {
+    const { created } = newContactPortal(() =>
+      json({ id: "501", properties: {} }, 201),
+    );
+
+    const ref = await provider().upsertPerson(credentials, {
+      ...ada,
+      ownerExternalId: "owner-7",
+    });
+
+    expect(ref).toEqual({ externalId: "501", externalType: "person" });
+    expect(created).toEqual([
+      {
+        phone: "+14155552671",
+        firstname: "Ada",
+        lastname: "Lovelace",
+        email: "ada@example.com",
+        company: "Analytical Engines",
+        jobtitle: "Head of Research",
+        hs_linkedin_url: "https://www.linkedin.com/in/ada",
+        city: "London",
+        country: "United Kingdom",
+        hubspot_owner_id: "owner-7",
+      },
+    ]);
+  });
+
+  it("leaves the owner of a contact that already exists alone", async () => {
+    const requests = stubFetch((request) => {
+      if (request.method === "GET") {
+        return json({
+          id: "77",
+          properties: {
+            email: "ada@example.com",
+            firstname: "Ada",
+            lastname: "Lovelace",
+            phone: "+14155552671",
+            hubspot_owner_id: "owner-1",
+            jobtitle: null,
+          },
+        });
+      }
+      if (request.method === "PATCH") return json({ id: "77", properties: {} });
+      return unexpected(request);
+    });
+
+    await provider().upsertPerson(credentials, {
+      ...ada,
+      ownerExternalId: "owner-7",
+    });
+
+    const patch = requests.find((request) => request.method === "PATCH");
+    expect(patch?.body).toEqual({
+      properties: {
+        company: "Analytical Engines",
+        jobtitle: "Head of Research",
+        hs_linkedin_url: "https://www.linkedin.com/in/ada",
+        city: "London",
+        country: "United Kingdom",
+      },
+    });
+  });
+
+  it("creates the contact without a property the portal does not define", async () => {
+    const { created } = newContactPortal((properties) =>
+      "hs_linkedin_url" in properties
+        ? json(
+            {
+              status: "error",
+              category: "VALIDATION_ERROR",
+              message:
+                'Property values were not valid: [{"isValid":false,"message":"Property \\"hs_linkedin_url\\" does not exist","error":"PROPERTY_DOESNT_EXIST","name":"hs_linkedin_url"}]',
+            },
+            400,
+          )
+        : json({ id: "502", properties: {} }, 201),
+    );
+
+    const ref = await provider().upsertPerson(credentials, {
+      ...ada,
+      ownerExternalId: "owner-7",
+    });
+
+    expect(ref.externalId).toBe("502");
+    expect(created).toHaveLength(2);
+    expect(created[1]).not.toHaveProperty("hs_linkedin_url");
+    // Nothing else is given up for it.
+    expect(created[1]).toMatchObject({
+      email: "ada@example.com",
+      company: "Analytical Engines",
+      hubspot_owner_id: "owner-7",
+    });
+  });
+
+  it("creates the contact without an owner who left the portal", async () => {
+    const { created } = newContactPortal((properties) =>
+      properties.hubspot_owner_id
+        ? json(
+            {
+              status: "error",
+              category: "VALIDATION_ERROR",
+              message:
+                'Property values were not valid: [{"isValid":false,"message":"owner-7 is not a valid owner id","error":"INVALID_OWNER_ID","name":"hubspot_owner_id"}]',
+            },
+            400,
+          )
+        : json({ id: "503", properties: {} }, 201),
+    );
+
+    const ref = await provider().upsertPerson(credentials, {
+      ...ada,
+      ownerExternalId: "owner-7",
+    });
+
+    expect(ref.externalId).toBe("503");
+    expect(created[1]).not.toHaveProperty("hubspot_owner_id");
+    expect(created[1].email).toBe("ada@example.com");
+  });
+
+  it("never gives up the number a contact is created for", async () => {
+    const { created } = newContactPortal(() =>
+      json(
+        {
+          status: "error",
+          category: "VALIDATION_ERROR",
+          message: "Property values were not valid: phone",
+        },
+        400,
+      ),
+    );
+
+    await expect(
+      provider().upsertPerson(credentials, { phoneE164: "+14155552671" }),
+    ).rejects.toMatchObject({ code: "VALIDATION" });
+    expect(created).toHaveLength(1);
+  });
+
+  it("creates the person a first call is for and logs the call as the member's", async () => {
+    const { requests, created } = newContactPortal(() =>
+      json({ id: "504", properties: {} }, 201),
+    );
+
+    const result = await provider().logCall(
+      credentials,
+      callInput({
+        linkedRecords: [],
+        needsPersonCreation: ada,
+        ownerExternalId: "owner-7",
+        notes: "Wants pricing",
+        recordingUrl: "https://cdn.example.com/rec/public-1.mp3",
+        transcript: "Agent: Hello",
+      }),
+    );
+
+    expect(result).toEqual({
+      record: { externalId: "504", externalType: "person" },
+      activityId: "call-20",
+    });
+    expect(created[0]).toMatchObject({
+      company: "Analytical Engines",
+      hubspot_owner_id: "owner-7",
+    });
+    const call = requests.find(
+      (request) =>
+        request.method === "POST" &&
+        request.url.pathname === "/crm/objects/2026-09/calls",
+    )?.body as {
+      properties: Record<string, string>;
+      associations: Array<{ to: { id: string } }>;
+    };
+    expect(call.associations[0].to.id).toBe("504");
+    expect(call.properties).toMatchObject({
+      hubspot_owner_id: "owner-7",
+      hs_call_recording_url: "https://cdn.example.com/rec/public-1.mp3",
+    });
+    expect(call.properties.hs_call_body).toContain("Wants pricing");
+    expect(call.properties.hs_call_body).toContain("Agent: Hello");
+  });
+
+  it("logs the call without an owner HubSpot rejects", async () => {
+    const creates: Array<Record<string, string>> = [];
+    stubFetch((request) => {
+      if (request.url.pathname.endsWith("/search")) {
+        return json({ results: [] });
+      }
+      const body = request.body as { properties: Record<string, string> };
+      creates.push(body.properties);
+      return body.properties.hubspot_owner_id
+        ? json(
+            {
+              status: "error",
+              category: "VALIDATION_ERROR",
+              message:
+                'Property values were not valid: [{"error":"INVALID_OWNER_ID","name":"hubspot_owner_id"}]',
+            },
+            400,
+          )
+        : json({ id: "call-21", properties: {} }, 201);
+    });
+
+    const result = await provider().logCall(
+      credentials,
+      callInput({ ownerExternalId: "owner-gone" }),
+    );
+
+    expect(result.activityId).toBe("call-21");
+    expect(creates).toHaveLength(2);
+    expect(creates[1]).not.toHaveProperty("hubspot_owner_id");
+    // The outcome is not dropped along with it.
+    expect(creates[1].hs_call_disposition).toBe(
+      HUBSPOT_CALL_DISPOSITION.connected,
+    );
   });
 });
 

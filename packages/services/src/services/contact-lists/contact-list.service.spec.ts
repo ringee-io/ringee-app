@@ -409,6 +409,29 @@ describe("ContactListService — filling a list", () => {
     assert.equal(second.alreadyInList, 3);
   });
 
+  it("reads a file as the tool that exported it", async () => {
+    const formats: unknown[] = [];
+    const parse = ctx.contacts.parseContactsCsv;
+    ctx.contacts.parseContactsCsv = (csv: string, format?: unknown) => {
+      formats.push(format);
+      return parse("phoneNumber,name\n" + csv);
+    };
+
+    const { list } = await ctx.service.create(
+      ana,
+      { name: "From Apollo", format: "apollo" },
+      "First Name,Mobile Phone\n...",
+    );
+    await ctx.service.importCsv(
+      ana,
+      list.id,
+      "Full name,Mobile\n...",
+      "prospeo",
+    );
+
+    assert.deepEqual(formats, ["apollo", "prospeo"]);
+  });
+
   it("adds a typed number the workspace has instead of copying it", async () => {
     const { list } = await ctx.service.create(ana, { name: "Mine" });
 

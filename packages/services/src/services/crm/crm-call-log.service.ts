@@ -5,12 +5,14 @@ import {
   CallOutcome,
   CallRepository,
   ContactRepository,
+  CrmCallSync,
   CrmCallSyncRepository,
+  CrmConnection,
   CrmOutboxRepository,
   NumberPurchasedRepository,
   UserRepository,
 } from "@ringee/database";
-import type { CrmCallLogInput } from "@ringee/platform";
+import type { CrmCallLogInput, CrmCallLogResult } from "@ringee/platform";
 import {
   normalizePhoneE164,
   OrchestratorService,
@@ -18,6 +20,9 @@ import {
 } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 import { CrmMatchingService } from "./crm-matching.service";
+import { CrmMemberLinkService } from "./crm-member-link.service";
+import { crmPersonDetails } from "./crm-person";
+import { CrmRecordingUploadService } from "./crm-recording-upload.service";
 
 const MIN_DURATION_SECONDS = 3;
 
@@ -56,7 +61,85 @@ export class CrmCallLogService {
     private readonly userRepo: UserRepository,
     private readonly numberRepo: NumberPurchasedRepository,
     private readonly orchestrator: OrchestratorService,
+    private readonly memberLinks: CrmMemberLinkService,
+    private readonly recordingUpload: CrmRecordingUploadService,
   ) {}
+
+  /**
+   * Brings a call log up to date right before it is pushed, since its
+   * snapshot can be minutes old (answered calls wait for the outcome):
+   * - its owner is the CRM user the call's member is linked to now;
+   * - a person linked to the number since — the meeting booked on this call
+   *   creates one — is logged against rather than created a second time.
+   */
+  async prepareForPush(
+    connection: CrmConnection,
+    sync: CrmCallSync,
+    input: CrmCallLogInput,
+  ): Promise<void> {
+    const call = await this.callRepo.findById(sync.callId).catch(() => null);
+    input.ownerExternalId = await this.memberLinks.resolveCrmMemberId(
+      connection,
+      call?.userId,
+    );
+
+    const phoneE164 = input.needsPersonCreation?.phoneE164;
+    if (input.linkedRecords.length > 0 || !phoneE164) return;
+    const link = await this.matching
+      .findLinkByPhone(connection, phoneE164)
+      .catch(() => null);
+    if (link) {
+      input.linkedRecords = [
+        { externalId: link.externalId, externalType: link.externalType },
+      ];
+    }
+  }
+
+  /**
+   * After a call log reached the CRM: links the person it had to find or
+   * create to the number, then sends the call's recording to them — it was
+   * usually processed before that person existed. Best-effort: the call is
+   * already logged, and a failure here must not mark it failed.
+   */
+  async afterPush(
+    connection: CrmConnection,
+    sync: CrmCallSync,
+    input: CrmCallLogInput,
+    result: CrmCallLogResult,
+  ): Promise<void> {
+    try {
+      const call = await this.callRepo.findById(sync.callId);
+      if (!call) return;
+      const phoneE164 = input.needsPersonCreation?.phoneE164;
+      if (input.linkedRecords.length === 0 && phoneE164) {
+        // A link that cannot be saved must not hold the recording back.
+        await this.matching
+          .rememberLoggedRecord(connection, {
+            record: result.record,
+            phoneE164,
+            contactId: call.contactId ?? null,
+          })
+          .catch((err: unknown) =>
+            this.logger.warn(
+              `linking the record of call log ${sync.id} on connection ${connection.id} failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
+      }
+      await this.recordingUpload.enqueueForLoggedCall(
+        call,
+        connection,
+        result.record,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `follow-up of call log ${sync.id} on connection ${connection.id} failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   /**
    * Resolve the note's From/To display numbers. Falls back to the presented
@@ -220,13 +303,7 @@ export class CrmCallLogService {
 
       const needsPersonCreation =
         linkedRecords.length === 0 && matchResult.phoneE164
-          ? {
-              phoneE164: matchResult.phoneE164,
-              displayName: ringeeContact?.name ?? null,
-              firstName: ringeeContact?.firstName ?? null,
-              lastName: ringeeContact?.lastName ?? null,
-              email: ringeeContact?.email ?? null,
-            }
+          ? crmPersonDetails(ringeeContact, matchResult.phoneE164)
           : null;
 
       const idempotencyKey = createHash("sha1")

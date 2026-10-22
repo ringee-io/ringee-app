@@ -5,7 +5,9 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Res,
 } from "@nestjs/common";
@@ -23,10 +25,10 @@ import {
   CrmMatchingService,
   CrmFieldMappingService,
   CrmBulkSyncService,
+  CrmMemberLinkService,
 } from "@ringee/services";
 import {
   createOwnershipContext,
-  CrmProviderRegistry,
   CurrentUser,
   CurrentUserData,
   OrgAdminOnly,
@@ -58,7 +60,7 @@ export class CrmController {
     private readonly matching: CrmMatchingService,
     private readonly fieldMappings: CrmFieldMappingService,
     private readonly bulkSync: CrmBulkSyncService,
-    private readonly providerRegistry: CrmProviderRegistry,
+    private readonly memberLinks: CrmMemberLinkService,
   ) {}
 
   // ── Connections ──────────────────────────────────────────────────────
@@ -456,17 +458,59 @@ export class CrmController {
     const conn = await this.connections.findById(connectionId);
     if (!conn) throw new BadRequestException("connection not found");
     await this.connections.assertAccess(ctx, conn);
-
-    const provider = this.providerRegistry.get(conn.provider);
-    if (!provider.listMembers) return [];
-
-    const listMembers = provider.listMembers.bind(provider);
     try {
-      return await this.connections.runWithFreshCredentials(conn, (creds) =>
-        listMembers(creds),
-      );
+      return await this.connections.listMembers(conn);
     } catch {
       return [];
     }
+  }
+
+  // ── Member links (Ringee member → CRM user) ────────────────────────
+
+  @Get("connections/:id/member-links")
+  async listMemberLinks(
+    @Param("id", ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.memberLinks.list(createOwnershipContext(user), connectionId);
+  }
+
+  /** `crmMemberId: null` links the member to nobody. */
+  @Put("connections/:id/member-links/:userId")
+  async setMemberLink(
+    @Param("id", ParseUUIDPipe) connectionId: string,
+    @Param("userId", ParseUUIDPipe) memberUserId: string,
+    @Body() body: { crmMemberId?: string | null },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const crmMemberId = body?.crmMemberId;
+    if (
+      crmMemberId !== null &&
+      (typeof crmMemberId !== "string" || !crmMemberId.trim())
+    ) {
+      throw new BadRequestException(
+        "crmMemberId must be a CRM user id, or null for nobody",
+      );
+    }
+    return this.memberLinks.link(
+      createOwnershipContext(user),
+      connectionId,
+      memberUserId,
+      crmMemberId === null ? null : crmMemberId.trim(),
+    );
+  }
+
+  /** Back to linking the member by e-mail. */
+  @Delete("connections/:id/member-links/:userId")
+  async clearMemberLink(
+    @Param("id", ParseUUIDPipe) connectionId: string,
+    @Param("userId", ParseUUIDPipe) memberUserId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.memberLinks.unlink(
+      createOwnershipContext(user),
+      connectionId,
+      memberUserId,
+    );
   }
 }

@@ -514,11 +514,25 @@ other way: an answer its agent recorded as `voicemail` or `no_answer` reached a
 machine, not a person. `completed` status is never a signal — every call
 reaches it on hangup.
 
-- **Source of truth:** `UNANSWERED_OUTCOMES` and the answered counts in
-  `DashboardRepository` (`getKpis`, `getAgentPerformance`)
+A server-originated voicemail drop (CALL-003) is never answered: the mailbox's
+pickup stamps `answeredAt` on a leg nobody is on. It is recognised by the
+`client_state` it was dialed with, not by `source`.
+
+A campaign's connected attempts — its contact rate, and the talk time "per
+connected call" — follow the same rule on the attempt's canonical outcome
+(`DISP-002`), so the campaign page, the backoffice and the dashboard read a
+voicemail the same way.
+
+- **Source of truth:** `answered-call.sql.ts` (`UNANSWERED_OUTCOMES`,
+  `answeredCallWhere`, `isAnsweredCallSql`, `isConnectedAttemptSql`), counted
+  by `DashboardRepository`, `OutboundAnalyticsRepository` and
+  `BackofficeCampaignRepository`
 - **Risk if violated:** counted by outcome alone, every connected call without
   one disappears — a workspace whose outcomes never reached the row
-  (external-carrier calls, 2026-10) read 0 answered out of 35 connected calls
+  (external-carrier calls, 2026-10) read 0 answered out of 35 connected calls.
+  Counted by `answeredAt` alone, every voicemail reads as a contact: a
+  campaign's contact rate counted the attempts its agents marked voicemail,
+  and every delivered drop was an answered call on the dashboard (2026-10)
 
 ### CALL-013 — "My day" never offers a call that something else will place
 

@@ -19,6 +19,7 @@ import {
   CurrentUser,
   createOwnershipContext,
   CSV_IMPORT_CONFIG,
+  CsvImportFormatDto,
 } from "@ringee/platform";
 import { ContactService } from "@ringee/services";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
@@ -60,6 +61,7 @@ export class ContactController {
   async importContacts(
     @UploadedFile() file: { buffer: Buffer; originalname: string },
     @CurrentUser() user: CurrentUserData,
+    @Body() options: CsvImportFormatDto,
     @Body("tagIds") tagIdsRaw?: string,
   ) {
     if (!file) {
@@ -86,6 +88,7 @@ export class ContactController {
       ctx,
       csvContent,
       tagIds,
+      options.format,
     );
 
     // Only emit once the import actually produced rows — a failed or empty

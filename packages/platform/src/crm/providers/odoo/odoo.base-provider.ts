@@ -359,8 +359,8 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       const vals: Record<string, unknown> = {};
       if (humanName) vals.name = humanName;
       if (input.email && has("email")) vals.email = input.email;
-      if (input.company && has("company_name"))
-        vals.company_name = input.company;
+      // The company is set when Ringee creates the partner only: an existing
+      // one keeps the company name someone typed into Odoo.
       // Phone is intentionally not written on update — existing Odoo users
       // often hand-curate partner numbers and we'd rather append via a
       // separate workflow than clobber.

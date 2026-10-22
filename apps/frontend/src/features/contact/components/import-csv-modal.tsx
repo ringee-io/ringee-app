@@ -15,7 +15,13 @@ import { IconCheck, IconX, IconLoader2 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { TagMultiSelect, Tag } from './tag-multi-select';
 import { useTranslations } from 'next-intl';
-import { CsvDropzone, CsvFormatHelp } from './csv-import-fields';
+import {
+  appendCsvFormat,
+  CsvDropzone,
+  CsvFormatHelp,
+  CsvFormatPicker,
+  type CsvImportFormat
+} from './csv-import-fields';
 
 interface ImportCsvModalProps {
   open: boolean;
@@ -40,6 +46,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
   const [state, setState] = useState<ImportState>('idle');
   const [file, setFile] = useState<File | null>(null);
+  const [format, setFormat] = useState<CsvImportFormat>('ringee');
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +136,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      appendCsvFormat(formData, format);
 
       // Add selected tags to form data
       if (selectedTagIds.length > 0) {
@@ -223,6 +231,13 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
               onError={setError}
             />
 
+            <CsvFormatPicker
+              value={format}
+              onChange={setFormat}
+              disabled={state === 'uploading'}
+            />
+            <CsvFormatHelp format={format} />
+
             {/* Tag Selection - using reusable component */}
             {file && (
               <TagMultiSelect
@@ -241,8 +256,6 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 {error}
               </div>
             )}
-
-            <CsvFormatHelp />
 
             {/* Actions */}
             <div className='flex gap-2'>

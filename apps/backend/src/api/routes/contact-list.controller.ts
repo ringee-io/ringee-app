@@ -18,6 +18,7 @@ import {
   AddContactListContactsDto,
   CSV_IMPORT_CONFIG,
   CreateContactListDto,
+  CsvImportFormatDto,
   CurrentUser,
   CurrentUserData,
   UpdateContactListDto,
@@ -145,6 +146,7 @@ export class ContactListController {
   async importCsv(
     @CurrentUser() user: CurrentUserData,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() options: CsvImportFormatDto,
     @UploadedFile() file?: UploadedCsv,
   ) {
     if (!file) throw new BadRequestException("No file uploaded");
@@ -152,6 +154,7 @@ export class ContactListController {
       actorOf(user),
       id,
       file.buffer.toString("utf-8"),
+      options.format,
     );
     await this.announceImport(user, summary.contactsCreated);
     return summary;

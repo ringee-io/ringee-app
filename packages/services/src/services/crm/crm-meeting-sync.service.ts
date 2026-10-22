@@ -15,6 +15,8 @@ import {
 } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 import { CrmMatchingService } from "./crm-matching.service";
+import { CrmMemberLinkService } from "./crm-member-link.service";
+import { crmPersonDetails } from "./crm-person";
 
 export type MeetingSyncOpts = {
   calendarProvider?: string | null;
@@ -39,6 +41,7 @@ export class CrmMeetingSyncService {
     private readonly contactRepo: ContactRepository,
     private readonly matching: CrmMatchingService,
     private readonly registry: CrmProviderRegistry,
+    private readonly memberLinks: CrmMemberLinkService,
   ) {}
 
   /**
@@ -47,11 +50,14 @@ export class CrmMeetingSyncService {
    * for a brand-new lead no link exists yet. Rather than skip the meeting note
    * (losing the Meet link), resolve an existing person by phone or create one
    * on the fly and persist the link — mirroring the call-log's on-the-fly
-   * person creation. Best-effort: returns null if it can't be established.
+   * person creation, with the same details and owner: the CRM user the member
+   * who booked it is linked to. Best-effort: returns null if it can't be
+   * established.
    */
   private async establishLink(
     connection: CrmConnection,
     contactId: string,
+    userId: string,
   ): Promise<CrmContactLink | null> {
     const contact = await this.contactRepo
       .findById(contactId)
@@ -68,15 +74,16 @@ export class CrmMeetingSyncService {
     if (!phoneE164) return null;
     try {
       const provider = this.registry.get(connection.provider);
+      const ownerExternalId = await this.memberLinks.resolveCrmMemberId(
+        connection,
+        userId,
+      );
       const ref = await this.connections.runWithFreshCredentials(
         connection,
         (creds) =>
           provider.upsertPerson(creds, {
-            phoneE164,
-            displayName: contact.name ?? null,
-            firstName: contact.firstName ?? null,
-            lastName: contact.lastName ?? null,
-            email: contact.email ?? null,
+            ...crmPersonDetails(contact, phoneE164),
+            ownerExternalId,
           }),
       );
       return await this.linkRepo.upsertLink({
@@ -126,7 +133,11 @@ export class CrmMeetingSyncService {
         if (!link) {
           // No cached link — resolve/create the person so a brand-new lead's
           // meeting (and Meet link) still lands in the CRM.
-          link = await this.establishLink(connection, meeting.contactId);
+          link = await this.establishLink(
+            connection,
+            meeting.contactId,
+            ctx.userId,
+          );
         }
         if (!link) {
           this.logger.debug(

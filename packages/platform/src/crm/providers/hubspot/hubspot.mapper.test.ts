@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { readCrmCampaignField } from "../../campaign-field";
-import type { CrmCallLogInput, CrmMeetingInput } from "../../types";
+import type {
+  CrmCallLogInput,
+  CrmMeetingInput,
+  CrmPersonInput,
+} from "../../types";
 import { HUBSPOT_BODY_LIMIT, HUBSPOT_CALL_DISPOSITION } from "./hubspot.api";
 import {
   buildHubSpotCallProperties,
@@ -173,6 +177,60 @@ describe("HubSpot contact writes", () => {
     });
   });
 
+  it("writes every detail Ringee has about a person", () => {
+    expect(
+      buildHubSpotContactProperties({
+        displayName: "Ada Lovelace",
+        email: " ada@example.com ",
+        phoneE164: "+14155552671",
+        company: "Analytical Engines",
+        jobTitle: "Head of Research",
+        website: "analytical.example",
+        linkedinUrl: "linkedin.com/in/ada",
+        city: "London",
+        region: "Greater London",
+        postalCode: "W1",
+        country: "United Kingdom",
+      }),
+    ).toEqual({
+      phone: "+14155552671",
+      firstname: "Ada",
+      lastname: "Lovelace",
+      email: "ada@example.com",
+      company: "Analytical Engines",
+      jobtitle: "Head of Research",
+      website: "https://analytical.example/",
+      hs_linkedin_url: "https://linkedin.com/in/ada",
+      city: "London",
+      state: "Greater London",
+      zip: "W1",
+      country: "United Kingdom",
+    });
+  });
+
+  it("leaves out a link that is not a web address", () => {
+    const properties = buildHubSpotContactProperties({
+      phoneE164: "+14155552671",
+      website: "javascript:alert(1)",
+      linkedinUrl: "not a url",
+    });
+    expect(properties).not.toHaveProperty("website");
+    expect(properties).not.toHaveProperty("hs_linkedin_url");
+  });
+
+  it("never fills an owner into an existing contact", () => {
+    const input: CrmPersonInput = {
+      displayName: "Ada Lovelace",
+      phoneE164: "+14155552671",
+      ownerExternalId: "owner-7",
+    };
+    const desired = buildHubSpotContactProperties(input);
+    expect(desired).not.toHaveProperty("hubspot_owner_id");
+    expect(
+      hubspotContactGaps({ hubspot_owner_id: null }, desired),
+    ).not.toHaveProperty("hubspot_owner_id");
+  });
+
   it("leaves HubSpot's enumerated company fields alone", () => {
     expect(
       buildHubSpotCompanyProperties({
@@ -267,6 +325,40 @@ describe("HubSpot call properties", () => {
     });
     // The recording plays inline, so the body does not repeat it as a link.
     expect(properties.hs_call_body).not.toContain("Listen to recording");
+  });
+
+  it("logs the call as the member's HubSpot user, when they have one", () => {
+    expect(
+      buildHubSpotCallProperties(callInput({ ownerExternalId: "owner-7" }))
+        .hubspot_owner_id,
+    ).toBe("owner-7");
+    expect(
+      buildHubSpotCallProperties(callInput({ ownerExternalId: null })),
+    ).not.toHaveProperty("hubspot_owner_id");
+  });
+
+  it("carries the outcome, disposition, notes and transcript on the call", () => {
+    const body = buildHubSpotCallProperties(
+      callInput({
+        outcome: "interested",
+        outcomeLabel: "Interested",
+        dispositionName: "Wants a demo",
+        agentName: "Ana Pérez",
+        notes: "Call back on Monday",
+        transcript: "Agent: Hello\nContact: Hi",
+        transcriptUrl: "https://app.ringee.test/calls/1/transcript",
+        recordingUrl: "https://cdn.example.com/rec/public-1.mp3",
+      }),
+    ).hs_call_body;
+
+    expect(body).toContain("<li><strong>Outcome:</strong> Interested</li>");
+    expect(body).toContain(
+      "<li><strong>Disposition:</strong> Wants a demo</li>",
+    );
+    expect(body).toContain("<li><strong>Agent:</strong> Ana Pérez</li>");
+    expect(body).toContain("Call back on Monday");
+    expect(body).toContain("Agent: Hello<br>Contact: Hi");
+    expect(body).toContain("View transcript");
   });
 
   it("does not read a positive duration as a connected call", () => {

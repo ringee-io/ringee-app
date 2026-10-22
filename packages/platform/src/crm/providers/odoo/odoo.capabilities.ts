@@ -9,6 +9,7 @@ export const ODOO_CAPABILITIES: CrmCapabilities = {
   supportsRecordingUrl: true,
   supportsTranscript: true,
   supportsCallObject: false,
+  supportsOwnerAssignment: false,
   maxNoteLength: 64_000,
   rateLimit: { requestsPerMinute: 120, burst: 20 },
 };

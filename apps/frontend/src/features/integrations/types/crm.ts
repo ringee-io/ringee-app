@@ -76,8 +76,33 @@ export interface CrmListRef {
 
 export interface CrmOwnerRef {
   externalId: string;
-  email: string;
-  name: string;
+  email: string | null;
+  name: string | null;
+}
+
+/** A workspace member and the CRM user they are on one connection. */
+export interface CrmMemberLink {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  imageUrl: string | null;
+  /** `manual` once an admin chose; `email` while it follows the e-mail match. */
+  source: 'email' | 'manual';
+  /** The CRM user what Ringee creates for them is owned by; null = nobody. */
+  crmMember: CrmOwnerRef | null;
+  /** A manual link to a CRM user the CRM no longer lists. */
+  stale: boolean;
+  /** The CRM user one of their e-mails matches — what "by e-mail" means. */
+  emailMatch: CrmOwnerRef | null;
+}
+
+export interface CrmMemberLinksView {
+  /** Whether this CRM applies member links; when false only CRM users are listed. */
+  ownerAssignment: boolean;
+  /** False when the CRM's users could not be read just now. */
+  crmMembersLoaded: boolean;
+  crmMembers: CrmOwnerRef[];
+  members: CrmMemberLink[];
 }
 
 export interface CrmContactSyncResult {

@@ -103,19 +103,39 @@ export function hubspotConflictExistingId(err: unknown): string | null {
   return /Existing ID:\s*(\d+)/i.exec(message)?.[1] ?? null;
 }
 
-/** Whether a validation error names the given property. */
+/**
+ * Whether a validation error names the given property. The name must stand
+ * on its own, so a rejected `mobilephone` is not read as a rejected `phone`.
+ */
 export function isHubSpotPropertyRejection(
   err: unknown,
   property: string,
 ): boolean {
   if (!(err instanceof CrmError) || err.code !== "VALIDATION") return false;
   const details = err.providerDetails;
-  if (typeof details === "string") return details.includes(property);
+  let text: string;
   try {
-    return JSON.stringify(details ?? null).includes(property);
+    text =
+      typeof details === "string" ? details : JSON.stringify(details ?? null);
   } catch {
     return false;
   }
+  const name = property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^A-Za-z0-9_])${name}($|[^A-Za-z0-9_])`).test(text);
+}
+
+/**
+ * The properties of `properties` a validation error names, among those the
+ * write can do without. Empty when the error is about anything else.
+ */
+export function hubspotRejectedProperties(
+  err: unknown,
+  properties: Record<string, string>,
+  optional: readonly string[],
+): string[] {
+  return optional.filter(
+    (name) => name in properties && isHubSpotPropertyRejection(err, name),
+  );
 }
 
 function asHubSpotErrorBody(body: unknown): HubSpotErrorBody {

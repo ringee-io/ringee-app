@@ -451,7 +451,30 @@
       "members": "Miembros del workspace",
       "lists": "Listas",
       "noMembers": "No se encontraron miembros del workspace, o este proveedor no admite el listado de miembros.",
-      "noLists": "No se encontraron listas, o este proveedor no admite listas."
+      "noLists": "No se encontraron listas, o este proveedor no admite listas.",
+      "links": {
+        "title": "Miembros de Ringee → usuarios de {provider}",
+        "description": "Cada miembro de Ringee queda vinculado a su usuario de {provider}, por email o a mano. Los contactos que crea su primera llamada en {provider}, y sus llamadas, quedan a nombre de ese usuario.",
+        "linkedCount": "{linked} de {total} vinculados",
+        "auto": "Vinculado por email",
+        "manual": "Vinculado a mano",
+        "nobody": "Sin propietario",
+        "noMatch": "Ningún usuario de {provider} con este email",
+        "choose": "Elegir usuario de {provider}",
+        "pickerLabel": "Usuario de {provider} para {member}",
+        "search": "Buscar usuarios de {provider}…",
+        "noResults": "No se encontraron usuarios.",
+        "useEmail": "Vincular por email",
+        "crmUsers": "Usuarios de {provider}",
+        "nobodyOption": "No asignar propietario",
+        "stale": "Este usuario ya no está en {provider}. Elige otro.",
+        "crmUnavailable": "No pudimos cargar tus usuarios de {provider} en este momento. Los vínculos se muestran tal como están guardados.",
+        "loadFailed": "No se pudo cargar el equipo.",
+        "empty": "Aún no hay miembros en este workspace.",
+        "toasts": {
+          "error": "No se pudo guardar el vínculo"
+        }
+      }
     },
     "inboundSync": {
       "title": "Importar desde {provider}",

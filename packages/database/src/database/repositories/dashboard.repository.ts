@@ -7,6 +7,11 @@ import {
   Prisma,
 } from "@prisma/client";
 import { DashboardContext } from "@ringee/platform";
+import {
+  UNANSWERED_OUTCOMES,
+  answeredCallWhere,
+  isAnsweredCallSql,
+} from "./answered-call.sql";
 
 /**
  * Build ownership filter for dashboard queries.
@@ -175,21 +180,9 @@ function dateRange(ctx: DashboardContext) {
   return { start, end };
 }
 
-// A call counts as "answered" when it connected — `answeredAt`, stamped by the
-// `call.answered` webhook — whether or not anybody recorded an outcome for it.
-// Counting only dispositioned calls hid every connected call that went without
-// one: a whole workspace's answered calls read as 0 when their outcomes never
-// reached the row. `completed` status is NOT a signal: every call reaches it on
-// hangup.
-//
-// The disposition only overrules the signal the other way. `answeredAt` is also
-// stamped by voicemail pickups (and fake answer supervision on some
-// international routes), so a call its agent recorded as voicemail or no
-// answer did not reach a person.
-const UNANSWERED_OUTCOMES: CallOutcome[] = [
-  CallOutcome.no_answer,
-  CallOutcome.voicemail,
-];
+// What counts as an answered call — the pickup, unless it was recorded as a
+// voicemail or a no answer, and never a voicemail drop — is CALL-012, defined
+// once in `answered-call.sql.ts` for this dashboard and the campaign ones.
 
 /** Answered calls that still never reached the person they were for. */
 const NO_CONVERSATION_OUTCOMES: CallOutcome[] = [
@@ -250,18 +243,8 @@ export class DashboardRepository {
         where: {
           ...callBaseWhere,
           // Under AND so it composes with (instead of replacing) the
-          // ctx.outcome filter already spread in via callBaseWhere. The
-          // explicit `outcome: null` arm matters: `notIn`, like SQL's NOT IN,
-          // drops NULL rows — exactly the calls nobody dispositioned.
-          AND: [
-            { answeredAt: { not: null } },
-            {
-              OR: [
-                { outcome: null },
-                { outcome: { notIn: UNANSWERED_OUTCOMES } },
-              ],
-            },
-          ],
+          // ctx.outcome filter already spread in via callBaseWhere.
+          AND: answeredCallWhere(),
         },
       }),
       countByOutcome(CallOutcome.meeting_booked),
@@ -608,16 +591,7 @@ export class DashboardRepository {
       this.prisma.call.count({ where: callWhere }),
       this.prisma.call.count({
         where: {
-          AND: [
-            callWhere,
-            { answeredAt: { not: null } },
-            {
-              OR: [
-                { outcome: null },
-                { outcome: { notIn: NO_CONVERSATION_OUTCOMES } },
-              ],
-            },
-          ],
+          AND: [callWhere, ...answeredCallWhere(NO_CONVERSATION_OUTCOMES)],
         },
       }),
       this.prisma.meeting.count({
@@ -694,11 +668,7 @@ export class DashboardRepository {
         u."firstName",
         u."lastName",
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (
-          WHERE c."answeredAt" IS NOT NULL
-            AND (c.outcome IS NULL
-              OR c.outcome NOT IN ('no_answer','voicemail'))
-        )::int AS answered,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(isAnsweredCallSql("c"))})::int AS answered,
         COUNT(*) FILTER (WHERE c.outcome = 'meeting_booked')::int AS meetings,
         COUNT(*) FILTER (WHERE c.outcome = 'sale')::int AS sales,
         COUNT(*) FILTER (WHERE c.outcome = 'interested')::int AS interested
