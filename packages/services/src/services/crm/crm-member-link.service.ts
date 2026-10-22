@@ -143,9 +143,9 @@ export class CrmMemberLinkService {
     const user = await this.findMember(connection, userId);
 
     let crmMember: CrmOwnerRef | null = null;
+    let crmMembers: CrmOwnerRef[] = [];
     if (crmMemberId !== null) {
       // Read fresh: the id must name a user the CRM has now.
-      let crmMembers: CrmOwnerRef[];
       try {
         crmMembers = await this.readCrmMembers(connection);
       } catch (err) {
@@ -160,6 +160,10 @@ export class CrmMemberLinkService {
           `no ${connection.provider} user ${crmMemberId} on this connection`,
         );
       }
+    } else {
+      // Nobody needs no CRM user: the list only finds the entry's e-mail
+      // match, which a CRM that cannot be read just leaves out.
+      crmMembers = await this.cachedCrmMembers(connection).catch(() => []);
     }
 
     const link = await this.links.upsert({
@@ -170,7 +174,7 @@ export class CrmMemberLinkService {
       externalMemberEmail: crmMember?.email ?? null,
       externalMemberName: crmMember?.name ?? null,
     });
-    return toEntry(user, link, crmMember ? [crmMember] : [], true);
+    return toEntry(user, link, crmMembers, true);
   }
 
   /** Puts a member back on the e-mail match. */

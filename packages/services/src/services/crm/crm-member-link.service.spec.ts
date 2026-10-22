@@ -253,13 +253,39 @@ describe("CrmMemberLinkService.link / unlink", () => {
     ]);
   });
 
+  it("keeps showing the e-mail match of a member linked to someone else", async () => {
+    const { service } = harness();
+
+    const entry = await service.link(ctx, "conn-1", "u-ana", "owner-luis");
+
+    assert.equal(entry.crmMember?.externalId, "owner-luis");
+    assert.equal(entry.emailMatch?.externalId, "owner-ana");
+  });
+
   it("links a member to nobody without asking the CRM", async () => {
-    const { service, calls } = harness();
+    const { service, calls } = harness({ cached: crmUsers });
 
     const entry = await service.link(ctx, "conn-1", "u-ana", null);
 
     assert.deepEqual([entry.source, entry.crmMember], ["manual", null]);
+    assert.equal(entry.emailMatch?.externalId, "owner-ana");
     assert.equal(calls.listMembers, 0);
+    assert.equal(calls.upserts[0].externalMemberId, null);
+  });
+
+  it("links a member to nobody even when the CRM cannot be read", async () => {
+    const { service, calls } = harness({
+      listMembers: async () => {
+        throw new CrmError("TRANSIENT", true, "down");
+      },
+    });
+
+    const entry = await service.link(ctx, "conn-1", "u-ana", null);
+
+    assert.deepEqual(
+      [entry.source, entry.crmMember, entry.emailMatch],
+      ["manual", null, null],
+    );
     assert.equal(calls.upserts[0].externalMemberId, null);
   });
 

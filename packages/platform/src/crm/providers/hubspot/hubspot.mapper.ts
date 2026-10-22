@@ -305,7 +305,9 @@ function webUrl(value: string | null | undefined): string | null {
   if (!trimmed) return null;
   return (
     safeHttpUrl(trimmed) ??
-    (/^[^\s/:]+\.\S+$/.test(trimmed) ? safeHttpUrl(`https://${trimmed}`) : null)
+    (/^[^\s/:.]+\.\S+$/.test(trimmed)
+      ? safeHttpUrl(`https://${trimmed}`)
+      : null)
   );
 }
 

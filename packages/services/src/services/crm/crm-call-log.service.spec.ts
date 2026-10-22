@@ -211,6 +211,17 @@ describe("CrmCallLogService — a first call to someone the CRM lacks", () => {
     assert.equal(record.uploads.length, 1);
   });
 
+  it("still sends the recording when the person cannot be linked", async () => {
+    const { service, record } = harness({ failRemember: true });
+    const created = { externalId: "hs-501", externalType: "person" } as const;
+
+    await service.afterPush(connection, sync, pendingInput(), {
+      record: created,
+    });
+
+    assert.deepEqual(record.uploads, [{ callId: "call-1", record: created }]);
+  });
+
   it("never fails a call that is already in the CRM", async () => {
     const { service } = harness({ failRemember: true });
     await service.afterPush(connection, sync, pendingInput(), {

@@ -112,11 +112,20 @@ export class CrmCallLogService {
       if (!call) return;
       const phoneE164 = input.needsPersonCreation?.phoneE164;
       if (input.linkedRecords.length === 0 && phoneE164) {
-        await this.matching.rememberLoggedRecord(connection, {
-          record: result.record,
-          phoneE164,
-          contactId: call.contactId ?? null,
-        });
+        // A link that cannot be saved must not hold the recording back.
+        await this.matching
+          .rememberLoggedRecord(connection, {
+            record: result.record,
+            phoneE164,
+            contactId: call.contactId ?? null,
+          })
+          .catch((err: unknown) =>
+            this.logger.warn(
+              `linking the record of call log ${sync.id} on connection ${connection.id} failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
       }
       await this.recordingUpload.enqueueForLoggedCall(
         call,
