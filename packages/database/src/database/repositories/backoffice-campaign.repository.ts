@@ -6,6 +6,7 @@ import {
   attemptOutcomeSql,
   isConversionSql,
 } from "./campaign-conversion.sql";
+import { isConnectedAttemptSql } from "./answered-call.sql";
 
 /**
  * Cross-tenant campaign analytics for the internal super-admin (backoffice)
@@ -22,6 +23,9 @@ const CONVERSION_CODES = [...CONVERSION_OUTCOMES];
 
 /** What a `ca` attempt's disposition means (DISP-002), as conversions are counted on it. */
 const ATTEMPT_OUTCOME = attemptOutcomeSql("ca");
+
+/** A `ca` attempt that reached a person (CALL-012) — the campaign dashboard's own rule. */
+const IS_CONNECTED = isConnectedAttemptSql("ca");
 
 export type CampaignOwnerScope = "all" | "org" | "personal";
 
@@ -509,10 +513,10 @@ export class BackofficeCampaignRepository {
         SELECT
           ca."campaignId"                                  AS campaign_id,
           COUNT(*)                                         AS attempts,
-          COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL) AS connected,
+          COUNT(*) FILTER (WHERE ${IS_CONNECTED}) AS connected,
           COUNT(*) FILTER (WHERE ${isConversionSql("ca")}) AS conversions,
           COUNT(DISTINCT ca."campaignLeadId")              AS unique_leads,
-          COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
+          COALESCE(SUM(ca."durationSec") FILTER (WHERE ${IS_CONNECTED}), 0) AS talk_sec,
           COALESCE(SUM(cl."totalCost"), 0)                 AS cost,
           MAX(ca."initiatedAt")                            AS last_activity_at
         FROM "CallAttempt" ca
@@ -629,10 +633,10 @@ export class BackofficeCampaignRepository {
     >(Prisma.sql`
       SELECT
         COUNT(*)                                            AS attempts,
-        COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}) AS connected,
         COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
         COUNT(DISTINCT ca."campaignLeadId")                 AS unique_leads,
-        COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
+        COALESCE(SUM(ca."durationSec") FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca
       LEFT JOIN "Call" cl ON cl.id = ca."callId"
@@ -668,9 +672,9 @@ export class BackofficeCampaignRepository {
       SELECT
         date_trunc('day', ca."initiatedAt")                 AS day,
         COUNT(*)                                            AS attempts,
-        COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}) AS connected,
         COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
-        COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
+        COALESCE(SUM(ca."durationSec") FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca
       LEFT JOIN "Call" cl ON cl.id = ca."callId"
@@ -706,7 +710,7 @@ export class BackofficeCampaignRepository {
       SELECT
         EXTRACT(HOUR FROM ca."initiatedAt")::int            AS hour,
         COUNT(*)                                            AS attempts,
-        COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}) AS connected,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca
       LEFT JOIN "Call" cl ON cl.id = ca."callId"
@@ -793,9 +797,9 @@ export class BackofficeCampaignRepository {
         MAX(u."lastName")                                   AS last_name,
         MAX(e.email)                                        AS email,
         COUNT(*)                                            AS attempts,
-        COUNT(*) FILTER (WHERE ca."answeredAt" IS NOT NULL)  AS connected,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}) AS connected,
         COUNT(*) FILTER (WHERE ${Prisma.raw(ATTEMPT_OUTCOME)} = ANY(${CONVERSION_CODES})) AS conversions,
-        COALESCE(SUM(ca."durationSec") FILTER (WHERE ca."answeredAt" IS NOT NULL), 0) AS talk_sec,
+        COALESCE(SUM(ca."durationSec") FILTER (WHERE ${Prisma.raw(IS_CONNECTED)}), 0) AS talk_sec,
         COALESCE(SUM(cl."totalCost"), 0)                    AS cost
       FROM "CallAttempt" ca
       LEFT JOIN "Call" cl ON cl.id = ca."callId"

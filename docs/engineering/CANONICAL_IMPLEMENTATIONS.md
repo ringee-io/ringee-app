@@ -82,6 +82,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Disposition → canonical outcome                      | `canonicalOutcomeOf`, `DispositionService.resolveSelectable` — same file                       |
 | What a disposition does to a campaign lead           | `OUTCOME_BEHAVIOUR` — same file (DISP-002)                                                     |
 | What counts as a campaign conversion                 | `isConversionSql` / `CONVERSION_OUTCOMES` — `database/repositories/campaign-conversion.sql.ts` |
+| What counts as an answered call / connected attempt  | `answeredCallWhere` / `isConnectedAttemptSql` — `database/repositories/answered-call.sql.ts`   |
 | A campaign's dispositions                            | `DispositionService.listByCampaign` / `setCampaignSet` / `resolveForCampaign`                  |
 | Lazy defaults, unique names (workspace lock)         | `DispositionRepository.seedWorkspaceIfEmpty` / `createForWorkspace`                            |
 | Manual/MCP outcome write                             | `MeetingService.updateCallOutcome` (`POST /meetings/call-outcome`, `log_call_outcome`)         |

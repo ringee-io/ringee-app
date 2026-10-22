@@ -15,6 +15,7 @@ export interface DashboardFilters {
   to?: string;
   scope: DashboardScope;
   memberId?: string | null;
+  /** A campaign's id, or `none` for the calls made outside any campaign. */
   campaignId?: string | null;
   outcome?: string | null;
 }
