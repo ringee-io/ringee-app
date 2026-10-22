@@ -86,7 +86,17 @@
     "successfullyImported": "{count} contatti importati con successo",
     "importFailed": "Importazione non riuscita",
     "onlyCsv": "Sono consentiti solo file CSV",
-    "fileTooLarge": "Il file supera il limite di {size} MB"
+    "fileTooLarge": "Il file supera il limite di {size} MB",
+    "formats": {
+      "label": "Da dove viene il file?",
+      "ringee": "Modello Ringee",
+      "asExported": "Carica il file così come lo esporta {tool}.",
+      "phone": "Telefono",
+      "name": "Nome",
+      "also": "Inoltre",
+      "alsoFields": "email, ruolo, azienda, LinkedIn, sito web, città, regione, dimensione dell’azienda e fatturato",
+      "phoneRequired": "Le righe senza telefono vengono saltate: includi i numeri quando esporti da {tool}."
+    }
   },
   "export": {
     "action": "Esporta"

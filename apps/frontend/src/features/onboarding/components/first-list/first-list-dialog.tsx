@@ -24,7 +24,9 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
 import {
   CsvDropzone,
-  CsvFormatHelp
+  CsvFormatHelp,
+  CsvFormatPicker,
+  type CsvImportFormat
 } from '@/features/contact/components/csv-import-fields';
 import {
   type FirstListPeople,
@@ -114,6 +116,7 @@ export function FirstListDialog({
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [format, setFormat] = useState<CsvImportFormat>('ringee');
   const [fileError, setFileError] = useState<string | null>(null);
   const [rows, setRows] = useState<PersonRow[]>(() => [blankRow()]);
   const [picked, setPicked] = useState<Map<string, PickedContact>>(
@@ -160,6 +163,7 @@ export function FirstListDialog({
     setName('');
     setNameTouched(false);
     setFile(null);
+    setFormat('ringee');
     setFileError(null);
     setRows([blankRow()]);
     setPicked(new Map());
@@ -205,7 +209,7 @@ export function FirstListDialog({
     if (builder.completionPending) {
       input = { source: 'contacts', contactIds: [] };
     } else if (source === 'file') {
-      input = { source, file: file! };
+      input = { source, file: file!, format };
     } else if (source === 'typed') {
       const checked = rows.map((row) => ({
         ...row,
@@ -391,7 +395,15 @@ export function FirstListDialog({
                           {fileError}
                         </p>
                       ) : null}
-                      <CsvFormatHelp />
+                      <CsvFormatPicker
+                        value={format}
+                        onChange={(next) => {
+                          setFormat(next);
+                          setProblem(null);
+                        }}
+                        disabled={busy || builder.completionPending}
+                      />
+                      <CsvFormatHelp format={format} />
                     </div>
                   ) : source === 'typed' ? (
                     <TypedPeople

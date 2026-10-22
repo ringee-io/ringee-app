@@ -86,7 +86,17 @@
     "successfullyImported": "{count} Kontakte erfolgreich importiert",
     "importFailed": "Import fehlgeschlagen",
     "onlyCsv": "Nur CSV-Dateien sind zulässig",
-    "fileTooLarge": "Die Datei überschreitet das Limit von {size} MB"
+    "fileTooLarge": "Die Datei überschreitet das Limit von {size} MB",
+    "formats": {
+      "label": "Woher stammt die Datei?",
+      "ringee": "Ringee-Vorlage",
+      "asExported": "Laden Sie die Datei genau so hoch, wie {tool} sie exportiert.",
+      "phone": "Telefon",
+      "name": "Name",
+      "also": "Außerdem",
+      "alsoFields": "E-Mail, Position, Unternehmen, LinkedIn, Website, Stadt, Bundesland, Unternehmensgröße und Umsatz",
+      "phoneRequired": "Zeilen ohne Telefonnummer werden übersprungen – exportieren Sie die Telefonnummern aus {tool} mit."
+    }
   },
   "export": {
     "action": "Exportieren"

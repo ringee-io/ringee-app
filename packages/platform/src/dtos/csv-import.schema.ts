@@ -132,7 +132,7 @@ export function validateCsvRow(
 
   // Validate email format if provided
   const email = row.email?.trim();
-  if (email && !isValidEmail(email)) {
+  if (email && !isValidCsvEmail(email)) {
     errors.push({
       row: rowIndex,
       field: "email",
@@ -164,7 +164,7 @@ export function validateCsvRow(
   };
 }
 
-function isValidEmail(email: string): boolean {
+export function isValidCsvEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }

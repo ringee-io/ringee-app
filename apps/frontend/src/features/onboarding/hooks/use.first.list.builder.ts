@@ -4,6 +4,10 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
+import {
+  appendCsvFormat,
+  type CsvImportFormat
+} from '@/features/contact/components/csv-import-fields';
 import type {
   ContactList,
   ContactListImportSummary
@@ -21,7 +25,7 @@ export interface TypedPerson {
 
 /** Who goes into the list, from wherever the user brought them. */
 export type FirstListPeople =
-  | { source: 'file'; file: File }
+  | { source: 'file'; file: File; format: CsvImportFormat }
   | { source: 'typed'; people: TypedPerson[] }
   | { source: 'contacts'; contactIds: string[] };
 
@@ -105,6 +109,7 @@ export function useFirstListBuilder() {
         const body = new FormData();
         body.append('name', name);
         body.append('file', people.file);
+        appendCsvFormat(body, people.format);
         const created = await api.upload<CreateListResponse>(
           '/contact-lists',
           body
@@ -137,6 +142,7 @@ export function useFirstListBuilder() {
         if (people.source === 'file') {
           const body = new FormData();
           body.append('file', people.file);
+          appendCsvFormat(body, people.format);
           const summary = await api.upload<ContactListImportSummary>(
             `/contact-lists/${list.id}/import`,
             body

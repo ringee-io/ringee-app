@@ -20,10 +20,7 @@ import {
   UpdateCampaignStatusDto,
   ManualLeadDto,
   CSV_IMPORT_CONFIG,
-  validateCsvHeaders,
-  validateCsvRow,
-  ALL_CSV_FIELDS,
-  CsvContactRow,
+  CsvImportFormat,
   CsvRowError,
   isCampaignStatus,
 } from "@ringee/platform";
@@ -388,6 +385,7 @@ export class CampaignService {
     campaignId: string,
     csvContent: string,
     tagIds?: string[],
+    format?: CsvImportFormat,
   ): Promise<CampaignLeadsImportResult> {
     this.ensureOrganization(ctx);
 
@@ -403,65 +401,9 @@ export class CampaignService {
 
     const validatedTagIds = await this.validateImportTagIds(ctx, tagIds);
 
-    const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
-
-    if (lines.length === 0) {
-      throw new BadRequestException("CSV file is empty");
-    }
-
-    if (lines.length > CSV_IMPORT_CONFIG.MAX_ROWS + 1) {
-      throw new BadRequestException(
-        `CSV file exceeds maximum of ${CSV_IMPORT_CONFIG.MAX_ROWS} rows`,
-      );
-    }
-
-    // Parse and validate headers
-    const headerLine = lines[0];
-    const headers = this.parseCsvLine(headerLine);
-    const headerValidation = validateCsvHeaders(headers);
-
-    if (!headerValidation.valid) {
-      throw new BadRequestException(
-        `Missing required columns: ${headerValidation.missingRequired.join(", ")}`,
-      );
-    }
-
-    // Map headers to indices
-    const headerIndices = new Map<string, number>();
-    headers.forEach((h, i) => headerIndices.set(h.trim().toLowerCase(), i));
-
-    const errors: CsvRowError[] = [];
-    const validContacts: CsvContactRow[] = [];
-    const seenPhones = new Set<string>();
-
-    // Parse and validate each row
-    for (let i = 1; i < lines.length; i++) {
-      const rowNum = i + 1;
-      const values = this.parseCsvLine(lines[i]);
-
-      // Build row object
-      const row: Record<string, string> = {};
-      for (const field of ALL_CSV_FIELDS) {
-        const idx = headerIndices.get(field.toLowerCase());
-        row[field] = idx !== undefined ? values[idx] || "" : "";
-      }
-
-      const validation = validateCsvRow(row, rowNum);
-
-      if (!validation.valid) {
-        errors.push(...validation.errors);
-        continue;
-      }
-
-      // Check for duplicates within the same file
-      const phone = validation.data!.phoneNumber;
-      if (seenPhones.has(phone)) {
-        continue;
-      }
-      seenPhones.add(phone);
-
-      validContacts.push(validation.data!);
-    }
+    // Same reader, columns and validation as the Contacts import.
+    const parsed = this.contactService.parseContactsCsv(csvContent, format);
+    const validContacts = parsed.rows;
 
     // Process contacts and create leads
     let contactsCreated = 0;
@@ -558,36 +500,14 @@ export class CampaignService {
     return {
       success: true,
       summary: {
-        totalRows: lines.length - 1,
+        totalRows: parsed.totalRows,
         contactsCreated,
         leadsAdded,
         duplicatesSkipped,
-        invalidRows: errors.length,
-        errors: errors.slice(0, 50),
+        invalidRows: parsed.errors.length,
+        errors: parsed.errors.slice(0, 50),
       },
     };
-  }
-
-  private parseCsvLine(line: string): string[] {
-    const result: string[] = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === "," && !inQuotes) {
-        result.push(current.trim());
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    result.push(current.trim());
-
-    return result;
   }
 
   private async validateImportTagIds(

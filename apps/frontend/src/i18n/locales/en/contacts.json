@@ -115,7 +115,17 @@
     "successfullyImported": "Successfully imported {count} contacts",
     "importFailed": "Import failed",
     "onlyCsv": "Only CSV files are allowed",
-    "fileTooLarge": "File size exceeds {size}MB limit"
+    "fileTooLarge": "File size exceeds {size}MB limit",
+    "formats": {
+      "label": "Where is the file from?",
+      "ringee": "Ringee template",
+      "asExported": "Upload the file exactly as {tool} exports it.",
+      "phone": "Phone",
+      "name": "Name",
+      "also": "Also",
+      "alsoFields": "email, job title, company, LinkedIn, website, city, state, company size and revenue",
+      "phoneRequired": "Rows without a phone number are skipped, so include phone numbers when you export from {tool}."
+    }
   },
   "export": {
     "action": "Export"

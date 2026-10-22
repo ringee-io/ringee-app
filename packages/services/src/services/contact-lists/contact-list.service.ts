@@ -16,6 +16,7 @@ import {
   AddContactListContactDto,
   CONTACT_LIST_LIMITS,
   CreateContactListDto,
+  CsvImportFormat,
   CsvRowError,
   OwnershipContext,
   UpdateContactListDto,
@@ -167,7 +168,7 @@ export class ContactListService {
     const parsed =
       csvContent === undefined
         ? null
-        : this.contacts.parseContactsCsv(csvContent);
+        : this.contacts.parseContactsCsv(csvContent, input.format);
 
     const created = await this.lists.create(actor, {
       name,
@@ -265,7 +266,7 @@ export class ContactListService {
   }
 
   /**
-   * Imports a contacts CSV into the list (LIST-003): the same format and the
+   * Imports a contacts CSV into the list (LIST-003): the same formats and the
    * same contact rules as the Contacts import, then every row's contact —
    * new or already in the workspace — goes into the list.
    */
@@ -273,13 +274,14 @@ export class ContactListService {
     actor: ContactListActor,
     listId: string,
     csvContent: string,
+    format?: CsvImportFormat,
   ): Promise<ContactListImportSummary> {
     const list = await this.loadVisible(actor, listId);
     this.assertCanAdd(actor, list);
     return this.fileRows(
       actor,
       list.id,
-      this.contacts.parseContactsCsv(csvContent),
+      this.contacts.parseContactsCsv(csvContent, format),
     );
   }
 

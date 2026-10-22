@@ -27,6 +27,12 @@ import {
   Tag,
   TagMultiSelect
 } from '@/features/contact/components/tag-multi-select';
+import {
+  appendCsvFormat,
+  CsvFormatHelp,
+  CsvFormatPicker,
+  type CsvImportFormat
+} from '@/features/contact/components/csv-import-fields';
 
 const CSV_CONFIG = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
@@ -93,6 +99,7 @@ export function ImportLeadsModal({
 
   const [state, setState] = useState<ImportState>('idle');
   const [file, setFile] = useState<File | null>(null);
+  const [format, setFormat] = useState<CsvImportFormat>('ringee');
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -182,6 +189,7 @@ export function ImportLeadsModal({
     try {
       const formData = new FormData();
       formData.append('file', file);
+      appendCsvFormat(formData, format);
       if (selectedTagIds.length > 0) {
         formData.append('tagIds', JSON.stringify(selectedTagIds));
       }
@@ -362,6 +370,88 @@ export function ImportLeadsModal({
               )}
             </div>
 
+            <CsvFormatPicker
+              value={format}
+              onChange={setFormat}
+              disabled={state === 'uploading'}
+            />
+
+            {/* Format reference: Ringee's template, or the columns of a tool's export */}
+            {format !== 'ringee' ? (
+              <CsvFormatHelp format={format} />
+            ) : (
+              <div className='bg-muted/40 rounded-lg border p-3 text-sm'>
+                <div className='mb-2 flex items-center justify-between'>
+                  <span className='font-medium'>{t('format.title')}</span>
+                  <Button
+                    variant='link'
+                    size='sm'
+                    className='h-auto p-0 text-xs'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadTemplate();
+                    }}
+                  >
+                    <Download className='mr-1 h-3 w-3' />
+                    {t('format.downloadTemplate')}
+                  </Button>
+                </div>
+                <div className='space-y-2'>
+                  <div>
+                    <div className='mb-1 flex items-center gap-2'>
+                      <Badge className='bg-green-100 text-green-700 hover:bg-green-100'>
+                        {t('format.required')}
+                      </Badge>
+                    </div>
+                    <ul className='space-y-1'>
+                      {REQUIRED_FIELDS.map((f) => (
+                        <li
+                          key={f.name}
+                          className='flex items-baseline gap-2 text-xs'
+                        >
+                          <code className='bg-background rounded px-1 py-0.5 font-mono'>
+                            {f.name}
+                          </code>
+                          <span className='text-muted-foreground'>
+                            {t('format.fieldHint', {
+                              description: t(`format.fields.${f.name}`),
+                              example: f.example
+                            })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <div className='mb-1 flex items-center gap-2'>
+                      <Badge variant='secondary'>{t('format.optional')}</Badge>
+                    </div>
+                    <ul className='space-y-1'>
+                      {OPTIONAL_FIELDS.map((f) => (
+                        <li
+                          key={f.name}
+                          className='flex items-baseline gap-2 text-xs'
+                        >
+                          <code className='bg-background rounded px-1 py-0.5 font-mono'>
+                            {f.name}
+                          </code>
+                          <span className='text-muted-foreground'>
+                            {t('format.fieldHint', {
+                              description: t(`format.fields.${f.name}`),
+                              example: f.example
+                            })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <p className='text-muted-foreground mt-2 text-xs'>
+                  {t('format.note')}
+                </p>
+              </div>
+            )}
+
             {file && (
               <TagMultiSelect
                 availableTags={tags}
@@ -380,78 +470,6 @@ export function ImportLeadsModal({
                 {error}
               </div>
             )}
-
-            {/* Format reference */}
-            <div className='bg-muted/40 rounded-lg border p-3 text-sm'>
-              <div className='mb-2 flex items-center justify-between'>
-                <span className='font-medium'>{t('format.title')}</span>
-                <Button
-                  variant='link'
-                  size='sm'
-                  className='h-auto p-0 text-xs'
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadTemplate();
-                  }}
-                >
-                  <Download className='mr-1 h-3 w-3' />
-                  {t('format.downloadTemplate')}
-                </Button>
-              </div>
-              <div className='space-y-2'>
-                <div>
-                  <div className='mb-1 flex items-center gap-2'>
-                    <Badge className='bg-green-100 text-green-700 hover:bg-green-100'>
-                      {t('format.required')}
-                    </Badge>
-                  </div>
-                  <ul className='space-y-1'>
-                    {REQUIRED_FIELDS.map((f) => (
-                      <li
-                        key={f.name}
-                        className='flex items-baseline gap-2 text-xs'
-                      >
-                        <code className='bg-background rounded px-1 py-0.5 font-mono'>
-                          {f.name}
-                        </code>
-                        <span className='text-muted-foreground'>
-                          {t('format.fieldHint', {
-                            description: t(`format.fields.${f.name}`),
-                            example: f.example
-                          })}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <div className='mb-1 flex items-center gap-2'>
-                    <Badge variant='secondary'>{t('format.optional')}</Badge>
-                  </div>
-                  <ul className='space-y-1'>
-                    {OPTIONAL_FIELDS.map((f) => (
-                      <li
-                        key={f.name}
-                        className='flex items-baseline gap-2 text-xs'
-                      >
-                        <code className='bg-background rounded px-1 py-0.5 font-mono'>
-                          {f.name}
-                        </code>
-                        <span className='text-muted-foreground'>
-                          {t('format.fieldHint', {
-                            description: t(`format.fields.${f.name}`),
-                            example: f.example
-                          })}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              <p className='text-muted-foreground mt-2 text-xs'>
-                {t('format.note')}
-              </p>
-            </div>
 
             {/* Actions */}
             <div className='flex gap-2'>
