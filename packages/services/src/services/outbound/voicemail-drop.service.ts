@@ -272,6 +272,8 @@ export class VoicemailDropService {
       );
     }
 
+    // `action` stays the first key: analytics tell a drop's leg from a call by
+    // the encoded opening of this JSON (CALL-012, `answered-call.sql.ts`).
     const clientState: VoicemailDropClientState = {
       action: "voicemail_drop_send",
       assetId: asset.id,

@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Query } from "@nestjs/common";
+import { NO_CAMPAIGN } from "@ringee/database";
 import {
   CurrentUser,
   CurrentUserData,
@@ -6,6 +7,8 @@ import {
   DashboardContext,
 } from "@ringee/platform";
 import { DashboardService, UserService } from "@ringee/services";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface CommonFilterQuery {
   from?: string;
@@ -48,7 +51,7 @@ export class DashboardController {
       filterMemberId,
       scope: q.scope,
       dateRange: parseRange(q),
-      campaignId: q.campaignId ?? null,
+      campaignId: parseCampaignId(q.campaignId),
       outcome: q.outcome ?? null,
     });
   }
@@ -136,6 +139,16 @@ export class DashboardController {
   ) {
     return this.service.agentPerformance(await this.buildContext(user, q));
   }
+}
+
+/**
+ * The campaign filter: a campaign's id, or `none` for the calls made outside
+ * any campaign. Anything else would reach a `::uuid` cast as a 500.
+ */
+function parseCampaignId(campaignId?: string): string | null {
+  if (!campaignId) return null;
+  if (campaignId === NO_CAMPAIGN || UUID.test(campaignId)) return campaignId;
+  throw new BadRequestException("Invalid campaignId");
 }
 
 function parseRange(

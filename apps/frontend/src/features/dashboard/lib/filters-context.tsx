@@ -87,7 +87,10 @@ export function DashboardFiltersProvider({
         from: range === 'custom' ? custom?.from : null,
         to: range === 'custom' ? custom?.to : null
       }),
-    setScope: (scope) => update({ scope }),
+    // A personal view has no campaign calls, so a campaign picked for the
+    // organization would only empty it.
+    setScope: (scope) =>
+      update(scope === 'personal' ? { scope, campaignId: null } : { scope }),
     setMemberId: (memberId) => update({ memberId }),
     setCampaignId: (campaignId) => update({ campaignId }),
     setOutcome: (outcome) => update({ outcome }),

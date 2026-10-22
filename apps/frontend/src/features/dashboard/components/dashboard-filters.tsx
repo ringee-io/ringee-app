@@ -31,6 +31,13 @@ import { useOrganization } from '@clerk/nextjs';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import type { CampaignListResponse } from '@/features/campaigns/types/campaign.types';
+
+/** The API's campaign filter for the calls made outside any campaign. */
+const NO_CAMPAIGN = 'none';
+
+/** More campaigns than any workspace runs; the API pages its list. */
+const CAMPAIGN_LIMIT = 100;
 
 const RANGE_KEYS: Record<DashboardRangeKey, string> = {
   today: 'today',
@@ -95,10 +102,13 @@ export function DashboardFilters() {
           onChange={setMemberId}
         />
       )}
-      <CampaignSelector
-        value={filters.campaignId ?? null}
-        onChange={setCampaignId}
-      />
+      {/* Campaigns are organization-only: a personal view has none. */}
+      {hasOrg && filters.scope === 'organization' && (
+        <CampaignSelector
+          value={filters.campaignId ?? null}
+          onChange={setCampaignId}
+        />
+      )}
       <Select
         value={filters.outcome ?? 'all'}
         onValueChange={(v) => setOutcome(v === 'all' ? null : v)}
@@ -345,17 +355,21 @@ function CampaignSelector({
 }) {
   const t = useTranslations('dashboard.filters');
   const api = useApi();
+  const [open, setOpen] = React.useState(false);
   const [campaigns, setCampaigns] = React.useState<
     { id: string; name: string }[] | null
   >(null);
 
   React.useEffect(() => {
     let active = true;
+    // Every status: a paused or completed campaign still has results to read.
+    // An admin gets the organization's campaigns, a member the ones they are
+    // assigned to — the API applies the split.
     api
-      .get<{ id: string; name: string }[]>('/campaigns')
+      .get<CampaignListResponse>('/campaigns', { limit: CAMPAIGN_LIMIT })
       .then((res) => {
         if (!active) return;
-        setCampaigns(Array.isArray(res) ? res : []);
+        setCampaigns(res.data.map(({ id, name }) => ({ id, name })));
       })
       .catch(() => {
         if (active) setCampaigns([]);
@@ -367,22 +381,51 @@ function CampaignSelector({
 
   if (!campaigns || campaigns.length === 0) return null;
 
+  const options = [
+    { id: null, name: t('allCampaigns') },
+    { id: NO_CAMPAIGN, name: t('noCampaign') },
+    ...campaigns
+  ];
+  const selected = options.find((o) => o.id === value);
+
   return (
-    <Select
-      value={value ?? 'all'}
-      onValueChange={(v) => onChange(v === 'all' ? null : v)}
-    >
-      <SelectTrigger className='h-9 w-[200px]'>
-        <SelectValue placeholder={t('allCampaigns')} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value='all'>{t('allCampaigns')}</SelectItem>
-        {campaigns.map((c) => (
-          <SelectItem key={c.id} value={c.id}>
-            {c.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant='outline' className='h-9 w-[200px] justify-between'>
+          <span className='truncate'>
+            {selected?.name ?? t('campaignFallback')}
+          </span>
+          <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='w-[240px] p-0' align='start'>
+        <Command>
+          <CommandInput placeholder={t('searchCampaigns')} />
+          <CommandList>
+            <CommandEmpty>{t('noCampaigns')}</CommandEmpty>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem
+                  key={o.id ?? '__all__'}
+                  value={`${o.name} ${o.id ?? '__all__'}`}
+                  onSelect={() => {
+                    onChange(o.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === o.id ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  <span className='truncate'>{o.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
