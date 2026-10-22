@@ -51,17 +51,21 @@ export function DashboardFiltersProvider({
   const filters = React.useMemo<DashboardFilters>(() => {
     const rangeParam = searchParams.get('range') as DashboardRangeKey | null;
     const scopeParam = searchParams.get('scope') as DashboardScope | null;
+    const scope =
+      scopeParam && SCOPE_VALUES.includes(scopeParam)
+        ? scopeParam
+        : defaultScope;
     return {
       range:
         rangeParam && RANGE_VALUES.includes(rangeParam) ? rangeParam : '30d',
       from: searchParams.get('from') ?? undefined,
       to: searchParams.get('to') ?? undefined,
-      scope:
-        scopeParam && SCOPE_VALUES.includes(scopeParam)
-          ? scopeParam
-          : defaultScope,
+      scope,
       memberId: searchParams.get('memberId'),
-      campaignId: searchParams.get('campaignId'),
+      // A personal view hides the campaign picker, so a campaign left in the
+      // URL (a shared link, a back navigation) must not filter it unseen.
+      campaignId:
+        scope === 'organization' ? searchParams.get('campaignId') : null,
       outcome: searchParams.get('outcome')
     };
   }, [searchParams, defaultScope]);

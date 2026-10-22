@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import {
   VOICEMAIL_DROP_STATE_PREFIX,
   answeredCallWhere,
@@ -20,6 +20,10 @@ const range = {
   start: new Date("2026-10-01T00:00:00Z"),
   end: new Date("2026-10-21T23:59:59Z"),
 };
+
+// Explicit opt-in: never inherit a developer's application DATABASE_URL. The
+// SQL test below writes only to a temporary table that its transaction drops.
+const sqlTestUrl = process.env.RINGEE_ANALYTICS_TEST_DATABASE_URL;
 
 describe("answered calls (CALL-012)", () => {
   it("recognises a voicemail drop's leg by the client state it was dialed with", () => {
@@ -165,4 +169,57 @@ describe("answered calls (CALL-012)", () => {
     assert.ok(sql.includes(`AVG("durationSec") FILTER (WHERE ${connected})`));
     assert.ok(!sql.includes(`FILTER (WHERE "answeredAt" IS NOT NULL)`));
   });
+
+  it(
+    "classifies voicemail, no-answer and connected attempts in a campaign summary (PostgreSQL)",
+    { skip: !sqlTestUrl },
+    async () => {
+      const prisma = new PrismaClient({ datasourceUrl: sqlTestUrl });
+      const campaignId = "00000000-0000-0000-0000-0000000000c1";
+      const otherCampaignId = "00000000-0000-0000-0000-0000000000c2";
+      try {
+        const summary = await prisma.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(
+            `CREATE TEMP TABLE "CallAttempt" (id serial PRIMARY KEY, "campaignId" uuid, "campaignLeadId" uuid,
+            "answeredAt" timestamp, "dispositionOutcome" text, "dispositionCode" text, "durationSec" int) ON COMMIT DROP`,
+          );
+          const attempt = async (
+            campaign: string,
+            answered: boolean,
+            outcome: string | null,
+            code: string | null,
+            durationSec: number,
+          ) => {
+            await tx.$executeRaw`INSERT INTO "CallAttempt"
+              ("campaignId", "campaignLeadId", "answeredAt", "dispositionOutcome", "dispositionCode", "durationSec")
+              VALUES (${campaign}::uuid, gen_random_uuid(),
+                ${answered ? new Date("2026-10-20T15:00:00Z") : null}::timestamp,
+                ${outcome}, ${code}, ${durationSec})`;
+          };
+          // Connected: a person answered, whatever came of it.
+          await attempt(campaignId, true, "interested", "interested", 60);
+          await attempt(campaignId, true, "meeting_booked", "demo_booked", 120);
+          await attempt(campaignId, true, null, null, 90);
+          // Not connected: the machine answered, or nobody did.
+          await attempt(campaignId, true, "voicemail", "voicemail", 30);
+          await attempt(campaignId, true, null, "voicemail", 20);
+          await attempt(campaignId, false, "no_answer", "no_answer", 0);
+          // Another campaign's attempt is not counted at all.
+          await attempt(otherCampaignId, true, "interested", "interested", 600);
+
+          return new OutboundAnalyticsRepository(
+            tx as never,
+          ).getCampaignSummary(campaignId);
+        });
+
+        assert.equal(summary.totalAttempts, 6);
+        assert.equal(summary.connected, 3);
+        assert.equal(summary.contactRate, 50);
+        assert.equal(Number(summary.avgHandleTimeSec), 90);
+        assert.equal(summary.conversions, 1);
+      } finally {
+        await prisma.$disconnect();
+      }
+    },
+  );
 });

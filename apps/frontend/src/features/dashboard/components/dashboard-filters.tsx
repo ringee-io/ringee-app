@@ -29,15 +29,20 @@ import type { DashboardRangeKey } from '../lib/types';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useOrganization } from '@clerk/nextjs';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
-import { Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  Check,
+  ChevronsUpDown,
+  Calendar as CalendarIcon,
+  Loader2
+} from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { CampaignListResponse } from '@/features/campaigns/types/campaign.types';
 
 /** The API's campaign filter for the calls made outside any campaign. */
 const NO_CAMPAIGN = 'none';
 
-/** More campaigns than any workspace runs; the API pages its list. */
-const CAMPAIGN_LIMIT = 100;
+/** The API pages its campaign list; the selector reads every page. */
+const CAMPAIGN_PAGE_SIZE = 100;
 
 const RANGE_KEYS: Record<DashboardRangeKey, string> = {
   today: 'today',
@@ -354,6 +359,7 @@ function CampaignSelector({
   onChange: (id: string | null) => void;
 }) {
   const t = useTranslations('dashboard.filters');
+  const tCommon = useTranslations('common');
   const api = useApi();
   const [open, setOpen] = React.useState(false);
   const [campaigns, setCampaigns] = React.useState<
@@ -365,11 +371,21 @@ function CampaignSelector({
     // Every status: a paused or completed campaign still has results to read.
     // An admin gets the organization's campaigns, a member the ones they are
     // assigned to — the API applies the split.
-    api
-      .get<CampaignListResponse>('/campaigns', { limit: CAMPAIGN_LIMIT })
-      .then((res) => {
-        if (!active) return;
-        setCampaigns(res.data.map(({ id, name }) => ({ id, name })));
+    const loadAll = async () => {
+      const all: { id: string; name: string }[] = [];
+      for (let page = 1, pages = 1; active && page <= pages; page++) {
+        const res = await api.get<CampaignListResponse>('/campaigns', {
+          page,
+          limit: CAMPAIGN_PAGE_SIZE
+        });
+        all.push(...res.data.map(({ id, name }) => ({ id, name })));
+        pages = res.meta.totalPages;
+      }
+      return all;
+    };
+    loadAll()
+      .then((all) => {
+        if (active) setCampaigns(all);
       })
       .catch(() => {
         if (active) setCampaigns([]);
@@ -379,23 +395,33 @@ function CampaignSelector({
     };
   }, [api]);
 
-  if (!campaigns || campaigns.length === 0) return null;
-
+  const loading = campaigns === null;
+  // The fixed options stay even without campaigns, so a filter carried in
+  // the URL can always be seen and cleared.
   const options = [
     { id: null, name: t('allCampaigns') },
     { id: NO_CAMPAIGN, name: t('noCampaign') },
-    ...campaigns
+    ...(campaigns ?? [])
   ];
   const selected = options.find((o) => o.id === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant='outline' className='h-9 w-[200px] justify-between'>
+        <Button
+          variant='outline'
+          className='h-9 w-[200px] justify-between'
+          disabled={loading}
+        >
           <span className='truncate'>
-            {selected?.name ?? t('campaignFallback')}
+            {selected?.name ??
+              (loading ? tCommon('loading') : t('campaignFallback'))}
           </span>
-          <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
+          {loading ? (
+            <Loader2 className='ml-2 h-4 w-4 shrink-0 animate-spin opacity-50' />
+          ) : (
+            <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-[240px] p-0' align='start'>
