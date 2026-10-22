@@ -107,7 +107,7 @@ export class DialerController {
       sessionId,
       this.requireOrg(user),
     );
-    return this.agentSessionService.pause(sessionId);
+    return this.dialerOrchestration.pauseSession(sessionId);
   }
 
   @Patch("sessions/:sessionId/resume")
