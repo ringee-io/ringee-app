@@ -86,7 +86,17 @@
     "successfullyImported": "{count} contacten succesvol geïmporteerd",
     "importFailed": "Import mislukt",
     "onlyCsv": "Alleen CSV-bestanden zijn toegestaan",
-    "fileTooLarge": "Bestandsgrootte overschrijdt de limiet van {size} MB"
+    "fileTooLarge": "Bestandsgrootte overschrijdt de limiet van {size} MB",
+    "formats": {
+      "label": "Waar komt het bestand vandaan?",
+      "ringee": "Ringee-sjabloon",
+      "asExported": "Upload het bestand precies zoals {tool} het exporteert.",
+      "phone": "Telefoon",
+      "name": "Naam",
+      "also": "Ook",
+      "alsoFields": "e-mail, functie, bedrijf, LinkedIn, website, stad, provincie, bedrijfsgrootte en omzet",
+      "phoneRequired": "Rijen zonder telefoonnummer worden overgeslagen: neem de telefoonnummers mee bij het exporteren uit {tool}."
+    }
   },
   "export": {
     "action": "Exporteren"

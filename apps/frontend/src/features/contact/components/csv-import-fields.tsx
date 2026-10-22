@@ -1,9 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useId, useRef, useState } from 'react';
+import Image from 'next/image';
+import { useFormatter, useTranslations } from 'next-intl';
 import { IconDownload, IconFileTypeCsv, IconUpload } from '@tabler/icons-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import {
+  ToggleGroup,
+  ToggleGroupItem
+} from '@ringee/frontend-shared/components/ui/toggle-group';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 /** The server's `CSV_IMPORT_CONFIG` limits, checked before uploading. */
@@ -25,6 +30,101 @@ export const CSV_OPTIONAL_FIELDS = [
   'companySize',
   'location'
 ];
+
+/**
+ * Which tool wrote the file. The server reads an Apollo or Prospeo export
+ * through that tool's own columns, so it is uploaded exactly as exported.
+ */
+export type CsvImportFormat = 'ringee' | 'apollo' | 'prospeo';
+
+type ExportFormat = Exclude<CsvImportFormat, 'ringee'>;
+
+const CSV_FORMATS: { id: CsvImportFormat; logo: string }[] = [
+  { id: 'ringee', logo: '/android-chrome-192x192.png' },
+  { id: 'apollo', logo: '/companies/apollo.png' },
+  { id: 'prospeo', logo: '/companies/prospeo.svg' }
+];
+
+const TOOL_NAMES: Record<ExportFormat, string> = {
+  apollo: 'Apollo',
+  prospeo: 'Prospeo'
+};
+
+/** The headers an export needs, as the tool names them — the server's map, abridged. */
+const EXPORT_COLUMNS: Record<
+  ExportFormat,
+  { phone: string[]; name: string[] }
+> = {
+  apollo: {
+    phone: ['Mobile Phone', 'Work Direct Phone', 'Corporate Phone'],
+    name: ['First Name', 'Last Name']
+  },
+  prospeo: { phone: ['Mobile', 'Company HQ Phone'], name: ['Full name'] }
+};
+
+/** Names the file's format on an upload; Ringee's template is the default. */
+export function appendCsvFormat(body: FormData, format: CsvImportFormat) {
+  if (format !== 'ringee') body.append('format', format);
+}
+
+/** Where the file comes from: Ringee's template, or a tool's export as it is. */
+export function CsvFormatPicker({
+  value,
+  onChange,
+  disabled
+}: {
+  value: CsvImportFormat;
+  onChange: (format: CsvImportFormat) => void;
+  disabled?: boolean;
+}) {
+  const t = useTranslations('contacts.import.formats');
+  const labelId = useId();
+
+  return (
+    <div className='space-y-2'>
+      <p id={labelId} className='text-sm font-medium'>
+        {t('label')}
+      </p>
+      <ToggleGroup
+        type='single'
+        variant='outline'
+        value={value}
+        onValueChange={(next) => {
+          // Radix clears the value when the pressed item is clicked again.
+          if (next) onChange(next as CsvImportFormat);
+        }}
+        disabled={disabled}
+        aria-labelledby={labelId}
+        className='w-full'
+      >
+        {CSV_FORMATS.map(({ id, logo }) => (
+          <ToggleGroupItem
+            key={id}
+            value={id}
+            className='h-10 gap-2 px-2.5 data-[state=on]:font-semibold'
+          >
+            <Image
+              src={logo}
+              alt=''
+              width={16}
+              height={16}
+              className='size-4 shrink-0 rounded-[4px] object-contain'
+            />
+            {id === 'ringee' ? (
+              <span className='truncate'>
+                {/* A phone-width dialog has room for the brand only. */}
+                <span className='sm:hidden'>Ringee</span>
+                <span className='hidden sm:inline'>{t('ringee')}</span>
+              </span>
+            ) : (
+              <span className='truncate'>{TOOL_NAMES[id]}</span>
+            )}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </div>
+  );
+}
 
 /**
  * Picks one contacts CSV, dropped or clicked. A file the server would refuse
@@ -130,8 +230,55 @@ export function CsvDropzone({
   );
 }
 
-/** The columns a contacts CSV takes, and a template to start from. */
-export function CsvFormatHelp() {
+/**
+ * What the file needs in the format it comes in: the template's columns and a
+ * copy to start from, or the columns a tool's export is read from.
+ */
+export function CsvFormatHelp({
+  format = 'ringee'
+}: {
+  format?: CsvImportFormat;
+}) {
+  if (format !== 'ringee') return <CsvExportHelp format={format} />;
+  return <CsvTemplateHelp />;
+}
+
+function CsvExportHelp({ format }: { format: ExportFormat }) {
+  const t = useTranslations('contacts.import.formats');
+  const formatter = useFormatter();
+  const tool = TOOL_NAMES[format];
+  const columns = EXPORT_COLUMNS[format];
+  const header = (name: string) => (
+    <code
+      key={name}
+      className='bg-background rounded px-1 py-0.5 font-mono whitespace-nowrap'
+    >
+      {name}
+    </code>
+  );
+
+  return (
+    <div className='bg-muted/50 rounded-lg p-3 text-sm'>
+      <div className='mb-2 font-medium'>{t('asExported', { tool })}</div>
+      <dl className='grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs leading-5'>
+        <dt className='text-muted-foreground'>{t('phone')}</dt>
+        <dd>
+          {formatter.list(columns.phone.map(header), { type: 'disjunction' })}
+        </dd>
+        <dt className='text-muted-foreground'>{t('name')}</dt>
+        <dd>{formatter.list(columns.name.map(header))}</dd>
+        <dt className='text-muted-foreground'>{t('also')}</dt>
+        <dd>{t('alsoFields')}</dd>
+      </dl>
+      <p className='text-muted-foreground mt-2 text-xs'>
+        {t('phoneRequired', { tool })}
+      </p>
+    </div>
+  );
+}
+
+/** The columns Ringee's template takes, and a copy to start from. */
+function CsvTemplateHelp() {
   const t = useTranslations('contacts.import');
 
   const downloadTemplate = () => {

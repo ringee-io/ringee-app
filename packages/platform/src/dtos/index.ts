@@ -8,6 +8,7 @@ export * from "./free-trial.dto";
 export * from "./demo-request.dto";
 export * from "./recording.dto";
 export * from "./csv-import.schema";
+export * from "./csv-import.formats";
 export * from "./campaign.dto";
 export * from "./tag.dto";
 export * from "./infrastructure.dto";

@@ -21,6 +21,7 @@ import {
   CurrentUser,
   createOwnershipContext,
   CSV_IMPORT_CONFIG,
+  CsvImportFormatDto,
   OrgAdminOnly,
   AllowOrgMember,
 } from "@ringee/platform";
@@ -435,6 +436,7 @@ export class CampaignController {
     @Param("id") campaignId: string,
     @UploadedFile() file: { buffer: Buffer; originalname: string },
     @CurrentUser() user: CurrentUserData,
+    @Body() options: CsvImportFormatDto,
     @Body("tagIds") tagIdsRaw?: string,
   ) {
     if (!user.activeOrgId) {
@@ -472,6 +474,7 @@ export class CampaignController {
       campaignId,
       csvContent,
       tagIds,
+      options.format,
     );
   }
 

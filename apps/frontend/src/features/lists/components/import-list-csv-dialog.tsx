@@ -16,8 +16,11 @@ import {
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
+  appendCsvFormat,
   CsvDropzone,
-  CsvFormatHelp
+  CsvFormatHelp,
+  CsvFormatPicker,
+  type CsvImportFormat
 } from '@/features/contact/components/csv-import-fields';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
 import type { ContactList, ContactListImportSummary } from '../types';
@@ -38,6 +41,7 @@ export function ImportListCsvDialog({
   const api = useApi();
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
+  const [format, setFormat] = useState<CsvImportFormat>('ringee');
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [summary, setSummary] = useState<ContactListImportSummary | null>(null);
@@ -56,6 +60,7 @@ export function ImportListCsvDialog({
     try {
       const body = new FormData();
       body.append('file', file);
+      appendCsvFormat(body, format);
       const result = await api.upload<ContactListImportSummary>(
         `/contact-lists/${list.id}/import`,
         body
@@ -98,13 +103,18 @@ export function ImportListCsvDialog({
               }}
               onError={setError}
             />
+            <CsvFormatPicker
+              value={format}
+              onChange={setFormat}
+              disabled={uploading}
+            />
+            <CsvFormatHelp format={format} />
             {error ? (
               <div className='bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg p-3 text-sm'>
                 <IconX className='size-4 shrink-0' />
                 {error}
               </div>
             ) : null}
-            <CsvFormatHelp />
             <DialogFooter className='gap-2 sm:gap-2'>
               <Button variant='outline' onClick={close}>
                 {tCommon('cancel')}

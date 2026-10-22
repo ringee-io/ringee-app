@@ -22,11 +22,12 @@ import {
   OwnershipContext,
   CSV_IMPORT_CONFIG,
   CsvContactRow,
+  CsvImportFormat,
   CsvImportResult,
   CsvRowError,
-  validateCsvHeaders,
+  readCsvHeader,
+  splitCsvRecords,
   validateCsvRow,
-  ALL_CSV_FIELDS,
 } from "@ringee/platform";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
 import { buildNoteEventData } from "./custom-integrations/custom-integration-event-builders";
@@ -444,9 +445,10 @@ export class ContactService {
     ctx: OwnershipContext,
     csvContent: string,
     tagIds?: string[],
+    format?: CsvImportFormat,
   ): Promise<CsvImportResult> {
     const validatedTagIds = await this.validateImportTagIds(ctx, tagIds);
-    const parsed = this.parseContactsCsv(csvContent);
+    const parsed = this.parseContactsCsv(csvContent, format);
     const { result, insertedPhones } = await this.writeImportedRows(
       ctx,
       parsed,
@@ -487,52 +489,41 @@ export class ContactService {
    * Reads a contacts CSV without writing anything. A file that cannot be
    * imported at all — empty, too long, missing a required column — throws; a
    * bad row only comes back as an error, so one typo does not sink the file.
+   *
+   * `format` says which tool wrote the file: Ringee's template, or an Apollo
+   * or Prospeo export read through that tool's own columns.
    */
-  parseContactsCsv(csvContent: string): ParsedContactsCsv {
-    const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
+  parseContactsCsv(
+    csvContent: string,
+    format: CsvImportFormat = "ringee",
+  ): ParsedContactsCsv {
+    const records = splitCsvRecords(csvContent).filter((record) =>
+      record.some((value) => value.trim()),
+    );
 
-    if (lines.length === 0) {
+    if (records.length === 0) {
       throw new BadRequestException("CSV file is empty");
     }
 
-    if (lines.length > CSV_IMPORT_CONFIG.MAX_ROWS + 1) {
+    if (records.length > CSV_IMPORT_CONFIG.MAX_ROWS + 1) {
       throw new BadRequestException(
         `CSV file exceeds maximum of ${CSV_IMPORT_CONFIG.MAX_ROWS} rows`,
       );
     }
 
-    // Parse and validate headers
-    const headerLine = lines[0];
-    const headers = this.parseCsvLine(headerLine);
-    const headerValidation = validateCsvHeaders(headers);
-
-    if (!headerValidation.valid) {
-      throw new BadRequestException(
-        `Missing required columns: ${headerValidation.missingRequired.join(", ")}`,
-      );
+    const header = readCsvHeader(records[0], format);
+    if (!header.ok) {
+      throw new BadRequestException(header.message);
     }
-
-    // Map headers to indices
-    const headerIndices = new Map<string, number>();
-    headers.forEach((h, i) => headerIndices.set(h.trim().toLowerCase(), i));
 
     const errors: CsvRowError[] = [];
     const validContacts: CsvContactRow[] = [];
     const seenPhones = new Set<string>();
 
     // Parse and validate each row
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 1; i < records.length; i++) {
       const rowNum = i + 1;
-      const values = this.parseCsvLine(lines[i]);
-
-      // Build row object
-      const row: Record<string, string> = {};
-      for (const field of ALL_CSV_FIELDS) {
-        const idx = headerIndices.get(field.toLowerCase());
-        row[field] = idx !== undefined ? values[idx] || "" : "";
-      }
-
-      const validation = validateCsvRow(row, rowNum);
+      const validation = validateCsvRow(header.readRow(records[i]), rowNum);
 
       if (!validation.valid) {
         errors.push(...validation.errors);
@@ -549,7 +540,7 @@ export class ContactService {
       validContacts.push(validation.data!);
     }
 
-    return { totalRows: lines.length - 1, rows: validContacts, errors };
+    return { totalRows: records.length - 1, rows: validContacts, errors };
   }
 
   private async writeImportedRows(
@@ -717,31 +708,6 @@ export class ContactService {
         });
       }),
     );
-  }
-
-  /**
-   * Parse a CSV line handling quoted values
-   */
-  private parseCsvLine(line: string): string[] {
-    const result: string[] = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === "," && !inQuotes) {
-        result.push(current.trim());
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    result.push(current.trim());
-
-    return result;
   }
 
   private async validateImportTagIds(

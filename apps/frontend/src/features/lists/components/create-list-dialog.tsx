@@ -24,8 +24,11 @@ import { FormTextarea } from '@ringee/frontend-shared/components/forms/form-text
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import {
+  appendCsvFormat,
   CsvDropzone,
-  CsvFormatHelp
+  CsvFormatHelp,
+  CsvFormatPicker,
+  type CsvImportFormat
 } from '@/features/contact/components/csv-import-fields';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
 import type { ContactList, ContactListImportSummary } from '../types';
@@ -75,6 +78,7 @@ export function CreateListDialog({
 
   const [assignee, setAssignee] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [format, setFormat] = useState<CsvImportFormat>('ringee');
   const [fileError, setFileError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{
@@ -105,7 +109,10 @@ export function CreateListDialog({
         body.append('description', values.description.trim());
       }
       if (canAssign && assignee) body.append('assignedToId', assignee);
-      if (file) body.append('file', file);
+      if (file) {
+        body.append('file', file);
+        appendCsvFormat(body, format);
+      }
 
       const created = await api.upload<CreateListResponse>(
         '/contact-lists',
@@ -198,7 +205,12 @@ export function CreateListDialog({
                   {fileError}
                 </p>
               ) : null}
-              <CsvFormatHelp />
+              <CsvFormatPicker
+                value={format}
+                onChange={setFormat}
+                disabled={submitting}
+              />
+              <CsvFormatHelp format={format} />
             </div>
 
             <DialogFooter className='gap-2 sm:gap-2'>
