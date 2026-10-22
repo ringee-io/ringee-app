@@ -348,6 +348,27 @@ export class VoicemailDropService {
   }
 
   /**
+   * Drop one of the workspace's greetings on a live call placed outside a
+   * campaign — the mobile "Leave voicemail". The call and the greeting must
+   * both belong to the caller's organization.
+   */
+  async dropOnCall(
+    ctx: OwnershipContext,
+    call: { organizationId: string | null; callControlId: string | null },
+    assetId: string,
+  ): Promise<void> {
+    const organizationId = this.requireOrg(ctx);
+    if (call.organizationId !== organizationId) {
+      throw new ForbiddenException("Call does not belong to your organization");
+    }
+    if (!call.callControlId) {
+      throw new BadRequestException("The call is no longer live");
+    }
+    await this.requireAsset(assetId, organizationId);
+    await this.dropVoicemail(call.callControlId, assetId);
+  }
+
+  /**
    * Drop a voicemail on an active call. Initiates audio playback via the
    * provider; the call is hung up after playback completes.
    */

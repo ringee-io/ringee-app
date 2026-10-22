@@ -71,6 +71,7 @@ export class InboxController {
       limit?: string;
       assignedToId?: string;
       mine?: string;
+      awaitingReply?: string;
     } = {},
   ) {
     const ctx = createOwnershipContext(user);
@@ -102,6 +103,7 @@ export class InboxController {
       status,
       kindIn,
       unreadOnly: query.unreadOnly === "true",
+      awaitingReply: query.awaitingReply === "true",
       search: query.search,
       assignedToId,
       page: query.page ? Number(query.page) : undefined,

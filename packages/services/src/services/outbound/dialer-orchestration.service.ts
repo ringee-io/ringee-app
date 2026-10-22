@@ -978,7 +978,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   }
 
   /**
-   * Skip the current lead and move to the next one.
+   * Skip the current lead and move to the next one: a preview lead on screen,
+   * or a progressive one the agent's client has not placed yet — the mobile
+   * app counts down before it dials (CMP-013).
    */
   async skipLead(sessionId: string): Promise<void> {
     const session = await this.agentSessionService.getById(sessionId);
@@ -986,7 +988,10 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     // Nothing is assigned yet — there is nothing to skip.
     if (session.status === AgentSessionStatus.ready) return;
 
-    if (session.status !== AgentSessionStatus.reserved) {
+    if (
+      session.status !== AgentSessionStatus.reserved &&
+      session.status !== AgentSessionStatus.dialing
+    ) {
       throw new Error("Cannot skip lead in current state");
     }
     if (!session.currentLeadId) return;
@@ -995,17 +1000,61 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       session.id,
       session.currentLeadId,
     );
+    // A dial the provider already reported is a call: its outcome is recorded,
+    // never skipped.
+    if (session.status === AgentSessionStatus.dialing && !attempt) {
+      throw new Error("Cannot skip lead in current state");
+    }
     await this.callAttemptService.releaseUndialed({
       agentSessionId: session.id,
       agentUserId: session.userId,
       campaignLeadId: session.currentLeadId,
       attemptId: attempt?.id ?? null,
-      from: [AgentSessionStatus.reserved],
+      from: [session.status],
       to: AgentSessionStatus.ready,
       // Behind the leads not tried yet. Released as it was, the skipped lead is
       // the first one the next tick would hand straight back.
       deferLeadUntil: new Date(),
+      // A progressive dial was approved, and took the one-call lease with it.
+      releaseLease: session.status === AgentSessionStatus.dialing,
     });
+  }
+
+  /**
+   * Pause the agent's session. One still holding a lead it has not dialed — a
+   * preview lead on screen, a progressive one counting down — hands that lead
+   * back as it was first (CMP-013), so pausing neither burns nor defers it.
+   */
+  async pauseSession(sessionId: string) {
+    const session = await this.agentSessionService.getById(sessionId);
+    const holding =
+      session.status === AgentSessionStatus.reserved ||
+      session.status === AgentSessionStatus.dialing;
+    if (!holding || !session.currentLeadId) {
+      return this.agentSessionService.pause(sessionId);
+    }
+
+    const attempt = await this.callAttemptService.findUndialedForSession(
+      session.id,
+      session.currentLeadId,
+    );
+    const released =
+      (session.status === AgentSessionStatus.reserved || !!attempt) &&
+      (await this.callAttemptService.releaseUndialed({
+        agentSessionId: session.id,
+        agentUserId: session.userId,
+        campaignLeadId: session.currentLeadId,
+        attemptId: attempt?.id ?? null,
+        from: [session.status],
+        to: AgentSessionStatus.paused,
+        releaseLease: session.status === AgentSessionStatus.dialing,
+      }));
+    if (!released) {
+      throw new ConflictException(
+        `Cannot pause session in ${session.status} state`,
+      );
+    }
+    return this.agentSessionService.getById(sessionId);
   }
 
   /**

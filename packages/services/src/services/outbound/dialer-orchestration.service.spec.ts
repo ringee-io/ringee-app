@@ -291,6 +291,12 @@ function createWorld(
       s.totalTalkSec += stats.totalTalkSec ?? 0;
       return copySession(s);
     },
+    updateStatus: async (id: string, status: string) => {
+      await roundTrip();
+      const s = sessions.get(id)!;
+      s.status = status;
+      return copySession(s);
+    },
     markOffline: async (id: string) => {
       await roundTrip();
       const s = sessions.get(id)!;
@@ -937,6 +943,67 @@ describe("DialerOrchestrationService", () => {
     });
   });
 
+  describe("a progressive lead the agent has not dialed yet", () => {
+    it("skips it behind the untried leads and gives the dial lease back", async () => {
+      const world = createWorld();
+      await world.runTick();
+      assert.equal(world.session().status, "dialing");
+
+      await world.orchestrator.skipLead("session-1");
+
+      assert.equal(world.session().status, "ready");
+      assert.equal(world.session().currentLeadId, null);
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.lead("lead-1").status, "queued");
+      assert.ok(world.lead("lead-1").nextCallAt);
+      assert.ok(world.leaseReleases.includes("campaign-agent:session-1"));
+
+      await world.runTick();
+      assert.equal(world.session().currentLeadId, "lead-2");
+    });
+
+    it("pauses without burning or deferring it", async () => {
+      const world = createWorld();
+      await world.runTick();
+
+      await world.orchestrator.pauseSession("session-1");
+
+      assert.equal(world.session().status, "paused");
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.lead("lead-1").status, "queued");
+      assert.equal(world.lead("lead-1").nextCallAt, null);
+      assert.ok(world.leaseReleases.includes("campaign-agent:session-1"));
+    });
+
+    it("neither skips nor pauses one the provider already reported", async () => {
+      const world = createWorld();
+      await world.runTick();
+      const attempt = [...world.attempts.values()][0];
+      await world.callAttemptService.handleWebhookEvent(
+        attempt.id,
+        "call.initiated",
+        {
+          id: "call-1",
+          userId: "user-1",
+          answeredAt: null,
+          endedAt: null,
+          hangupCause: null,
+        },
+      );
+
+      await assert.rejects(
+        world.orchestrator.skipLead("session-1"),
+        /current state/,
+      );
+      await assert.rejects(
+        world.orchestrator.pauseSession("session-1"),
+        ConflictException,
+      );
+      assert.equal(world.session().status, "dialing");
+      assert.equal(world.attempts.get(attempt.id)?.callId, "call-1");
+    });
+  });
+
   describe("a campaign on the workspace's own carrier", () => {
     it("pre-dials the lead through the carrier and hands the browser its route", async () => {
       const world = createWorld();
@@ -1076,6 +1143,30 @@ describe("DialerOrchestrationService", () => {
 
       await world.runTick();
       assert.equal(world.session().currentLeadId, "lead-2");
+    });
+
+    it("hands the lead on screen back as it was when the agent pauses", async () => {
+      const world = createWorld({ dialerMode: "preview" });
+      await world.runTick();
+      assert.equal(world.session().status, "reserved");
+
+      await world.orchestrator.pauseSession("session-1");
+
+      assert.equal(world.session().status, "paused");
+      assert.equal(world.session().currentLeadId, null);
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.lead("lead-1").status, "queued");
+      assert.equal(world.lead("lead-1").nextCallAt, null);
+    });
+
+    it("pauses a session with nothing assigned as before", async () => {
+      const world = createWorld({ dialerMode: "preview", leads: 0 });
+      await world.runTick();
+      assert.equal(world.session().status, "ready");
+
+      await world.orchestrator.pauseSession("session-1");
+
+      assert.equal(world.session().status, "paused");
     });
 
     it("refuses to dial a lead that is no longer locked to the session", async () => {

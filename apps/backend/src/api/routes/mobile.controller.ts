@@ -4,11 +4,14 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
 } from "@nestjs/common";
+import { isUUID } from "class-validator";
 import {
   CurrentUser,
   CurrentUserData,
@@ -18,12 +21,14 @@ import {
   CallService,
   CallbackService,
   ContactService,
+  InboxTimelineService,
   MeetingService,
   NotificationPreferences,
   ReminderService,
   UserDeviceService,
   UserService,
   MobileReadService,
+  VoicemailDropService,
 } from "@ringee/services";
 import {
   Call,
@@ -56,6 +61,8 @@ export class MobileController {
     private readonly reminderService: ReminderService,
     private readonly userDeviceService: UserDeviceService,
     private readonly userService: UserService,
+    private readonly inboxTimeline: InboxTimelineService,
+    private readonly voicemailDropService: VoicemailDropService,
   ) {}
 
   // ─── Today ────────────────────────────────────────────────────────────
@@ -164,6 +171,36 @@ export class MobileController {
     const ctx = createOwnershipContext(user);
     const call = await this.mobileRead.getCallDetail(ctx, id);
     return this.toCallDetailDto(call);
+  }
+
+  /**
+   * The call behind the provider session the phone is holding. Null until the
+   * call's row exists — it is written from the provider's first webhook, which
+   * can trail the connect by a moment, so the app polls.
+   */
+  @Get("calls/by-session/:sessionId")
+  async getCallBySession(
+    @CurrentUser() user: CurrentUserData,
+    @Param("sessionId") sessionId: string,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const call = await this.mobileRead.findVisibleCallBySession(ctx, sessionId);
+    return call ? this.toCallDetailDto(call) : null;
+  }
+
+  /** "Leave voicemail" on a live call placed outside a campaign. */
+  @Post("calls/by-session/:sessionId/voicemail-drop")
+  async dropVoicemail(
+    @CurrentUser() user: CurrentUserData,
+    @Param("sessionId") sessionId: string,
+    @Body() body: { assetId: string },
+  ) {
+    if (!body?.assetId) throw new BadRequestException("assetId is required");
+    const ctx = createOwnershipContext(user);
+    const call = await this.mobileRead.findVisibleCallBySession(ctx, sessionId);
+    if (!call) throw new NotFoundException("Call not found");
+    await this.voicemailDropService.dropOnCall(ctx, call, body.assetId);
+    return { status: "voicemail_drop_started" };
   }
 
   @Post("calls/:id/outcome")
@@ -283,6 +320,26 @@ export class MobileController {
     };
   }
 
+  /**
+   * Where each contact was left — their last note and last call outcome — for
+   * the cards on Today and the rows of a list. Declared before `contacts/:id`,
+   * which would otherwise take "context" for an id.
+   */
+  @Get("contacts/context")
+  async contactsContext(
+    @CurrentUser() user: CurrentUserData,
+    @Query("ids") ids = "",
+  ) {
+    const contactIds = ids
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => isUUID(id))
+      .slice(0, 200);
+    const ctx = createOwnershipContext(user);
+    const context = await this.mobileRead.contactsContext(ctx, contactIds);
+    return { data: Object.fromEntries(context) };
+  }
+
   @Get("contacts/:id")
   async getContact(
     @CurrentUser() user: CurrentUserData,
@@ -291,8 +348,22 @@ export class MobileController {
     const ctx = createOwnershipContext(user);
     const contact = await this.mobileRead.getContactDetail(ctx, id);
 
+    const company = contact.affiliations?.[0]?.company ?? null;
     return {
       ...this.toContactSummaryDto(contact),
+      headline: contact.headline ?? null,
+      summary: contact.summary ?? null,
+      companyProfile: company
+        ? {
+            name: company.name,
+            industry: company.industry ?? null,
+            employees:
+              company.employeeCount != null
+                ? String(company.employeeCount)
+                : (company.employeeCountRange ?? null),
+            revenue: company.revenueRange ?? null,
+          }
+        : null,
       notes: (contact.notes || []).map((n) => ({
         id: n.id,
         contactId: n.contactId,
@@ -322,6 +393,47 @@ export class MobileController {
     await this.mobileRead.getVisibleContact(ctx, id);
 
     return this.contactService.addNoteToContact(ctx.userId, id, { content });
+  }
+
+  // ─── Campaigns ────────────────────────────────────────────────────────
+
+  /**
+   * The caller's own calls in a campaign since `from` — the start of their
+   * local day, which only the phone knows. Defaults to the UTC day.
+   */
+  @Get("campaigns/:id/activity")
+  async campaignActivity(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("from") from?: string,
+  ) {
+    let start: Date;
+    if (from) {
+      start = new Date(from);
+      if (Number.isNaN(start.getTime())) {
+        throw new BadRequestException("from must be an ISO 8601 date");
+      }
+    } else {
+      start = new Date();
+      start.setUTCHours(0, 0, 0, 0);
+    }
+    const ctx = createOwnershipContext(user);
+    return this.mobileRead.campaignActivity(ctx, id, start);
+  }
+
+  /** The caller's campaign sessions still open — the ones to resume. */
+  @Get("dialer/sessions")
+  async openSessions(@CurrentUser() user: CurrentUserData) {
+    const ctx = createOwnershipContext(user);
+    return { data: await this.mobileRead.openAgentSessions(ctx) };
+  }
+
+  // ─── Inbox ────────────────────────────────────────────────────────────
+
+  /** Counts behind the mobile inbox filters. */
+  @Get("inbox/counts")
+  async inboxCounts(@CurrentUser() user: CurrentUserData) {
+    return this.inboxTimeline.filterCounts(createOwnershipContext(user));
   }
 
   // ─── Push ─────────────────────────────────────────────────────────────
@@ -421,6 +533,8 @@ export class MobileController {
       hasRecording: !!recording?.url,
       recordingUrl: recording?.url ?? null,
       hasTranscription: opts?.hasTranscription ?? false,
+      // Only set where the read loaded the call's campaign attempt.
+      campaignName: c.callAttempts?.[0]?.campaign?.name ?? null,
     };
   }
 

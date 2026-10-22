@@ -25,7 +25,28 @@ export interface ListThreadsOptions {
   page?: number;
   limit?: number;
   assignedToId?: string | null;
+  /** Only threads whose contact reached out last and has no answer yet. */
+  awaitingReply?: boolean;
 }
+
+/** Thread counts behind each filter of the mobile inbox. */
+export interface InboxFilterCounts {
+  all: number;
+  unread: number;
+  mine: number;
+  unassigned: number;
+  awaitingReply: number;
+  missed: number;
+  voicemail: number;
+  resolved: number;
+}
+
+/** The statuses a conversation is listed under — not archived, not spam. */
+const LISTED_STATUSES = [
+  InboxThreadStatus.open,
+  InboxThreadStatus.pending,
+  InboxThreadStatus.resolved,
+];
 
 /** A thread with a missed call; timestamps describe its latest missed event. */
 export interface MissedCallThread {
@@ -116,12 +137,14 @@ export class InboxThreadRepository {
       page = 1,
       limit = 30,
       assignedToId,
+      awaitingReply,
     } = options;
 
     const ownership = buildOwnershipFilter(ctx);
 
     const where: Prisma.InboxThreadWhereInput = {
       ...ownership,
+      ...(awaitingReply ? { AND: [this.awaitingReplyWhere()] } : {}),
       ...(status
         ? Array.isArray(status)
           ? { status: { in: status } }
@@ -220,6 +243,68 @@ export class InboxThreadRepository {
       }),
     ]);
     return { all, unread, missed, voicemails, sms };
+  }
+
+  /**
+   * Counts behind the mobile inbox filters, over the conversations it lists
+   * (open, pending and resolved). "Mine" and "unassigned" read the caller's
+   * own assignment in the workspace.
+   */
+  async countsForInboxFilters(
+    ctx: OwnershipContext,
+  ): Promise<InboxFilterCounts> {
+    const listed: Prisma.InboxThreadWhereInput = {
+      ...buildOwnershipFilter(ctx),
+      status: { in: LISTED_STATUSES },
+    };
+    const count = (where: Prisma.InboxThreadWhereInput) =>
+      this.prisma.inboxThread.count({ where: { ...listed, ...where } });
+
+    const [
+      all,
+      unread,
+      mine,
+      unassigned,
+      awaitingReply,
+      missed,
+      voicemail,
+      resolved,
+    ] = await Promise.all([
+      count({}),
+      count({ unreadCount: { gt: 0 } }),
+      count({ assignedToId: ctx.userId }),
+      count({ assignedToId: null }),
+      count({
+        status: { in: [InboxThreadStatus.open, InboxThreadStatus.pending] },
+        AND: [this.awaitingReplyWhere()],
+      }),
+      count({ lastEventKind: InboxEventKind.missed_call }),
+      count({ lastEventKind: InboxEventKind.voicemail_received }),
+      count({ status: InboxThreadStatus.resolved }),
+    ]);
+    return {
+      all,
+      unread,
+      mine,
+      unassigned,
+      awaitingReply,
+      missed,
+      voicemail,
+      resolved,
+    };
+  }
+
+  /** The contact reached out last — a call, a voicemail, a message — and nobody answered since. */
+  private awaitingReplyWhere(): Prisma.InboxThreadWhereInput {
+    return {
+      lastInboundAt: { not: null },
+      OR: [
+        { lastOutboundAt: null },
+        {
+          lastOutboundAt: { lt: this.prisma.inboxThread.fields.lastInboundAt },
+        },
+      ],
+    };
   }
 
   /**

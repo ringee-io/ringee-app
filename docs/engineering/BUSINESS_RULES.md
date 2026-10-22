@@ -887,9 +887,14 @@ depends on why:
 | The `call.initiated` backstop hung the leg up                      | `paused`                          | back, attempt not counted |
 | The browser could not place it (`POST /dialer/abandon`)            | `paused`                          | back as it was            |
 | No provider leg 90s after `call.initiate` (stalled-dial sweep)     | `paused`                          | back as it was            |
+| The agent skipped it (`POST /dialer/skip`)                         | `ready`                           | deferred (`now`)          |
+| The agent paused while holding it (`PATCH …/pause`)                | `paused`                          | back as it was            |
 
-A preview Skip sends the lead behind the untried ones (`nextCallAt = now`), and a
-preview Dial is refused when the lead is no longer locked to the session.
+A Skip sends the lead behind the untried ones (`nextCallAt = now`): a preview
+lead on screen, or a progressive one the client has not placed yet — the mobile
+app counts down before it dials. A dial the provider already reported is never
+skipped or paused away; its outcome is recorded. A preview Dial is refused when
+the lead is no longer locked to the session.
 
 - **Source of truth:** `packages/services/src/services/outbound/dialer-orchestration.service.ts`
 - **Why:** every refusal used to put the agent back to `ready` with the same lead

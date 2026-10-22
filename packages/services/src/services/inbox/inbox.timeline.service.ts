@@ -738,6 +738,11 @@ export class InboxTimelineService {
     return this.threadRepo.countsByFilter(ctx);
   }
 
+  /** Counts behind the mobile inbox filters (mine, unassigned, awaiting reply…). */
+  async filterCounts(ctx: OwnershipContext) {
+    return this.threadRepo.countsForInboxFilters(ctx);
+  }
+
   /** Total unread threads — drives the nav badge. */
   async unreadCount(ctx: OwnershipContext): Promise<{ count: number }> {
     const count = await this.threadRepo.countUnread(ctx);

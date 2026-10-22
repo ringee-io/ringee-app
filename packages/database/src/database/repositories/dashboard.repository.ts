@@ -583,9 +583,9 @@ export class DashboardRepository {
   /**
    * One person's own day in the workspace they are in — personal, or theirs
    * inside the organization, never a teammate's: the outbound calls they
-   * placed and the ones that reached a person, the meetings they booked (an AI
-   * voice agent's calls and bookings are not theirs), and their next meeting
-   * still to come or under way.
+   * placed and the ones that reached a person, how long they talked on them,
+   * the meetings they booked (an AI voice agent's calls and bookings are not
+   * theirs), and their next meeting still to come or under way.
    */
   async getMyDaySummary(
     owner: { userId: string; organizationId: string | null },
@@ -604,55 +604,60 @@ export class DashboardRepository {
       organizationId: owner.organizationId,
     };
 
-    const [calls, conversations, meetingsBooked, upcoming] = await Promise.all([
-      this.prisma.call.count({ where: callWhere }),
-      this.prisma.call.count({
-        where: {
-          AND: [
-            callWhere,
-            { answeredAt: { not: null } },
-            {
-              OR: [
-                { outcome: null },
-                { outcome: { notIn: NO_CONVERSATION_OUTCOMES } },
-              ],
+    const [calls, conversations, talk, meetingsBooked, upcoming] =
+      await Promise.all([
+        this.prisma.call.count({ where: callWhere }),
+        this.prisma.call.count({
+          where: {
+            AND: [
+              callWhere,
+              { answeredAt: { not: null } },
+              {
+                OR: [
+                  { outcome: null },
+                  { outcome: { notIn: NO_CONVERSATION_OUTCOMES } },
+                ],
+              },
+            ],
+          },
+        }),
+        this.prisma.call.aggregate({
+          where: callWhere,
+          _sum: { durationSeconds: true },
+        }),
+        this.prisma.meeting.count({
+          where: {
+            ...meetingOwner,
+            createdAt: { gte: range.start, lte: range.end },
+            status: { not: MeetingStatus.cancelled },
+            // One an AI voice agent booked is the agent's work, not theirs.
+            aiVoiceAgentCalls: { none: {} },
+          },
+        }),
+        // A meeting that already started is still "next" until it ends; none
+        // here runs longer than a working day.
+        this.prisma.meeting.findMany({
+          where: {
+            ...meetingOwner,
+            status: {
+              in: [MeetingStatus.scheduled, MeetingStatus.rescheduled],
             },
-          ],
-        },
-      }),
-      this.prisma.meeting.count({
-        where: {
-          ...meetingOwner,
-          createdAt: { gte: range.start, lte: range.end },
-          status: { not: MeetingStatus.cancelled },
-          // One an AI voice agent booked is the agent's work, not theirs.
-          aiVoiceAgentCalls: { none: {} },
-        },
-      }),
-      // A meeting that already started is still "next" until it ends; none
-      // here runs longer than a working day.
-      this.prisma.meeting.findMany({
-        where: {
-          ...meetingOwner,
-          status: {
-            in: [MeetingStatus.scheduled, MeetingStatus.rescheduled],
+            scheduledAt: {
+              gte: new Date(now.getTime() - 12 * 60 * 60 * 1000),
+              lte: range.end,
+            },
           },
-          scheduledAt: {
-            gte: new Date(now.getTime() - 12 * 60 * 60 * 1000),
-            lte: range.end,
+          orderBy: { scheduledAt: "asc" },
+          select: {
+            id: true,
+            title: true,
+            scheduledAt: true,
+            duration: true,
+            location: true,
+            contact: { select: { id: true, name: true, phoneNumber: true } },
           },
-        },
-        orderBy: { scheduledAt: "asc" },
-        select: {
-          id: true,
-          title: true,
-          scheduledAt: true,
-          duration: true,
-          location: true,
-          contact: { select: { id: true, name: true, phoneNumber: true } },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
     const nextMeeting =
       upcoming.find(
@@ -661,7 +666,13 @@ export class DashboardRepository {
           now.getTime(),
       ) ?? null;
 
-    return { calls, conversations, meetingsBooked, nextMeeting };
+    return {
+      calls,
+      conversations,
+      talkSeconds: talk._sum.durationSeconds ?? 0,
+      meetingsBooked,
+      nextMeeting,
+    };
   }
 
   /**

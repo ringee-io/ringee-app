@@ -8,6 +8,7 @@
     "build": "nest build",
     "start:prod": "node dist/apps/backend/src/main",
     "generate:number-pricing": "TS_NODE_PROJECT=tsconfig.json dotenv -e ../../.env -- ts-node -r tsconfig-paths/register scripts/generate-number-pricing.ts",
+    "seed:mobile-demo": "TS_NODE_PROJECT=tsconfig.json TS_NODE_TRANSPILE_ONLY=true dotenv -e ../../.env -- ts-node -r tsconfig-paths/register scripts/seed-mobile-demo.ts",
     "dev": "nest start --watch --env-file ../../.env"
   },
   "dependencies": {
