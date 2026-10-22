@@ -17,7 +17,11 @@ import {
   CryptoService,
   OwnershipContext,
 } from "@ringee/platform";
-import type { CrmCapabilities, CrmListRef } from "@ringee/platform";
+import type {
+  CrmCapabilities,
+  CrmListRef,
+  CrmOwnerRef,
+} from "@ringee/platform";
 
 export type DecryptedCrmCredentials = {
   connection: CrmConnection;
@@ -111,6 +115,20 @@ export class CrmConnectionService {
     const listLists = provider.listLists.bind(provider);
     return this.runWithFreshCredentials(connection, (creds) =>
       listLists(creds),
+    );
+  }
+
+  /**
+   * The CRM's users for a connection (HubSpot owners, Attio workspace
+   * members, Odoo internal users), read with a fresh token. Empty when the
+   * provider cannot list them.
+   */
+  async listMembers(connection: CrmConnection): Promise<CrmOwnerRef[]> {
+    const provider = this.registry.get(connection.provider);
+    if (!provider.listMembers) return [];
+    const listMembers = provider.listMembers.bind(provider);
+    return this.runWithFreshCredentials(connection, (creds) =>
+      listMembers(creds),
     );
   }
 

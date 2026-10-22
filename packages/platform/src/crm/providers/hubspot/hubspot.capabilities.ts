@@ -17,6 +17,8 @@ export const HUBSPOT_CAPABILITIES: CrmCapabilities = {
   supportsTranscript: true,
   // Calls are logged as native HubSpot call activities, not as notes.
   supportsCallObject: true,
+  // Contacts it creates and the calls it logs take the linked HubSpot owner.
+  supportsOwnerAssignment: true,
   maxNoteLength: HUBSPOT_BODY_LIMIT,
   // Public apps get 110 requests per rolling 10 seconds per portal; the CRM
   // search endpoints are further limited to 5 requests per second.

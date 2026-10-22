@@ -1,13 +1,20 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { createHash } from "crypto";
 import {
+  Call,
   CallRepository,
+  CrmConnection,
   CrmContactLinkRepository,
   CrmOutboxRepository,
+  PublicRecordingRepository,
   RecordingRepository,
   UserRepository,
 } from "@ringee/database";
-import { normalizePhoneE164, OwnershipContext } from "@ringee/platform";
+import {
+  CrmRecordRef,
+  normalizePhoneE164,
+  OwnershipContext,
+} from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { buildRecordingEventData } from "../custom-integrations/custom-integration-event-builders";
@@ -49,6 +56,7 @@ export class CrmRecordingUploadService {
     private readonly userRepo: UserRepository,
     private readonly recordingRepo: RecordingRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly publicRecordingRepo: PublicRecordingRepository,
   ) {}
 
   async enqueueRecordingUpload(
@@ -85,31 +93,8 @@ export class CrmRecordingUploadService {
       const connections = await this.connections.listActive(ctx);
       if (connections.length === 0) return;
 
-      // Resolve caller identity for folder naming
-      let callerName: string | null = null;
-      const callerPhone = ["outbound", "outgoing"].includes(
-        call.direction ?? "",
-      )
-        ? call.toNumber
-        : call.fromNumber;
-
-      try {
-        const user = await this.userRepo.findById(call.userId);
-
-        if (user) {
-          callerName = `${user.firstName} ${user.lastName}`.trim();
-        }
-      } catch {
-        // Non-fatal
-      }
-
-      if (!callerName) callerName = callerPhone ?? null;
-
-      const fileName = buildRecordingFileName(
-        callerName,
-        call.outcome,
-        recordingId,
-      );
+      const callerPhone = counterpartPhone(call);
+      const fileName = await this.recordingFileName(call, recordingId);
 
       // Get CRM links for this contact
       const links = call.contactId
@@ -141,31 +126,15 @@ export class CrmRecordingUploadService {
           continue;
         }
 
-        const idempotencyKey = createHash("sha1")
-          .update(`${connection.id}|${recordingId}|v1`)
-          .digest("hex");
-
-        const payload = {
-          idempotencyKey,
-          recordingId,
+        await this.enqueueUpload(connection, {
           callId,
-          fileName,
+          recordingId,
           publicRecordingUrl,
-          linkedRecords: [
-            {
-              externalId: link.externalId,
-              externalType: link.externalType,
-            },
-          ],
-        };
-
-        await this.outbox.enqueue({
-          connectionId: connection.id,
-          provider: connection.provider,
-          kind: "recording.upload",
-          subjectId: recordingId,
-          payload: payload as Record<string, unknown>,
-          dedupeKey: `recording.upload:${connection.id}:${recordingId}:v1`,
+          fileName,
+          record: {
+            externalId: link.externalId,
+            externalType: link.externalType,
+          },
         });
       }
     } catch (err) {
@@ -176,4 +145,102 @@ export class CrmRecordingUploadService {
       );
     }
   }
+
+  /**
+   * Sends the recording of a call whose log just reached the CRM, to the
+   * record the log landed on. The recording is usually processed before the
+   * agent saves the outcome, and for a person the log had to create there was
+   * nothing to attach it to then. The dedupe key is the upload's own, so a
+   * recording already sent is not sent again. Nothing to do until the
+   * recording exists: its own upload then finds the record linked.
+   */
+  async enqueueForLoggedCall(
+    call: Call,
+    connection: CrmConnection,
+    record: CrmRecordRef,
+  ): Promise<void> {
+    if (record.externalType === "list") return;
+    if (!this.connections.allows(connection, "supportsRecordingUpload")) {
+      return;
+    }
+    const [recordings, publicRecording] = await Promise.all([
+      this.recordingRepo.findByCallId(call.id),
+      this.publicRecordingRepo.findLatestByCallId(call.id),
+    ]);
+    const recording = recordings
+      .filter((candidate) => candidate.status === "completed")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    if (!recording || !publicRecording) return;
+
+    await this.enqueueUpload(connection, {
+      callId: call.id,
+      recordingId: recording.id,
+      publicRecordingUrl: publicRecording.url,
+      fileName: await this.recordingFileName(call, recording.id),
+      record,
+    });
+  }
+
+  /** The file is named after the member, else the other party's number. */
+  private async recordingFileName(
+    call: Call,
+    recordingId: string,
+  ): Promise<string> {
+    let callerName: string | null = null;
+    try {
+      const user = call.userId
+        ? await this.userRepo.findById(call.userId)
+        : null;
+
+      if (user) {
+        callerName = `${user.firstName} ${user.lastName}`.trim();
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    if (!callerName) callerName = counterpartPhone(call) ?? null;
+
+    return buildRecordingFileName(callerName, call.outcome, recordingId);
+  }
+
+  private async enqueueUpload(
+    connection: CrmConnection,
+    input: {
+      callId: string;
+      recordingId: string;
+      publicRecordingUrl: string;
+      fileName: string;
+      record: CrmRecordRef;
+    },
+  ): Promise<void> {
+    const idempotencyKey = createHash("sha1")
+      .update(`${connection.id}|${input.recordingId}|v1`)
+      .digest("hex");
+
+    const payload = {
+      idempotencyKey,
+      recordingId: input.recordingId,
+      callId: input.callId,
+      fileName: input.fileName,
+      publicRecordingUrl: input.publicRecordingUrl,
+      linkedRecords: [input.record],
+    };
+
+    await this.outbox.enqueue({
+      connectionId: connection.id,
+      provider: connection.provider,
+      kind: "recording.upload",
+      subjectId: input.recordingId,
+      payload: payload as Record<string, unknown>,
+      dedupeKey: `recording.upload:${connection.id}:${input.recordingId}:v1`,
+    });
+  }
+}
+
+/** The other party's number: who was called, or who called in. */
+function counterpartPhone(call: Call): string | null {
+  return ["outbound", "outgoing"].includes(call.direction ?? "")
+    ? call.toNumber
+    : call.fromNumber;
 }

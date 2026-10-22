@@ -7,7 +7,8 @@ import type {
   CrmConnectionSummary,
   CrmFieldMapping,
   CrmListRef,
-  CrmOwnerRef
+  CrmMemberLink,
+  CrmMemberLinksView
 } from '../types/crm';
 
 export function useCrmConnections() {
@@ -129,24 +130,32 @@ export function useCrmLists(connectionId: string | null) {
   return { lists, loading, reload: load };
 }
 
-export function useCrmMembers(connectionId: string | null) {
+/**
+ * The connection's workspace members and the CRM user each one is. `link`
+ * picks a CRM user by hand (`null` = nobody); `unlink` goes back to matching
+ * by e-mail. Both resolve to the saved row, which replaces the old one.
+ */
+export function useCrmMemberLinks(connectionId: string | null) {
   const api = useApi();
-  const [members, setMembers] = useState<CrmOwnerRef[]>([]);
+  const [view, setView] = useState<CrmMemberLinksView | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     if (!connectionId) {
-      setMembers([]);
+      setView(null);
       return;
     }
     setLoading(true);
+    setFailed(false);
     try {
-      const res = await api.get<CrmOwnerRef[]>(
-        `/crm/connections/${connectionId}/members`
+      setView(
+        await api.get<CrmMemberLinksView>(
+          `/crm/connections/${connectionId}/member-links`
+        )
       );
-      setMembers(res);
     } catch {
-      setMembers([]);
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -156,5 +165,41 @@ export function useCrmMembers(connectionId: string | null) {
     load();
   }, [load]);
 
-  return { members, loading, reload: load };
+  const replace = useCallback((saved: CrmMemberLink) => {
+    setView((current) =>
+      current
+        ? {
+            ...current,
+            members: current.members.map((member) =>
+              member.userId === saved.userId ? saved : member
+            )
+          }
+        : current
+    );
+  }, []);
+
+  const link = useCallback(
+    async (userId: string, crmMemberId: string | null) => {
+      replace(
+        await api.put<CrmMemberLink>(
+          `/crm/connections/${connectionId}/member-links/${userId}`,
+          { crmMemberId }
+        )
+      );
+    },
+    [api, connectionId, replace]
+  );
+
+  const unlink = useCallback(
+    async (userId: string) => {
+      replace(
+        await api.delete<CrmMemberLink>(
+          `/crm/connections/${connectionId}/member-links/${userId}`
+        )
+      );
+    },
+    [api, connectionId, replace]
+  );
+
+  return { view, loading, failed, reload: load, link, unlink };
 }

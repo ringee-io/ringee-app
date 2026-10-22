@@ -10,6 +10,7 @@ import {
   CrmError,
   CrmProviderRegistry,
   CrmRecordMatch,
+  CrmRecordRef,
   normalizePhoneE164,
   RedisService,
 } from "@ringee/platform";
@@ -136,6 +137,44 @@ export class CrmMatchingService {
 
   async invalidate(connectionId: string, phoneE164: string): Promise<void> {
     await this.redis.del(`crm-match-${connectionId}-${phoneE164}`);
+  }
+
+  /** The CRM record a number is already linked to on a connection, if any. */
+  findLinkByPhone(
+    connection: CrmConnection,
+    phoneE164: string,
+  ): Promise<CrmContactLink | null> {
+    return this.linkRepo.findByPhone(connection.id, phoneE164);
+  }
+
+  /**
+   * Links the person a call log found or created for a number, the way a
+   * phone match is linked. Without it nothing after the log — the recording
+   * upload, a meeting, the next call — could tell that the person exists,
+   * and the search index lags writes, so it might create them a second time.
+   */
+  async rememberLoggedRecord(
+    connection: CrmConnection,
+    input: {
+      record: CrmRecordRef;
+      phoneE164: string;
+      contactId: string | null;
+    },
+  ): Promise<CrmContactLink> {
+    const link = await this.linkRepo.upsertLink({
+      connectionId: connection.id,
+      provider: connection.provider,
+      externalId: input.record.externalId,
+      externalType: input.record.externalType,
+      phoneNumberE164: input.phoneE164,
+      contactId: input.contactId,
+      matchConfidence: "created",
+    });
+    // The lookup at hangup cached "no candidates" for this number.
+    await this.invalidate(connection.id, input.phoneE164).catch(
+      () => undefined,
+    );
+    return link;
   }
 
   async resolveAmbiguousMatch(

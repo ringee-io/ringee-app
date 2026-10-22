@@ -451,7 +451,30 @@
       "members": "Workspace-Mitglieder",
       "lists": "Listen",
       "noMembers": "Keine Workspace-Mitglieder gefunden, oder dieser Anbieter unterstützt keine Mitgliederliste.",
-      "noLists": "Keine Listen gefunden, oder dieser Anbieter unterstützt keine Listen."
+      "noLists": "Keine Listen gefunden, oder dieser Anbieter unterstützt keine Listen.",
+      "links": {
+        "title": "Ringee-Mitglieder → {provider}-Benutzer",
+        "description": "Jedes Ringee-Mitglied ist mit seinem {provider}-Benutzer verknüpft, per E-Mail oder von Hand. Kontakte, die sein erster Anruf in {provider} anlegt, und seine Anrufe gehören diesem Benutzer.",
+        "linkedCount": "{linked} von {total} verknüpft",
+        "auto": "Per E-Mail verknüpft",
+        "manual": "Von Hand verknüpft",
+        "nobody": "Kein Inhaber",
+        "noMatch": "Kein {provider}-Benutzer mit dieser E-Mail",
+        "choose": "{provider}-Benutzer wählen",
+        "pickerLabel": "{provider}-Benutzer für {member}",
+        "search": "{provider}-Benutzer suchen…",
+        "noResults": "Keine Benutzer gefunden.",
+        "useEmail": "Per E-Mail verknüpfen",
+        "crmUsers": "{provider}-Benutzer",
+        "nobodyOption": "Keinen Inhaber zuweisen",
+        "stale": "Dieser Benutzer ist nicht mehr in {provider}. Wählen Sie einen anderen.",
+        "crmUnavailable": "Ihre {provider}-Benutzer konnten gerade nicht geladen werden. Die Verknüpfungen werden so angezeigt, wie sie gespeichert sind.",
+        "loadFailed": "Das Team konnte nicht geladen werden.",
+        "empty": "Noch keine Mitglieder in diesem Workspace.",
+        "toasts": {
+          "error": "Die Verknüpfung konnte nicht gespeichert werden"
+        }
+      }
     },
     "inboundSync": {
       "title": "Von {provider} importieren",

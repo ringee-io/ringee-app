@@ -206,7 +206,37 @@ change — see `apps/hubspot/AGENTS.md`. Details that bite:
   search index lags writes by seconds, so this narrows the duplicate window
   rather than closing it.
 - Existing records only get their empty properties filled — Ringee never
-  overwrites a name, e-mail or number someone typed into HubSpot.
+  overwrites a name, e-mail or number someone typed into HubSpot. Every
+  property the adapter writes must also be in `HUBSPOT_CONTACT_PROPERTIES`
+  (what it reads): a value it did not read looks like a gap and would be
+  overwritten.
+- A contact a call has to create gets everything Ringee knows about the
+  person (`crmPersonDetails`: name, e-mail, company, job title, website,
+  LinkedIn, city, state, zip, country) and, as its owner, the HubSpot user the
+  call's member is linked to (see member links below). The owner is written
+  only on create; an existing contact keeps whoever owns it. The call activity
+  carries the same owner, as HubSpot's own calling logs it.
+- A value the portal rejects — a property it does not define
+  (`hs_linkedin_url` is not on every portal), a validation rule, an owner who
+  left — is dropped and the write retried without it
+  (`HUBSPOT_*_OPTIONAL_PROPERTIES`), so one field never costs the contact or
+  the call. `phone` is never dropped from a create.
+- The person a call log found or created is linked to the number
+  (`CrmMatchingService.rememberLoggedRecord`) and the call's recording is
+  queued for upload right after the log lands: the recording is usually
+  processed before the agent saves the outcome, when that person did not
+  exist yet. Without the link a meeting booked on the call could create the
+  contact a second time.
+
+**Member links.** Which CRM user each workspace member is, per connection —
+Integrations → CRM → Manage → Team. A member is linked to the CRM user with
+one of their e-mails (the primary one, or one Clerk verified) until an admin
+picks another CRM user or nobody; only that choice is stored
+(`CrmMemberLink`). `CrmMemberLinkService.resolveCrmMemberId` answers at push
+time, from a five-minute cache of the CRM's users, and never fails a sync: an
+unreadable CRM costs the record its owner, not the record. An adapter opts in
+with `supportsOwnerAssignment`; only HubSpot does so far, and the tab shows
+the other CRMs' users read-only.
 
 **Campaign membership from the CRM.** A synced person joins an outbound campaign
 by carrying its Ringee campaign id in a field the CRM admin named `Campaign`

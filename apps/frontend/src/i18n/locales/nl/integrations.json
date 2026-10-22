@@ -451,7 +451,30 @@
       "members": "Werkruimteleden",
       "lists": "Lijsten",
       "noMembers": "Geen werkruimteleden gevonden, of deze provider ondersteunt geen ledenoverzicht.",
-      "noLists": "Geen lijsten gevonden, of deze provider ondersteunt geen lijsten."
+      "noLists": "Geen lijsten gevonden, of deze provider ondersteunt geen lijsten.",
+      "links": {
+        "title": "Ringee-leden → {provider}-gebruikers",
+        "description": "Elk Ringee-lid wordt gekoppeld aan een {provider}-gebruiker, via e-mail of handmatig. Contacten die het eerste gesprek van een lid in {provider} aanmaakt, en de gesprekken van het lid, horen bij die gebruiker.",
+        "linkedCount": "{linked} van {total} gekoppeld",
+        "auto": "Gekoppeld via e-mail",
+        "manual": "Handmatig gekoppeld",
+        "nobody": "Geen eigenaar",
+        "noMatch": "Geen {provider}-gebruiker met dit e-mailadres",
+        "choose": "Kies een {provider}-gebruiker",
+        "pickerLabel": "{provider}-gebruiker voor {member}",
+        "search": "Zoek {provider}-gebruikers…",
+        "noResults": "Geen gebruikers gevonden.",
+        "useEmail": "Koppelen via e-mail",
+        "crmUsers": "{provider}-gebruikers",
+        "nobodyOption": "Geen eigenaar toewijzen",
+        "stale": "Deze gebruiker zit niet meer in {provider}. Kies een andere.",
+        "crmUnavailable": "Je {provider}-gebruikers konden nu niet worden geladen. De koppelingen worden getoond zoals ze zijn opgeslagen.",
+        "loadFailed": "Het team kon niet worden geladen.",
+        "empty": "Nog geen leden in deze werkruimte.",
+        "toasts": {
+          "error": "De koppeling kon niet worden opgeslagen"
+        }
+      }
     },
     "inboundSync": {
       "title": "Importeren vanuit {provider}",

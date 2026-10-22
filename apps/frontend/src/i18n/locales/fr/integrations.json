@@ -451,7 +451,30 @@
       "members": "Membres de l'espace de travail",
       "lists": "Listes",
       "noMembers": "Aucun membre d'espace de travail trouvé, ou ce fournisseur ne prend pas en charge la liste des membres.",
-      "noLists": "Aucune liste trouvée, ou ce fournisseur ne prend pas en charge les listes."
+      "noLists": "Aucune liste trouvée, ou ce fournisseur ne prend pas en charge les listes.",
+      "links": {
+        "title": "Membres Ringee → utilisateurs {provider}",
+        "description": "Chaque membre Ringee est associé à son utilisateur {provider}, par e-mail ou manuellement. Les contacts que crée son premier appel dans {provider}, et ses appels, appartiennent à cet utilisateur.",
+        "linkedCount": "{linked} sur {total} associés",
+        "auto": "Associé par e-mail",
+        "manual": "Associé manuellement",
+        "nobody": "Aucun propriétaire",
+        "noMatch": "Aucun utilisateur {provider} avec cet e-mail",
+        "choose": "Choisir un utilisateur {provider}",
+        "pickerLabel": "Utilisateur {provider} pour {member}",
+        "search": "Rechercher des utilisateurs {provider}…",
+        "noResults": "Aucun utilisateur trouvé.",
+        "useEmail": "Associer par e-mail",
+        "crmUsers": "Utilisateurs {provider}",
+        "nobodyOption": "Ne pas attribuer de propriétaire",
+        "stale": "Cet utilisateur n'est plus dans {provider}. Choisissez-en un autre.",
+        "crmUnavailable": "Impossible de charger vos utilisateurs {provider} pour le moment. Les associations sont affichées telles qu'elles sont enregistrées.",
+        "loadFailed": "Impossible de charger l'équipe.",
+        "empty": "Aucun membre dans cet espace de travail pour l'instant.",
+        "toasts": {
+          "error": "Impossible d'enregistrer l'association"
+        }
+      }
     },
     "inboundSync": {
       "title": "Importer depuis {provider}",

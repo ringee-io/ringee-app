@@ -42,11 +42,13 @@ import { HUBSPOT_CAPABILITIES } from "./hubspot.capabilities";
 import {
   classifyHubSpotHttpError,
   hubspotConflictExistingId,
-  isHubSpotPropertyRejection,
+  hubspotRejectedProperties,
 } from "./hubspot.errors";
 import { escapeHtml } from "./hubspot.html";
 import {
+  HUBSPOT_CALL_OPTIONAL_PROPERTIES,
   HUBSPOT_COMPANY_PROPERTIES,
+  HUBSPOT_CONTACT_OPTIONAL_PROPERTIES,
   HUBSPOT_CONTACT_PROPERTIES,
   buildHubSpotCallProperties,
   buildHubSpotCompanyProperties,
@@ -379,8 +381,14 @@ export class HubSpotProvider extends AbstractCrmProvider {
       return { externalId: existing.id, externalType: "person" };
     }
 
+    // The owner is decided once, when the contact is created; an existing
+    // contact keeps whoever owns it (the gap fills above never name one).
+    const owner = input.ownerExternalId?.trim();
     try {
-      const created = await this.createContact(creds, desired);
+      const created = await this.createContact(
+        creds,
+        owner ? { ...desired, hubspot_owner_id: owner } : desired,
+      );
       return { externalId: created.id, externalType: "person" };
     } catch (err) {
       // Two syncs creating the same e-mail at once: HubSpot tells the loser
@@ -435,24 +443,49 @@ export class HubSpotProvider extends AbstractCrmProvider {
   }
 
   /**
-   * Creates a contact. An address HubSpot refuses as malformed must not cost
-   * the call its log, so the contact is created again without it.
+   * Creates a contact. A value HubSpot refuses — a malformed address, a
+   * property the portal does not define, an owner who has left — must not
+   * cost the call its log, so the contact is created without it.
    */
-  private async createContact(
+  private createContact(
     creds: CrmCredentials,
     properties: Record<string, string>,
   ): Promise<HubSpotObject> {
-    try {
-      return await this.createObject(creds, "contacts", { properties });
-    } catch (err) {
-      if (!properties.email || !isHubSpotPropertyRejection(err, "email")) {
-        throw err;
+    return this.writeWithoutRejected(
+      creds,
+      "contacts",
+      properties,
+      HUBSPOT_CONTACT_OPTIONAL_PROPERTIES,
+      (accepted) =>
+        this.createObject(creds, "contacts", { properties: accepted }),
+    );
+  }
+
+  /**
+   * Runs a write, and again without each of `optional` the portal rejects
+   * until it goes through. Any other failure is the caller's.
+   */
+  private async writeWithoutRejected<T>(
+    creds: CrmCredentials,
+    objectType: HubSpotCrmObject,
+    properties: Record<string, string>,
+    optional: readonly string[],
+    write: (properties: Record<string, string>) => Promise<T>,
+  ): Promise<T> {
+    let attempt = properties;
+    for (;;) {
+      try {
+        return await write(attempt);
+      } catch (err) {
+        const rejected = hubspotRejectedProperties(err, attempt, optional);
+        if (rejected.length === 0) throw err;
+        this.logger.warn(
+          `hubspot ${objectType} write retried without ${rejected.join(", ")}, rejected on connection ${creds.connectionId}`,
+        );
+        attempt = Object.fromEntries(
+          Object.entries(attempt).filter(([name]) => !rejected.includes(name)),
+        );
       }
-      const withoutEmail = { ...properties };
-      delete withoutEmail.email;
-      return this.createObject(creds, "contacts", {
-        properties: withoutEmail,
-      });
     }
   }
 
@@ -520,7 +553,7 @@ export class HubSpotProvider extends AbstractCrmProvider {
   /**
    * Writes the gaps of an existing record. The record is already the right
    * one, so a rejected gap (an e-mail another contact owns, a value the
-   * portal's validation rules refuse) is logged and skipped rather than
+   * portal's validation rules refuse) is left out or skipped rather than
    * failing the call log it was part of.
    */
   private async fillGaps(
@@ -531,7 +564,14 @@ export class HubSpotProvider extends AbstractCrmProvider {
   ): Promise<void> {
     if (Object.keys(gaps).length === 0) return;
     try {
-      await this.updateObject(creds, objectType, id, gaps);
+      // Every gap is optional: the ones the portal accepts still land.
+      await this.writeWithoutRejected(
+        creds,
+        objectType,
+        gaps,
+        Object.keys(gaps),
+        (accepted) => this.updateObject(creds, objectType, id, accepted),
+      );
     } catch (err) {
       if (!(err instanceof CrmError) || !GAP_REJECTIONS.has(err.code)) {
         throw err;
@@ -550,12 +590,11 @@ export class HubSpotProvider extends AbstractCrmProvider {
   ): Promise<CrmCallLogResult> {
     let target = input.linkedRecords[0];
     if (!target && input.needsPersonCreation) {
+      // First call to someone HubSpot does not have: they are created with
+      // everything Ringee knows, owned by the member who made the call.
       target = await this.upsertPerson(creds, {
-        displayName: input.needsPersonCreation.displayName,
-        firstName: input.needsPersonCreation.firstName,
-        lastName: input.needsPersonCreation.lastName,
-        email: input.needsPersonCreation.email,
-        phoneE164: input.needsPersonCreation.phoneE164,
+        ...input.needsPersonCreation,
+        ownerExternalId: input.ownerExternalId ?? null,
       });
     }
     if (!target) {
@@ -582,31 +621,18 @@ export class HubSpotProvider extends AbstractCrmProvider {
     ]);
     if (existingId) return { record: target, activityId: existingId };
 
-    const properties = buildHubSpotCallProperties(input);
     const associations = [this.associate(target, "calls")];
-    let call: HubSpotObject;
-    try {
-      call = await this.createObject(creds, "calls", {
-        properties,
-        associations,
-      });
-    } catch (err) {
-      // An admin can delete HubSpot's built-in call outcomes, and the portal
-      // then rejects that outcome's id. The call still belongs on the
-      // timeline, so it is logged again without one.
-      if (
-        !properties.hs_call_disposition ||
-        !isHubSpotPropertyRejection(err, "hs_call_disposition")
-      ) {
-        throw err;
-      }
-      const withoutDisposition = { ...properties };
-      delete withoutDisposition.hs_call_disposition;
-      call = await this.createObject(creds, "calls", {
-        properties: withoutDisposition,
-        associations,
-      });
-    }
+    // An admin can delete HubSpot's built-in call outcomes, and an owner can
+    // leave the portal; either is then rejected. The call still belongs on
+    // the timeline, so it is logged again without it.
+    const call = await this.writeWithoutRejected(
+      creds,
+      "calls",
+      buildHubSpotCallProperties(input),
+      HUBSPOT_CALL_OPTIONAL_PROPERTIES,
+      (properties) =>
+        this.createObject(creds, "calls", { properties, associations }),
+    );
 
     // `record` is the contact/company the call sits on — what recording and
     // transcript follow-ups target. `activityId` is the call itself.

@@ -9,6 +9,7 @@ export const ATTIO_CAPABILITIES: CrmCapabilities = {
   supportsRecordingUrl: true,
   supportsTranscript: true,
   supportsCallObject: false,
+  supportsOwnerAssignment: false,
   maxNoteLength: 100_000,
   rateLimit: { requestsPerMinute: 300, burst: 30 },
 };

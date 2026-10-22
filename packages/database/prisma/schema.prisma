@@ -445,6 +445,7 @@ model User {
   calendarAvailability    CalendarAvailabilityRule[]
   activitySnapshot        UserActivitySnapshot?
   crmConnections          CrmConnection[]
+  crmMemberLinks          CrmMemberLink[]
   companies               Company[]
   enrichmentConnections   EnrichmentConnection[]
   enrichmentJobs          EnrichmentJob[]
@@ -2563,12 +2564,38 @@ model CrmConnection {
   contactLinks  CrmContactLink[]
   companyLinks  CrmCompanyLink[]
   fieldMappings CrmFieldMapping[]
+  memberLinks   CrmMemberLink[]
 
   @@unique([scope, organizationId, provider])
   @@unique([scope, userId, provider, organizationId])
   @@index([provider, status])
   @@index([userId])
   @@index([organizationId])
+}
+
+/// The CRM user a workspace member is on one connection, set by an admin.
+/// A member without a row is linked to the CRM user with their e-mail
+/// (CrmMemberLinkService), so a row is only an override.
+model CrmMemberLink {
+  id                  String          @id @default(uuid()) @db.Uuid
+  connectionId        String          @db.Uuid
+  userId              String          @db.Uuid
+  provider            CrmProviderType
+  /// The CRM's id for the user (a HubSpot owner id). Null links the member to
+  /// nobody: nothing Ringee creates for them gets an owner.
+  externalMemberId    String?
+  /// The CRM user as it was when linked, shown once it leaves the CRM.
+  externalMemberEmail String?
+  externalMemberName  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, userId])
+  @@index([userId])
 }
 
 model CrmContactLink {

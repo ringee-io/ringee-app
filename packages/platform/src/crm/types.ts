@@ -25,6 +25,12 @@ export type CrmCapabilities = {
   supportsRecordingUrl: boolean;
   supportsTranscript: boolean;
   supportsCallObject: boolean;
+  /**
+   * The adapter makes the CRM user a Ringee member is linked to the owner of
+   * what it creates for them: the person a first call creates, the call
+   * activity. Without it, member links are not offered for the connection.
+   */
+  supportsOwnerAssignment: boolean;
   maxNoteLength: number;
   rateLimit: { requestsPerMinute: number; burst: number };
 };
@@ -93,16 +99,17 @@ export type CrmCallLogInput = {
   insights?: Record<string, unknown> | null;
   agentName?: string | null;
   agentEmail?: string | null;
+  /**
+   * The CRM user the Ringee member who owns the call is linked to on this
+   * connection, or null when they are linked to nobody. Adapters that
+   * support owner assignment make it the owner of the call activity and of a
+   * person they create for it — never of a person that already exists.
+   */
+  ownerExternalId?: string | null;
   /** Video-meeting join URL (e.g. Google Meet) when a meeting was booked. */
   meetingUrl?: string | null;
   linkedRecords: CrmRecordRef[];
-  needsPersonCreation?: {
-    displayName?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-    email?: string | null;
-    phoneE164: string;
-  } | null;
+  needsPersonCreation?: CrmPersonDetails | null;
 };
 
 /**
@@ -179,13 +186,33 @@ export type CrmRecordingUploadResult = {
   syncMode: string;
 };
 
-export type CrmPersonInput = {
+/**
+ * What Ringee knows about a person, for creating them in a CRM. Only
+ * `phoneE164` is required; each adapter writes the fields its CRM has a
+ * place for.
+ */
+export type CrmPersonDetails = {
   displayName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
   phoneE164: string;
   company?: string | null;
+  jobTitle?: string | null;
+  website?: string | null;
+  linkedinUrl?: string | null;
+  city?: string | null;
+  region?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+};
+
+export type CrmPersonInput = CrmPersonDetails & {
+  /**
+   * The CRM user who owns the person if this creates it. A person that
+   * already exists keeps the owner it has.
+   */
+  ownerExternalId?: string | null;
   idempotencyKey?: string;
 };
 
