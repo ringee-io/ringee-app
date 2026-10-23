@@ -135,11 +135,24 @@ describe("missedCallThreadPatch", () => {
     });
   });
 
+  it("moves it onto the member who called that number last, whoever the call rang for", () => {
+    assert.deepEqual(
+      missedCallThreadPatch(thread, { userId: "member-2" }, "member-4"),
+      { userId: "member-4" },
+    );
+    // Already on the last caller's line: it stays, whoever it rang.
+    assert.deepEqual(
+      missedCallThreadPatch(thread, { userId: "member-2" }, "member-1"),
+      {},
+    );
+  });
+
   it("never moves an assigned or a personal conversation", () => {
     assert.deepEqual(
       missedCallThreadPatch(
         { ...thread, assignedToId: "member-3" },
         { userId: "member-2" },
+        "member-4",
       ),
       {},
     );
@@ -147,6 +160,7 @@ describe("missedCallThreadPatch", () => {
       missedCallThreadPatch(
         { ...thread, organizationId: null },
         { userId: "member-2" },
+        "member-4",
       ),
       {},
     );

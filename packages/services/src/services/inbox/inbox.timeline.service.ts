@@ -10,6 +10,7 @@ import {
   ContactRepository,
   NumberPurchasedRepository,
   CallbackTaskRepository,
+  CallRepository,
   Call,
   Recording,
   Contact,
@@ -23,7 +24,7 @@ import {
   InboxThreadStatus,
   Prisma,
 } from "@ringee/database";
-import { OwnershipContext } from "@ringee/platform";
+import { normalizePhoneE164, OwnershipContext } from "@ringee/platform";
 import { MissedCallNotificationService } from "./missed-call-notification.service";
 import { isMissedInboundCall, missedCallThreadPatch } from "./missed-call";
 
@@ -93,6 +94,7 @@ export class InboxTimelineService {
     private readonly contactRepo: ContactRepository,
     private readonly numberRepo: NumberPurchasedRepository,
     private readonly callbackRepo: CallbackTaskRepository,
+    private readonly callRepo: CallRepository,
     private readonly missedCallNotifications: MissedCallNotificationService,
   ) {}
 
@@ -370,6 +372,8 @@ export class InboxTimelineService {
       return null;
     }
 
+    const lastCallerId = isMissed ? await this.lastCallerOf(ctx, call) : null;
+
     return this.appendEvent({
       threadId: thread.id,
       direction,
@@ -387,8 +391,38 @@ export class InboxTimelineService {
         durationSeconds: call.durationSeconds,
       },
       incrementUnread: isMissed,
-      ...(isMissed ? { threadPatch: missedCallThreadPatch(thread, call) } : {}),
+      ...(isMissed
+        ? { threadPatch: missedCallThreadPatch(thread, call, lastCallerId) }
+        : {}),
     });
+  }
+
+  /**
+   * The member of the organization who called this caller last, before the
+   * call came in: the person a missed call from them most likely meant to
+   * reach, whatever line or route it rang (CALL-015). Null in a personal
+   * workspace, for a hidden number, or when no current member called it. A
+   * failed lookup leaves the call with the person it rang for: it must not
+   * cost the missed call its place in a queue.
+   */
+  private async lastCallerOf(
+    ctx: OwnershipContext,
+    call: Call,
+  ): Promise<string | null> {
+    const callerNumber = normalizePhoneE164(call.fromNumber);
+    if (!ctx.organizationId || !callerNumber) return null;
+    return this.callRepo
+      .latestOutboundCallerTo(
+        { userId: ctx.userId, organizationId: ctx.organizationId },
+        [...new Set([callerNumber, call.fromNumber])],
+        call.createdAt,
+      )
+      .catch((err: Error) => {
+        this.logger.warn(
+          `Last caller lookup failed for missed call ${call.id}: ${err.message}`,
+        );
+        return null;
+      });
   }
 
   /**

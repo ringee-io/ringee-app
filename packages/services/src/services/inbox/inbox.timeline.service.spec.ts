@@ -19,6 +19,7 @@ const MISSED = {
   contactId: "contact-1",
   fromNumber: "+13055550123",
   toNumber: "+14155550100",
+  createdAt: STARTED_AT,
   startedAt: STARTED_AT,
   endedAt: ENDED_AT,
   durationSeconds: 24,
@@ -28,7 +29,14 @@ const MISSED = {
   outcomeNote: null,
 };
 
-function build(over: { thread?: Row; existing?: boolean } = {}) {
+function build(
+  over: {
+    thread?: Row;
+    existing?: boolean;
+    /** Who last called the caller's number, or the lookup's failure. */
+    lastCaller?: string | null | Error;
+  } = {},
+) {
   const thread = {
     id: "thread-1",
     organizationId: "org-1",
@@ -41,6 +49,7 @@ function build(over: { thread?: Row; existing?: boolean } = {}) {
   const created: Row[] = [];
   const updates: Row[] = [];
   const notified: Array<{ callId: string; threadId: string }> = [];
+  const lookups: Array<{ ctx: Row; toNumbers: string[]; before: Date }> = [];
 
   const service = new InboxTimelineService(
     {
@@ -65,12 +74,23 @@ function build(over: { thread?: Row; existing?: boolean } = {}) {
     { findOne: async () => null } as never,
     {} as never,
     {
+      latestOutboundCallerTo: async (
+        ctx: Row,
+        toNumbers: string[],
+        before: Date,
+      ) => {
+        lookups.push({ ctx, toNumbers, before });
+        if (over.lastCaller instanceof Error) throw over.lastCaller;
+        return over.lastCaller ?? null;
+      },
+    } as never,
+    {
       notify: async (call: Row, threadId: string) => {
         notified.push({ callId: call.id, threadId });
       },
     } as never,
   );
-  return { service, created, updates, notified };
+  return { service, created, updates, notified, lookups };
 }
 
 describe("InboxTimelineService.recordEndedCall", () => {
@@ -140,8 +160,9 @@ describe("InboxTimelineService.recordEndedCall", () => {
   });
 
   it("leaves an answered call's conversation where it is", async () => {
-    const { service, updates } = build({
+    const { service, updates, lookups } = build({
       thread: { status: InboxThreadStatus.resolved, userId: "member-9" },
+      lastCaller: "member-7",
     });
     await service.recordEndedCall({
       ...MISSED,
@@ -150,6 +171,78 @@ describe("InboxTimelineService.recordEndedCall", () => {
 
     assert.equal(updates[0].status, undefined);
     assert.equal(updates[0].userId, undefined);
+    assert.deepEqual(lookups, []);
+  });
+
+  it("puts a missed call on the line of the member who called that number last, whoever it rang", async () => {
+    // member-1 is who the route rang; member-7 called the caller before.
+    const { service, updates, notified, lookups } = build({
+      lastCaller: "member-7",
+    });
+    await service.recordEndedCall(MISSED as never);
+
+    assert.equal(updates[0].userId, "member-7");
+    assert.deepEqual(lookups, [
+      {
+        ctx: { userId: "member-1", organizationId: "org-1" },
+        toNumbers: ["+13055550123"],
+        before: STARTED_AT,
+      },
+    ]);
+    // The email follows the queue: it reads the conversation once moved.
+    assert.deepEqual(notified, [{ callId: "call-1", threadId: "thread-1" }]);
+  });
+
+  it("looks the caller up as dialed and in E.164", async () => {
+    const { service, lookups } = build({ lastCaller: "member-7" });
+    await service.recordEndedCall({
+      ...MISSED,
+      fromNumber: "13055550123",
+    } as never);
+
+    assert.deepEqual(lookups[0].toNumbers, ["+13055550123", "13055550123"]);
+  });
+
+  it("keeps an assigned conversation with its assignee", async () => {
+    const { service, updates } = build({
+      thread: { assignedToId: "member-3" },
+      lastCaller: "member-7",
+    });
+    await service.recordEndedCall(MISSED as never);
+
+    assert.equal(updates[0].userId, undefined);
+  });
+
+  it("leaves the missed call on the line it rang when the lookup fails", async () => {
+    const { service, created, updates, notified } = build({
+      thread: { userId: "member-9" },
+      lastCaller: new Error("connection reset"),
+    });
+    await service.recordEndedCall(MISSED as never);
+
+    assert.equal(created[0].kind, InboxEventKind.missed_call);
+    assert.equal(updates[0].userId, "member-1");
+    assert.equal(notified.length, 1);
+  });
+
+  it("never looks for a last caller in a personal workspace, or for a hidden number", async () => {
+    const personal = build({
+      thread: { organizationId: null },
+      lastCaller: "member-7",
+    });
+    await personal.service.recordEndedCall({
+      ...MISSED,
+      organizationId: null,
+    } as never);
+    assert.deepEqual(personal.lookups, []);
+
+    const hidden = build({ thread: { userId: "member-9" } });
+    await hidden.service.recordEndedCall({
+      ...MISSED,
+      fromNumber: "anonymous",
+    } as never);
+    assert.deepEqual(hidden.lookups, []);
+    assert.equal(hidden.updates[0].userId, "member-1");
   });
 });
 

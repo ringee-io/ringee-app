@@ -580,6 +580,38 @@ export class CallRepository {
     );
   }
 
+  /**
+   * The member of the organization who last placed a call to any of
+   * `toNumbers` before `before`. Only current members count: someone who has
+   * left is passed over for whoever called before them. Null when none did.
+   */
+  async latestOutboundCallerTo(
+    ctx: OwnershipContext & { organizationId: string },
+    toNumbers: string[],
+    before: Date,
+  ): Promise<string | null> {
+    if (toNumbers.length === 0) return null;
+    const call = await this.prisma.call.findFirst({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        // Rows written before directions were normalized say `outgoing`.
+        direction: { in: ["outbound", "outgoing"] },
+        toNumber: { in: toNumbers },
+        // An authorization row without a carrier leg is not a placed call.
+        callControlId: { not: null },
+        createdAt: { lt: before },
+        user: {
+          organizationMemberships: {
+            some: { organizationId: ctx.organizationId },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { userId: true },
+    });
+    return call?.userId ?? null;
+  }
+
   async findBySessionId(callSessionId: string): Promise<Call[]> {
     return this.prisma.call.findMany({
       where: {

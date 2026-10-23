@@ -36,9 +36,11 @@ export function missedCallRecipientId(
 /**
  * What a missed call changes on its conversation: it is new work, so a
  * resolved or archived conversation opens again, and an unassigned one in an
- * organization moves onto the line of the person the call rang for — the
- * call's owner (NUM-010) — so it reaches their queue rather than that of
- * whoever spoke to the caller first.
+ * organization moves onto the line of the person the caller is most likely
+ * calling back — `lastCallerId`, the member who called that number last —
+ * whichever number or route the call came in on. When no member has called
+ * it, that is the person the call rang for, the call's owner (NUM-010). It
+ * reaches their queue rather than that of whoever spoke to the caller first.
  */
 export function missedCallThreadPatch(
   thread: Pick<
@@ -46,15 +48,17 @@ export function missedCallThreadPatch(
     "organizationId" | "assignedToId" | "userId" | "status"
   >,
   call: Pick<Call, "userId">,
+  lastCallerId: string | null = null,
 ): Prisma.InboxThreadUpdateInput {
   const reopen =
     thread.status === InboxThreadStatus.resolved ||
     thread.status === InboxThreadStatus.archived;
+  const lineUserId = lastCallerId ?? call.userId;
   const moveLine =
     !!thread.organizationId &&
     !thread.assignedToId &&
-    !!call.userId &&
-    thread.userId !== call.userId;
+    !!lineUserId &&
+    thread.userId !== lineUserId;
   return {
     ...(reopen
       ? {
@@ -63,6 +67,6 @@ export function missedCallThreadPatch(
           archivedAt: null,
         }
       : {}),
-    ...(moveLine ? { userId: call.userId } : {}),
+    ...(moveLine ? { userId: lineUserId } : {}),
   };
 }
