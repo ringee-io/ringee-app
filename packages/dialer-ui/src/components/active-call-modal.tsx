@@ -406,7 +406,10 @@ export function ActiveCallModal({
                       playsInline
                       className="hidden"
                       ref={(el) => {
-                        if (el && remoteStream) el.srcObject = remoteStream;
+                        // The timer rerenders this ref every second. Reassigning
+                        // even the same stream reloads playback and cuts audio.
+                        if (el && remoteStream && el.srcObject !== remoteStream)
+                          el.srcObject = remoteStream;
                       }}
                     />
                   )}
