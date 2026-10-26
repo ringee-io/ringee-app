@@ -1112,6 +1112,12 @@ workspace. A file that cannot be imported at all is refused before a new list
 is created, and a new list whose file fails while it is being filed is removed
 again; the contacts it already wrote stay.
 
+The shared CSV reader retains nonempty additional columns, with their source
+labels, in the contact's `customFields`. It also retains source identity and
+city cells that a reimport does not overwrite on an existing contact. Reimports
+merge these fields without deleting context absent from the new file. The
+active-call contact panel reads this context from the contact itself.
+
 - **Source of truth:** `ContactListService.importCsv` / `addNewContact` /
   `addContacts`
 - **Risk if violated:** two contacts for one number; a list pointing into

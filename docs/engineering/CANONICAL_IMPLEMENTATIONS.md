@@ -143,6 +143,11 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Contacts in a list, in work order         | `ContactListRepository.listEntries` (`ContactListEntry.sequence`)                                                                                                           |
 | Working a list from the Call page         | `MyDayService.getListNext` / `skipListEntry`, `pickListNext` — `services/my-day/` (LIST-005)                                                                                |
 
+CSV imports retain additional nonempty source columns in `Contact.customFields`.
+Original name, email, company and city cells are retained too: importing an existing
+number reuses its contact without replacing those canonical fields. Reimports merge
+new source values into the existing bag and ignore blank cells.
+
 ## Phone numbers
 
 | Responsibility                             | Owner                                                                                                                                                    |

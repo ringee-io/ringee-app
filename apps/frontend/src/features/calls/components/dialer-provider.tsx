@@ -63,7 +63,7 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
         <ContactActivities contactId={contactId} />
       ),
       renderContactInfo: ({ contactId }) => (
-        <InCallContactInfo contactId={contactId} />
+        <InCallContactInfo key={contactId} contactId={contactId} />
       ),
       renderScript: () => <InCallScript />,
       renderBookMeeting: ({ contactId, callId, onBooked, onCancel }) => (

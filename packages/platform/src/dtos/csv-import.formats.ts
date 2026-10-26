@@ -10,6 +10,7 @@ import { IsIn, IsOptional } from "class-validator";
 import { normalizePhoneE164 } from "../crm/phone";
 import {
   ALL_CSV_FIELDS,
+  type CsvContactInput,
   type CsvFieldName,
   isValidCsvEmail,
   validateCsvHeaders,
@@ -28,6 +29,16 @@ export class CsvImportFormatDto {
 
 type ExportFormat = Exclude<CsvImportFormat, "ringee">;
 type ExportField = Exclude<CsvFieldName, "phoneNumber" | "name">;
+
+// Imports reuse an existing contact without overwriting its identity or city.
+// Retain these original cells too, so the upload's context remains available
+// even when the contact already has different values in its canonical fields.
+const RETAIN_SOURCE_FIELDS = new Set<CsvFieldName>([
+  "name",
+  "email",
+  "company",
+  "location",
+]);
 
 /** Where a tool's export keeps each contact field, best header first. */
 interface ExportColumns {
@@ -103,7 +114,9 @@ const EXPORT_COLUMNS: Record<ExportFormat, ExportColumns> = {
 };
 
 /** One data row in Ringee's columns, ready for `validateCsvRow`. */
-export type CsvRowReader = (values: string[]) => Record<CsvFieldName, string>;
+export type CsvRowReader = (
+  values: string[],
+) => Record<CsvFieldName, string> & Pick<CsvContactInput, "customFields">;
 
 export type CsvHeaderReading =
   | { ok: true; format: CsvImportFormat; readRow: CsvRowReader }
@@ -190,6 +203,27 @@ function cell(values: string[], index: number | undefined): string {
   return index === undefined ? "" : (values[index] ?? "").trim();
 }
 
+/** Keep source labels and multiline values for the agent's contact briefing. */
+function additionalColumns(
+  headers: string[],
+  values: string[],
+  used: Set<number>,
+): Record<string, string> | undefined {
+  const labels = new Set<string>();
+  const entries = headers.flatMap((header, index) => {
+    const sourceLabel = header.trim();
+    const value = cell(values, index);
+    if (used.has(index) || !sourceLabel || !value) return [];
+    let label = sourceLabel;
+    for (let suffix = 2; labels.has(label); suffix++) {
+      label = `${sourceLabel} (${suffix})`;
+    }
+    labels.add(label);
+    return [[label, value]];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 function readAs(
   format: CsvImportFormat,
   headers: string[],
@@ -197,7 +231,7 @@ function readAs(
 ): CsvHeaderReading {
   return format === "ringee"
     ? readTemplate(headers, columns)
-    : readExport(format, EXPORT_COLUMNS[format], columns);
+    : readExport(format, EXPORT_COLUMNS[format], headers, columns);
 }
 
 /** Ringee's template: every column is a contact field, kept as written. */
@@ -216,13 +250,19 @@ function readTemplate(
   const at = ALL_CSV_FIELDS.map(
     (field) => [field, columns.get(headerKey(field))] as const,
   );
+  const used = new Set(
+    at.flatMap(([field, index]) =>
+      index === undefined || RETAIN_SOURCE_FIELDS.has(field) ? [] : [index],
+    ),
+  );
   return {
     ok: true,
     format: "ringee",
     readRow: (values) => {
       const row = {} as Record<CsvFieldName, string>;
       for (const [field, index] of at) row[field] = cell(values, index);
-      return row;
+      const customFields = additionalColumns(headers, values, used);
+      return customFields ? { ...row, customFields } : row;
     },
   };
 }
@@ -230,6 +270,7 @@ function readTemplate(
 function readExport(
   format: ExportFormat,
   spec: ExportColumns,
+  headers: string[],
   columns: Map<string, number>,
 ): CsvHeaderReading {
   const find = (headers: readonly string[]) =>
@@ -269,10 +310,18 @@ function readExport(
     ok: true,
     format,
     readRow: (values) => {
-      const first = (indexes: number[], clean = (value: string) => value) => {
+      const used = new Set<number>();
+      const first = (
+        indexes: number[],
+        clean = (value: string) => value,
+        retainSource = false,
+      ) => {
         for (const index of indexes) {
           const value = clean(cell(values, index));
-          if (value) return value;
+          if (value) {
+            if (!retainSource) used.add(index);
+            return value;
+          }
         }
         return "";
       };
@@ -280,10 +329,12 @@ function readExport(
       const row = Object.fromEntries(
         ALL_CSV_FIELDS.map((field) => [field, ""]),
       ) as Record<CsvFieldName, string>;
-      for (const [field, indexes] of fields) row[field] = first(indexes);
+      for (const [field, indexes] of fields) {
+        row[field] = first(indexes, undefined, RETAIN_SOURCE_FIELDS.has(field));
+      }
       row.phoneNumber = first(phone, exportPhone);
       row.name =
-        first(fullName) ||
+        first(fullName, undefined, true) ||
         nameParts
           .map((index) => cell(values, index))
           .filter(Boolean)
@@ -296,7 +347,8 @@ function readExport(
       ) {
         row.email = "";
       }
-      return row;
+      const customFields = additionalColumns(headers, values, used);
+      return customFields ? { ...row, customFields } : row;
     },
   };
 }

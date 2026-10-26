@@ -55,7 +55,14 @@ export interface CsvContactRow {
   companyLinkedinUrl?: string;
   revenue?: string;
   companySize?: string;
+  /** Source context retained alongside the mapped contact fields. */
+  customFields?: Record<string, string>;
 }
+
+/** Canonical cells and the source columns retained alongside them. */
+export type CsvContactInput = Partial<Record<CsvFieldName, string>> & {
+  customFields?: Record<string, string>;
+};
 
 export interface CsvRowError {
   row: number;
@@ -101,7 +108,7 @@ export function validateCsvHeaders(headers: string[]): {
 }
 
 export function validateCsvRow(
-  row: Record<string, string>,
+  row: CsvContactInput,
   rowIndex: number,
 ): { valid: boolean; data?: CsvContactRow; errors: CsvRowError[] } {
   const errors: CsvRowError[] = [];
@@ -120,7 +127,7 @@ export function validateCsvRow(
 
   // Validate field lengths
   for (const [field, config] of Object.entries(CSV_FIELDS)) {
-    const value = row[field]?.trim();
+    const value = row[field as CsvFieldName]?.trim();
     if (value && config.maxLength && value.length > config.maxLength) {
       errors.push({
         row: rowIndex,
@@ -147,8 +154,8 @@ export function validateCsvRow(
   return {
     valid: true,
     data: {
-      phoneNumber: row.phoneNumber.trim(),
-      name: row.name.trim(),
+      phoneNumber: row.phoneNumber!.trim(),
+      name: row.name!.trim(),
       email: row.email?.trim() || undefined,
       company: row.company?.trim() || undefined,
       jobTitle: row.jobTitle?.trim() || undefined,
@@ -159,6 +166,9 @@ export function validateCsvRow(
       companyLinkedinUrl: row.companyLinkedinUrl?.trim() || undefined,
       revenue: row.revenue?.trim() || undefined,
       companySize: row.companySize?.trim() || undefined,
+      ...(row.customFields && Object.keys(row.customFields).length > 0
+        ? { customFields: row.customFields }
+        : {}),
     },
     errors: [],
   };

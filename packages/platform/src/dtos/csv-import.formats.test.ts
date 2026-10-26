@@ -59,6 +59,7 @@ describe("readCsvHeader — Ringee template", () => {
       name: "Jane Doe",
       email: "jane@acme.com",
       company: "",
+      customFields: { unknown: "x" },
     });
   });
 
@@ -92,6 +93,23 @@ describe("readCsvHeader — Apollo export", () => {
       companyLinkedinUrl: "http://www.linkedin.com/company/acme",
       revenue: "25000000",
       companySize: "120",
+      customFields: {
+        "First Name": "Jane",
+        "Last Name": "Doe",
+        "Company Name": "Acme",
+        "Company Name for Emails": "Acme",
+        Email: "email_not_unlocked@domain.com",
+        "Email Status": "Unavailable",
+        Seniority: "VP",
+        "Corporate Phone": "+1 415-555-0000",
+        Industry: "Software",
+        Keywords: "crm, sales",
+        Country: "United States",
+        City: "San Francisco",
+        "Company Address": "1 Market St, San Francisco",
+        "SEO Description": "Acme builds\nsales software.",
+        "Apollo Contact Id": "5f1a",
+      },
     });
   });
 
@@ -150,6 +168,22 @@ describe("readCsvHeader — Prospeo export", () => {
       companyLinkedinUrl: "https://www.linkedin.com/company/acme",
       revenue: "$10M-$50M",
       companySize: "51-200",
+      customFields: {
+        "First name": "Jean",
+        "Last name": "Dupont",
+        "Full name": "Jean Dupont",
+        Email: "jean@acme.fr",
+        "Email status": "VERIFIED",
+        Mobile: "+33612345678",
+        "Mobile status": "VERIFIED",
+        "Mobile national format": "06 12 34 56 78",
+        "Person country": "France",
+        "Person city": "Paris",
+        "Company name": "Acme",
+        "Company domain": "acme.fr",
+        "Company HQ Phone": "+33 1 23 45 67 89",
+        "Company description": "We build things,\nwell.",
+      },
     });
   });
 
@@ -160,6 +194,35 @@ describe("readCsvHeader — Prospeo export", () => {
     );
 
     expect(row.name).toBe("Jean Dupont");
+  });
+});
+
+describe("additional CSV columns", () => {
+  it("keeps repeated labels separately and skips blank columns and cells", () => {
+    const { row } = readFirstRow(
+      'phoneNumber,name,Need,Need,,Empty\n+14155552671,Jane,"Better reporting",Fast setup,ignored,',
+      "ringee",
+    );
+
+    expect(row.customFields).toEqual({
+      name: "Jane",
+      Need: "Better reporting",
+      "Need (2)": "Fast setup",
+    });
+  });
+
+  it("retains secondary phone numbers alongside the canonical dial number", () => {
+    const { row } = readFirstRow(
+      "First Name,Last Name,Mobile Phone,Corporate Phone\nJane,Doe,+14155552671,+14155550000",
+      "apollo",
+    );
+
+    expect(row.phoneNumber).toBe("+14155552671");
+    expect(row.customFields).toEqual({
+      "First Name": "Jane",
+      "Last Name": "Doe",
+      "Corporate Phone": "+14155550000",
+    });
   });
 });
 
