@@ -57,6 +57,13 @@ The **browser** side has its own normalization: `state-map.ts` in
 
 ### Browser audio and international routing
 
+Attach a remote stream to an audio element only when `element.srcObject !==
+stream`. Assigning even the same stream invokes the browser's media load
+algorithm and interrupts playback. React renders (including the call timer and
+control updates) must not reload an unchanged stream. The extension and SDK's
+audio owners enforce the same identity check; preserve it in every playback
+surface.
+
 Keep the shared WebRTC client on automatic routing: omit `region`, `env`,
 `rtcIp` and custom `iceServers`. The provider selects the signaling endpoint for
 the client's connection and negotiates media for each call. Do not reconnect the
