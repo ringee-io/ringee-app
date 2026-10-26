@@ -16,7 +16,11 @@ const PROSPEO_EXPORT = [
 ].join("\n");
 
 function build() {
-  const created: Array<{ phoneNumber: string; name: string }> = [];
+  const created: Array<{
+    phoneNumber: string;
+    name: string;
+    customFields?: Record<string, string>;
+  }> = [];
   const leadContactIds: string[] = [];
   const idByPhone = new Map<string, string>();
 
@@ -90,6 +94,10 @@ describe("CampaignService.importLeadsFromCsv", () => {
       [["+33612345678", "Jean Dupont"]],
     );
     assert.deepEqual(leadContactIds, ["contact-1"]);
+    assert.equal(
+      created[0].customFields?.["Company description"],
+      "We build things,\nwell.",
+    );
     assert.deepEqual(result.summary, {
       totalRows: 2,
       contactsCreated: 1,

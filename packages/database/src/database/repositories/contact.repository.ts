@@ -543,6 +543,7 @@ export class ContactRepository {
       companyLinkedinUrl?: string;
       revenue?: string;
       companySize?: string;
+      customFields?: Record<string, string>;
     }>,
   ): Promise<number> {
     const result = await this.prisma.contact.createMany({
@@ -558,6 +559,7 @@ export class ContactRepository {
         linkedinUrl: contact.linkedinUrl,
         revenue: contact.revenue,
         companySize: contact.companySize,
+        customFields: contact.customFields,
         userId: ctx.userId,
         organizationId: ctx.organizationId ?? null,
       })),
@@ -581,10 +583,11 @@ export class ContactRepository {
       companyLinkedinUrl?: string;
       revenue?: string;
       companySize?: string;
+      customFields?: Record<string, string>;
     }>,
   ): Promise<void> {
     const ownershipFilter = buildOwnershipFilter(ctx);
-    const operations: Prisma.PrismaPromise<Prisma.BatchPayload>[] = [];
+    const operations: Prisma.PrismaPromise<Prisma.BatchPayload | number>[] = [];
     for (const contact of contacts) {
       const data: Prisma.ContactUpdateManyMutationInput = {};
       if (contact.jobTitle) data.jobTitle = contact.jobTitle;
@@ -593,17 +596,39 @@ export class ContactRepository {
       if (contact.linkedinUrl) data.linkedinUrl = contact.linkedinUrl;
       if (contact.revenue) data.revenue = contact.revenue;
       if (contact.companySize) data.companySize = contact.companySize;
-      if (Object.keys(data).length === 0) continue;
-      operations.push(
-        this.prisma.contact.updateMany({
-          where: {
-            ...ownershipFilter,
-            phoneNumber: contact.phoneNumber,
-            deletedAt: null,
-          },
-          data,
-        }),
-      );
+      if (Object.keys(data).length > 0) {
+        operations.push(
+          this.prisma.contact.updateMany({
+            where: {
+              ...ownershipFilter,
+              phoneNumber: contact.phoneNumber,
+              deletedAt: null,
+            },
+            data,
+          }),
+        );
+      }
+
+      if (
+        contact.customFields &&
+        Object.keys(contact.customFields).length > 0
+      ) {
+        const owner = ownershipFilter.organizationId
+          ? Prisma.sql`"organizationId" = ${ownershipFilter.organizationId}::uuid`
+          : Prisma.sql`"userId" = ${ownershipFilter.userId}::uuid AND "organizationId" IS NULL`;
+        // Merge in SQL so an import cannot erase another writer's fields
+        // between a read and a write. Blank cells never enter this patch.
+        operations.push(
+          this.prisma.$executeRaw(Prisma.sql`
+          UPDATE "Contact"
+          SET "customFields" = COALESCE(NULLIF("customFields", 'null'::jsonb), '{}'::jsonb)
+                || ${JSON.stringify(contact.customFields)}::jsonb,
+              "updatedAt" = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+          WHERE "phoneNumber" = ${contact.phoneNumber}
+            AND "deletedAt" IS NULL AND ${owner}
+        `),
+        );
+      }
     }
 
     if (operations.length > 0) {

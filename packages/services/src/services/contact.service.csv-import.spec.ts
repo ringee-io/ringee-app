@@ -53,6 +53,18 @@ describe("ContactService.parseContactsCsv — Ringee template", () => {
         error.message === "Missing required columns: phoneNumber, name",
     );
   });
+
+  it("retains sales context from custom columns after validation", () => {
+    const parsed = service.parseContactsCsv(
+      'phoneNumber,name,Need,Current provider,Empty\n+14155552671,Jane Doe,"Better reporting",Example CRM,',
+    );
+
+    assert.deepEqual(parsed.rows[0].customFields, {
+      name: "Jane Doe",
+      Need: "Better reporting",
+      "Current provider": "Example CRM",
+    });
+  });
 });
 
 describe("ContactService.parseContactsCsv — tool exports", () => {
@@ -61,6 +73,15 @@ describe("ContactService.parseContactsCsv — tool exports", () => {
 
     assert.equal(parsed.totalRows, 2);
     assert.equal(parsed.rows.length, 1);
+    assert.deepEqual(parsed.rows[0].customFields, {
+      "First Name": "Jane",
+      "Last Name": "Doe",
+      "Company Name": "Acme",
+      Email: "jane@acme.com",
+      City: "San Francisco",
+      "Corporate Phone": "+1 415-555-0000",
+      "SEO Description": "Acme builds\nsales software, fast.",
+    });
     assert.deepEqual(
       {
         phoneNumber: parsed.rows[0].phoneNumber,
