@@ -224,6 +224,12 @@ presented a verified caller ID adds `CALLER_ID_PROFIT_MARGIN_SURCHARGE`
 validated at startup by `@ringee/configuration` — a malformed value refuses to
 boot rather than quietly billing the wrong amount.
 
+New Stripe charges must be in USD. Every Checkout Session explicitly sets
+`currency: "usd"` and `adaptive_pricing.enabled: false`; USD line-item prices
+alone do not prevent Stripe from offering payment in a customer's local currency.
+Direct PaymentIntents and subscription prices also use USD. This policy does not
+retroactively migrate existing sessions or subscriptions in local currencies.
+
 ### BILL-015 — Messages, transcription and AI pipelines are billed like calls
 
 `message-cost:<messageId>`, `transcription-realtime:<headerId>`,
