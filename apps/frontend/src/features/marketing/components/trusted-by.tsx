@@ -135,6 +135,7 @@
 // }
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 
 import { Container } from './primitives';
 
@@ -233,7 +234,8 @@ const COMPANIES: Company[] = [
 ];
 
 function Logo({ company }: { company: Company }) {
-  const alt = `${company.name} logo`;
+  const t = useTranslations('marketing.home.trustedBy');
+  const alt = t('logo', { name: company.name });
 
   const imgClass =
     'w-auto object-contain opacity-60 transition-opacity duration-300 hover:opacity-100';
@@ -285,11 +287,12 @@ function Track({ ariaHidden = false }: { ariaHidden?: boolean }) {
 }
 
 export function TrustedBy() {
+  const t = useTranslations('marketing.home.trustedBy');
   return (
-    <section className='py-10 sm:py-12' aria-label='Companies using Ringee'>
+    <section className='py-10 sm:py-12' aria-label={t('label')}>
       <Container>
         <p className='text-muted-foreground/80 mb-8 text-center text-xs font-medium tracking-[0.14em] uppercase'>
-          Trusted by teams already calling with Ringee
+          {t('title')}
         </p>
       </Container>
 

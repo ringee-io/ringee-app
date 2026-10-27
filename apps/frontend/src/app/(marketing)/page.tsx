@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { BellRing, Bot, CalendarCheck, Check } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
@@ -31,11 +31,16 @@ import {
 import { PRICING, REQUEST_DEMO_URL, SITE_URL } from '@/features/marketing/site';
 import { CALL_RATE_FROM } from '@/features/marketing/content/phone-numbers';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'Ringee — AI Outbound Calling Platform for Humans & AI Agents',
-  description: `One calling stack for your reps and AI voice agents: a sales dialer, AI outbound calling and bring your own carrier. Open source, calls from ${CALL_RATE_FROM}/min.`,
-  path: '/'
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('marketing.home.seo');
+  const locale = await getLocale();
+  return buildMetadata({
+    title: t('title'),
+    description: t('description', { rate: CALL_RATE_FROM }),
+    path: '/',
+    locale: locale.startsWith('es') ? 'es' : 'en'
+  });
+}
 
 /** The home FAQ, in reading order; the copy is in `marketing.home.faq`. */
 const FAQ_KEYS = [
@@ -69,8 +74,8 @@ export default async function HomePage() {
 
       {/* Product tour — the 40-second commercial: 180+ countries, numbers,
           the manual and power dialer, AI voice agents, MCP/CLI/API and the
-          team price. The video is English, so its copy has only English
-          messages. The container is wider than the page's so the video reads
+          team price. The video is English; the surrounding copy follows the
+          page language. The container is wider than the page's so the video reads
           at full size; the heading keeps its own narrow column. */}
       <Section id='product-tour' className='py-16 sm:py-20'>
         <Container className='max-w-7xl'>
@@ -83,6 +88,7 @@ export default async function HomePage() {
               frame and its controls stay in view on a short laptop. */}
           <MarketingVideo
             id='ringee-commercial'
+            ariaLabel={t('video.label')}
             className='mx-auto mt-10 max-w-[calc((100svh_-_8rem)*16/9)]'
           />
         </Container>
@@ -380,8 +386,7 @@ export default async function HomePage() {
       <JsonLd
         data={softwareAppJsonLd({
           name: 'Ringee',
-          description:
-            'Open calling infrastructure where human teams and AI voice agents place outbound calls from the same stack. Run human dialers and autonomous AI conversations with shared numbers, history, recordings, transcripts, outcomes, and integrations. Open source, self-hostable, and pay as you go.',
+          description: t('seo.productDescription'),
           url: SITE_URL
         })}
       />

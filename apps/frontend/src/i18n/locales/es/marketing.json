@@ -751,11 +751,11 @@
         },
         "rotation": {
           "title": "Rotación de números",
-          "useCase": "Cada lead ve un número local, sin que tengas que elegirlo. Más llamadas contestadas y menos spam.",
+          "useCase": "Cada prospecto ve un número local, sin que tengas que elegirlo. Más llamadas contestadas y menos spam.",
           "points": {
             "local": {
               "label": "Presencia local",
-              "text": "Tu número del país y código de área del lead."
+              "text": "Tu número del país y código de área del prospecto."
             },
             "cap": {
               "label": "Límite diario",
@@ -767,7 +767,7 @@
             }
           },
           "visual": {
-            "matches": "Cada lead ve un número local",
+            "matches": "Cada prospecto ve un número local",
             "leadMadrid": "Madrid",
             "leadMiami": "Miami",
             "leadLondon": "Londres",
@@ -783,11 +783,11 @@
           "points": {
             "countries": {
               "label": "{countries} países",
-              "text": "Números locales, toll-free y móviles."
+              "text": "Números locales, gratuitos y móviles."
             },
             "verified": {
               "label": "Tu número actual",
-              "text": "Verifícalo y úsalo como caller ID."
+              "text": "Verifícalo y úsalo como identificador de llamada."
             },
             "inbound": {
               "label": "Entrantes",
@@ -797,11 +797,11 @@
         },
         "campaigns": {
           "title": "Campañas con marcador progresivo",
-          "useCase": "Tu equipo trabaja una sola cola y Ringee marca al siguiente lead en cuanto alguien queda libre.",
+          "useCase": "Tu equipo trabaja una sola cola y Ringee marca al siguiente prospecto en cuanto alguien queda libre.",
           "points": {
             "modes": {
               "label": "Progresivo o vista previa",
-              "text": "Volumen, o revisar cada lead antes de llamar."
+              "text": "Volumen, o revisar cada prospecto antes de llamar."
             },
             "rules": {
               "label": "Horario y reintentos",
@@ -827,28 +827,28 @@
           "points": {
             "sip": {
               "label": "SIP o PBX",
-              "text": "Conserva tu contrato, tus tarifas y tu caller ID."
+              "text": "Conserva tu contrato, tus tarifas y tu identificador de llamada."
             },
             "selfHosted": {
-              "label": "Self-hosted",
+              "label": "Alojamiento propio",
               "text": "Instala todo Ringee en tus propios servidores."
             },
             "openSource": {
-              "label": "Open source",
+              "label": "Código abierto",
               "text": "Licencia MIT: audita cada línea."
             }
           }
         },
         "appointments": {
           "title": "Agente que agenda citas",
-          "useCase": "Llama a tus leads, consulta tu disponibilidad real y agenda solo la hora que la persona confirma.",
+          "useCase": "Llama a tus prospectos, consulta tu disponibilidad real y agenda solo la hora que la persona confirma.",
           "points": {
             "availability": {
               "label": "Sin dobles reservas",
               "text": "Solo ofrece horas libres de tu calendario."
             },
             "callback": {
-              "label": "Callback automático",
+              "label": "Seguimiento automático",
               "text": "¿Le piden llamar más tarde? Vuelve a llamar a esa hora."
             },
             "sync": {
@@ -920,7 +920,7 @@
             },
             "model": {
               "label": "Tu modelo",
-              "text": "Ringee AI o tu propia API key."
+              "text": "Ringee AI o tu propia clave API."
             }
           }
         },
@@ -934,7 +934,7 @@
             },
             "automate": {
               "label": "Automatiza",
-              "text": "Busca leads, arma listas y agenda seguimientos."
+              "text": "Busca prospectos, arma listas y agenda seguimientos."
             },
             "act": {
               "label": "Ejecuta",
@@ -971,7 +971,7 @@
           },
           "visual": {
             "live": "Transcripción en vivo",
-            "leadLabel": "Lead:",
+            "leadLabel": "Prospecto:",
             "lead": "Ya trabajamos con otro proveedor.",
             "youLabel": "Tú:",
             "you": "¿Qué le cambiarían si pudieran?",
@@ -991,22 +991,22 @@
             },
             "reveal": {
               "label": "Revela",
-              "text": "Móvil y email, guardados como contacto."
+              "text": "Móvil y correo electrónico, guardados como contacto."
             },
             "linkedin": {
               "label": "Desde LinkedIn",
-              "text": "Pega un perfil y encuentra al lead."
+              "text": "Pega un perfil y encuentra al prospecto."
             }
           },
           "visual": {
-            "query": "VP Sales · España",
-            "roleOne": "VP Sales · Fintech",
+            "query": "Dir. de ventas · España",
+            "roleOne": "Dir. de ventas · Fintech",
             "reveal": "Revelar",
             "call": "Llamar a Diego"
           }
         },
         "followUp": {
-          "title": "Resultados, callbacks y reuniones",
+          "title": "Resultados, seguimientos y reuniones",
           "useCase": "Registra cómo fue la llamada y agenda el siguiente paso antes de colgar.",
           "points": {
             "outcomes": {
@@ -1014,7 +1014,7 @@
               "text": "Resultado y nota al terminar la llamada."
             },
             "callbacks": {
-              "label": "Callbacks",
+              "label": "Llamadas de seguimiento",
               "text": "Vuelven justo cuando toca llamar de nuevo."
             },
             "meetings": {
@@ -1037,7 +1037,7 @@
             },
             "api": {
               "label": "API",
-              "text": "Contactos y click-to-call desde tu app."
+              "text": "Contactos y llamadas con un clic desde tu app."
             }
           }
         }
@@ -1070,7 +1070,7 @@
         "items": {
           "founders": "Fundadores",
           "sdrs": "SDRs",
-          "freelancers": "Freelancers",
+          "freelancers": "Profesionales independientes",
           "agencies": "Agencias",
           "recruiters": "Reclutadores",
           "salesTeams": "Equipos de ventas"
@@ -1137,6 +1137,31 @@
           "answer": "Solicita tu cuenta. Revisamos cada solicitud y te enviamos el acceso por correo, normalmente en un día hábil, sin llamadas de ventas."
         }
       }
+    },
+    "video": {
+      "eyebrow": "Recorrido del producto",
+      "title": "Toda la plataforma de llamadas en 40 segundos",
+      "description": "Llama a más de 180 países, marca manualmente o con el marcador automático, delega llamadas a agentes de voz con IA y conecta tu propia IA mediante MCP, la CLI o la API.",
+      "label": "Ringee en 40 segundos (video en inglés): llamadas a más de 180 países, números locales, marcadores manual y automático, agentes de voz con IA, asistentes conectados por MCP, CLI y API, y un plan para todo el equipo"
+    },
+    "rendering": {
+      "label": "Versión de la página",
+      "human": "Humana",
+      "machine": "Máquina"
+    },
+    "assistants": {
+      "prefix": "Úsalo desde",
+      "suffix": "+ cualquier cliente MCP o la CLI"
+    },
+    "trustedBy": {
+      "label": "Empresas que usan Ringee",
+      "title": "Equipos que ya confían en Ringee para sus llamadas",
+      "logo": "Logo de {name}"
+    },
+    "seo": {
+      "title": "Ringee — Llamadas para personas y agentes de voz con IA",
+      "description": "Una plataforma para tu equipo y agentes de voz con IA: marcador de ventas, llamadas salientes con IA y tu propio operador. Código abierto, desde {rate}/min.",
+      "productDescription": "Infraestructura abierta de llamadas para equipos humanos y agentes de voz con IA. Usa marcadores y conversaciones autónomas con IA que comparten números, historial, grabaciones, transcripciones, resultados e integraciones. Código abierto, alojamiento propio y pago por uso."
     }
   },
   "wallOfLove": {
@@ -1208,5 +1233,27 @@
     "usage": "Cuenta individual gratuita. El uso de llamadas se factura por separado.",
     "aiUsage": "Los agentes de voz con IA requieren el plan de equipo. Llamadas, voz y modelo se facturan por separado.",
     "description": "Empieza con una cuenta individual gratuita o incorpora a todo tu equipo. Código abierto, llamadas de pago por uso y sin tarifas por usuario."
+  },
+  "callingHero": {
+    "eyebrow": "Infraestructura de llamadas de código abierto",
+    "headline": "Una sola plataforma de llamadas.",
+    "headlineHighlight": "Para personas y agentes de voz con IA.",
+    "description": "Convierte más llamadas en clientes. Tu equipo se centra en las conversaciones que necesitan un toque humano, mientras los agentes de voz con IA se encargan de seguimientos, recordatorios y reservas, todo en un solo lugar.",
+    "proof": {
+      "pricing": "Llamadas de pago por uso",
+      "openSource": "Código abierto y alojamiento propio",
+      "unlimitedUsers": "Sin cargos por usuario"
+    },
+    "humanLabel": "Equipos humanos",
+    "aiLabel": "Agentes de voz con IA",
+    "stackTitle": "Una sola plataforma de llamadas",
+    "stackModules": "Enrutamiento de operadores · Rotación del identificador de llamada · Grabación y transcripciones",
+    "recordTitle": "Un registro compartido",
+    "records": {
+      "phoneNumbers": "Números de teléfono",
+      "callHistory": "Historial de llamadas",
+      "recordings": "Grabaciones",
+      "outcomes": "Resultados"
+    }
   }
 }

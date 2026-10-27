@@ -19,9 +19,11 @@ type NavigatorWithConnection = Navigator & {
  */
 export function MarketingVideo({
   id,
+  ariaLabel,
   className
 }: {
   id: MarketingVideoId;
+  ariaLabel?: string;
   className?: string;
 }) {
   const { src, version, label } = MARKETING_VIDEOS[id];
@@ -102,7 +104,7 @@ export function MarketingVideo({
         controls
         loop
         playsInline
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
         className='h-full w-full object-cover'
       >
         {/* The first source a browser can play wins: 720p on phones, then the

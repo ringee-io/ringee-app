@@ -1,7 +1,8 @@
 import 'server-only';
-import { headers } from 'next/headers';
+import { getLocale } from 'next-intl/server';
 import type { MarketingLocale } from './locale';
 
 export async function getMarketingLocale(): Promise<MarketingLocale> {
-  return (await headers()).get('x-ringee-locale') === 'es' ? 'es' : 'en';
+  // next-intl resolves the URL override, cookie and browser language together.
+  return (await getLocale()).startsWith('es') ? 'es' : 'en';
 }

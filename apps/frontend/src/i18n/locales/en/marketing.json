@@ -1104,7 +1104,8 @@
     "video": {
       "eyebrow": "Product tour",
       "title": "The whole calling stack in 40 seconds",
-      "description": "Call 180+ countries, dial by hand or with the power dialer, hand calls to AI voice agents, and plug in your own AI over MCP, the CLI or the API."
+      "description": "Call 180+ countries, dial by hand or with the power dialer, hand calls to AI voice agents, and plug in your own AI over MCP, the CLI or the API.",
+      "label": "Ringee in 40 seconds: calls to 180+ countries, local numbers, manual and power dialers, AI voice agents, assistants connected through MCP, the CLI and the API, and one plan for the whole team"
     },
     "audience": {
       "eyebrow": "Who it's for",
@@ -1200,6 +1201,25 @@
           "answer": "Request your account. We review every request and email you access, usually within one business day, with no sales call to book."
         }
       }
+    },
+    "rendering": {
+      "label": "Page rendering",
+      "human": "Human",
+      "machine": "Machine"
+    },
+    "assistants": {
+      "prefix": "Runs from",
+      "suffix": "+ any MCP client, or the CLI"
+    },
+    "trustedBy": {
+      "label": "Companies using Ringee",
+      "title": "Trusted by teams already calling with Ringee",
+      "logo": "{name} logo"
+    },
+    "seo": {
+      "title": "Ringee — AI Outbound Calling Platform for Humans & AI Agents",
+      "description": "One calling stack for your reps and AI voice agents: a sales dialer, AI outbound calling and bring your own carrier. Open source, calls from {rate}/min.",
+      "productDescription": "Open calling infrastructure where human teams and AI voice agents place outbound calls from the same stack. Run human dialers and autonomous AI conversations with shared numbers, history, recordings, transcripts, outcomes, and integrations. Open source, self-hostable, and pay as you go."
     }
   },
   "wallOfLove": {
