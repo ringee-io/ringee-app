@@ -1,7 +1,8 @@
 'use client';
-import { usePathname } from 'next/navigation';
-import { marketingLocaleFromPath } from './locale';
+import { useLocale } from 'next-intl';
 
 export function useMarketingLocale() {
-  return marketingLocaleFromPath(usePathname());
+  const locale = useLocale();
+  // Match the page copy, including the home page's cookie/browser language.
+  return locale.startsWith('es') ? 'es' : 'en';
 }

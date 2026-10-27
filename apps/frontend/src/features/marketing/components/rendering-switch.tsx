@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
@@ -14,9 +15,9 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 
 export type Rendering = 'human' | 'machine';
 
-const TABS: { id: Rendering; label: string; href: string }[] = [
-  { id: 'human', label: 'Human', href: '/' },
-  { id: 'machine', label: 'Machine', href: '/machine' }
+const TABS: { id: Rendering; href: string }[] = [
+  { id: 'human', href: '/' },
+  { id: 'machine', href: '/machine' }
 ];
 
 export function RenderingSwitch({
@@ -26,9 +27,10 @@ export function RenderingSwitch({
   active: Rendering;
   className?: string;
 }) {
+  const t = useTranslations('marketing.home.rendering');
   return (
     <nav
-      aria-label='Page rendering'
+      aria-label={t('label')}
       className={cn('flex items-start gap-8', className)}
     >
       {TABS.map((tab) => {
@@ -48,7 +50,7 @@ export function RenderingSwitch({
                   : 'text-muted-foreground group-hover:text-foreground'
               )}
             >
-              {tab.label}
+              {t(tab.id)}
             </span>
             <span
               aria-hidden

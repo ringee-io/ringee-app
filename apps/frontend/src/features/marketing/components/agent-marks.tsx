@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Tooltip,
   TooltipContent,
@@ -77,12 +78,13 @@ export function MarkIcon({
  * again under the loop, so it is a component rather than a copied row.
  */
 export function RunsFrom({ className }: { className?: string }) {
+  const t = useTranslations('marketing.home.assistants');
   return (
     <div
       className={cn('flex flex-wrap items-center gap-x-4 gap-y-3', className)}
     >
       <span className='text-muted-foreground font-mono text-[11px] tracking-widest uppercase'>
-        Runs from
+        {t('prefix')}
       </span>
       <div className='flex items-center gap-4'>
         {AGENT_MARKS.map((mark) => (
@@ -94,9 +96,7 @@ export function RunsFrom({ className }: { className?: string }) {
           />
         ))}
       </div>
-      <span className='text-muted-foreground text-xs'>
-        + any MCP client, or the CLI
-      </span>
+      <span className='text-muted-foreground text-xs'>{t('suffix')}</span>
     </div>
   );
 }
