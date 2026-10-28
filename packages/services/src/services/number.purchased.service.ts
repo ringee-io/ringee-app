@@ -55,14 +55,10 @@ export class NumberPurchasedService {
 
   /**
    * The Stripe subscription paying for a purchased DID ended (cancelled by the
-   * customer, or dropped after failed payments). The number must disappear from
-   * Ringee *and* be released at the carrier: Telnyx bills the DID monthly for as
-   * long as it sits on the account, so keeping it would mean paying for a number
-   * nobody is subscribed to.
-   *
-   * The carrier release is attempted first, but a carrier failure never blocks
-   * the local retirement — the customer stopped paying, so they must stop having
-   * the number. A failed release is logged as an error for manual cleanup.
+   * customer, or dropped after failed payments). The number is unassigned and
+   * retired in Ringee, but it is no longer released at the carrier: it stays on
+   * the Telnyx account (and keeps being billed there) until it is removed by
+   * hand. The carrier release below is commented out, not deleted.
    */
   async retireCancelledNumber(
     phoneNumber: string,
@@ -94,15 +90,17 @@ export class NumberPurchasedService {
       return number;
     }
 
-    try {
-      await this.telephonyService.deletePhoneNumber(number.phoneNumber);
-    } catch (err) {
-      this.logger.error(
-        `Number ${phoneNumber} could not be released on the carrier after its ` +
-          `subscription was cancelled — it is still billable and needs manual ` +
-          `removal: ${(err as Error).message}`,
-      );
-    }
+    // Disabled on purpose: a cancelled number is only unassigned in Ringee and
+    // stays on the Telnyx account. Re-enable to release it at the carrier.
+    // try {
+    //   await this.telephonyService.deletePhoneNumber(number.phoneNumber);
+    // } catch (err) {
+    //   this.logger.error(
+    //     `Number ${phoneNumber} could not be released on the carrier after its ` +
+    //       `subscription was cancelled — it is still billable and needs manual ` +
+    //       `removal: ${(err as Error).message}`,
+    //   );
+    // }
 
     const retired = await this.numberPurchasedRepository.releasePermanently(
       number.id,
