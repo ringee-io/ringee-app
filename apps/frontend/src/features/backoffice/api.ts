@@ -192,6 +192,13 @@ export interface UserAccessEnforcementResponse {
   enforcement: EnforcementResult;
 }
 
+/** `retired`: its subscription ended and it left the inventory. */
+export type NumberInventoryStatus =
+  | 'available'
+  | 'assigned'
+  | 'retired'
+  | 'all';
+
 export interface NumberListItem {
   id: string;
   phoneNumber: string;
@@ -200,7 +207,38 @@ export interface NumberListItem {
   assigned: boolean;
   userId: string | null;
   organizationId: string | null;
+  phoneNumberType: string | null;
+  /** When its subscription ended and it left the inventory; null while in it. */
+  retiredAt: string | null;
+  createdAt: string;
+  assignedDate: string | null;
+  /** The member holding it — for an organization's number, one of its members. */
+  user: { id: string; name: string; email: string | null } | null;
+  organization: { id: string; name: string; slug: string | null } | null;
 }
+
+/**
+ * `existing`: it was already in the inventory (and, when an account was named
+ * and it was free, it was assigned to it).
+ */
+export type NumberRegistrationOutcome =
+  | 'added'
+  | 'restored'
+  | 'existing'
+  | 'failed';
+
+export interface NumberRegistrationResult {
+  /** E.164 once the server could read it; as typed otherwise. */
+  phoneNumber: string;
+  outcome: NumberRegistrationOutcome;
+  numberId: string | null;
+  /** Whether it is now assigned to the account the request named. */
+  assigned: boolean;
+  error: string | null;
+}
+
+/** POST /backoffice/numbers accepts at most this many numbers. */
+export const MAX_NUMBERS_PER_REGISTRATION = 50;
 
 export interface RecordingSettings {
   recordAllCalls: boolean;
@@ -626,9 +664,24 @@ export function useBackofficeApi() {
         ),
 
       listNumbers: (params: {
-        status: 'available' | 'assigned' | 'all';
+        status: NumberInventoryStatus;
         search?: string;
+        limit?: number;
       }) => api.get<NumberListItem[]>(`${BASE}/numbers`, params),
+
+      /**
+       * Ringee's records only — nothing is ordered or changed at the carrier.
+       * Each number reports its own outcome.
+       */
+      registerNumbers: (body: {
+        phoneNumbers: string[];
+        accountType?: AccountType;
+        accountId?: string;
+      }) =>
+        api.post<{ results: NumberRegistrationResult[] }>(
+          `${BASE}/numbers`,
+          body
+        ),
 
       listCampaigns: (params: {
         start: Date;

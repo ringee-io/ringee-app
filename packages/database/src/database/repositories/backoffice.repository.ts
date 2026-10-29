@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { AiPipelineType, NumberPurchased, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
+import { DEFAULT_OUTBOUND_SOURCES } from "./number.purchased.repository";
 
 /**
  * Cross-tenant reads + admin mutations for the internal super-admin
@@ -79,6 +81,13 @@ export interface AccountDetail extends AccountListItem {
   } | null;
 }
 
+/** `retired`: its subscription ended and it left the inventory (soft-deleted). */
+export type NumberInventoryStatus =
+  | "available"
+  | "assigned"
+  | "retired"
+  | "all";
+
 export interface NumberListItem {
   id: string;
   phoneNumber: string;
@@ -87,6 +96,21 @@ export interface NumberListItem {
   assigned: boolean;
   userId: string | null;
   organizationId: string | null;
+  phoneNumberType: string | null;
+  /** When its subscription ended and it left the inventory; null while in it. */
+  retiredAt: Date | null;
+  createdAt: Date;
+  assignedDate: Date | null;
+  /** The member holding it — for an organization's number, one of its members. */
+  user: { id: string; name: string; email: string | null } | null;
+  organization: { id: string; name: string; slug: string | null } | null;
+}
+
+/** A number as the backoffice registers it: Ringee's own record, nothing more. */
+export interface NumberRegistration {
+  phoneNumber: string;
+  isoCountry: string;
+  phoneNumberType: string | null;
 }
 
 function round2(n: number | null | undefined): number {
@@ -519,32 +543,42 @@ export class BackofficeRepository {
 
   // ── Numbers ────────────────────────────────────────────────
 
+  /**
+   * Ringee DIDs only: a verified caller ID is a customer's own number, never
+   * part of the inventory. A retired number keeps its row for call history and
+   * is listed only as `retired` (or under `all`). Newest first.
+   */
   async listNumbers(params: {
-    status: "available" | "assigned" | "all";
+    status: NumberInventoryStatus;
     search?: string;
+    limit: number;
   }): Promise<NumberListItem[]> {
     const search = params.search?.trim();
-    const ownership: Prisma.NumberPurchasedWhereInput =
+    const state: Prisma.NumberPurchasedWhereInput =
       params.status === "available"
-        ? { userId: null, organizationId: null }
+        ? { deletedAt: null, userId: null, organizationId: null }
         : params.status === "assigned"
           ? {
+              deletedAt: null,
               OR: [
                 { userId: { not: null } },
                 { organizationId: { not: null } },
               ],
             }
-          : {};
+          : params.status === "retired"
+            ? { deletedAt: { not: null } }
+            : {};
 
     const where: Prisma.NumberPurchasedWhereInput = {
-      ...ownership,
-      ...(search ? { phoneNumber: { contains: search } } : {}),
+      kind: "purchased",
+      ...state,
+      ...(search ? { AND: [{ OR: this.numberSearch(search) }] } : {}),
     };
 
     const rows = await this.prisma.numberPurchased.findMany({
       where,
-      orderBy: { phoneNumber: "asc" },
-      take: 200,
+      orderBy: { createdAt: "desc" },
+      take: params.limit,
       select: {
         id: true,
         phoneNumber: true,
@@ -552,81 +586,303 @@ export class BackofficeRepository {
         status: true,
         userId: true,
         organizationId: true,
+        phoneNumberType: true,
+        deletedAt: true,
+        createdAt: true,
+        assignedDate: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            emails: { select: { email: true, isPrimary: true } },
+          },
+        },
+        organization: { select: { id: true, name: true, slug: true } },
       },
     });
 
-    return rows.map((r) => ({
+    return rows.map(({ deletedAt, user, organization, ...r }) => ({
       ...r,
       assigned: !!(r.userId || r.organizationId),
+      retiredAt: deletedAt,
+      user: user
+        ? {
+            id: user.id,
+            name: fullName(user) || primaryEmail(user.emails) || user.id,
+            email: primaryEmail(user.emails),
+          }
+        : null,
+      organization: organization
+        ? {
+            id: organization.id,
+            name: organization.name || organization.id,
+            slug: organization.slug,
+          }
+        : null,
     }));
   }
 
+  /** A phone number typed any way ("+1 (305) 555"), or its owner's name. */
+  private numberSearch(search: string): Prisma.NumberPurchasedWhereInput[] {
+    const digits = search.replace(/\D/g, "");
+    return [
+      ...(digits ? [{ phoneNumber: { contains: digits } }] : []),
+      {
+        user: {
+          is: {
+            OR: [
+              { firstName: { contains: search, mode: "insensitive" } },
+              { lastName: { contains: search, mode: "insensitive" } },
+              {
+                emails: {
+                  some: { email: { contains: search, mode: "insensitive" } },
+                },
+              },
+            ],
+          },
+        },
+      },
+      {
+        organization: {
+          is: {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { slug: { contains: search, mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+    ];
+  }
+
   /**
-   * Assign a purchased number to an owner and create an enabled UserNumber so
-   * the owner can actually place calls. The existing
+   * Put a number into the inventory, unassigned. Only Ringee's records change:
+   * nothing is ordered, moved or configured at the carrier.
+   *
+   * `phoneNumber` is unique and a retired number keeps its row (the calls made
+   * from it still point at it), so registering one again revives that row —
+   * `retiredId` — instead of creating a second one, and drops whatever its
+   * last workspace left behind.
+   */
+  async adminRegister(
+    registration: NumberRegistration,
+    retiredId: string | null,
+  ): Promise<NumberPurchased> {
+    if (!retiredId) {
+      return this.prisma.numberPurchased.create({
+        data: { ...registration, status: "active", voiceEnabled: true },
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const revived = await tx.numberPurchased.updateMany({
+        where: { id: retiredId, kind: "purchased", deletedAt: { not: null } },
+        data: {
+          ...registration,
+          deletedAt: null,
+          active: true,
+          status: "active",
+          voiceEnabled: true,
+          userId: null,
+          organizationId: null,
+          assignedDate: null,
+          // The last owner's order and subscription price, not this number's.
+          purchaseDate: null,
+          monthlyCost: null,
+          upfrontCost: null,
+          currency: null,
+          // For this inventory the number starts now, as a revived purchase does.
+          createdAt: new Date(),
+        },
+      });
+      if (revived.count === 0) {
+        throw new ConflictException("This number is already in Ringee");
+      }
+      // Retiring a number left its inbound route behind, still naming the
+      // last workspace's people.
+      await this.detachWorkspaceLinks(tx, retiredId);
+      return tx.numberPurchased.findUniqueOrThrow({ where: { id: retiredId } });
+    });
+  }
+
+  /**
+   * Assign an unassigned number to an owner and create an enabled UserNumber so
+   * the owner can actually place calls — their primary number when they have
+   * none, as a purchase does. The existing
    * NumberPurchasedRepository.assignToOwner only re-enables a pre-existing
    * disabled UserNumber, so the backoffice needs its own path that creates one.
+   *
+   * The number is claimed with a conditional update, so two admins assigning it
+   * at once cannot both win. A retired number comes back through
+   * `adminRegister`, never through here.
    */
   async adminAssign(
     numberId: string,
     owner: { userId: string; organizationId: string | null },
   ): Promise<NumberPurchased> {
-    const number = await this.prisma.numberPurchased.findUnique({
-      where: { id: numberId },
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.numberPurchased.updateMany({
+        where: {
+          id: numberId,
+          kind: "purchased",
+          deletedAt: null,
+          userId: null,
+          organizationId: null,
+        },
+        data: {
+          userId: owner.userId,
+          organizationId: owner.organizationId,
+          status: "assigned",
+          assignedDate: new Date(),
+        },
+      });
+      if (claimed.count === 0) {
+        const existing = await tx.numberPurchased.findUnique({
+          where: { id: numberId },
+          select: { kind: true, deletedAt: true },
+        });
+        if (!existing) throw new NotFoundException("Number not found");
+        if (existing.kind !== "purchased") {
+          throw new BadRequestException(
+            "A verified caller ID cannot be assigned",
+          );
+        }
+        if (existing.deletedAt) {
+          throw new BadRequestException(
+            "Number is retired — add it again from Numbers first",
+          );
+        }
+        throw new BadRequestException(
+          "Number is already assigned — unassign it first",
+        );
+      }
+
+      // The backoffice used to unassign numbers without detaching them, so an
+      // unassigned number may still carry its last workspace's links.
+      await this.detachWorkspaceLinks(tx, numberId);
+
+      const number = await tx.numberPurchased.findUniqueOrThrow({
+        where: { id: numberId },
+      });
+      const primaries = await tx.userNumber.count({
+        where: {
+          userId: owner.userId,
+          organizationId: owner.organizationId,
+          enabled: true,
+          isPrimary: true,
+        },
+      });
+      await tx.userNumber.create({
+        data: {
+          userId: owner.userId,
+          organizationId: owner.organizationId,
+          numberId,
+          enabled: true,
+          isPrimary: primaries === 0,
+          canCall: true,
+          canReceive: true,
+          canSendSms: number.smsEnabled,
+          canReceiveSms: number.smsEnabled,
+          canSendMms: number.mmsEnabled,
+          canReceiveMms: number.mmsEnabled,
+        },
+      });
+      return number;
     });
-    if (!number) throw new NotFoundException("Number not found");
-    if (number.userId || number.organizationId) {
-      throw new BadRequestException(
-        "Number is already assigned — unassign it first",
-      );
+  }
+
+  /**
+   * Take a number back from its owner into the inventory, detached from the
+   * workspace it leaves. A verified caller ID is refused: it is the customer's
+   * own number, and orphaning it would keep them from verifying it again.
+   */
+  async adminUnassign(numberId: string): Promise<NumberPurchased> {
+    return this.prisma.$transaction(async (tx) => {
+      const number = await tx.numberPurchased.findUnique({
+        where: { id: numberId },
+        select: { kind: true },
+      });
+      if (!number) throw new NotFoundException("Number not found");
+      if (number.kind !== "purchased") {
+        throw new BadRequestException(
+          "A verified caller ID belongs to the customer who verified it",
+        );
+      }
+
+      await this.detachWorkspaceLinks(tx, numberId);
+      return tx.numberPurchased.update({
+        where: { id: numberId },
+        data: {
+          userId: null,
+          organizationId: null,
+          status: "released",
+          assignedDate: null,
+        },
+      });
+    });
+  }
+
+  /**
+   * Cut every link a number has to the workspace that held it: the clean-up
+   * `NumberPurchasedRepository.releasePermanently` does, plus the inbound
+   * route, without retiring the number. Left in place, the old workspace's
+   * campaigns and desk phones kept presenting the number and its route kept
+   * naming the old workspace's people (NUM-009), whoever held it next. Its
+   * calls keep pointing at it, so history stays attributable.
+   */
+  private async detachWorkspaceLinks(
+    tx: Prisma.TransactionClient,
+    numberId: string,
+  ): Promise<void> {
+    await tx.sipDevice.updateMany({
+      where: { assignedPhoneNumberId: numberId },
+      data: { assignedPhoneNumberId: null, callerId: null },
+    });
+    await tx.campaign.updateMany({
+      where: { numberPurchasedId: numberId },
+      data: { numberPurchasedId: null },
+    });
+    await tx.campaign.updateMany({
+      where: { callerIdId: numberId },
+      data: { callerIdId: null },
+    });
+
+    const rotationCampaigns = await tx.campaign.findMany({
+      where: { rotationNumberIds: { has: numberId } },
+      select: { id: true, rotationNumberIds: true },
+    });
+    for (const campaign of rotationCampaigns) {
+      await tx.campaign.update({
+        where: { id: campaign.id },
+        data: {
+          rotationNumberIds: {
+            set: campaign.rotationNumberIds.filter((id) => id !== numberId),
+          },
+        },
+      });
     }
 
-    // Start clean so the unique (userId, numberId, enabled) tuple can't clash.
-    await this.prisma.userNumber.deleteMany({
-      where: { numberId, userId: owner.userId },
+    await tx.callerIdPoolMember.deleteMany({ where: { numberId } });
+    await tx.callerIdDailyUsage.deleteMany({ where: { numberId } });
+    await tx.userNumber.deleteMany({ where: { numberId } });
+    await tx.numberRequirementValue.deleteMany({
+      where: { numberPurchasedId: numberId },
     });
-    await this.prisma.userNumber.create({
-      data: {
-        userId: owner.userId,
-        organizationId: owner.organizationId,
-        numberId,
-        enabled: true,
-        canCall: true,
-        canReceive: true,
-      },
-    });
-
-    return this.prisma.numberPurchased.update({
+    await tx.inboundRoute.deleteMany({ where: { numberId } });
+    await tx.numberPurchased.update({
       where: { id: numberId },
       data: {
-        userId: owner.userId,
-        organizationId: owner.organizationId,
-        status: "assigned",
-        assignedDate: new Date(),
+        inboundMode: "ringee_default",
+        inboundSipDeviceId: null,
+        allowedOutboundUserIds: [],
+        allowedOutboundSources: DEFAULT_OUTBOUND_SOURCES,
       },
     });
   }
 
-  /** Detach a number from its owner and disable the enabled UserNumber(s). */
-  async adminUnassign(numberId: string): Promise<NumberPurchased> {
-    const number = await this.prisma.numberPurchased.findUnique({
-      where: { id: numberId },
-    });
-    if (!number) throw new NotFoundException("Number not found");
-
-    await this.prisma.userNumber.deleteMany({
-      where: { numberId, enabled: true },
-    });
-
-    return this.prisma.numberPurchased.update({
-      where: { id: numberId },
-      data: {
-        userId: null,
-        organizationId: null,
-        status: "released",
-        assignedDate: null,
-      },
-    });
+  async userExists(id: string): Promise<boolean> {
+    return (await this.prisma.user.count({ where: { id } })) > 0;
   }
 
   /** Pick a concrete member to own an org-assigned number's UserNumber. */

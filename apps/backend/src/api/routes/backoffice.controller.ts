@@ -11,6 +11,9 @@ import {
   Query,
 } from "@nestjs/common";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEmail,
   IsIn,
@@ -19,6 +22,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -27,10 +31,12 @@ import {
   AccountProvisioningService,
   BackofficeService,
   CreatedAccount,
+  MAX_NUMBERS_PER_REGISTRATION,
   McpUsageService,
+  NumberRegistrationResult,
   PipelineType,
 } from "@ringee/services";
-import { AccountType } from "@ringee/database";
+import { AccountType, NumberInventoryStatus } from "@ringee/database";
 import { SuperAdminOnly } from "../guards/super-admin.guard";
 import type { RealtimeDevice } from "@ringee/platform";
 import {
@@ -96,6 +102,31 @@ class CreateAccountDto {
 class AssignNumberDto {
   @IsString()
   numberId!: string;
+}
+
+const NUMBER_INVENTORY_STATUSES: NumberInventoryStatus[] = [
+  "available",
+  "assigned",
+  "retired",
+  "all",
+];
+
+class RegisterNumbersDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(MAX_NUMBERS_PER_REGISTRATION)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  phoneNumbers!: string[];
+
+  /** With `accountId`: assign every registered number to that account. */
+  @IsOptional()
+  @IsIn(["user", "org"])
+  accountType?: AccountType;
+
+  @IsOptional()
+  @IsUUID()
+  accountId?: string;
 }
 
 class TerminateCallsDto {
@@ -213,14 +244,36 @@ export class BackofficeController {
   }
 
   @Get("numbers")
-  listNumbers(@Query() q: { status?: string; search?: string }) {
-    const status =
-      q.status === "assigned"
-        ? "assigned"
-        : q.status === "all"
-          ? "all"
-          : "available";
-    return this.backoffice.listNumbers({ status, search: q.search });
+  listNumbers(
+    @Query() q: { status?: string; search?: string; limit?: string },
+  ) {
+    const status = NUMBER_INVENTORY_STATUSES.find((s) => s === q.status);
+    return this.backoffice.listNumbers({
+      status: status ?? "available",
+      search: q.search,
+      limit: Number(q.limit) || undefined,
+    });
+  }
+
+  /**
+   * Register numbers in Ringee's inventory — Ringee's records only, nothing is
+   * ordered or changed at the carrier — optionally assigning them to an
+   * account. Each number reports its own outcome.
+   */
+  @Post("numbers")
+  registerNumbers(
+    @Body() dto: RegisterNumbersDto,
+  ): Promise<{ results: NumberRegistrationResult[] }> {
+    if (!dto.accountType !== !dto.accountId) {
+      throw new BadRequestException("accountType and accountId go together");
+    }
+    return this.backoffice.registerNumbers({
+      phoneNumbers: dto.phoneNumbers,
+      assignTo:
+        dto.accountType && dto.accountId
+          ? { type: dto.accountType, id: dto.accountId }
+          : null,
+    });
   }
 
   @Get("accounts/:type/:id")

@@ -784,6 +784,31 @@ headers: the PBX presents its own caller ID.
   `CallService.adoptExternalOutbound`, `CallService.bridgeExternalOutbound`,
   `carrier-route-key.ts`
 
+### NUM-011 — The backoffice inventory is Ringee's record of a number, nothing more
+
+Super admins add numbers to Ringee from the backoffice (`/backoffice/numbers`)
+and assign them to a user or an organization. Adding one writes Ringee's own row
+only: nothing is ordered, moved or configured at the carrier, so a number added
+there works only if it already works on the carrier account. Numbers are read in
+international format; a country is never guessed for a national number. A
+retired number (its subscription ended) keeps its row for call history, and
+adding it again revives that row instead of creating a second one, dropping what
+its last workspace left behind, its inbound route included. A verified caller ID
+is the customer's own number: it is never added, assigned or unassigned there.
+
+Assigning and unassigning move the number between workspaces. Both hold the
+number's inbound-route lock (`NUM-009`) and detach the workspace it leaves: desk
+phones, campaigns and rotation, its members' `UserNumber` rows, regulatory
+submissions and its route. Two admins assigning one number at once cannot both
+win. An assigned number becomes its holder's primary when they have none.
+
+- **Source of truth:** `BackofficeService.registerNumbers`,
+  `BackofficeRepository.adminRegister`, `adminAssign`, `adminUnassign`
+- **Risk if violated:** a retired number assigned from the backoffice stayed
+  soft-deleted and never showed up for its new owner (until 2026-10); an
+  unassigned number kept presenting in its old workspace's campaigns while its
+  route still named the old workspace's people
+
 ---
 
 ## Campaigns & outbound (`CMP`)

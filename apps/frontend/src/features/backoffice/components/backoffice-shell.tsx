@@ -24,6 +24,7 @@ import {
   IconGift,
   IconTerminal2,
   IconLayoutDashboard,
+  IconPhone,
   IconShieldLock,
   IconSpeakerphone,
   IconUserPlus,
@@ -42,6 +43,7 @@ const NAV = [
     label: 'New account',
     icon: IconUserPlus
   },
+  { href: '/backoffice/numbers', label: 'Numbers', icon: IconPhone },
   {
     href: '/backoffice/campaigns',
     label: 'Campaigns',

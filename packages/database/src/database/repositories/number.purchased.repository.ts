@@ -13,7 +13,7 @@ import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 /** Mirrors the `allowedOutboundSources` default in schema.prisma. */
-const DEFAULT_OUTBOUND_SOURCES: OutboundSource[] = [
+export const DEFAULT_OUTBOUND_SOURCES: OutboundSource[] = [
   "web",
   "chrome_extension",
   "mobile",
