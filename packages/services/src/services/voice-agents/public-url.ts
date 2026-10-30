@@ -5,6 +5,7 @@ import {
   isPrivateHost,
   isReservedAddress,
   requestPublic,
+  ResponseTooLargeError,
 } from "@ringee/platform";
 
 /**
@@ -26,6 +27,12 @@ import {
 
 /** How many redirects to follow before giving up. */
 const MAX_REDIRECTS = 5;
+
+/**
+ * Most of a page Ringee reads, counted after decompression: a few kilobytes of
+ * gzip can expand past what the process can hold.
+ */
+const MAX_PAGE_BYTES = 1_000_000;
 
 export function requirePublicUrl(raw: string | null | undefined): URL {
   const trimmed = raw?.trim();
@@ -77,12 +84,14 @@ export async function fetchPublicPage(
     const response = await requestPublic(target, {
       timeoutMs: init.timeoutMs,
       headers: init.headers,
+      maxBodyBytes: MAX_PAGE_BYTES,
     });
 
     if (!isRedirect(response.status)) return response;
 
     const location = response.headers.get("location");
     if (!location) return response;
+    await response.body?.cancel().catch(() => undefined);
 
     // A relative Location resolves against the hop it came from.
     const next = new URL(location, target);
@@ -92,6 +101,33 @@ export async function fetchPublicPage(
   }
 
   return null;
+}
+
+/**
+ * The markup of a page `fetchPublicPage` returned, read only up to the page
+ * budget. The page is someone else's to size, so a longer one is cut off there
+ * rather than read whole — and its beginning still counts as the page.
+ */
+export async function readPageText(response: Response): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let size = 0;
+  try {
+    while (size < MAX_PAGE_BYTES) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      size += value.byteLength;
+      text += decoder.decode(value, { stream: true });
+    }
+  } catch (error) {
+    // The transport fails the body past the same budget; what arrived before
+    // that is the page, cut off.
+    if (!(error instanceof ResponseTooLargeError)) throw error;
+  }
+  await reader.cancel().catch(() => undefined);
+  return text;
 }
 
 /**

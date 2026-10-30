@@ -1339,10 +1339,24 @@ export class CallService implements OnModuleDestroy {
       );
       return null;
     }
-    return {
+    const ctx = {
       userId: callSession.userId,
       organizationId: callSession.organizationId,
     };
+    // The browser also chooses `from`. This lookup is read-only and scoped
+    // to the session owner's workspace; a different tenant's number is refused.
+    const presentedNumberId =
+      await this.callerIdRotationService.registerOutboundCall(
+        ctx,
+        event.from ?? "",
+      );
+    if (!presentedNumberId) {
+      this.logger.warn(
+        `Session ${sessionId} leg presents an unowned caller ID`,
+      );
+      return null;
+    }
+    return ctx;
   }
 
   private async adoptSdkCall(

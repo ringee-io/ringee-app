@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import * as secrets from "../sdk/secrets";
 import { signSseTicket, verifySseTicket } from "./sse-ticket";
 
 const previous = process.env.SDK_SIGNING_SECRET;
@@ -11,6 +12,24 @@ afterAll(() => {
 
 describe("sse ticket", () => {
   const ctx = { userId: "user-1", organizationId: "org-1" };
+
+  it("rejects malformed and oversized tickets before deriving a key", () => {
+    const derive = vi.spyOn(secrets, "deriveSdkKey");
+    try {
+      for (const value of [
+        "a.b",
+        "a." + "b".repeat(42),
+        "a=." + "b".repeat(43),
+        "a.b.c",
+        "a".repeat(3000) + "." + "b".repeat(43),
+      ]) {
+        expect(verifySseTicket(value, "ai:conv-1")).toBeNull();
+      }
+      expect(derive).not.toHaveBeenCalled();
+    } finally {
+      derive.mockRestore();
+    }
+  });
 
   it("opens only the stream it was issued for", () => {
     const ticket = signSseTicket("ai:conv-1", ctx);

@@ -102,18 +102,24 @@ organization's key for an org call, otherwise the user's (`CryptoService`,
 rotate a spoofed IP past the Stripe abuse limiter
 (`StripeAbuseProtectionService`).
 
+An abuse limit counts a request by `clientIp` (`apps/backend/src/api/client-ip.ts`):
+Railway's `X-Real-IP` when the API runs there, `req.ip` otherwise. Behind a
+proxy nobody declared, `req.ip` is the proxy, so a limit keyed on it puts every
+client in one bucket. The Stripe limiter and the public SSE limiter
+(`SseRateLimitGuard`) share it; a new limiter does too.
+
 ## Proofs that are not a session
 
 Some requests cannot carry the Clerk session, so each carries its own proof.
 Reuse these instead of inventing another:
 
-| Need                                  | Proof                                                                                                                                                                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Who pays for a browser WebRTC leg     | `X-Ringee-Dial-Token` (`telephony/dial-authorization.ts`): signed by the dialer's pre-flight for the user, workspace, destination and caller ID. `call.initiated` attributes by it; legs without it are always refused. |
-| Opening an SSE stream (`EventSource`) | A one-minute ticket (`auth/sse-ticket.ts`) from an authenticated `…/stream-ticket` / `…/events-ticket` route; the stream re-checks access while open.                                                                   |
-| An OAuth callback (calendar, CRM)     | A single-use server-side state plus an HttpOnly cookie set on the response that started the round-trip — the callback must come from that browser.                                                                      |
-| A carrier media stream                | An HMAC of the call and transcription in the stream URL (`mediaStreamToken`).                                                                                                                                           |
-| Magic-link session legs               | The item `startCallForItem` admitted: `calling`, unlinked, same destination, session `ready`/`active`.                                                                                                                  |
+| Need                                  | Proof                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Who pays for a browser WebRTC leg     | `X-Ringee-Dial-Token` (`telephony/dial-authorization.ts`): signed by the dialer's pre-flight for the user, workspace, destination and caller ID. `call.initiated` attributes by it; legs without it are always refused.                                                                                |
+| Opening an SSE stream (`EventSource`) | A one-minute ticket (`auth/sse-ticket.ts`) from an authenticated `…/stream-ticket` / `…/events-ticket` route; the stream re-checks access while open. A malformed ticket is refused before any key work (keys are derived once per process, `deriveSdkKey`), and opens are limited per client address. |
+| An OAuth callback (calendar, CRM)     | A single-use server-side state plus an HttpOnly cookie set on the response that started the round-trip — the callback must come from that browser. The calendar cookie holds the state's hash, never the state.                                                                                        |
+| A carrier media stream                | An HMAC of the call and transcription in the stream URL (`mediaStreamToken`). The URL is never logged or stored, and a carrier error about it keeps only its codes: Telnyx echoes rejected values.                                                                                                     |
+| Magic-link session legs               | The item `startCallForItem` admitted: `calling`, unlinked, same destination, session `ready`/`active` — and a caller ID the session's workspace owns, since the browser chooses `from` too.                                                                                                            |
 
 A user/organization id, a call or session id, or a conversation id is an
 identifier, never a credential: teammates see them, and keep them after they
@@ -126,8 +132,17 @@ Custom Integration webhooks all go through `net/public-network.ts`
 (`requestPublic`): the socket's own resolver refuses reserved addresses (so DNS
 cannot answer differently for the check and the connection), IPv6 is compared
 numerically (mapped, NAT64 and 6to4 forms included), redirects are not followed,
-and the decoded body is capped. `OUTBOUND_ALLOW_PRIVATE_NETWORK` lifts the
+and the decoded body is capped — 1 MB unless the caller sets its own limit, so a
+small compressed reply cannot expand on the heap. A page is read with
+`readPageText`, which cuts it off at that budget instead of failing it.
+`OUTBOUND_ALLOW_PRIVATE_NETWORK` lifts the
 private-address refusal for local development or a single-tenant deployment.
+
+CodeQL's `js/request-forgery` cannot see this boundary: the query has no
+barrier guards, and the check runs in the socket's resolver, not in the data
+flow. It therefore reports the request inside `requestPublic` itself, which is
+a false positive by construction and is dismissed as one. The same alert on any
+other outbound request is real: route that request through `requestPublic`.
 
 ## Known security-relevant observations
 

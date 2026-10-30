@@ -63,6 +63,38 @@ function event(
 }
 
 describe("outbound leg authorization", () => {
+  for (const organizationId of [null, "org-1"]) {
+    for (const from of ["+12125550100", "+18095550999", null]) {
+      it(`binds magic-link caller ID to workspace ${organizationId}, from ${from}`, async () => {
+        const { service, hangups, admitted } = setup();
+        const owner = { userId: "user-1", organizationId };
+        Object.assign(service, {
+          callSessionRepository: {
+            findById: async () => ({ ...owner, status: "active" }),
+            findItemById: async () => ({
+              callSessionId: "session-1",
+              status: "calling",
+              phoneNumber: "+18095551234",
+            }),
+          },
+          callerIdRotationService: {
+            registerOutboundCall: async (ctx: unknown, presented: string) => {
+              assert.deepEqual(ctx, owner);
+              return presented === "+12125550100" ? "owned-number" : null;
+            },
+          },
+        });
+        const leg = event([
+          { name: "X-Ringee-Call-Session-Id", value: "session-1" },
+          { name: "X-Ringee-Call-Session-Item-Id", value: "item-1" },
+        ]);
+        leg.from = from;
+        await service.handleTelephonyEvent(leg);
+        assert.deepEqual(hangups, from === "+12125550100" ? [] : ["leg-1"]);
+        assert.deepEqual(admitted, from === "+12125550100" ? [owner] : []);
+      });
+    }
+  }
   for (const headers of [
     [],
     [{ name: "X-User-Id", value: "forged-user" }],

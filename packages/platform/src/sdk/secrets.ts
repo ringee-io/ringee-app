@@ -62,9 +62,24 @@ function baseSecret(): string {
 }
 
 /**
+ * Each purpose's key, derived once per base secret. scrypt blocks the event
+ * loop for tens of milliseconds, and public routes (SSE streams, the media
+ * stream, SDK tokens) verify a token per request: deriving it each time let one
+ * unauthenticated request buy a full KDF run.
+ */
+const derivedKeys = new Map<SdkKeyPurpose, { secret: string; key: Buffer }>();
+
+/**
  * A 32-byte HMAC key for the given SDK token purpose, deterministically derived
  * from the base secret. Never expose or log the returned buffer.
  */
 export function deriveSdkKey(purpose: SdkKeyPurpose): Buffer {
-  return scryptSync(baseSecret(), SALTS[purpose], 32);
+  const secret = baseSecret();
+  let cached = derivedKeys.get(purpose);
+  if (!cached || cached.secret !== secret) {
+    cached = { secret, key: scryptSync(secret, SALTS[purpose], 32) };
+    derivedKeys.set(purpose, cached);
+  }
+  // A copy: a caller must not be able to mutate the shared cached key.
+  return Buffer.from(cached.key);
 }

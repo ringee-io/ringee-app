@@ -15,7 +15,7 @@ import {
   ValidationPipe,
 } from "@nestjs/common";
 import { IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import {
   CurrentUser,
   CurrentUserData,
@@ -57,7 +57,7 @@ class SetCalendarConnectionDto {
  * Binds a calendar OAuth round-trip to the browser that started it.
  *
  * The `state` names a single-use server-side record of who is connecting
- * (`CalendarService.beginOAuth`), and this cookie carries the same value: a
+ * (`CalendarService.beginOAuth`), and this cookie carries its hash: a
  * provider callback is only accepted from the browser holding it, so an
  * authorization link started by someone else cannot attach the account that
  * approves it to their workspace.
@@ -65,7 +65,7 @@ class SetCalendarConnectionDto {
 const CALENDAR_OAUTH_COOKIE = "ringee_calendar_oauth";
 
 function setOAuthCookie(res: Response, state: string): void {
-  res.cookie(CALENDAR_OAUTH_COOKIE, state, {
+  res.cookie(CALENDAR_OAUTH_COOKIE, oauthStateHash(state), {
     httpOnly: true,
     secure: (process.env.BACKEND_URL ?? "").startsWith("https://"),
     sameSite: "lax",
@@ -80,8 +80,12 @@ function takeOAuthCookie(req: Request, res: Response, state: string): boolean {
   const bound = readCookie(req, CALENDAR_OAUTH_COOKIE);
   if (!bound || !state) return false;
   const a = Buffer.from(bound);
-  const b = Buffer.from(state);
+  const b = Buffer.from(oauthStateHash(state));
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function oauthStateHash(state: string): string {
+  return createHash("sha256").update(state).digest("base64url");
 }
 
 function readCookie(req: Request, name: string): string | null {

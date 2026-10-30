@@ -13,7 +13,12 @@ import {
   type OwnershipContext,
 } from "@ringee/platform";
 import { CreditService, incurredCostDebitRef } from "../credit.service";
-import { fetchPublicPage, htmlToText, requirePublicUrl } from "./public-url";
+import {
+  fetchPublicPage,
+  htmlToText,
+  readPageText,
+  requirePublicUrl,
+} from "./public-url";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
 import type { VoiceAgentCompanyContext } from "./voice-agent.types";
 
@@ -209,7 +214,7 @@ export class CompanyProfileService {
         headers: { Accept: "text/html,application/xhtml+xml" },
       });
       if (!response?.ok) return null;
-      const html = await response.text();
+      const html = await readPageText(response);
       return htmlToText(html).slice(0, MAX_PAGE_CHARACTERS) || null;
     } catch (error) {
       this.logger.warn(

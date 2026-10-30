@@ -96,6 +96,29 @@ export function isTelnyxCallEndedError(error: unknown): boolean {
   return telnyxErrorCodes(error).includes(CALL_ALREADY_ENDED);
 }
 
+/** Provider text can echo the credential-bearing media URL. Retain codes only. */
+export function sanitizeMediaStreamError(error: unknown): HttpException {
+  const codes = telnyxErrorCodes(error)
+    .filter((code) => /^\d{1,10}$/.test(code))
+    .slice(0, 10);
+  const status =
+    error instanceof HttpException
+      ? error.getStatus()
+      : (error as { response?: { status?: number } })?.response?.status;
+  const detail = "The carrier refused to start the media stream.";
+  return new HttpException(
+    {
+      errors: codes.length
+        ? codes.map((code) => ({
+            code,
+            detail: `${detail} Provider code: ${code}`,
+          }))
+        : [{ detail }],
+    },
+    typeof status === "number" && status >= 400 && status <= 599 ? status : 502,
+  );
+}
+
 /** Reads `{ errors: [{ code }] }` out of whatever wrapper carries the body. */
 function telnyxErrorCodes(error: unknown): string[] {
   const body =

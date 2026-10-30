@@ -2,7 +2,7 @@ import { lookup } from "node:dns/promises";
 import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { isIP, type LookupFunction } from "node:net";
-import { Readable, Transform } from "node:stream";
+import { Readable, Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 /**
@@ -63,12 +63,14 @@ export class ResponseTooLargeError extends Error {
   }
 }
 
+const DEFAULT_MAX_BODY_BYTES = 1_000_000;
+
 export interface PublicRequestInit {
   method?: "GET" | "POST";
   headers?: Record<string, string>;
   body?: string;
   timeoutMs: number;
-  /** Largest decoded body accepted; reading past it fails the body. */
+  /** Largest decoded body accepted; defaults to 1 MB. */
   maxBodyBytes?: number;
   /** Operator escape hatch for a private deployment; never set from a request. */
   allowPrivateNetwork?: boolean;
@@ -90,6 +92,12 @@ export function requestPublic(
   if (!init.allowPrivateNetwork && isPrivateHost(target.hostname)) {
     return Promise.reject(
       new Error("That address is not a public network address."),
+    );
+  }
+  const maxBodyBytes = init.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes <= 0) {
+    return Promise.reject(
+      new Error("A positive response body limit is required."),
     );
   }
   return new Promise((resolve, reject) => {
@@ -128,7 +136,7 @@ export function requestPublic(
             status === 204 || status === 205 || status === 304
               ? null
               : (Readable.toWeb(
-                  decodedBody(res, init.maxBodyBytes),
+                  decodedBody(res, maxBodyBytes),
                 ) as unknown as ReadableStream<Uint8Array>);
           const response = new Response(body, {
             status,
@@ -155,37 +163,34 @@ export function requestPublic(
 }
 
 /** The response body decompressed, failing once it passes `maxBytes`. */
-function decodedBody(res: IncomingMessage, maxBytes?: number): Readable {
+function decodedBody(res: IncomingMessage, maxBytes: number): Readable {
   const encoding = String(res.headers["content-encoding"] ?? "")
     .trim()
     .toLowerCase();
-  let stream: Readable = res;
+  let decoder: Transform | undefined;
   if (encoding === "gzip" || encoding === "x-gzip") {
-    stream = res.pipe(createGunzip());
+    decoder = createGunzip();
   } else if (encoding === "deflate") {
-    stream = res.pipe(createInflate());
+    decoder = createInflate();
   } else if (encoding === "br") {
-    stream = res.pipe(createBrotliDecompress());
+    decoder = createBrotliDecompress();
   }
-  if (stream !== res) {
-    // A decoder error has to reach the reader, and the socket must go.
-    stream.on("error", () => res.destroy());
-  }
-  if (!maxBytes) return stream;
   let seen = 0;
   const limit = new Transform({
     transform(chunk: Buffer, _encoding, done) {
       seen += chunk.length;
       if (seen > maxBytes) {
-        res.destroy();
         done(new ResponseTooLargeError(maxBytes));
         return;
       }
       done(null, chunk);
     },
   });
-  stream.on("error", (error) => limit.destroy(error));
-  return stream.pipe(limit);
+  // Propagate errors and cancellation in both directions: exceeding the
+  // decoded budget must stop the decoder AND close its upstream socket.
+  if (decoder) pipeline(res, decoder, limit, () => undefined);
+  else pipeline(res, limit, () => undefined);
+  return limit;
 }
 
 function isReservedIpv4(address: string): boolean {

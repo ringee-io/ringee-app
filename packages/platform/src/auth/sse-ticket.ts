@@ -50,7 +50,13 @@ export function verifySseTicket(
   subject: string,
   now = Date.now(),
 ): OwnershipContext | null {
-  if (typeof ticket !== "string") return null;
+  // Reject malformed/oversized public input before touching key material.
+  if (
+    typeof ticket !== "string" ||
+    ticket.length > 2048 ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(ticket)
+  )
+    return null;
   const [payload, signature, extra] = ticket.split(".");
   if (!payload || !signature || extra !== undefined) return null;
   let claims: Claims;

@@ -37,6 +37,7 @@ import {
   ProspectingMode,
 } from "@ringee/services";
 import { OrganizationService, SSEBridgeService } from "@ringee/services";
+import { SseRateLimitGuard } from "../guards/sse-rate-limit.guard";
 import {
   createOwnershipContext,
   CurrentUser,
@@ -179,6 +180,7 @@ export class RingeeAiController {
    */
   @Public()
   @Sse("conversations/:id/stream")
+  @UseGuards(SseRateLimitGuard)
   stream(
     @Param("id") id: string,
     @Query("ticket") ticket: string | undefined,

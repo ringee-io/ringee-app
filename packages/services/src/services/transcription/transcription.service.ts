@@ -19,6 +19,7 @@ import {
 import {
   DeepgramService,
   describeTelnyxError,
+  sanitizeMediaStreamError,
   OrchestratorService,
   OwnershipContext,
   RedisService,
@@ -290,7 +291,7 @@ export class TranscriptionService {
       this.logger.log(`▶️ Realtime transcription started for call ${call.id}`);
     } catch (err) {
       const detail = describeTelnyxError(
-        err,
+        sanitizeMediaStreamError(err),
         "The carrier refused to start the media stream.",
       );
       await this.transcriptionRepo.markStatus(
@@ -301,8 +302,7 @@ export class TranscriptionService {
         },
       );
       this.logger.error(
-        `Failed to start media streaming for call ${call.id} ` +
-          `(streamUrl=${streamUrl}): ${detail}`,
+        `Failed to start media streaming for call ${call.id}: ${detail}`,
       );
       throw new BadRequestException("Failed to start live transcription");
     }

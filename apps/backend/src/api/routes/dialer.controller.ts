@@ -13,6 +13,7 @@ import {
   MessageEvent,
   Query,
   UnauthorizedException,
+  UseGuards,
 } from "@nestjs/common";
 import {
   Observable,
@@ -27,6 +28,7 @@ import {
 } from "rxjs";
 import { isUUID } from "class-validator";
 import { Request } from "express";
+import { SseRateLimitGuard } from "../guards/sse-rate-limit.guard";
 import {
   CurrentUser,
   createOwnershipContext,
@@ -389,6 +391,7 @@ export class DialerController {
    */
   @Public()
   @Sse("sessions/:sessionId/events")
+  @UseGuards(SseRateLimitGuard)
   events(
     @Param("sessionId") sessionId: string,
     @Query("ticket") ticket: string | undefined,
