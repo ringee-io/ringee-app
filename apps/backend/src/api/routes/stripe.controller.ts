@@ -229,11 +229,16 @@ export class StripeController {
   @OrgAdminOnly()
   async getPaymentIntentStatus(
     @Param("paymentIntentId") paymentIntentId: string,
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!paymentIntentId) {
       throw new BadRequestException("paymentIntentId is required");
     }
-    return this.stripeService.getPaymentIntentStatus(paymentIntentId);
+    const customerId = await this.getOrCreateCustomer(user);
+    return this.stripeService.getPaymentIntentStatus(
+      customerId,
+      paymentIntentId,
+    );
   }
 
   @Post("checkout/credit")
@@ -609,6 +614,9 @@ export class StripeController {
 
     try {
       switch (event.type) {
+        // A delayed payment method completes the Checkout before the money
+        // arrives; its success is a second event, credited the same way.
+        case "checkout.session.async_payment_succeeded":
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
           const userId = session.metadata?.userId;
@@ -656,6 +664,10 @@ export class StripeController {
             (fn === "createOneTimePaymentSession" ||
               fn === "autoReloadSetup") &&
             session.mode === "payment" &&
+            // Only money that arrived is spendable: an unpaid session (a
+            // delayed method still settling) is credited by its
+            // `async_payment_succeeded`, through the same idempotent ledger.
+            session.payment_status === "paid" &&
             userId &&
             amountUsd > 0
           ) {
@@ -823,9 +835,9 @@ export class StripeController {
             .billing_reason;
 
           // Credit BOTH the first paid cycle and every recurring cycle. Owner +
-          // amount come from the SUBSCRIPTION metadata (not our settings row) so
-          // crediting is resilient to webhook ordering. `creditTopupOnce`, keyed
-          // on a per-invoice id, makes replays a no-op — one credit per invoice.
+          // amount come from the finalized INVOICE snapshot, so a later change
+          // to the subscription cannot reprice an earlier paid invoice.
+          // `creditTopupOnce`, keyed on the invoice, makes replays a no-op.
           if (
             subscriptionId &&
             (billingReason === "subscription_create" ||
@@ -835,25 +847,28 @@ export class StripeController {
               await this.stripeService.getSubscriptionMetadata(subscriptionId);
 
             if (
-              info.metadata.fn === "creditSubscription" &&
-              info.metadata.userId
+              invoice.parent?.subscription_details?.metadata?.fn ===
+              "creditSubscription"
             ) {
+              const funding =
+                this.stripeService.getMonthlyCreditInvoiceFunding(invoice);
               const ctx = createOwnershipContext({
-                id: info.metadata.userId,
-                activeOrgId: info.metadata.organizationId || null,
+                id: funding.userId,
+                activeOrgId: funding.organizationId,
               });
-              const amountUsd = Number(
+              const fundAmountUsd = Number(
                 info.metadata.amountUsd ||
                   info.metadata.amount ||
                   info.amountUsd ||
                   0,
               );
+              const amountUsd = funding.amountUsd;
 
               // Keep the settings row in sync in case checkout.session.completed
               // hasn't landed yet (webhook ordering is not guaranteed).
               await this.creditService.updateMonthlyFundSettings(ctx, {
                 monthlyFundEnabled: true,
-                monthlyFundAmount: amountUsd || null,
+                monthlyFundAmount: fundAmountUsd || null,
                 stripeSubscriptionId: subscriptionId,
               });
 
@@ -878,12 +893,12 @@ export class StripeController {
 
                 if (credited) {
                   await this.triggerLoop.creditsAdded(
-                    info.metadata.userId,
+                    funding.userId,
                     amountUsd,
-                    info.metadata.organizationId || undefined,
+                    funding.organizationId || undefined,
                   );
                   console.log(
-                    `📅 Monthly credit fund charged: $${amountUsd} for user ${info.metadata.userId} (${billingReason})`,
+                    `📅 Monthly credit fund charged: $${amountUsd} for user ${funding.userId} (${billingReason})`,
                   );
                 } else {
                   console.log(

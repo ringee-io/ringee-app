@@ -625,10 +625,14 @@ export class CallSessionService {
     if (session.id !== sessionId) {
       throw new ForbiddenException("Session mismatch");
     }
+    if (session.status === CallSessionStatus.paused) {
+      throw new BadRequestException("Session is paused");
+    }
+    // Only a session the owner left open can place calls: paused, a draft,
+    // or anything closed admits nothing.
     if (
-      session.status === CallSessionStatus.completed ||
-      session.status === CallSessionStatus.revoked ||
-      session.status === CallSessionStatus.expired
+      session.status !== CallSessionStatus.ready &&
+      session.status !== CallSessionStatus.active
     ) {
       throw new BadRequestException("Session is closed");
     }
@@ -713,10 +717,28 @@ export class CallSessionService {
         });
       }
 
-      await this.repo.updateItem(item.id, {
-        status: CallSessionItemStatus.calling,
-        startedAt: new Date(),
-      });
+      // The owner's call allowance (`maxCalls`) is reserved here, atomically
+      // with the item leaving `pending`, so concurrent dials cannot both slip
+      // under it.
+      const admission = await this.repo.admitItem(
+        session.id,
+        item.id,
+        session.maxCalls,
+      );
+      if (admission === "cap_reached") {
+        await this.repo.update(session.id, {
+          status: CallSessionStatus.completed,
+          completedAt: session.completedAt ?? new Date(),
+        });
+        throw new BadRequestException(
+          "This session has reached its call limit",
+        );
+      }
+      if (admission === "not_pending") {
+        throw new BadRequestException(
+          `Item is ${item.status} and cannot be redialed`,
+        );
+      }
 
       if (session.status === CallSessionStatus.ready) {
         await this.repo.update(session.id, {
@@ -843,6 +865,9 @@ export class CallSessionService {
     if (session.id !== sessionId) {
       throw new ForbiddenException("Session mismatch");
     }
+    if (dto.outcomeNote != null && typeof dto.outcomeNote !== "string") {
+      throw new BadRequestException("outcomeNote must be a string");
+    }
 
     const item = await this.repo.findItemById(itemId);
     if (!item || item.callSessionId !== sessionId) {
@@ -925,8 +950,10 @@ export class CallSessionService {
           callbackId = cb.id;
           itemUpdates.callbackAt = scheduledAt;
         } catch (err) {
+          // Never the raw message: a Prisma validation error echoes its query
+          // arguments, the workspace id among them.
           this.logger.warn(
-            `Failed to schedule callback for session ${sessionId} item ${item.id}: ${(err as Error).message}`,
+            `Failed to schedule callback for session ${sessionId} item ${item.id}: ${errorKind(err)}`,
           );
         }
       }
@@ -953,7 +980,7 @@ export class CallSessionService {
         itemUpdates.meetingId = meeting.id;
       } catch (err) {
         this.logger.warn(
-          `Failed to create meeting for session ${sessionId} item ${item.id}: ${(err as Error).message}`,
+          `Failed to create meeting for session ${sessionId} item ${item.id}: ${errorKind(err)}`,
         );
       }
     }
@@ -1043,11 +1070,29 @@ export class CallSessionService {
     if (!call?.callControlId) {
       throw new NotFoundException("Call control id unavailable");
     }
+    const recording = await this.recordingService.getRecordingForCall(
+      call.id,
+      recordingId,
+    );
+    if (!recording) {
+      throw new NotFoundException("Recording not found");
+    }
+    // A workspace that records every call keeps recording: the guest's stop
+    // must not override the owner's policy. Unknown counts as enforced.
+    const recordAllCalls = await this.recordingSettingsService
+      .resolve(this.ownershipContext(session))
+      .then((s) => s.recordAllCalls)
+      .catch(() => true);
+    if (recordAllCalls) {
+      throw new ForbiddenException(
+        "This workspace records every call; recording cannot be stopped",
+      );
+    }
     await this.telephonyService.stopRecording(call.callControlId);
     await this.recordingService
-      .updateRecording(recordingId, { status: "processing" })
+      .updateRecording(recording.id, { status: "processing" })
       .catch(() => undefined);
-    return { recordingId };
+    return { recordingId: recording.id };
   }
 
   // ── Voicemail drops (magic-link agents) ─────────────────────
@@ -1186,7 +1231,12 @@ export class CallSessionService {
       session.id,
       CallSessionItemStatus.pending,
     );
-    if (remaining > 0) return false;
+    // A session whose call allowance is used up is done even with contacts
+    // left: none of them can be dialed any more.
+    const capReached =
+      session.maxCalls != null &&
+      (await this.repo.countStartedItems(session.id)) >= session.maxCalls;
+    if (remaining > 0 && !capReached) return false;
     const calling = await this.repo.countItemsBySessionStatus(
       session.id,
       CallSessionItemStatus.calling,
@@ -1227,4 +1277,11 @@ function sourceToActor(source: CallSessionSource): CallSessionActorSource {
     default:
       return CallSessionActorSource.api;
   }
+}
+
+/** What failed, without the message: Prisma errors echo their arguments. */
+function errorKind(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (typeof code === "string") return code;
+  return err instanceof Error ? err.name : "unknown error";
 }

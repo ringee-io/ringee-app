@@ -214,6 +214,7 @@ export class CliAuthService {
   ): Promise<void> {
     const request = await this.findByUserCode(rawUserCode);
     if (stateOf(request) !== "pending") throw alreadyDecided();
+    await this.apiKeys.assertMayHoldKeys(userId);
     const organizationId = await this.resolveWorkspace(userId, workspaceId);
     await this.organizationService.setActiveWorkspace(userId, organizationId);
 

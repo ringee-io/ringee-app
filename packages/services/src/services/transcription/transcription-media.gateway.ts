@@ -30,6 +30,7 @@ import {
 } from "./transcription.constants";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { PipelineFanoutService } from "../ai-pipeline";
+import { isMediaStreamToken } from "./transcription.service";
 
 /** Per-Telnyx-connection bridge state. */
 interface BridgeState {
@@ -160,6 +161,15 @@ export class TranscriptionMediaGateway
     if (!header || !acceptable.includes(header.status)) {
       this.logger.warn(
         `Media stream for call ${callId} has no active realtime header — rejecting`,
+      );
+      socket.close();
+      return;
+    }
+    // A call id is not a credential: only the stream Ringee asked the carrier
+    // to open — signed for this call and this transcription — feeds it.
+    if (!isMediaStreamToken(url.searchParams.get("token"), callId, header.id)) {
+      this.logger.warn(
+        `Media stream for call ${callId} without a valid stream token — rejecting`,
       );
       socket.close();
       return;

@@ -176,6 +176,17 @@ export class MeetingService {
     }
     const duration = validateMeetingDurationMinutes(dto.duration ?? 30);
 
+    // The contact and call a meeting links must be the workspace's own: the
+    // meeting would expose them, and booking marks the call meeting_booked.
+    const contact = await this.contactRepo.findByIdForOwner(ctx, dto.contactId);
+    if (!contact) throw new NotFoundException("Contact not found");
+    const linkedCall = dto.callId
+      ? await this.callRepo.findByIdForOwner(ctx, dto.callId)
+      : null;
+    if (dto.callId && !linkedCall) {
+      throw new NotFoundException("Call not found");
+    }
+
     // Which calendar this booking belongs to is decided here, on the server,
     // from the caller's workspace — so every consumer that names none keeps
     // landing on the global calendar, and a named one is verified before it can
@@ -257,14 +268,11 @@ export class MeetingService {
     // fanout in below, AFTER the calendar event, so the Meet link makes it into
     // the same call-log note.
     let booked: { call: Call; changed: boolean } | null = null;
-    if (dto.callId) {
-      const call = await this.callRepo.findById(dto.callId);
-      if (call) {
-        booked = await this.callRepo.recordOutcome(
-          call.id,
-          CallOutcome.meeting_booked,
-        );
-      }
+    if (linkedCall) {
+      booked = await this.callRepo.recordOutcome(
+        linkedCall.id,
+        CallOutcome.meeting_booked,
+      );
     }
 
     // Custom Integrations: meeting.created (independent of outcome)
@@ -363,7 +371,10 @@ export class MeetingService {
     if (ctx.organizationId && meeting.organizationId !== ctx.organizationId) {
       throw new ForbiddenException("Access denied");
     }
-    if (!ctx.organizationId && meeting.userId !== ctx.userId) {
+    if (
+      !ctx.organizationId &&
+      (meeting.userId !== ctx.userId || meeting.organizationId !== null)
+    ) {
       throw new ForbiddenException("Access denied");
     }
 
@@ -622,8 +633,11 @@ export class MeetingService {
     }
   }
 
-  async findCallBySessionId(sessionId: string): Promise<Call | null> {
-    return this.callRepo.findOneBySessionId(sessionId);
+  async findCallBySessionId(
+    ctx: OwnershipContext,
+    sessionId: string,
+  ): Promise<Call | null> {
+    return this.callRepo.findOneBySessionIdForOwner(ctx, sessionId);
   }
 
   /**
@@ -703,7 +717,10 @@ export class MeetingService {
     if (ctx.organizationId && call.organizationId !== ctx.organizationId) {
       throw new ForbiddenException("Access denied");
     }
-    if (!ctx.organizationId && call.userId !== ctx.userId) {
+    if (
+      !ctx.organizationId &&
+      (call.userId !== ctx.userId || call.organizationId !== null)
+    ) {
       throw new ForbiddenException("Access denied");
     }
     return call;

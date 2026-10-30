@@ -125,6 +125,11 @@ grants), `consumeCredits` (debits). Nothing else may write `Credit.amount`.
 
 `creditTopupOnce` is called exclusively after Stripe confirms payment — for
 one-time top-ups, saved-card charges, auto-reload and monthly-fund cycles alike.
+Monthly funding reads the finalized invoice's subscription metadata and subtotal
+(before discounts/tax), never the subscription's mutable current amount.
+Direct PaymentIntent discounts refuse first-purchase, redemption-capped and
+product-limited coupons: these require native Stripe redemption, which merely
+changing an intent's amount does not perform.
 
 - **Source of truth:** `credit.service.ts`,
   `apps/backend/src/api/routes/stripe.controller.ts`
@@ -1552,7 +1557,11 @@ A new surface calls it; it does not re-implement the gates.
 Testing an agent from the browser requires the provider to accept an
 unauthenticated web call, which makes the agent reachable by anyone holding its
 id. The window is opened on start and closed on stop, on unmount, and by the
-`ringee.voice-agent-sweep` schedule if the tab simply went away.
+`ringee.voice-agent-sweep` schedule if the tab simply went away. Opening and
+closing renew the same per-agent lease during slow provider requests. A failed
+or uncertain enable preserves an expired recovery record; only a confirmed
+close while still holding the lease removes it. The sweep re-reads the current
+session under that lease before closing it.
 
 ### AGENT-006 — The tool's result outranks the transcript analysis
 
@@ -1942,10 +1951,15 @@ provider's deduplication lifetime.
 `ClerkAuthGuard.resolveRingeeUser` handles the race where Clerk redirects before
 the `user.created` webhook lands, and de-duplicates concurrent syncs.
 
-### LIFE-002 — Redis is an optimization for auth, never a dependency
+### LIFE-002 — The Clerk auth cache is optional; credential registries fail closed
 
-Cache failures fall back to Postgres and Clerk with a warning; authentication
-stays available.
+Clerk authentication cache failures fall back to Postgres and Clerk with a
+warning; dashboard authentication stays available. This availability rule does
+not apply to authoritative credential registries: Attio's active-token record
+must exist and match the token's issuance id. A missing record or unavailable
+registry refuses the integration request; regenerate the token after state loss.
+This deliberately narrows the old blanket Redis rule so cache loss cannot
+resurrect revoked integration tokens.
 
 ### LIFE-003 — Soft-deleted rows stay queryable but are excluded from normal reads
 

@@ -1,6 +1,11 @@
 import { BadRequestException } from "@nestjs/common";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import {
+  isPrivateHost,
+  isReservedAddress,
+  requestPublic,
+} from "@ringee/platform";
 
 /**
  * Parsing and fetching a user-supplied web address that Ringee retrieves on
@@ -67,10 +72,10 @@ export async function fetchPublicPage(
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     await assertResolvesToPublicAddress(target);
 
-    const response = await fetch(target, {
-      // Manual, so the next hop goes back through the check above.
-      redirect: "manual",
-      signal: AbortSignal.timeout(init.timeoutMs),
+    // Redirects come back here, so the next hop goes through the check above;
+    // the socket itself only connects to an address that passes it.
+    const response = await requestPublic(target, {
+      timeoutMs: init.timeoutMs,
       headers: init.headers,
     });
 
@@ -94,16 +99,96 @@ export async function fetchPublicPage(
  * styles or tags. Never rendered — but end tags are matched the way browsers
  * accept them (`</script >`, `</script foo>`, comments closed by `--!>`), so
  * the page cannot hide script source in the text by writing them oddly.
+ *
+ * One pass with `indexOf`, never a backtracking pattern: the page is someone
+ * else's, and thousands of unclosed `<script` or `<` would make a regex scan
+ * the rest of the document from each of them.
  */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?--!?>/g, " ")
-    .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
+  const lower = html.toLowerCase();
+  let text = "";
+  let i = 0;
+  while (i < html.length) {
+    const open = html.indexOf("<", i);
+    if (open === -1) {
+      text += html.slice(i);
+      break;
+    }
+    text += html.slice(i, open) + " ";
+
+    if (lower.startsWith("<!--", open)) {
+      // An unclosed comment runs to the end of the document, as in a browser.
+      const end = commentEnd(lower, open + 4);
+      if (end === -1) break;
+      i = end;
+      continue;
+    }
+
+    const rawText = rawTextElementAt(lower, open);
+    if (rawText) {
+      // An unclosed script or style hides the rest of the document.
+      const close = closingTagAt(lower, rawText, open + rawText.length + 1);
+      if (close === -1) break;
+      const end = lower.indexOf(">", close);
+      if (end === -1) break;
+      i = end + 1;
+      continue;
+    }
+
+    const end = html.indexOf(">", open + 1);
+    if (end === -1) {
+      // No `>` anywhere after this point: nothing else can be a tag.
+      text += html.slice(open);
+      break;
+    }
+    i = end + 1;
+  }
+  return text
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Index just past the comment closed after `from` (`-->` or `--!>`), or -1. */
+function commentEnd(lower: string, from: number): number {
+  let at = lower.indexOf("--", from);
+  while (at !== -1) {
+    if (lower.startsWith("-->", at)) return at + 3;
+    if (lower.startsWith("--!>", at)) return at + 4;
+    at = lower.indexOf("--", at + 1);
+  }
+  return -1;
+}
+
+const RAW_TEXT_ELEMENTS = ["script", "style"] as const;
+
+/** `script` or `style` when an opening tag of one starts at `at`. */
+function rawTextElementAt(
+  lower: string,
+  at: number,
+): (typeof RAW_TEXT_ELEMENTS)[number] | null {
+  for (const name of RAW_TEXT_ELEMENTS) {
+    if (
+      lower.startsWith(`<${name}`, at) &&
+      !isNameChar(lower[at + name.length + 1])
+    ) {
+      return name;
+    }
+  }
+  return null;
+}
+
+/** Where the element's end tag (`</name` then a non-name character) starts. */
+function closingTagAt(lower: string, name: string, from: number): number {
+  let at = lower.indexOf(`</${name}`, from);
+  while (at !== -1 && isNameChar(lower[at + name.length + 2])) {
+    at = lower.indexOf(`</${name}`, at + 1);
+  }
+  return at;
+}
+
+function isNameChar(ch: string | undefined): boolean {
+  return ch !== undefined && /[a-z0-9_]/.test(ch);
 }
 
 function isRedirect(status: number): boolean {
@@ -143,60 +228,4 @@ async function assertResolvesToPublicAddress(url: URL): Promise<void> {
   if (addresses.some((entry) => isReservedAddress(entry.address))) {
     throw new BadRequestException("That address is not a public website.");
   }
-}
-
-/** Loopback, link-local, private and other reserved targets, by hostname. */
-function isPrivateHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".localhost")) return true;
-  return isIP(host) ? isReservedAddress(host) : false;
-}
-
-/**
- * Whether an IP literal is in a range Ringee must never fetch.
- *
- * Deliberately broader than RFC1918: carrier-grade NAT, benchmarking and the
- * IPv6 unique-local range all reach infrastructure a tenant has no business
- * pointing this API at, and 169.254.169.254 — cloud instance metadata — is the
- * single most valuable target an SSRF has.
- */
-function isReservedAddress(address: string): boolean {
-  const version = isIP(address);
-  if (version === 4) return isReservedIpv4(address);
-  if (version === 6) return isReservedIpv6(address);
-  return false;
-}
-
-function isReservedIpv4(address: string): boolean {
-  const parts = address.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n)))
-    return true;
-  const [a, b] = parts as [number, number, number, number];
-
-  if (a === 0) return true; // "this" network
-  if (a === 10) return true; // RFC1918
-  if (a === 127) return true; // loopback
-  if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
-  if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
-  if (a === 172 && b >= 16 && b <= 31) return true; // RFC1918
-  if (a === 192 && b === 0) return true; // IETF protocol assignments
-  if (a === 192 && b === 168) return true; // RFC1918
-  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
-  if (a >= 224) return true; // multicast, reserved, broadcast
-  return false;
-}
-
-function isReservedIpv6(address: string): boolean {
-  const host = address.toLowerCase();
-  if (host === "::" || host === "::1") return true; // unspecified, loopback
-
-  // An IPv4-mapped address is an IPv4 target wearing an IPv6 hat.
-  const mapped = host.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
-  if (mapped?.[1]) return isReservedIpv4(mapped[1]);
-
-  if (/^f[cd]/.test(host)) return true; // unique-local (fc00::/7)
-  if (host.startsWith("fe8") || host.startsWith("fe9")) return true; // link-local
-  if (host.startsWith("fea") || host.startsWith("feb")) return true;
-  if (host.startsWith("ff")) return true; // multicast
-  return false;
 }

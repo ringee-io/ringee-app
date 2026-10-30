@@ -146,6 +146,60 @@ export class CallSessionRepository {
     });
   }
 
+  /**
+   * Links an admitted item to the call its leg created — once, and only an
+   * item of `sessionId` that has no call yet.
+   */
+  async linkItemToCall(
+    sessionId: string,
+    itemId: string,
+    callId: string,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.callSessionItem.updateMany({
+      where: { id: itemId, callSessionId: sessionId, callId: null },
+      data: { callId },
+    });
+    return count === 1;
+  }
+
+  /** Items that were ever admitted as a call (`startedAt` set). */
+  async countStartedItems(sessionId: string): Promise<number> {
+    return this.prisma.callSessionItem.count({
+      where: { callSessionId: sessionId, startedAt: { not: null } },
+    });
+  }
+
+  /**
+   * Admits a pending item as the session's next call. The session row is
+   * locked for the check, so two admissions cannot both slip under
+   * `maxCalls`, and the item must still be `pending` when it moves to
+   * `calling`.
+   */
+  async admitItem(
+    sessionId: string,
+    itemId: string,
+    maxCalls: number | null,
+  ): Promise<"admitted" | "cap_reached" | "not_pending"> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "CallSession" WHERE id = ${sessionId}::uuid FOR UPDATE`;
+      if (maxCalls != null) {
+        const started = await tx.callSessionItem.count({
+          where: { callSessionId: sessionId, startedAt: { not: null } },
+        });
+        if (started >= maxCalls) return "cap_reached";
+      }
+      const { count } = await tx.callSessionItem.updateMany({
+        where: {
+          id: itemId,
+          callSessionId: sessionId,
+          status: CallSessionItemStatus.pending,
+        },
+        data: { status: CallSessionItemStatus.calling, startedAt: new Date() },
+      });
+      return count === 1 ? "admitted" : "not_pending";
+    });
+  }
+
   async findActiveCallingItem(
     sessionId: string,
   ): Promise<CallSessionItem | null> {

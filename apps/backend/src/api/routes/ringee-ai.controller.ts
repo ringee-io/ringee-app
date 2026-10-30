@@ -8,9 +8,20 @@ import {
   Post,
   Query,
   Sse,
+  UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
-import { Observable, interval, map, merge } from "rxjs";
+import {
+  Observable,
+  defer,
+  filter,
+  from,
+  interval,
+  map,
+  merge,
+  switchMap,
+  takeUntil,
+} from "rxjs";
 import {
   AiAgentType,
   AiConversation,
@@ -25,13 +36,19 @@ import {
   isProspectingMode,
   ProspectingMode,
 } from "@ringee/services";
-import { SSEBridgeService } from "@ringee/services";
+import { OrganizationService, SSEBridgeService } from "@ringee/services";
 import {
   createOwnershipContext,
   CurrentUser,
   CurrentUserData,
+  OwnershipContext,
   Public,
+  signSseTicket,
+  verifySseTicket,
 } from "@ringee/platform";
+
+/** How often an open stream re-checks that its reader still has access. */
+const STREAM_ACCESS_RECHECK_MS = 60_000;
 
 interface SseMessageEvent {
   data: string;
@@ -48,6 +65,7 @@ export class RingeeAiController {
     private readonly confirmation: AiConfirmationService,
     private readonly agents: AgentRegistry,
     private readonly sse: SSEBridgeService,
+    private readonly organizations: OrganizationService,
   ) {}
 
   @Get("agents")
@@ -136,17 +154,66 @@ export class RingeeAiController {
   }
 
   /**
+   * The ticket the conversation's stream is opened with. EventSource cannot
+   * send an Authorization header, so the authenticated client asks for this
+   * first, after the same access check every other conversation read makes.
+   */
+  @Post("conversations/:id/stream-ticket")
+  async streamTicket(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<{ ticket: string }> {
+    const ctx = createOwnershipContext(user);
+    await this.conversations.getByIdScoped(ctx, id);
+    return { ticket: signSseTicket(`ai:${id}`, ctx) };
+  }
+
+  /**
    * SSE stream for a single conversation. Carries: text deltas, tool
    * start/complete, prospect-result cards, confirmation requests and
-   * resolutions, errors, completion. Bound by the auth guard so other
-   * users cannot subscribe to a conversation they do not own.
+   * resolutions, errors, completion.
+   *
+   * Public only because EventSource cannot authenticate with a header: the
+   * `ticket` from `stream-ticket` is what admits the reader, and the stream
+   * ends as soon as they lose access to the conversation.
    */
   @Public()
   @Sse("conversations/:id/stream")
-  stream(@Param("id") id: string): Observable<SseMessageEvent> {
-    // EventSource cannot send Authorization headers, so this endpoint is
-    // public. The conversation id is a UUID and acts as an unguessable
-    // access token — same security model as the dialer SSE channel.
+  stream(
+    @Param("id") id: string,
+    @Query("ticket") ticket: string | undefined,
+  ): Observable<SseMessageEvent> {
+    const ctx = verifySseTicket(ticket, `ai:${id}`);
+    if (!ctx) throw new UnauthorizedException("Invalid stream ticket");
+    return defer(() => from(this.canRead(ctx, id))).pipe(
+      switchMap((allowed) => {
+        if (!allowed) throw new UnauthorizedException("Invalid stream ticket");
+        const revoked = interval(STREAM_ACCESS_RECHECK_MS).pipe(
+          switchMap(() => from(this.canRead(ctx, id))),
+          filter((stillAllowed) => !stillAllowed),
+        );
+        return this.conversationEvents(id).pipe(takeUntil(revoked));
+      }),
+    );
+  }
+
+  /** Whether `ctx` may still read the conversation, membership included. */
+  private async canRead(ctx: OwnershipContext, id: string): Promise<boolean> {
+    try {
+      if (
+        ctx.organizationId &&
+        !(await this.organizations.isMember(ctx.userId, ctx.organizationId))
+      ) {
+        return false;
+      }
+      await this.conversations.getByIdScoped(ctx, id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private conversationEvents(id: string): Observable<SseMessageEvent> {
     const channel = this.orchestrator.channel(id);
     const realEvents = this.sse.subscribe(
       channel,

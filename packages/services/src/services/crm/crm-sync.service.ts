@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import {
   CrmCallSync,
   CrmCallSyncRepository,
@@ -43,6 +44,15 @@ export class CrmSyncService {
   }
 
   private async processEvent(event: CrmOutboxEvent): Promise<void> {
+    // Dry run: what would be written is logged, nothing reaches the CRM. The
+    // event is settled so it is not retried into the provider later.
+    if (apiConfiguration.CRM_DRY_RUN) {
+      this.logger.log(
+        `[CRM_DRY_RUN] ${event.kind} for connection ${event.connectionId} not sent: ${JSON.stringify(event.payload)}`,
+      );
+      await this.outbox.markSent(event.id);
+      return;
+    }
     try {
       switch (event.kind) {
         case "call.log":

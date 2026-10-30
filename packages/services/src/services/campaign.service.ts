@@ -199,21 +199,14 @@ export class CampaignService {
       search?: string;
       /** Campaign-scoped `Disposition.code` recorded on one of the attempts. */
       dispositionCode?: string;
+      /** Set for non-admin members: they may only read assigned campaigns. */
+      requireMembershipForUserId?: string;
     },
   ) {
-    this.ensureOrganization(ctx);
+    const { requireMembershipForUserId, ...query } = options ?? {};
+    await this.getCampaignById(ctx, campaignId, { requireMembershipForUserId });
 
-    const campaign = await this.campaignRepo.findById(campaignId);
-
-    if (!campaign) {
-      throw new NotFoundException("Campaign not found");
-    }
-
-    if (campaign.organizationId !== ctx.organizationId) {
-      throw new ForbiddenException("Access denied");
-    }
-
-    return this.campaignLeadRepo.findByCampaign(campaignId, options);
+    return this.campaignLeadRepo.findByCampaign(campaignId, query);
   }
 
   /**

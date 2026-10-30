@@ -117,7 +117,9 @@ export class McpChatgptController {
     // After the guard the object is a SignedIn session OR an authenticated
     // OAuth machine object — both expose `userId` (the Clerk user id).
     const user = await this.userService.getCachedByClerkId(auth.userId);
-    if (!user) {
+    // A blocked account keeps no product access through any transport
+    // (WRK-007), whatever its Clerk token still says.
+    if (!user || user.blockedAt) {
       return null;
     }
 

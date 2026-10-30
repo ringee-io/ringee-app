@@ -8,18 +8,18 @@ Rules: `AUTH-*`, `HOOK-*`, `WRK-*`, `SESS-*` in
 
 ## Trust boundaries
 
-| Boundary            | Enforced by                                                 |
-| ------------------- | ----------------------------------------------------------- |
-| Dashboard user      | Clerk session → `ClerkAuthGuard` (global)                   |
-| Org role            | `OrgAdminGuard` server-side; the UI mirror is cosmetic      |
-| Ringee staff        | `SuperAdminGuard`, verified-email allowlist                 |
-| Provider callback   | request signature over the raw body, fail closed            |
-| Embedded SDK        | publishable key + `Origin` + OTP + live membership re-check |
-| Magic link          | hashed opaque token, uniform failures                       |
-| Custom Integration  | hashed API key, constant-time compare                       |
-| Public API          | Custom Integration API key → stored ownership context       |
-| MCP / CLI           | personal API key → its user + their active MCP workspace    |
-| MCP connector (old) | the workspace UUID in the URL — a capability URL            |
+| Boundary           | Enforced by                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| Dashboard user     | Clerk session → `ClerkAuthGuard` (global)                   |
+| Org role           | `OrgAdminGuard` server-side; the UI mirror is cosmetic      |
+| Ringee staff       | `SuperAdminGuard`, verified-email allowlist                 |
+| Provider callback  | request signature over the raw body, fail closed            |
+| Embedded SDK       | publishable key + `Origin` + OTP + live membership re-check |
+| Magic link         | hashed opaque token, uniform failures                       |
+| Custom Integration | hashed API key, constant-time compare                       |
+| Public API         | Custom Integration API key → stored ownership context       |
+| MCP / CLI          | personal API key → its user + their active MCP workspace    |
+| MCP connector      | revocable personal API key in the connection URL            |
 
 ## `@Public()` is the highest-risk decorator in the codebase
 
@@ -35,7 +35,8 @@ legitimately, in six groups:
 4. **Magic-link session endpoints** — authorization = hashed token.
 5. **MCP transports** — `/api/mcp` and `/api/mcp/sse` = `PersonalApiKeyGuard`
    over a hashed, unrevoked personal key; `/api/mcp/chatgpt/*` = a verified Clerk
-   OAuth token; the legacy `/api/mcp/:id/sse` = the URL itself.
+   OAuth token; `/api/mcp/k/:key/*` verifies a personal API key. Legacy
+   UUID URLs return 410 and grant no access.
    `ringee login` (`/api/cli/auth/device`, `/token`) is public too: starting a
    login grants nothing, and collecting the key requires the device code only
    the terminal holds (see below).
@@ -101,6 +102,33 @@ organization's key for an org call, otherwise the user's (`CryptoService`,
 rotate a spoofed IP past the Stripe abuse limiter
 (`StripeAbuseProtectionService`).
 
+## Proofs that are not a session
+
+Some requests cannot carry the Clerk session, so each carries its own proof.
+Reuse these instead of inventing another:
+
+| Need                                  | Proof                                                                                                                                                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Who pays for a browser WebRTC leg     | `X-Ringee-Dial-Token` (`telephony/dial-authorization.ts`): signed by the dialer's pre-flight for the user, workspace, destination and caller ID. `call.initiated` attributes by it; legs without it are always refused. |
+| Opening an SSE stream (`EventSource`) | A one-minute ticket (`auth/sse-ticket.ts`) from an authenticated `…/stream-ticket` / `…/events-ticket` route; the stream re-checks access while open.                                                                   |
+| An OAuth callback (calendar, CRM)     | A single-use server-side state plus an HttpOnly cookie set on the response that started the round-trip — the callback must come from that browser.                                                                      |
+| A carrier media stream                | An HMAC of the call and transcription in the stream URL (`mediaStreamToken`).                                                                                                                                           |
+| Magic-link session legs               | The item `startCallForItem` admitted: `calling`, unlinked, same destination, session `ready`/`active`.                                                                                                                  |
+
+A user/organization id, a call or session id, or a conversation id is an
+identifier, never a credential: teammates see them, and keep them after they
+leave.
+
+## Requests to addresses a customer chose
+
+Websites read for a profile or a knowledge base, a customer's Odoo server and
+Custom Integration webhooks all go through `net/public-network.ts`
+(`requestPublic`): the socket's own resolver refuses reserved addresses (so DNS
+cannot answer differently for the check and the connection), IPv6 is compared
+numerically (mapped, NAT64 and 6to4 forms included), redirects are not followed,
+and the decoded body is capped. `OUTBOUND_ALLOW_PRIVATE_NETWORK` lifts the
+private-address refusal for local development or a single-tenant deployment.
+
 ## Known security-relevant observations
 
 Recorded here as facts. See [ARCHITECTURE_DEBT.md](ARCHITECTURE_DEBT.md) for the
@@ -124,17 +152,32 @@ full register.
 - Every credit debit now writes a `CreditDebit` row; four paths previously moved
   a balance with no ledger entry and no replay protection (`DEBT-006`).
 
-**Accepted, by decision:**
+**Retired compatibility paths:**
 
-- **The legacy MCP transport authorization is a capability URL.**
-  `/api/mcp/:id/sse` is `@Public()` and resolves the workspace from the UUID in
-  the path — knowing a workspace UUID is sufficient to drive the tool surface.
-  It stays for clients that cannot send a header (claude.ai custom connectors,
-  the Claude Code plugin's URL field, CLI < 0.3). The consequence to hold onto is
-  that **workspace UUIDs are secrets** — do not log them, put them in error
-  messages, or leak them to third parties. The revocable replacement is the
-  personal API key below; `McpUsageEvent.authMethod = 'url'` measures how much
-  traffic still depends on the old URLs.
+- UUID-based MCP URLs always return 410. Use `/api/mcp` with a personal API
+  key or create `/api/mcp/k/<key>/sse` under Integrations → Connectors. The old
+  `MCP_LEGACY_UUID_URLS` environment variable cannot re-enable UUID auth.
+- Ordinary outbound browser calls require the pre-flight's signed
+  `X-Ringee-Dial-Token`. `X-User-Id` and `X-Organization-Id` are not proof,
+  including when they are absent. The old `TELEPHONY_REQUIRE_DIAL_TOKEN`
+  switch cannot disable enforcement. SDK, call-session and server-originated
+  legs retain their own checked admission paths. Destinations and caller IDs
+  match the complete international number, never a national suffix.
+- Attio tokens must be typed and match the active issuance record. Old tokens
+  must be regenerated; missing revocation state fails closed. This registry
+  is authorization state, not the optional Clerk authentication cache
+  (see the deliberate LIFE-002 distinction).
+
+**Deployment coordination:** update web, extension, campaign and other browser
+clients before enabling the new API; older tabs/mobile clients without signed
+pre-flight authorization will be refused. Replace existing UUID MCP connector
+URLs and regenerate legacy Attio tokens. Do not restore these bypasses to make
+an old client work.
+
+The separate shared WebRTC credential removal (F-081 / DEBT-020) is deferred
+until the production DID routing migration to per-user Call Control endpoints
+is confirmed. It is not fixed by dial-token enforcement; credentials already
+shipped to browsers still require provider-side rotation after migration.
 
 ## Agent API keys and CLI login
 

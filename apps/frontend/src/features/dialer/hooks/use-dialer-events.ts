@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import type { CarrierRoute } from '@ringee/dialer-core/engine';
 import { useTranslations } from 'next-intl';
 import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
@@ -47,8 +48,11 @@ export function useDialerEvents(
     callerIdNumber: string | null;
     /** Set when the campaign dials through the workspace's own carrier. */
     carrierRoute?: CarrierRoute;
+    /** The server's signed authorization for this leg (non-carrier dials). */
+    dialToken?: string;
   }) => void
 ) {
+  const api = useApi();
   const eventSourceRef = useRef<EventSource | null>(null);
   const onCallInitiateRef = useRef(onCallInitiate);
   onCallInitiateRef.current = onCallInitiate;
@@ -71,11 +75,32 @@ export function useDialerEvents(
     if (!sessionId) return;
 
     let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
 
-    function connect() {
+    // Reconnect after 3 seconds
+    const reconnect = () => {
+      if (!cancelled) retry = setTimeout(() => void connect(), 3000);
+    };
+
+    async function connect() {
       if (cancelled) return;
 
-      const url = `${API_URL}/dialer/sessions/${sessionId}/events`;
+      // EventSource cannot send the Authorization header, so the stream opens
+      // with a short-lived ticket the API issues for this agent's own session,
+      // fetched again on every reconnection.
+      let ticket: string;
+      try {
+        ({ ticket } = await api.post<{ ticket: string }>(
+          `/dialer/sessions/${sessionId}/events-ticket`,
+          {}
+        ));
+      } catch {
+        reconnect();
+        return;
+      }
+      if (cancelled) return;
+
+      const url = `${API_URL}/dialer/sessions/${sessionId}/events?ticket=${encodeURIComponent(ticket)}`;
       const es = new EventSource(url);
       eventSourceRef.current = es;
 
@@ -180,21 +205,17 @@ export function useDialerEvents(
 
       es.onerror = () => {
         es.close();
-        // Reconnect after 3 seconds
-        if (!cancelled) {
-          setTimeout(() => {
-            if (!cancelled) connect();
-          }, 3000);
-        }
+        reconnect();
       };
     }
 
-    connect();
+    void connect();
 
     return () => {
       cancelled = true;
+      clearTimeout(retry);
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
-  }, [sessionId]);
+  }, [api, sessionId]);
 }

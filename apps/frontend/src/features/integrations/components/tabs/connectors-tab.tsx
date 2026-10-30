@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from '@ringee/frontend-shared/components/ui/collapsible';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
@@ -45,8 +46,11 @@ interface ConnectionInfo {
   mode: ConnectionMode;
   userId: string;
   organizationId: string | null;
-  /** Legacy capability URL (user/org ids in the path). */
-  url: string;
+  /**
+   * The old id-based capability URL, while the server still answers it;
+   * `null` once it was retired.
+   */
+  url: string | null;
   /** API-key endpoint (Streamable HTTP). */
   endpoint?: string;
   sseEndpoint?: string;
@@ -196,9 +200,33 @@ function CliCard() {
   );
 }
 
+interface ConnectorUrl {
+  url: string;
+  streamableUrl: string;
+  prefix: string;
+}
+
 function LegacyUrl({ info }: { info: ConnectionInfo }) {
   const t = useTranslations('integrations.connectors.legacy');
+  const api = useApi();
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<ConnectorUrl | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // A URL carrying a fresh API key: a secret the user can revoke, unlike the
+  // old one built from their ids. The key is shown once, so the URL is too.
+  const create = async () => {
+    setCreating(true);
+    setCreateError(null);
+    try {
+      setCreated(await api.post<ConnectorUrl>('/mcp/connector-url', {}));
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : t('createError'));
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -210,23 +238,37 @@ function LegacyUrl({ info }: { info: ConnectionInfo }) {
       </CollapsibleTrigger>
       <CollapsibleContent className='mt-3 flex flex-col gap-3 rounded-lg border p-4'>
         <p className='text-muted-foreground text-xs'>{t('description')}</p>
-        <div className='flex flex-wrap items-center gap-2'>
-          <ModeBadge mode={info.mode} />
-          <span className='text-muted-foreground text-xs'>
-            {info.mode === 'organization'
-              ? t('scopeOrganization')
-              : t('scopeFreelancer')}
-          </span>
-        </div>
-        <div className='flex items-center gap-2'>
-          <Input
-            readOnly
-            value={info.url}
-            onFocus={(e) => e.currentTarget.select()}
-            className='font-mono text-xs'
-          />
-          <CopyButton value={info.url} />
-        </div>
+        {created ? (
+          <div className='flex flex-col gap-1.5'>
+            <div className='flex items-center gap-2'>
+              <Input
+                readOnly
+                value={created.url}
+                onFocus={(e) => e.currentTarget.select()}
+                className='font-mono text-xs'
+              />
+              <CopyButton value={created.url} />
+            </div>
+            <p className='text-muted-foreground text-xs'>
+              {t('createdHint', { prefix: created.prefix })}
+            </p>
+          </div>
+        ) : (
+          <div className='flex flex-col gap-1.5'>
+            <Button
+              size='sm'
+              variant='outline'
+              className='self-start'
+              onClick={() => void create()}
+              disabled={creating}
+            >
+              {creating ? t('creating') : t('create')}
+            </Button>
+            {createError && (
+              <p className='text-destructive text-xs'>{createError}</p>
+            )}
+          </div>
+        )}
         <Alert>
           <ShieldAlert className='h-4 w-4' />
           <AlertTitle className='text-sm'>{t('warningTitle')}</AlertTitle>
@@ -234,6 +276,25 @@ function LegacyUrl({ info }: { info: ConnectionInfo }) {
             {t('warningDescription')}
           </AlertDescription>
         </Alert>
+        {info.url && (
+          <div className='flex flex-col gap-1.5 border-t pt-3'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <ModeBadge mode={info.mode} />
+              <span className='text-muted-foreground text-xs'>
+                {t('oldUrlLabel')}
+              </span>
+            </div>
+            <div className='flex items-center gap-2'>
+              <Input
+                readOnly
+                value={info.url}
+                onFocus={(e) => e.currentTarget.select()}
+                className='font-mono text-xs'
+              />
+              <CopyButton value={info.url} />
+            </div>
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

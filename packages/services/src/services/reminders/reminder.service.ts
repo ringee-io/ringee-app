@@ -650,7 +650,7 @@ export class ReminderService {
     return {
       subject,
       bodyText,
-      bodyHtml: bodyText.replace(/\n/g, "<br>"),
+      bodyHtml: this.toHtml(bodyText),
     };
   }
 
@@ -662,10 +662,32 @@ export class ReminderService {
     return `${h12}:${m.toString().padStart(2, "0")}${period}`;
   }
 
+  /**
+   * Plain text as email HTML. The text holds what people typed — a callback
+   * note, a meeting's title or location — so it is escaped before anything is
+   * added: written markup arrives as text, never as a forged link or block.
+   * Only a real http(s) location becomes a link, with both its address and
+   * its label encoded.
+   */
   private toHtml(text: string, maybeUrl?: string | null): string {
-    const escaped = text.replace(/\n/g, "<br>");
+    const escaped = escapeHtml(text).replace(/\n/g, "<br>");
     if (!this.isLikelyUrl(maybeUrl)) return escaped;
-    const url = (maybeUrl as string).trim();
-    return escaped.replace(url, `<a href="${url}">${url}</a>`);
+    let href: string;
+    try {
+      href = new URL((maybeUrl as string).trim()).href;
+    } catch {
+      return escaped;
+    }
+    const label = escapeHtml((maybeUrl as string).trim());
+    return escaped.replace(label, `<a href="${escapeHtml(href)}">${label}</a>`);
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

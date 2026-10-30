@@ -30,6 +30,22 @@ describe("buildCallHeaders (shared call attribution)", () => {
     expect(org?.value).toBe("org_456");
   });
 
+  it("carries the pre-flight's dial token only when there is one", () => {
+    const signed = buildCallHeaders({
+      callerId: "+14155550000",
+      userId: "user_123",
+      dialToken: "v1.claims.sig",
+    });
+    expect(signed.find((h) => h.name === "X-Ringee-Dial-Token")?.value).toBe(
+      "v1.claims.sig",
+    );
+    const unsigned = buildCallHeaders({
+      callerId: "+14155550000",
+      userId: "user_123",
+    });
+    expect(unsigned.some((h) => h.name === "X-Ringee-Dial-Token")).toBe(false);
+  });
+
   it("uses the provided caller ID verbatim (never a hardcoded number)", () => {
     const headers = buildCallHeaders({
       callerId: "+442079460958",

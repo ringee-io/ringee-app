@@ -11,11 +11,30 @@ import {
   ForbiddenException,
   BadRequestException,
   MessageEvent,
+  Query,
+  UnauthorizedException,
 } from "@nestjs/common";
-import { Observable, merge, interval, map } from "rxjs";
+import {
+  Observable,
+  defer,
+  filter,
+  from,
+  merge,
+  interval,
+  map,
+  switchMap,
+  takeUntil,
+} from "rxjs";
 import { isUUID } from "class-validator";
 import { Request } from "express";
-import { CurrentUser, createOwnershipContext, Public } from "@ringee/platform";
+import {
+  CurrentUser,
+  createOwnershipContext,
+  OwnershipContext,
+  Public,
+  signSseTicket,
+  verifySseTicket,
+} from "@ringee/platform";
 import {
   AgentSessionService,
   DialerOrchestrationService,
@@ -25,7 +44,11 @@ import {
   SSEBridgeService,
   CampaignService,
   CallService,
+  OrganizationService,
 } from "@ringee/services";
+
+/** How often an open event stream re-checks its reader still owns the session. */
+const STREAM_ACCESS_RECHECK_MS = 60_000;
 import {} from "@ringee/database";
 
 interface CurrentUserData {
@@ -45,6 +68,7 @@ export class DialerController {
     private readonly callService: CallService,
     private readonly voicemailDropService: VoicemailDropService,
     private readonly sseBridge: SSEBridgeService,
+    private readonly organizations: OrganizationService,
   ) {}
 
   /**
@@ -94,6 +118,7 @@ export class DialerController {
     await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
+      user.id,
     );
     return this.agentSessionService.endSession(sessionId);
   }
@@ -106,6 +131,7 @@ export class DialerController {
     await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
+      user.id,
     );
     return this.agentSessionService.pause(sessionId);
   }
@@ -118,6 +144,7 @@ export class DialerController {
     await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
+      user.id,
     );
     return this.agentSessionService.resume(sessionId);
   }
@@ -130,6 +157,7 @@ export class DialerController {
     await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
+      user.id,
     );
     return this.agentSessionService.heartbeat(sessionId);
   }
@@ -184,6 +212,7 @@ export class DialerController {
     await this.agentSessionService.getByIdForOrg(
       body.sessionId,
       this.requireOrg(user),
+      user.id,
     );
     return this.dialerOrchestration.skipLead(body.sessionId);
   }
@@ -323,18 +352,82 @@ export class DialerController {
     return this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
+      user.id,
     );
   }
 
   /**
-   * SSE endpoint for real-time dialer events.
+   * The ticket the session's event stream is opened with: EventSource cannot
+   * send an Authorization header, so the agent's authenticated client asks for
+   * it first, for a session that must be their own.
+   */
+  @Post("sessions/:sessionId/events-ticket")
+  async eventsTicket(
+    @Param("sessionId") sessionId: string,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<{ ticket: string }> {
+    await this.agentSessionService.getByIdForOrg(
+      sessionId,
+      this.requireOrg(user),
+      user.id,
+    );
+    return {
+      ticket: signSseTicket(
+        `dialer:${sessionId}`,
+        createOwnershipContext(user),
+      ),
+    };
+  }
+
+  /**
+   * SSE endpoint for real-time dialer events: the leads assigned to this agent
+   * session and the dial instructions for them.
    * Subscribes to the SSEBridgeService channel for this agent session.
-   * Marked public because EventSource cannot send Authorization headers.
-   * Session ID acts as an unguessable token (UUID).
+   * Public only because EventSource cannot send Authorization headers; the
+   * `ticket` from `events-ticket` is what admits the agent, and the stream
+   * ends once the session is no longer theirs.
    */
   @Public()
   @Sse("sessions/:sessionId/events")
-  events(@Param("sessionId") sessionId: string): Observable<MessageEvent> {
+  events(
+    @Param("sessionId") sessionId: string,
+    @Query("ticket") ticket: string | undefined,
+  ): Observable<MessageEvent> {
+    const ctx = verifySseTicket(ticket, `dialer:${sessionId}`);
+    if (!ctx) throw new UnauthorizedException("Invalid stream ticket");
+    return defer(() => from(this.ownsSession(ctx, sessionId))).pipe(
+      switchMap((allowed) => {
+        if (!allowed) throw new UnauthorizedException("Invalid stream ticket");
+        const revoked = interval(STREAM_ACCESS_RECHECK_MS).pipe(
+          switchMap(() => from(this.ownsSession(ctx, sessionId))),
+          filter((stillAllowed) => !stillAllowed),
+        );
+        return this.sessionEvents(sessionId).pipe(takeUntil(revoked));
+      }),
+    );
+  }
+
+  /** Whether the session is still `ctx`'s own, in an organization they belong to. */
+  private async ownsSession(
+    ctx: OwnershipContext,
+    sessionId: string,
+  ): Promise<boolean> {
+    if (!ctx.organizationId) return false;
+    try {
+      if (!(await this.organizations.isMember(ctx.userId, ctx.organizationId)))
+        return false;
+      await this.agentSessionService.getByIdForOrg(
+        sessionId,
+        ctx.organizationId,
+        ctx.userId,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private sessionEvents(sessionId: string): Observable<MessageEvent> {
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
     const realEvents = this.sseBridge.subscribe(
       `agent:${sessionId}`,

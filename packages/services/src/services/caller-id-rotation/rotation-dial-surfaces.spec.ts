@@ -136,6 +136,7 @@ describe("rotation across dial surfaces", () => {
             campaignId: "campaign",
             ...ctx,
           }),
+          mayDialCampaign: async () => true,
           transitionIf: async (
             _id: string,
             expected: { from: string[]; currentLeadId?: string },
@@ -153,6 +154,7 @@ describe("rotation across dial surfaces", () => {
           findById: async () => ({
             id: "campaign",
             organizationId: ctx.organizationId,
+            status: "active",
             callerIdId: null,
             numberPurchasedId: null,
             rotationNumberIds: ["number-1"],
@@ -169,6 +171,7 @@ describe("rotation across dial surfaces", () => {
         },
         userService: { getCachedUserById: async () => ({ canCall: true }) },
         creditService: { getBalance: async () => 100 },
+        callService: { issueDialAuthorization: () => "dial-token" },
         callAttemptService: {
           findUndialedForSession: async () => ({ id: "attempt" }),
           markDialing: async () => true,

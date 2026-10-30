@@ -17,8 +17,37 @@ import {
   MeetingCalendarScope,
   MeetingExternalSyncStatus,
 } from "@ringee/database";
-import { OwnershipContext } from "@ringee/platform";
+import { createHash, randomBytes } from "crypto";
+import { OwnershipContext, RedisService } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
+
+/** A connected calendar account as a client may see it: never its tokens. */
+export type CalendarIntegrationView = Omit<
+  CalendarIntegration,
+  "accessToken" | "refreshToken"
+>;
+
+export function toCalendarIntegrationView(
+  integration: CalendarIntegration,
+): CalendarIntegrationView {
+  const { accessToken, refreshToken, ...view } = integration;
+  return view;
+}
+
+/** How long a calendar OAuth round-trip may take before it must restart. */
+export const CALENDAR_OAUTH_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Who started a calendar OAuth round-trip and for what. Kept server-side and
+ * addressed by the random `state` the provider echoes back, so the callback
+ * never takes the connecting account from the URL.
+ */
+export interface CalendarOAuthTransaction {
+  userId: string;
+  organizationId: string | null;
+  provider: CalendarProvider;
+  calendarId: string | null;
+}
 
 export interface CalendarEvent {
   id: string;
@@ -314,6 +343,7 @@ export class CalendarService {
     private readonly meetingRepo: MeetingRepository,
     private readonly availabilityRepo: CalendarAvailabilityRepository,
     private readonly calendars: CalendarRepository,
+    private readonly redis: RedisService,
   ) {}
 
   // --- Ringee calendars ---
@@ -578,6 +608,53 @@ export class CalendarService {
 
   // --- OAuth Flow Methods ---
 
+  /**
+   * Opens a calendar OAuth round-trip for the signed-in user and returns its
+   * `state`: a random, single-use handle on the server-side record of who is
+   * connecting, which calendar it is for, and with which provider.
+   */
+  async beginOAuth(
+    ctx: OwnershipContext,
+    provider: CalendarProvider,
+    calendarId: string | null,
+  ): Promise<string> {
+    const state = randomBytes(32).toString("base64url");
+    const transaction: CalendarOAuthTransaction = {
+      userId: ctx.userId,
+      organizationId: ctx.organizationId ?? null,
+      provider,
+      calendarId,
+    };
+    await this.redis.set(
+      this.oauthKey(state),
+      transaction,
+      CALENDAR_OAUTH_TTL_MS,
+    );
+    return state;
+  }
+
+  /**
+   * The round-trip `state` names, consumed so it cannot complete twice.
+   * `null` when it is unknown, expired, already used, or for another provider.
+   */
+  async consumeOAuth(
+    provider: CalendarProvider,
+    state: string,
+  ): Promise<CalendarOAuthTransaction | null> {
+    if (!state) return null;
+    const key = this.oauthKey(state);
+    const raw = await this.redis.getRaw(key);
+    if (!raw || !(await this.redis.compareAndSwap(key, raw, null))) {
+      return null;
+    }
+    const transaction = JSON.parse(raw) as CalendarOAuthTransaction;
+    return transaction.provider === provider ? transaction : null;
+  }
+
+  private oauthKey(state: string): string {
+    return `calendar-oauth:${createHash("sha256").update(state).digest("hex")}`;
+  }
+
   getGoogleOAuthUrl(redirectUri: string, state: string): string {
     const clientId = apiConfiguration.GOOGLE_CALENDAR_CLIENT_ID;
     if (!clientId)
@@ -791,8 +868,14 @@ export class CalendarService {
     return integration;
   }
 
-  async getIntegrations(ctx: OwnershipContext): Promise<CalendarIntegration[]> {
-    return this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId);
+  async getIntegrations(
+    ctx: OwnershipContext,
+  ): Promise<CalendarIntegrationView[]> {
+    const integrations = await this.calendarRepo.findByUserOrOrg(
+      ctx.userId,
+      ctx.organizationId,
+    );
+    return integrations.map(toCalendarIntegrationView);
   }
 
   async disconnectCalendar(
@@ -1268,6 +1351,11 @@ export class CalendarService {
       integrationId?: string | null;
     },
   ): Promise<{ externalEventId: string; meetLink?: string }> {
+    // The event is recorded on the meeting, so the meeting has to be the
+    // workspace's own, not just the calendar account.
+    const meeting = await this.meetingRepo.findByIdForOwner(ctx, dto.meetingId);
+    if (!meeting) throw new NotFoundException("Meeting not found");
+
     const integration = await this.requireIntegration(
       ctx,
       dto.provider,

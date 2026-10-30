@@ -27,6 +27,15 @@ export class TagRepository {
     });
   }
 
+  async findByIdForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Tag | null> {
+    return this.prisma.tag.findFirst({
+      where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
   async listByOwner(ctx: OwnershipContext): Promise<Tag[]> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     return this.prisma.tag.findMany({
@@ -69,13 +78,15 @@ export class TagRepository {
 
   async delete(id: string): Promise<Tag> {
     // Remove all contact associations before soft-deleting the tag
-    await this.prisma.contactTag.deleteMany({
-      where: { tagId: id },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.contactTag.deleteMany({
+        where: { tagId: id },
+      });
 
-    return this.prisma.tag.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+      return tx.tag.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
     });
   }
 
@@ -123,20 +134,23 @@ export class TagRepository {
   }
 
   async setContactTags(contactId: string, tagIds: string[]): Promise<void> {
-    // Remove all existing tags
-    await this.prisma.contactTag.deleteMany({
-      where: { contactId },
-    });
-
-    // Add new tags
-    if (tagIds.length > 0) {
-      await this.prisma.contactTag.createMany({
-        data: tagIds.map((tagId) => ({
-          contactId,
-          tagId,
-        })),
+    await this.prisma.$transaction(async (tx) => {
+      // Remove all existing tags
+      await tx.contactTag.deleteMany({
+        where: { contactId },
       });
-    }
+
+      // Add new tags
+      if (tagIds.length > 0) {
+        await tx.contactTag.createMany({
+          data: tagIds.map((tagId) => ({
+            contactId,
+            tagId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    });
   }
 
   async assignTagsToContacts(

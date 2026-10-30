@@ -108,6 +108,7 @@ function build(
       countAgentsByCalendar: async () => new Map<string, number>(),
       listAgentsUsingCalendar: async () => [],
     } as never,
+    {} as never,
   );
 
   return { service, windows, scopes, savedRules, savedCalendarIds };

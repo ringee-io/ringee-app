@@ -363,14 +363,19 @@
       "hint": "Jede Anmeldung erstellt oben in der Liste einen Schlüssel namens „CLI · Ihr-Rechner“, damit Sie ein Terminal jederzeit widerrufen können."
     },
     "legacy": {
-      "toggle": "Alte Verbindungs-URL (ohne API-Schlüssel)",
-      "description": "Für Clients, die keine Header senden können. Die URL selbst ist die Zugangsberechtigung und kann nicht widerrufen werden – verwenden Sie daher wann immer möglich einen API-Schlüssel.",
+      "toggle": "Verbindungs-URL für Apps ohne API-Schlüssel",
+      "description": "claude.ai-Connectoren und das Claude-Code-Plugin akzeptieren nur eine URL. Erstellen Sie sie hier: Sie enthält einen geheimen Schlüssel, den Sie jederzeit unter API-Schlüssel widerrufen können.",
       "scopeOrganization": "Diese URL gewährt Zugriff auf die aktive Organisation.",
       "scopeFreelancer": "Diese URL gewährt Zugriff auf Ihren persönlichen Workspace.",
       "modeOrganization": "Organisation",
       "modeFreelancer": "Persönlich",
       "warningTitle": "Behandeln Sie diese URL wie ein Geheimnis",
-      "warningDescription": "Jeder mit dieser URL kann Ihre Ringee-Daten lesen und in Ihrem Namen handeln. Wenden Sie sich an den Support, falls sie bekannt wird."
+      "warningDescription": "Jeder mit dieser URL kann Ihre Ringee-Daten lesen und bearbeiten. Falls sie bekannt wird, widerrufen Sie ihren Schlüssel unter API-Schlüssel.",
+      "create": "Verbindungs-URL erstellen",
+      "creating": "Wird erstellt…",
+      "createdHint": "Jetzt kopieren – sie wird nur einmal angezeigt. Sie funktioniert, bis Sie den Schlüssel {prefix}… unter API-Schlüssel widerrufen.",
+      "createError": "Die Verbindungs-URL konnte nicht erstellt werden.",
+      "oldUrlLabel": "Ihre bisherige URL, gebildet aus Ihren Konto-IDs. Sie funktioniert nicht mehr, sobald Ringee diese URLs abschaltet – ersetzen Sie sie durch eine neue."
     }
   },
   "crm": {

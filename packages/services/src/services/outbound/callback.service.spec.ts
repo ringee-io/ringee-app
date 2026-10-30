@@ -85,6 +85,7 @@ function build(
         return { id: "next-agent-call", status: "initiating" };
       },
     } as never,
+    {} as never,
   );
 
   return { service, dials, statuses, dueTransitions };

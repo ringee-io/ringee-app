@@ -884,7 +884,20 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       attemptId,
       phoneNumber: lead.contact.phoneNumber,
       callerIdNumber,
-      ...(carrierRoute ? { carrierRoute } : {}),
+      ...(carrierRoute
+        ? { carrierRoute }
+        : {
+            // The campaign's workspace pays for the leg; the browser carries
+            // this back so the server need not trust its own headers.
+            dialToken: this.callService.issueDialAuthorization(
+              {
+                userId: agent.userId,
+                organizationId: campaign.organizationId ?? agent.organizationId,
+              },
+              lead.contact.phoneNumber,
+              callerIdNumber,
+            ),
+          }),
     });
 
     this.logger.log(
@@ -940,9 +953,23 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     if (session.campaignId !== campaignId) {
       throw new Error("Campaign does not match the agent session");
     }
+    // An agent taken off the campaign keeps no right to its next call, even
+    // with a lead still on screen.
+    if (!(await this.agentSessionService.mayDialCampaign(session))) {
+      throw new ForbiddenException(
+        "You are no longer assigned to this campaign",
+      );
+    }
 
     const campaign = await this.campaignRepo.findById(campaignId);
     if (!campaign) throw new Error("Campaign not found");
+    // Pausing a campaign stops its calls, including a lead already on an
+    // agent's screen: every new campaign call needs the campaign active now.
+    if (campaign.status !== "active") {
+      throw new ConflictException(
+        "This campaign is not active. Dialing resumes when it is reactivated.",
+      );
+    }
 
     // Get the lead's phone number
     const lead = await this.leadQueueService.getLeadById(session.currentLeadId);

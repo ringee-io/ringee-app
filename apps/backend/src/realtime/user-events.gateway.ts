@@ -82,6 +82,8 @@ export class UserEventsGateway
   >();
   /** Sockets that have not sent a valid auth frame yet. */
   private readonly pending = new Map<WebSocket, NodeJS.Timeout>();
+  /** Sockets with an auth frame being verified right now — one at a time. */
+  private readonly authenticating = new Set<WebSocket>();
 
   private heartbeat: NodeJS.Timeout | null = null;
   private heartbeatTicks = 0;
@@ -203,9 +205,10 @@ export class UserEventsGateway
 
       if (message.type !== "auth") return;
 
-      // Already authenticated: ignore repeat auth frames instead of creating a
-      // second registry entry for the same socket.
-      if (!this.pending.has(socket)) return;
+      // Already authenticated, or an auth frame is still being verified:
+      // ignore repeat auth frames instead of creating a second registry entry
+      // for the same socket.
+      if (!this.pending.has(socket) || this.authenticating.has(socket)) return;
 
       attempts += 1;
       if (attempts > MAX_AUTH_ATTEMPTS) {
@@ -213,7 +216,10 @@ export class UserEventsGateway
         return;
       }
 
-      void this.authenticate(socket, req, message);
+      this.authenticating.add(socket);
+      void this.authenticate(socket, req, message).finally(() =>
+        this.authenticating.delete(socket),
+      );
     });
 
     socket.on("error", (error) =>
@@ -265,6 +271,12 @@ export class UserEventsGateway
       return;
     }
 
+    // Verification is asynchronous: the socket may have closed (and been
+    // forgotten) or timed out meanwhile. Registering it then would leave an
+    // entry nothing ever removes.
+    if (!this.pending.has(socket) || socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
     const timeout = this.pending.get(socket);
     if (timeout) clearTimeout(timeout);
     this.pending.delete(socket);
@@ -428,14 +440,16 @@ export class UserEventsGateway
     if (timeout) clearTimeout(timeout);
     this.pending.delete(socket);
 
+    this.authenticating.delete(socket);
+
+    // Every entry the socket has, not only the first one found.
     for (const [userId, connections] of this.connectionsByUser) {
       for (const [connectionId, connection] of connections) {
         if (connection.socket !== socket) continue;
         connections.delete(connectionId);
-        if (connections.size === 0) this.connectionsByUser.delete(userId);
         void this.presence.unregister(userId, connectionId);
-        return;
       }
+      if (connections.size === 0) this.connectionsByUser.delete(userId);
     }
   }
 
@@ -494,16 +508,25 @@ export class UserEventsGateway
   }
 
   /**
-   * Only trust `x-forwarded-for` when the deployment has declared how many
-   * proxies sit in front of the API — the same rule Express uses for `req.ip`.
+   * Only trust `x-forwarded-for` as far as the deployment has declared proxies
+   * in front of the API — the same rule Express uses for `req.ip`. The chain is
+   * read from the trusted end: with N proxies the client is the address N hops
+   * left of the socket peer, so whatever a client prepends never wins.
    */
   private readIp(req: IncomingMessage): string | null {
-    if (apiConfiguration.TRUST_PROXY_HOPS > 0) {
-      const forwarded = req.headers["x-forwarded-for"];
-      const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-      const first = raw?.split(",")[0]?.trim();
-      if (first) return first;
-    }
-    return req.socket.remoteAddress ?? null;
+    const peer = req.socket.remoteAddress ?? null;
+    const hops = apiConfiguration.TRUST_PROXY_HOPS;
+    if (hops <= 0) return peer;
+    const forwarded = req.headers["x-forwarded-for"];
+    const raw = Array.isArray(forwarded) ? forwarded.join(",") : forwarded;
+    const chain = [
+      ...(raw ?? "")
+        .split(",")
+        .map((address) => address.trim())
+        .filter(Boolean),
+      ...(peer ? [peer] : []),
+    ];
+    if (chain.length === 0) return null;
+    return chain[Math.max(0, chain.length - 1 - hops)];
   }
 }

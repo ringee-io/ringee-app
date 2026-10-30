@@ -132,7 +132,7 @@ function setup(options: { online?: string[] } = {}) {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
+    { isMember: async () => true } as never,
     {} as never,
     {} as never,
     {} as never,

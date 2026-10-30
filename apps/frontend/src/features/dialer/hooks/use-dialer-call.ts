@@ -234,7 +234,8 @@ export function useDialerCallEngine() {
       phoneNumber: string,
       callerIdNumber: string | null,
       attemptId: string,
-      carrierRoute?: CarrierRoute
+      carrierRoute?: CarrierRoute,
+      dialToken?: string
     ) => {
       const callToken = carrierRoute?.callToken;
       const live = useDialerCallStore.getState();
@@ -300,7 +301,8 @@ export function useDialerCallEngine() {
           customHeaders: buildCallHeaders({
             callerId: callerIdNumber,
             userId,
-            organizationId: orgId ?? undefined
+            organizationId: orgId ?? undefined,
+            dialToken
           }),
           keepConnectionAliveOnSocketClose: true,
           debug: process.env.NODE_ENV === 'development',

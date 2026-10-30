@@ -85,7 +85,15 @@ describe("NumberPurchasedService.transferWorkspace", () => {
   it("moves a number under the lock its inbound route writers hold", async () => {
     const s = setup({ connectionId: "shared-webrtc" });
     await s.service.transferWorkspace(OWNER, "number-r", "org-1");
-    assert.deepEqual(s.events, [`lock ${LOCK}`, "transfer", `release ${LOCK}`]);
+    // The carrier is re-pointed even when the stored connection already says
+    // "shared": a desk-phone pin moves the DID without updating that column.
+    assert.deepEqual(s.events, [
+      `lock ${LOCK}`,
+      "transfer",
+      "assign shared-webrtc",
+      "update shared-webrtc",
+      `release ${LOCK}`,
+    ]);
   });
 
   it("refuses to move a number while its route is being written", async () => {

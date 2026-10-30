@@ -13,6 +13,7 @@ import {
   CurrentUserData,
   createOwnershipContext,
   OrgAdminOnly,
+  resolveMemberFilter,
   TelephonyService,
 } from "@ringee/platform";
 import {
@@ -28,6 +29,7 @@ import {
   NumberPurchasedService,
   RecordingService,
   TranscriptionService,
+  type TranscriptionAccessContext,
 } from "@ringee/services";
 import type { Call } from "@ringee/database";
 import {
@@ -246,9 +248,14 @@ export class ExtensionController {
   ) {
     const ctx = createOwnershipContext(user);
 
-    // Ownership gate (throws if the call isn't the user's / org's) + transcript.
+    // Ownership gate (throws if the call isn't the user's / org's, or a
+    // teammate's for a member) + transcript.
+    const access: TranscriptionAccessContext = {
+      ...ctx,
+      memberUserId: resolveMemberFilter(user),
+    };
     const transcriptionView = await this.transcriptionService.getForCall(
-      ctx,
+      access,
       id,
     );
     const final = transcriptionView.recording ?? transcriptionView.realtime;
@@ -447,6 +454,11 @@ export class ExtensionController {
         callerId,
         credential,
         destination,
+        dialToken: this.callService.issueDialAuthorization(
+          ctx,
+          destination,
+          callerId,
+        ),
       };
     } catch (error) {
       await this.concurrentCallGuard.releasePending(user.id, device.deviceId);

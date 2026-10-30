@@ -100,7 +100,7 @@ const PERSON = {
 };
 
 describe("AccountProvisioningService.createAccount", () => {
-  it("creates the login and emails its credentials with the team in cc", async () => {
+  it("creates the login, emails its credentials, and tells the team without the password", async () => {
     const { service, created, emails } = build();
 
     const account = await service.createAccount(PERSON);
@@ -112,10 +112,13 @@ describe("AccountProvisioningService.createAccount", () => {
       provisionedBy: "backoffice",
     });
 
-    assert.equal(emails.length, 1);
-    const [email] = emails;
+    assert.equal(emails.length, 2);
+    const [email, notice] = emails;
     assert.equal(email.to, "mluria@molusupply.com");
-    assert.deepEqual(email.cc, ["edison@getringee.com"]);
+    assert.equal(email.cc, undefined);
+    assert.equal(notice.to, "edison@getringee.com");
+    assert.match(notice.html, /mluria@molusupply\.com/);
+    assert.ok(!notice.html.includes(created[0].password));
     assert.equal(email.fromName, "Edison from Ringee");
     assert.equal(email.subject, "Your Ringee account is ready");
     assert.match(email.html, /Hi Mordechai,/);

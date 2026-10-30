@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { createHash } from "crypto";
 import {
   Call,
@@ -505,9 +505,13 @@ export class CrmCallLogService {
     this.triggerImmediateDrain(callId);
   }
 
-  async manualRetry(syncId: string): Promise<void> {
+  async manualRetry(ctx: OwnershipContext, syncId: string): Promise<void> {
     const sync = await this.syncRepo.findById(syncId);
     if (!sync) return;
+    // A sync is retried only by a workspace that owns its CRM connection.
+    const connection = await this.connections.findById(sync.connectionId);
+    if (!connection) throw new NotFoundException("sync not found");
+    await this.connections.assertAccess(ctx, connection);
     await this.syncRepo.markStatus(sync.id, "pending", null);
     await this.outbox.enqueue({
       connectionId: sync.connectionId,

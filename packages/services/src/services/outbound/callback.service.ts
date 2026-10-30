@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import {
   CallbackTaskRepository,
+  CallRepository,
   AiVoiceAgentCallRepository,
   CampaignLeadRepository,
   CampaignRepository,
@@ -19,6 +20,7 @@ import { ReminderService } from "../reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { buildCallbackEventData } from "../custom-integrations/custom-integration-event-builders";
+import type { OwnershipContext } from "@ringee/platform";
 import {
   VoiceAgentCallService,
   VoiceAgentCallStartError,
@@ -41,6 +43,7 @@ export class CallbackService {
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly agentCalls: AiVoiceAgentCallRepository,
     private readonly voiceAgentCalls: VoiceAgentCallService,
+    private readonly callRepo: CallRepository,
   ) {}
 
   private async enqueueCallbackCreated(callback: {
@@ -152,6 +155,24 @@ export class CallbackService {
     scheduledAt: Date;
     note?: string;
   }) {
+    // The callback is shown with its contact and call, so both must be the
+    // workspace's own — and the call, when there is one, that contact's.
+    const owner: OwnershipContext = {
+      userId: data.userId,
+      organizationId: data.organizationId ?? null,
+    };
+    const contact = await this.contactRepo.findByIdForOwner(
+      owner,
+      data.contactId,
+    );
+    if (!contact) throw new NotFoundException("Contact not found");
+    if (data.callId) {
+      const call = await this.callRepo.findByIdForOwner(owner, data.callId);
+      if (!call || (call.contactId && call.contactId !== contact.id)) {
+        throw new NotFoundException("Call not found");
+      }
+    }
+
     const callback = await this.callbackRepo.create({
       userId: data.userId,
       organizationId: data.organizationId ?? null,

@@ -148,10 +148,39 @@ jobs:
       - name: Upgrade npm
         run: npm install --global npm@11
 
+      # The tarball was built by repository code and its dependencies, which
+      # this job does not trust. Its manifest must be the package the plan
+      # named, and may not choose where npm sends the publish credential:
+      # `publishConfig` could otherwise point the OIDC token exchange at
+      # another registry or through a proxy. Checked here, by this file only.
+      - name: Verify the manifest
+        env:
+          NAME: ${{ matrix.name }}
+          VERSION: ${{ matrix.version }}
+        run: |
+          tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
+          tar -xzOf "$tarball" package/package.json > "$RUNNER_TEMP/manifest.json"
+          node -e '
+            const m = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const fail = (why) => { console.error(`Refusing to publish: ${why}`); process.exit(1); };
+            if (m.name !== process.env.NAME) fail(`package is ${m.name}, expected ${process.env.NAME}`);
+            if (m.version !== process.env.VERSION) fail(`version is ${m.version}, expected ${process.env.VERSION}`);
+            const allowed = new Set(["access", "provenance", "tag"]);
+            for (const key of Object.keys(m.publishConfig ?? {})) {
+              if (!allowed.has(key)) fail(`publishConfig.${key} is not allowed`);
+            }
+          ' "$RUNNER_TEMP/manifest.json"
+
       - name: Publish
         env:
           TAG: ${{ matrix.tag }}
           RELEASE: ${{ matrix.name }}@${{ matrix.version }}
+          # Where the credential may go is this job's decision, not the
+          # package's: the public registry, directly.
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+          NPM_CONFIG_PROXY: ""
+          NPM_CONFIG_HTTPS_PROXY: ""
+          NPM_CONFIG_STRICT_SSL: "true"
         run: |
           tarball=$(ls "$RUNNER_TEMP"/pack/*.tgz)
           # --tag only for prereleases: without it npm applies `latest` and

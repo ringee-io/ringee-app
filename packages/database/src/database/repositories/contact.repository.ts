@@ -32,6 +32,20 @@ const CONTACT_WITH_LATEST_NOTES_SELECT = {
   _count: { select: { notes: { where: { deletedAt: null } } } },
 } satisfies Prisma.ContactSelect;
 
+/** A contact with the history its detail view shows. */
+const CONTACT_DETAIL_INCLUDE = {
+  notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
+  calls: { orderBy: { createdAt: "desc" }, take: 20 },
+  meetings: { orderBy: { scheduledAt: "desc" } },
+  tags: { include: { tag: true } },
+  phones: { orderBy: { isPrimary: "desc" } },
+  emails: { orderBy: { isPrimary: "desc" } },
+  affiliations: {
+    include: { company: true },
+    orderBy: { isPrimary: "desc" },
+  },
+} satisfies Prisma.ContactInclude;
+
 /** Who a contact is, its tags, and its latest notes with their authors. */
 export type ContactWithLatestNotes = Prisma.ContactGetPayload<{
   select: typeof CONTACT_WITH_LATEST_NOTES_SELECT & {
@@ -67,18 +81,18 @@ export class ContactRepository {
   async findById(id: string): Promise<Contact | null> {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null },
-      include: {
-        notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
-        calls: { orderBy: { createdAt: "desc" }, take: 20 },
-        meetings: { orderBy: { scheduledAt: "desc" } },
-        tags: { include: { tag: true } },
-        phones: { orderBy: { isPrimary: "desc" } },
-        emails: { orderBy: { isPrimary: "desc" } },
-        affiliations: {
-          include: { company: true },
-          orderBy: { isPrimary: "desc" },
-        },
-      },
+      include: CONTACT_DETAIL_INCLUDE,
+    });
+  }
+
+  /** {@link findById}, but only when the contact belongs to the workspace. */
+  async findDetailForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Contact | null> {
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+      include: CONTACT_DETAIL_INCLUDE,
     });
   }
 
@@ -663,9 +677,10 @@ export class ContactRepository {
     });
   }
 
-  async deleteNote(noteId: string) {
-    const note = await this.prisma.contactNote.findUnique({
-      where: { id: noteId },
+  /** Soft-deletes a note, only when it is one of `contactId`'s notes. */
+  async deleteNote(contactId: string, noteId: string) {
+    const note = await this.prisma.contactNote.findFirst({
+      where: { id: noteId, contactId },
     });
 
     if (!note) {

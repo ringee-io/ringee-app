@@ -185,9 +185,17 @@ export class CallerIdRotationController {
 
       if (!selection?.phoneNumber) {
         await this.releaseOwnLease(user.id, decision.leaseId);
+        return selection;
       }
 
-      return selection;
+      return {
+        ...selection,
+        dialToken: this.callService.issueDialAuthorization(
+          ctx,
+          body.destination ?? "",
+          selection.phoneNumber,
+        ),
+      };
     } catch (error) {
       await this.releaseOwnLease(user.id, decision.leaseId);
       throw error;

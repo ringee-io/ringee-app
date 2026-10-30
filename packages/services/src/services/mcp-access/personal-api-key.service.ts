@@ -89,11 +89,23 @@ export class PersonalApiKeyService {
     return keys.map(toView);
   }
 
+  /**
+   * An account that still owes its phone verification gets no key, the same
+   * rule the dashboard and the CLI pages apply before letting anyone in: a key
+   * would otherwise be a way around it.
+   */
+  async assertMayHoldKeys(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new UnauthorizedException("Account not found");
+    assertAccountUsable(user);
+  }
+
   async create(
     userId: string,
     rawName: string | undefined,
     source: PersonalApiKeySource = "dashboard",
   ): Promise<CreatedPersonalApiKey> {
+    await this.assertMayHoldKeys(userId);
     const name = normalizeKeyName(rawName);
     const active = await this.repo.listActiveForUser(userId);
     if (active.length >= MAX_ACTIVE_KEYS_PER_USER) {
@@ -159,9 +171,7 @@ export class PersonalApiKeyService {
         "This API key has been revoked. Create a new one or run `ringee login`.",
       );
     }
-    if (apiKey.user.blockedAt) {
-      throw new ForbiddenException("Account disabled");
-    }
+    assertAccountUsable(apiKey.user);
 
     const organizationId =
       await this.organizationService.getActiveWorkspaceOrgId(apiKey.userId);
@@ -248,4 +258,21 @@ function normalizeKeyName(raw: string | undefined): string {
     throw new BadRequestException("Give the API key a name");
   }
   return name.slice(0, MAX_NAME_LENGTH);
+}
+
+/**
+ * Whether an account may act through an API key: not blocked (WRK-007), and
+ * not still owing the phone verification the dashboard requires.
+ */
+function assertAccountUsable(
+  user: Pick<User, "blockedAt" | "phoneRequired" | "phoneVerified">,
+): void {
+  if (user.blockedAt) {
+    throw new ForbiddenException("Account disabled");
+  }
+  if (user.phoneRequired && !user.phoneVerified) {
+    throw new ForbiddenException(
+      "Verify your phone number in the Ringee dashboard before using API keys.",
+    );
+  }
 }

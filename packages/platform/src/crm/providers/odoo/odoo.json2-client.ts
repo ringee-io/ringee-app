@@ -1,5 +1,11 @@
 import { Logger } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import { CrmError } from "../../errors";
+import {
+  ResponseTooLargeError,
+  requestPublic,
+} from "../../../net/public-network";
+import { ODOO_MAX_RESPONSE_BYTES } from "./odoo.rpc-client";
 import { classifyOdooError } from "./odoo.errors";
 import type { OdooCredentialPayload } from "./odoo.types";
 
@@ -104,12 +110,11 @@ export class OdooJson2Client {
     body: unknown,
     _signal: AbortSignal | null,
   ): Promise<T> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
     let res: Response;
     try {
-      res = await fetch(`${baseUrl}${path}`, {
+      // The customer's server, so the request goes through Ringee's network
+      // policy: no private addresses, no redirects, a bounded body.
+      res = await requestPublic(new URL(`${baseUrl}${path}`), {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -118,12 +123,13 @@ export class OdooJson2Client {
           ...headers,
         },
         body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
-        signal: controller.signal,
+        timeoutMs: this.timeoutMs,
+        maxBodyBytes: ODOO_MAX_RESPONSE_BYTES,
+        allowPrivateNetwork: apiConfiguration.OUTBOUND_ALLOW_PRIVATE_NETWORK,
       });
     } catch (err: unknown) {
-      clearTimeout(timer);
       const name = (err as { name?: string }).name;
-      if (name === "AbortError") {
+      if (name === "AbortError" || name === "TimeoutError") {
         throw new CrmError(
           "TRANSIENT",
           true,
@@ -137,13 +143,20 @@ export class OdooJson2Client {
         `odoo json-2 network error: ${msg}`,
       );
     }
-    clearTimeout(timer);
 
     let parsed: unknown = undefined;
     try {
-      parsed = await res.json();
-    } catch {
-      parsed = await res.text().catch(() => undefined);
+      const text = await res.text();
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = text;
+      }
+    } catch (err) {
+      if (err instanceof ResponseTooLargeError) {
+        throw new CrmError("TRANSIENT", false, `odoo json-2 ${err.message}`);
+      }
+      parsed = undefined;
     }
 
     if (!res.ok) {

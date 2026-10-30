@@ -761,6 +761,11 @@ export class BackofficeRepository {
       // The backoffice used to unassign numbers without detaching them, so an
       // unassigned number may still carry its last workspace's links.
       await this.detachWorkspaceLinks(tx, numberId);
+      // The previous owner's verification answers (addresses, documents) are
+      // theirs: the next owner starts the requirements from scratch.
+      await tx.numberRequirementValue.deleteMany({
+        where: { numberPurchasedId: numberId },
+      });
 
       const number = await tx.numberPurchased.findUniqueOrThrow({
         where: { id: numberId },

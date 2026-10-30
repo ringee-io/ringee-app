@@ -556,6 +556,16 @@ export class MeetingRepository {
     return count > 0;
   }
 
+  /** The meeting row alone, only when it belongs to the workspace. */
+  async findByIdForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Meeting | null> {
+    return this.prisma.meeting.findFirst({
+      where: { id, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
   async findById(id: string): Promise<Meeting | null> {
     return this.prisma.meeting.findUnique({
       where: { id },

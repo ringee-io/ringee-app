@@ -363,14 +363,19 @@
       "hint": "Ogni accesso crea una chiave chiamata “CLI · il-tuo-computer” nell'elenco qui sopra, così puoi revocare un terminale in qualsiasi momento."
     },
     "legacy": {
-      "toggle": "URL di connessione legacy (senza chiave API)",
-      "description": "Per i client che non possono inviare header. L'URL stesso è la credenziale e non può essere revocato: usa una chiave API ovunque sia possibile.",
+      "toggle": "URL di connessione per le app che non inviano una chiave API",
+      "description": "I connettori di claude.ai e il plugin di Claude Code accettano solo un URL. Crealo qui: contiene una chiave segreta che puoi revocare in qualsiasi momento dalle tue chiavi API.",
       "scopeOrganization": "Questo URL dà accesso all'organizzazione attiva.",
       "scopeFreelancer": "Questo URL dà accesso al tuo spazio di lavoro personale.",
       "modeOrganization": "Organizzazione",
       "modeFreelancer": "Personale",
       "warningTitle": "Tratta questo URL come un segreto",
-      "warningDescription": "Chiunque abbia questo URL può leggere e agire sui tuoi dati Ringee. Se viene divulgato, contatta il supporto."
+      "warningDescription": "Chiunque abbia questo URL può leggere e agire sui tuoi dati Ringee. Se viene diffuso, revoca la sua chiave in Chiavi API.",
+      "create": "Crea URL di connessione",
+      "creating": "Creazione…",
+      "createdHint": "Copialo ora: viene mostrato una sola volta. Funziona finché non revochi la chiave {prefix}… in Chiavi API.",
+      "createError": "Impossibile creare l'URL di connessione.",
+      "oldUrlLabel": "Il tuo URL precedente, costruito con gli identificativi del tuo account. Smetterà di funzionare quando Ringee ritirerà questi URL: sostituiscilo con uno nuovo."
     }
   },
   "crm": {

@@ -161,12 +161,14 @@ export function AgentWorkspace({
       phoneNumber: string;
       callerIdNumber: string | null;
       carrierRoute?: CarrierRoute;
+      dialToken?: string;
     }) => {
       dial(
         data.phoneNumber,
         data.callerIdNumber,
         data.attemptId,
-        data.carrierRoute
+        data.carrierRoute,
+        data.dialToken
       );
     },
     [dial]

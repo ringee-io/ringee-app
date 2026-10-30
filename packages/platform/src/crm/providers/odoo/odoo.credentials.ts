@@ -1,4 +1,6 @@
+import { apiConfiguration } from "@ringee/configuration";
 import { CrmError } from "../../errors";
+import { isPrivateHost } from "../../../net/public-network";
 import type { CrmCredentials } from "../../types";
 import type { OdooCredentialPayload } from "./odoo.types";
 
@@ -30,13 +32,39 @@ export function validateCredentialInput(
   if (!baseUrl) {
     return { ok: false, field: "baseUrl", message: "baseUrl is required" };
   }
+  let parsed: URL;
   try {
-    new URL(baseUrl);
+    parsed = new URL(baseUrl);
   } catch {
     return {
       ok: false,
       field: "baseUrl",
       message: "baseUrl is not a valid URL",
+    };
+  }
+  // The server is the customer's choice but the request is Ringee's: a plain
+  // http(s) origin (optionally with a path), on a public address.
+  if (
+    (parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    return {
+      ok: false,
+      field: "baseUrl",
+      message: "baseUrl must be a plain http(s) address",
+    };
+  }
+  if (
+    !apiConfiguration.OUTBOUND_ALLOW_PRIVATE_NETWORK &&
+    isPrivateHost(parsed.hostname)
+  ) {
+    return {
+      ok: false,
+      field: "baseUrl",
+      message: "baseUrl must be a public address",
     };
   }
 

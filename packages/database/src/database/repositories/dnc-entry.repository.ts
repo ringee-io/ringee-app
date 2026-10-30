@@ -120,6 +120,16 @@ export class DNCEntryRepository {
     return this.prisma.dNCEntry.delete({ where: { id } });
   }
 
+  /** One of the owner's entries; another list's reads as missing. */
+  async findByIdForOwner(
+    owner: DNCOwnerScope,
+    id: string,
+  ): Promise<DNCEntry | null> {
+    return this.prisma.dNCEntry.findFirst({
+      where: { id, ...this.ownerWhere(owner) },
+    });
+  }
+
   async deleteByPhone(
     owner: DNCOwnerScope,
     phoneNumber: string,

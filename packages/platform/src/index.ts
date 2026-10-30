@@ -12,6 +12,7 @@ export * from "./voice-agents";
 export * from "./deepgram";
 export * from "./notification";
 export * from "./newsletter";
+export * from "./net";
 
 export * from "./stripe/stripe.service";
 export * from "./stripe/stripe.module";

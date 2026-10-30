@@ -10,8 +10,8 @@ import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import { useAuth } from '@clerk/nextjs';
 import { Loader2, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
+import { useCallback, useRef, useState } from 'react';
+import { placeCall } from '@ringee/dialer-core';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useTranslations } from 'next-intl';
 
@@ -40,20 +40,13 @@ export function AttioDialer() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [contactProfile, setContactProfile] =
     useState<ContactSalesProfile | null>(null);
-  const dialedRef = useRef(false);
 
+  const dialing = useRef(false);
   const isTelnyxReady = telnyxStatus === 'registered';
 
-  useEffect(() => {
-    if (!toNumber) return;
-    api
-      .post<ContactSalesProfile>('/contacts/find-or-create', {
-        phoneNumber: toNumber
-      })
-      .then(setContactProfile)
-      .catch(() => setContactProfile(null));
-  }, [api, toNumber]);
-
+  // Nothing happens on opening the link: the number in it is whatever the
+  // link says, so placing the call (and saving its contact) waits for the
+  // person to press "Start call".
   const handleDial = useCallback(async () => {
     if (!client || !toNumber || !fromNumber || !userId) {
       setErrorMsg(t('errors.missingParams'));
@@ -61,44 +54,48 @@ export function AttioDialer() {
       return;
     }
 
+    if (dialing.current) return;
+    dialing.current = true;
+
+    api
+      .post<ContactSalesProfile>('/contacts/find-or-create', {
+        phoneNumber: toNumber
+      })
+      .then(setContactProfile)
+      .catch(() => setContactProfile(null));
+
     try {
       setDialerState('connecting');
-      await client.newCall({
-        callerNumber: fromNumber,
-        destinationNumber: toNumber,
-        audio: true,
-        customHeaders: [
-          { name: 'From', value: `sip:${fromNumber}@sip.telnyx.com` },
-          {
-            name: 'P-Asserted-Identity',
-            value: `sip:${fromNumber}@sip.telnyx.com`
-          },
-          {
-            name: 'P-Preferred-Identity',
-            value: `sip:${fromNumber}@sip.telnyx.com`
-          },
-          { name: 'X-User-Id', value: userId },
-          ...(orgId ? [{ name: 'X-Organization-Id', value: orgId }] : [])
-        ],
-        keepConnectionAliveOnSocketClose: true,
+      const prepared = await api.post<{
+        phoneNumber: string | null;
+        dialToken?: string;
+      }>('/caller-id-rotation/resolve', {
+        destination: toNumber,
+        fallbackPhoneNumber: fromNumber
+      });
+      if (!prepared.phoneNumber || !prepared.dialToken) {
+        throw new Error(t('errors.initiateFailed'));
+      }
+      placeCall({
+        client,
+        callerId: prepared.phoneNumber,
+        destination: toNumber,
+        userId,
+        organizationId: orgId ?? undefined,
+        dialToken: prepared.dialToken,
         debug: process.env.NODE_ENV === 'development'
       });
-      setOutboundRingbackVolume();
       setDialerState('active');
     } catch (err) {
+      await api.post('/caller-id-rotation/abandon', {}).catch(() => undefined);
       setErrorMsg(
         err instanceof Error ? err.message : t('errors.initiateFailed')
       );
       setDialerState('error');
+    } finally {
+      dialing.current = false;
     }
-  }, [client, toNumber, fromNumber, userId, orgId, t]);
-
-  useEffect(() => {
-    if (isTelnyxReady && toNumber && fromNumber && !dialedRef.current) {
-      dialedRef.current = true;
-      handleDial();
-    }
-  }, [isTelnyxReady, toNumber, fromNumber, handleDial]);
+  }, [api, client, toNumber, fromNumber, userId, orgId, t]);
 
   if (!toNumber || !fromNumber) {
     return (
@@ -230,7 +227,6 @@ export function AttioDialer() {
               variant='outline'
               size='sm'
               onClick={() => {
-                dialedRef.current = false;
                 setDialerState('ready');
                 setErrorMsg(null);
               }}

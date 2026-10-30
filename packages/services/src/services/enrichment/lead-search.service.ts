@@ -51,6 +51,12 @@ export type ImportLeadsResult = {
 
 export type RevealLeadOpts = {
   revealPhone?: boolean;
+  /**
+   * Whether an email may be revealed (and stored). `false` is a limit the
+   * person approved, not a hint: whatever the provider returns anyway is
+   * dropped before it reaches the snapshot or the contact.
+   */
+  revealEmail?: boolean;
 };
 
 export type RevealLeadResult = {
@@ -478,6 +484,7 @@ export class LeadSearchService {
     try {
       result = await provider.enrichByPersonId(creds, externalId, {
         revealPhone: opts.revealPhone,
+        ...(opts.revealEmail === false ? { revealEmail: false } : {}),
       });
     } catch (err) {
       if (err instanceof EnrichmentError) {
@@ -495,6 +502,9 @@ export class LeadSearchService {
     }
     await this.connections.touchLastUsed(connection.id);
 
+    if (opts.revealEmail === false && result.person) {
+      result = { ...result, person: { ...result.person, emails: [] } };
+    }
     if (!result.found || !result.person) {
       return {
         candidate,
@@ -690,7 +700,7 @@ export class LeadSearchService {
       }
       return;
     }
-    if (contact.userId !== ctx.userId) {
+    if (contact.userId !== ctx.userId || contact.organizationId !== null) {
       throw new ForbiddenException("Cannot access this contact");
     }
   }
@@ -775,7 +785,9 @@ export class LeadSearchService {
       }
       return;
     }
-    if (job.userId !== ctx.userId) {
+    // Personal means personal: an organization's search its creator started
+    // stays the organization's, with its saved connection.
+    if (job.userId !== ctx.userId || job.organizationId !== null) {
       throw new ForbiddenException("Cannot access this lead search");
     }
   }

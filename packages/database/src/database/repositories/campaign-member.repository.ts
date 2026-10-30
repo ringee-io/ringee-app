@@ -42,6 +42,19 @@ export class CampaignMemberRepository {
     });
   }
 
+  /** Which of `userIds` are assigned to the campaign. */
+  async listMemberUserIds(
+    campaignId: string,
+    userIds: string[],
+  ): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const rows = await this.prisma.campaignMember.findMany({
+      where: { campaignId, userId: { in: userIds } },
+      select: { userId: true },
+    });
+    return rows.map((row) => row.userId);
+  }
+
   async isMember(campaignId: string, userId: string): Promise<boolean> {
     const member = await this.prisma.campaignMember.findUnique({
       where: { campaignId_userId: { campaignId, userId } },

@@ -118,6 +118,56 @@ export class OfferParticipationRepository {
    * the claims they already hold, and the `(offerId, userId, claimIndex)`
    * unique key makes a double-click land on the same row instead of two.
    */
+  /**
+   * Opens a claim only while the offer still has room for one, atomically:
+   * the offer row is locked while its claims are counted and the new one is
+   * written, so concurrent claimants cannot all slip under `maxClaims`. A
+   * retry of a claim that already exists gets that claim back without taking
+   * another slot. Null when the offer is full.
+   */
+  async openClaimWithinCap(
+    params: {
+      offerId: string;
+      userId: string;
+      organizationId: string | null;
+      claimIndex: number;
+    },
+    maxClaims: number | null,
+  ): Promise<OfferParticipation | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Offer" WHERE id = ${params.offerId}::uuid FOR UPDATE`;
+      const existing = await tx.offerParticipation.findUnique({
+        where: {
+          offerId_userId_claimIndex: {
+            offerId: params.offerId,
+            userId: params.userId,
+            claimIndex: params.claimIndex,
+          },
+        },
+      });
+      if (existing) return existing;
+      if (maxClaims !== null) {
+        const taken = await tx.offerParticipation.count({
+          where: {
+            offerId: params.offerId,
+            status: { in: CLAIM_CONSUMING_STATUSES },
+          },
+        });
+        if (taken >= maxClaims) return null;
+      }
+      return tx.offerParticipation.create({
+        data: {
+          offerId: params.offerId,
+          userId: params.userId,
+          organizationId: params.organizationId,
+          claimIndex: params.claimIndex,
+          status: "STARTED",
+          startedAt: new Date(),
+        },
+      });
+    });
+  }
+
   async openClaim(params: {
     offerId: string;
     userId: string;

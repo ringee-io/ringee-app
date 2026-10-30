@@ -300,7 +300,11 @@ export class CampaignController {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.retryEngine.listRules(campaignId);
+    return this.retryEngine.listRules(
+      createOwnershipContext(user),
+      campaignId,
+      this.membershipRule(user),
+    );
   }
 
   @Post(":id/retry-rules")
@@ -318,18 +322,27 @@ export class CampaignController {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.retryEngine.upsertRule({ campaignId, ...body });
+    return this.retryEngine.upsertRule(
+      createOwnershipContext(user),
+      campaignId,
+      body,
+    );
   }
 
   @Delete(":id/retry-rules/:ruleId")
   async deleteRetryRule(
+    @Param("id") campaignId: string,
     @Param("ruleId") ruleId: string,
     @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
-    return this.retryEngine.deleteRule(ruleId);
+    return this.retryEngine.deleteRule(
+      createOwnershipContext(user),
+      campaignId,
+      ruleId,
+    );
   }
 
   // ── Member management endpoints ──
@@ -507,6 +520,7 @@ export class CampaignController {
     }
     const ctx = createOwnershipContext(user);
     return this.campaignService.getLeads(ctx, campaignId, {
+      ...this.membershipRule(user),
       page: Number(page),
       limit: Number(limit),
       status,

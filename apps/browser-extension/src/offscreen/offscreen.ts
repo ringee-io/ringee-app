@@ -194,6 +194,7 @@ async function startCall(msg: StartCallMsg) {
       destination: msg.destination,
       userId: msg.userId,
       organizationId: msg.organizationId,
+      dialToken: msg.dialToken,
     });
   } catch (err) {
     emit("failed", {

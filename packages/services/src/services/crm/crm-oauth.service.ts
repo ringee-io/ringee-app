@@ -4,6 +4,7 @@ import {
   Logger,
   UnauthorizedException,
 } from "@nestjs/common";
+import { randomBytes, timingSafeEqual } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import { CrmProviderType } from "@ringee/database";
 import {
@@ -11,6 +12,7 @@ import {
   CryptoService,
   OwnershipContext,
   RedisService,
+  trustedFrontendOrigin,
 } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 
@@ -48,10 +50,16 @@ export class CrmOAuthService {
     return `${base.replace(/\/$/, "")}/api/crm/${provider}/oauth/callback`;
   }
 
+  /**
+   * The provider's authorization URL, and the value the starting browser must
+   * hold (as a cookie) for the callback to be accepted: a state is bound to
+   * the browser that started it, so a link started by someone else cannot
+   * attach whoever approves it to their workspace.
+   */
   async createAuthorizationUrl(
     ctx: OwnershipContext,
     opts: OAuthStartOptions,
-  ): Promise<string> {
+  ): Promise<{ url: string; browserBinding: string }> {
     const provider = this.registry.get(opts.provider);
     const scope: "personal" | "organization" =
       opts.scope ?? (ctx.organizationId ? "organization" : "personal");
@@ -70,19 +78,25 @@ export class CrmOAuthService {
       scope,
       provider: opts.provider,
       nonce,
-      redirectFrontendUrl: opts.redirectFrontendUrl ?? null,
+      // Only back to one of Ringee's own frontends; anything else would make
+      // the callback an open redirect.
+      redirectFrontendUrl: safeReturnUrl(opts.redirectFrontendUrl),
     });
 
     await this.redis.set(this.nonceKey(nonce), "1", STATE_TTL_MS);
 
-    return provider.getAuthorizationUrl({
+    const url = await provider.getAuthorizationUrl({
       redirectUri: this.getBackendRedirectUri(opts.provider),
       state,
       scope: undefined,
     });
+    return { url, browserBinding: nonce };
   }
 
-  async consumeState(stateRaw: string): Promise<OAuthStatePayload> {
+  async consumeState(
+    stateRaw: string,
+    browserBinding: string | null,
+  ): Promise<OAuthStatePayload> {
     let decoded: Record<string, unknown>;
     try {
       decoded = this.crypto.decrypt(stateRaw);
@@ -98,6 +112,11 @@ export class CrmOAuthService {
     ) {
       throw new UnauthorizedException("invalid oauth state");
     }
+    if (!sameSecret(payload.nonce, browserBinding)) {
+      throw new UnauthorizedException(
+        "oauth state was not started in this browser",
+      );
+    }
     const exists = await this.redis.has(this.nonceKey(payload.nonce));
     if (!exists) {
       throw new UnauthorizedException("oauth state expired or already used");
@@ -109,7 +128,8 @@ export class CrmOAuthService {
       scope: payload.scope,
       provider: payload.provider,
       nonce: payload.nonce,
-      redirectFrontendUrl: payload.redirectFrontendUrl ?? undefined,
+      redirectFrontendUrl:
+        safeReturnUrl(payload.redirectFrontendUrl) ?? undefined,
     };
   }
 
@@ -117,12 +137,13 @@ export class CrmOAuthService {
     provider: CrmProviderType,
     code: string,
     stateRaw: string,
+    browserBinding: string | null,
   ): Promise<{
     connectionId: string;
     accountName: string | null;
     redirectFrontendUrl?: string;
   }> {
-    const state = await this.consumeState(stateRaw);
+    const state = await this.consumeState(stateRaw, browserBinding);
     if (state.provider !== provider) {
       throw new UnauthorizedException("oauth provider mismatch");
     }
@@ -170,10 +191,19 @@ export class CrmOAuthService {
   }
 
   private randomHex(bytes: number): string {
-    const arr = new Uint8Array(bytes);
-    for (let i = 0; i < bytes; i++) arr[i] = Math.floor(Math.random() * 256);
-    return Array.from(arr)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    return randomBytes(bytes).toString("hex");
   }
+}
+
+/** A return URL on one of Ringee's own frontends, else `null`. */
+function safeReturnUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !trustedFrontendOrigin(value)) return null;
+  return value;
+}
+
+function sameSecret(expected: string, actual: string | null): boolean {
+  if (!actual) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(actual);
+  return a.length === b.length && timingSafeEqual(a, b);
 }

@@ -114,6 +114,19 @@ export class OrganizationRepository {
     });
   }
 
+  /** Which of `userIds` are administrators of the organization. */
+  async listAdminUserIds(
+    organizationId: string,
+    userIds: string[],
+  ): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const rows = await this.prisma.organizationMembership.findMany({
+      where: { organizationId, userId: { in: userIds }, role: "org:admin" },
+      select: { userId: true },
+    });
+    return rows.flatMap((row) => (row.userId ? [row.userId] : []));
+  }
+
   /** True when the user has a resolved membership in the organization. */
   async isMember(userId: string, organizationId: string): Promise<boolean> {
     const count = await this.prisma.organizationMembership.count({

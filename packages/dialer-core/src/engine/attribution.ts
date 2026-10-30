@@ -7,7 +7,16 @@ export interface CallAttribution {
   callerId: string;
   userId: string;
   organizationId?: string;
+  /**
+   * The server-signed authorization the dial's pre-flight returned. When
+   * present it is what the server attributes the call by; the user and
+   * organization headers are only read from clients that do not send it.
+   */
+  dialToken?: string;
 }
+
+/** The SIP header carrying {@link CallAttribution.dialToken}. */
+export const DIAL_TOKEN_HEADER = "X-Ringee-Dial-Token";
 
 /**
  * Build the SIP custom headers that attribute a call to a user/org and present
@@ -17,7 +26,7 @@ export interface CallAttribution {
 export function buildCallHeaders(
   attribution: CallAttribution,
 ): { name: string; value: string }[] {
-  const { callerId, userId, organizationId } = attribution;
+  const { callerId, userId, organizationId, dialToken } = attribution;
   const sip = `sip:${callerId}@sip.telnyx.com`;
   return [
     { name: "From", value: sip },
@@ -27,5 +36,6 @@ export function buildCallHeaders(
     ...(organizationId
       ? [{ name: "X-Organization-Id", value: organizationId }]
       : []),
+    ...(dialToken ? [{ name: DIAL_TOKEN_HEADER, value: dialToken }] : []),
   ];
 }

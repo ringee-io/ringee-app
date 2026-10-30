@@ -18,7 +18,10 @@ import {
   OwnershipContext,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
-import { OrganizationService, UserService } from "@ringee/services";
+import {
+  PersonalApiKeyService,
+  type ResolvedPersonalApiKey,
+} from "@ringee/services";
 import type { Request, Response } from "express";
 import { McpService } from "../../mcp/mcp.service";
 import {
@@ -32,8 +35,7 @@ const GLOBAL_PREFIX = "/api";
 export class McpController {
   constructor(
     private readonly mcpService: McpService,
-    private readonly userService: UserService,
-    private readonly organizationService: OrganizationService,
+    private readonly apiKeys: PersonalApiKeyService,
   ) {}
 
   // ──────────────────────────────────────────────────────────────────────
@@ -59,12 +61,17 @@ export class McpController {
       sseEndpoint: `${endpoint}/sse`,
     };
 
+    // The old id-based URL is offered only while it still works.
+    const legacy = apiConfiguration.MCP_LEGACY_UUID_URLS;
+
     if (user.activeOrgId) {
       return {
         mode: "organization" as const,
         userId: user.id,
         organizationId: user.activeOrgId,
-        url: `${baseUrl}${GLOBAL_PREFIX}/mcp/${user.id}/${user.activeOrgId}/sse`,
+        url: legacy
+          ? `${baseUrl}${GLOBAL_PREFIX}/mcp/${user.id}/${user.activeOrgId}/sse`
+          : null,
         ...apiKeyEndpoints,
       };
     }
@@ -73,9 +80,91 @@ export class McpController {
       mode: "freelancer" as const,
       userId: user.id,
       organizationId: null,
-      url: `${baseUrl}${GLOBAL_PREFIX}/mcp/${user.id}/sse`,
+      url: legacy ? `${baseUrl}${GLOBAL_PREFIX}/mcp/${user.id}/sse` : null,
       ...apiKeyEndpoints,
     };
+  }
+
+  /**
+   * A connection URL for clients that can only be given a URL (claude.ai
+   * custom connectors, the Claude Code plugin). It carries a new personal API
+   * key — a secret, revocable like any other key — instead of the user and
+   * organization ids the old URLs exposed. Shown once.
+   */
+  @Post("connector-url")
+  async createConnectorUrl(@CurrentUser() user: CurrentUserData) {
+    if (!user) {
+      throw new HttpException("Unauthorized", 401);
+    }
+    const created = await this.apiKeys.create(user.id, "Connector URL");
+    const base = `${(apiConfiguration.BACKEND_URL || "").replace(/\/+$/, "")}${GLOBAL_PREFIX}/mcp/k/${created.key}`;
+    return {
+      keyId: created.id,
+      prefix: created.prefix,
+      /** SSE, what claude.ai connectors and the plugin's URL field take. */
+      url: `${base}/sse`,
+      /** Streamable HTTP, for clients that speak it. */
+      streamableUrl: base,
+    };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  Key-in-URL endpoint (connector URLs)
+  //  POST /api/mcp/k/:key              Streamable HTTP, stateless
+  //  GET  /api/mcp/k/:key/sse          SSE
+  //  POST /api/mcp/k/:key/messages
+  //
+  //  `@Public()` only to skip the Clerk guard: the personal API key in the
+  //  path is the proof, exactly as in the Authorization header. Declared
+  //  before the id-based routes, whose `:userId/:organizationId` pattern
+  //  would otherwise claim `k/<key>`.
+  // ──────────────────────────────────────────────────────────────────────
+
+  @Public()
+  @Post("k/:key")
+  async keyStreamable(
+    @Param("key") key: string,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: unknown,
+  ) {
+    const auth = await this.apiKeys.authenticate(key);
+    await this.mcpService.handleStreamableRequest(auth, req, res, body);
+  }
+
+  @Public()
+  @Get("k/:key/sse")
+  async keySse(@Param("key") key: string, @Res() res: Response) {
+    const auth = await this.apiKeys.authenticate(key);
+    await this.mcpService.openSseSession(
+      auth.ctx,
+      `${GLOBAL_PREFIX}/mcp/k/${key}/messages`,
+      res,
+      keyMeta(auth),
+    );
+  }
+
+  @Public()
+  @Post("k/:key/messages")
+  async keyMessages(
+    @Param("key") key: string,
+    @Query("sessionId") sessionId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: unknown,
+  ) {
+    if (!sessionId) {
+      throw new HttpException("Missing sessionId", 400);
+    }
+    const auth = await this.apiKeys.authenticate(key);
+    await this.mcpService.handlePostMessage(
+      auth.ctx,
+      sessionId,
+      req,
+      res,
+      body,
+      keyMeta(auth),
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -245,88 +334,30 @@ export class McpController {
   //  Context resolution
   // ──────────────────────────────────────────────────────────────────────
 
-  /**
-   * Single-segment endpoint: try the id as a userId first; if not a user,
-   * try it as an organizationId. Org-only mode resolves the userId from
-   * the first membership with a known user (or the org's createdBy).
-   *
-   * Throws 404 only when neither lookup succeeds.
-   */
-  private async resolveContextById(id: string): Promise<OwnershipContext> {
-    if (!isUuid(id)) {
-      throw new HttpException("Invalid MCP url", 400);
-    }
-
-    const user = await this.userService.getCachedUserById(id);
-
-    if (user) {
-      return { userId: user.id, organizationId: null };
-    }
-
-    const org = (await this.organizationService.getOrganizationById(id)) as
-      | (Awaited<ReturnType<OrganizationService["getOrganizationById"]>> & {
-          members?: { userId: string | null }[];
-          createdBy?: string | null;
-        })
-      | null;
-
-    if (!org) {
-      throw new HttpException("Invalid MCP url", 404);
-    }
-
-    const memberUserId =
-      org.members?.find((m) => m.userId)?.userId ?? org.createdBy ?? null;
-
-    if (!memberUserId) {
-      throw new HttpException(
-        "Organization has no user to act on behalf of",
-        400,
-      );
-    }
-
-    return { userId: memberUserId, organizationId: org.id };
+  /** Old routes remain only to explain migration; UUIDs never authenticate. */
+  private async resolveContextById(_id: string): Promise<OwnershipContext> {
+    return retiredConnector();
   }
 
-  /**
-   * Two-segment endpoint: require both the user and organization to exist
-   * and require the user to be a member of the organization.
-   */
   private async resolveOrgContext(
-    userId: string,
-    organizationId: string,
+    _userId: string,
+    _organizationId: string,
   ): Promise<OwnershipContext> {
-    if (!isUuid(userId) || !isUuid(organizationId)) {
-      throw new HttpException("Invalid MCP url", 400);
-    }
-
-    const [user, org] = await Promise.all([
-      this.userService.getCachedUserById(userId),
-      this.organizationService.getOrganizationById(organizationId),
-    ]);
-
-    if (!user) {
-      throw new HttpException("User not found", 404);
-    }
-    if (!org) {
-      throw new HttpException("Organization not found", 404);
-    }
-
-    const members = (
-      org as unknown as { members?: { userId: string | null }[] }
-    ).members;
-    const isMember = members?.some((m) => m.userId === user.id) ?? false;
-
-    if (!isMember) {
-      throw new HttpException("User is not a member of the organization", 403);
-    }
-
-    return { userId: user.id, organizationId: org.id };
+    return retiredConnector();
   }
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function retiredConnector(): never {
+  throw new HttpException(
+    "This Ringee connection URL was retired. Create a new one in Ringee → Integrations → Connectors, or use an API key.",
+    410,
+  );
+}
 
-function isUuid(value: string): boolean {
-  return UUID_RE.test(value);
+function keyMeta(auth: ResolvedPersonalApiKey) {
+  return {
+    authMethod: "api_key" as const,
+    apiKeyId: auth.apiKey.id,
+    apiKeySource: auth.apiKey.source,
+  };
 }

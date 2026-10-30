@@ -6,16 +6,42 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { CurrentUser, createOwnershipContext } from "@ringee/platform";
-import { OutboundAnalyticsService } from "@ringee/services";
+import { CampaignService, OutboundAnalyticsService } from "@ringee/services";
 
 interface CurrentUserData {
   id: string;
   activeOrgId?: string | null;
+  activeOrgRole?: string | null;
 }
 
 @Controller("campaigns/:campaignId/analytics")
 export class OutboundAnalyticsController {
-  constructor(private readonly analyticsService: OutboundAnalyticsService) {}
+  constructor(
+    private readonly analyticsService: OutboundAnalyticsService,
+    private readonly campaignService: CampaignService,
+  ) {}
+
+  /**
+   * The campaign must be one of the caller's organization's — and, for a
+   * member, one they are assigned to — before any of its numbers are read:
+   * the analytics queries themselves select by campaign id alone.
+   */
+  private async authorize(
+    user: CurrentUserData,
+    campaignId: string,
+  ): Promise<void> {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Organization required");
+    }
+    await this.campaignService.getCampaignById(
+      createOwnershipContext(user),
+      campaignId,
+      {
+        requireMembershipForUserId:
+          user.activeOrgRole === "org:admin" ? undefined : user.id,
+      },
+    );
+  }
 
   @Get("summary")
   async summary(
@@ -24,9 +50,7 @@ export class OutboundAnalyticsController {
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    await this.authorize(user, campaignId);
     return this.analyticsService.getCampaignSummary(
       campaignId,
       startDate ? new Date(startDate) : undefined,
@@ -41,9 +65,7 @@ export class OutboundAnalyticsController {
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    await this.authorize(user, campaignId);
     return this.analyticsService.getDispositionDistribution(
       campaignId,
       startDate ? new Date(startDate) : undefined,
@@ -58,9 +80,7 @@ export class OutboundAnalyticsController {
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    await this.authorize(user, campaignId);
     return this.analyticsService.getAgentPerformance(
       campaignId,
       startDate ? new Date(startDate) : undefined,
@@ -74,9 +94,7 @@ export class OutboundAnalyticsController {
     @CurrentUser() user: CurrentUserData,
     @Query("agentUserId") agentUserId?: string,
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    await this.authorize(user, campaignId);
     return this.analyticsService.getDispositionsByAgent(
       campaignId,
       agentUserId,
@@ -90,9 +108,7 @@ export class OutboundAnalyticsController {
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    await this.authorize(user, campaignId);
     return this.analyticsService.getHourlyCallVolume(
       campaignId,
       startDate ? new Date(startDate) : undefined,

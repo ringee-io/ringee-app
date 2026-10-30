@@ -19,7 +19,9 @@ import {
   OwnershipContext,
   generateCustomIntegrationApiKey,
   generateWebhookSigningSecret,
+  isPrivateHost,
 } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
 
 export interface CustomIntegrationSummary {
   id: string;
@@ -102,6 +104,12 @@ export class CustomIntegrationService {
         throw new BadRequestException(
           "outboundUrl must start with http:// or https://",
         );
+      }
+      // Ringee sends these requests from inside its own network, so the
+      // destination must be a public address (resolved names are checked
+      // again on every delivery).
+      if (trimmed && !outboundUrlIsPublic(trimmed)) {
+        throw new BadRequestException("outboundUrl must be a public address");
       }
     }
 
@@ -201,5 +209,14 @@ export class CustomIntegrationService {
     if (!integration.organizationId && integration.userId !== ctx.userId) {
       throw new ForbiddenException("Integration belongs to another workspace");
     }
+  }
+}
+
+function outboundUrlIsPublic(raw: string): boolean {
+  if (apiConfiguration.OUTBOUND_ALLOW_PRIVATE_NETWORK) return true;
+  try {
+    return !isPrivateHost(new URL(raw).hostname);
+  } catch {
+    return false;
   }
 }

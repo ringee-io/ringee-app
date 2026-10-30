@@ -30,6 +30,14 @@ export class RecordingService {
     return this.repository.findById(id);
   }
 
+  /** A recording of `callId`; another call's recording reads as missing. */
+  async getRecordingForCall(
+    callId: string,
+    id: string,
+  ): Promise<Recording | null> {
+    return this.repository.findForCall(callId, id);
+  }
+
   async findRecordingsByCallId(callId: string): Promise<Recording[]> {
     return this.repository.findByCallId(callId);
   }

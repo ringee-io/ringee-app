@@ -159,6 +159,19 @@ function openPop(anchor: HTMLElement, e164: string, name?: string) {
     .addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // Only the person can place a call. The card lives in the page's DOM, so
+      // the page could `click()` it from script or hide it under its own UI;
+      // a synthetic event, or a click on a card that is not visibly there, is
+      // not that person's approval.
+      if (
+        !e.isTrusted ||
+        !pop.checkVisibility({
+          opacityProperty: true,
+          visibilityProperty: true,
+        })
+      ) {
+        return;
+      }
       dial(e164, name);
       pop.classList.add("ringee-pop--calling");
       pop.querySelector(".ringee-pop__btn--call span")!.textContent =

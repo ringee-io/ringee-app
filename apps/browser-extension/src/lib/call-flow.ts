@@ -68,76 +68,29 @@ export function callEventSnapshotPatch(
  * (NEXT_PUBLIC_TELNYX_LOGIN / NEXT_PUBLIC_TELNYX_PASSWORD). Both must be present
  * to count as configured.
  */
-export function staticCredentials(): {
-  login: string;
-  password: string;
-} | null {
-  const login = import.meta.env.VITE_TELNYX_LOGIN?.trim();
-  const password = import.meta.env.VITE_TELNYX_PASSWORD?.trim();
-  return login && password ? { login, password } : null;
-}
-
-/** Optional static public caller ID from env (NEXT_PUBLIC_RINGEE_PUBLIC_CALLER_ID style). */
-export function staticCallerId(): string | undefined {
-  return import.meta.env.VITE_RINGEE_PUBLIC_CALLER_ID?.trim() || undefined;
-}
-
 /**
  * Translate a successful backend prepare-call into the START_CALL message the
- * offscreen engine consumes. Static env SIP credentials (web-app style) take
- * precedence over the minted per-call ones so the extension dials on the same
- * shared connection the web app does — but the caller ID is ALWAYS the
- * backend-resolved one: it already honors the user's "Call from" pick and the
- * rotation rules, and letting the static public caller ID win here would
- * silently override that pick on every call. The static caller ID is only used
- * on the no-backend path (see `buildStaticStartCall`).
+ * offscreen engine consumes. The extension dials only with the credential the
+ * backend minted for this call — it never ships a SIP password of its own —
+ * and with the backend-resolved caller ID, which already honors the user's
+ * "Call from" pick and the rotation rules.
  */
 export function buildStartCall(
   prepared: PrepareCallResponse,
   identity: { userId: string; orgId?: string },
 ): StartCallMsg {
-  const creds = staticCredentials();
   return {
     type: MessageType.StartCall,
-    sip: creds
-      ? { username: creds.login, password: creds.password }
-      : {
-          username: prepared.credential.sipUsername,
-          password: prepared.credential.sipPassword,
-        },
+    sip: {
+      username: prepared.credential.sipUsername,
+      password: prepared.credential.sipPassword,
+    },
     callerId: prepared.callerId,
     destination: prepared.destination,
     userId: identity.userId,
     organizationId: identity.orgId,
     callId: prepared.callId ?? undefined,
-  };
-}
-
-/**
- * Build START_CALL purely from static env credentials, bypassing the backend.
- * Used as a fallback when prepare-call is unavailable (backend down, no
- * server-resolved caller ID, credential minting failed) so the extension can
- * still dial with the shared web-app credentials. The user's "Call from" pick
- * (already limited to their own workspace numbers by the picker) still wins
- * over the static public caller ID. Returns null unless static SIP credentials
- * AND some caller ID (picked or static) are available.
- */
-export function buildStaticStartCall(
-  target: { destination: string },
-  identity: { userId: string; orgId?: string },
-  preferredCallerId?: string,
-): StartCallMsg | null {
-  const creds = staticCredentials();
-  const callerId = preferredCallerId || staticCallerId();
-  if (!creds || !callerId) return null;
-  return {
-    type: MessageType.StartCall,
-    sip: { username: creds.login, password: creds.password },
-    callerId,
-    destination: target.destination,
-    userId: identity.userId,
-    organizationId: identity.orgId,
-    callId: undefined,
+    dialToken: prepared.dialToken,
   };
 }
 

@@ -358,9 +358,17 @@ export class CreditService {
     // Keep the status column consistent with the enabled flag. Toggling OFF
     // disables; editing an enabled reload re-arms it to `active` (also clears a
     // previous `failed` / `requires_payment_method` state on an explicit edit).
-    const patch: Parameters<CreditAutoReloadRepository["upsertSettings"]>[1] = {
-      ...data,
-    };
+    // Only these three fields: the request body is not whitelisted, and the
+    // row also holds the billing selectors (`stripeSubscriptionId`, the last
+    // charged intent) that the webhook trusts.
+    const patch: Parameters<CreditAutoReloadRepository["upsertSettings"]>[1] =
+      {};
+    if (data.autoReloadEnabled !== undefined)
+      patch.autoReloadEnabled = data.autoReloadEnabled;
+    if (data.autoReloadThreshold !== undefined)
+      patch.autoReloadThreshold = data.autoReloadThreshold;
+    if (data.autoReloadAmount !== undefined)
+      patch.autoReloadAmount = data.autoReloadAmount;
     if (data.autoReloadEnabled === false) {
       patch.autoReloadStatus = "disabled";
     } else if (

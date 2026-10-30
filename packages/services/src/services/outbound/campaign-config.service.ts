@@ -64,6 +64,41 @@ export interface UpdateCampaignSettingsDto {
   retryDelayMin?: number;
 }
 
+type CampaignSettings = Parameters<CampaignRepository["update"]>[1];
+
+/**
+ * The campaign columns a settings request may write. Request bodies are not
+ * whitelisted by validation, so anything else one carries — a nested relation
+ * write into the organization's credit, say — is dropped here instead of
+ * being handed to Prisma.
+ */
+const CAMPAIGN_SETTINGS_FIELDS = [
+  "dialerMode",
+  "callerIdId",
+  "numberPurchasedId",
+  "externalNumberId",
+  "rotationNumberIds",
+  "maxAttempts",
+  "timezone",
+  "workStartMin",
+  "workEndMin",
+  "workDays",
+  "wrapUpTimeSec",
+  "retryDelayMin",
+] as const satisfies readonly (keyof CampaignSettings)[];
+
+function pickCampaignSettings(
+  dto: object,
+  fields: readonly (keyof CampaignSettings)[],
+): CampaignSettings {
+  const source = dto as Record<string, unknown>;
+  const settings: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (source[field] !== undefined) settings[field] = source[field];
+  }
+  return settings as CampaignSettings;
+}
+
 @Injectable()
 export class CampaignConfigService {
   constructor(
@@ -175,13 +210,10 @@ export class CampaignConfigService {
       dto.wrapUpTimeSec !== undefined ||
       dto.retryDelayMin !== undefined
     ) {
-      const {
-        name: _n,
-        description: _d,
-        dispositionIds: _dispositions,
-        ...settings
-      } = dto;
-      await this.campaignRepo.update(campaign.id, settings);
+      await this.campaignRepo.update(
+        campaign.id,
+        pickCampaignSettings(dto, CAMPAIGN_SETTINGS_FIELDS),
+      );
     }
 
     // A campaign no longer gets its own copy of every disposition: with no
@@ -236,7 +268,14 @@ export class CampaignConfigService {
       }
     }
 
-    return this.campaignRepo.update(campaignId, dto);
+    return this.campaignRepo.update(
+      campaignId,
+      pickCampaignSettings(dto, [
+        "name",
+        "description",
+        ...CAMPAIGN_SETTINGS_FIELDS,
+      ]),
+    );
   }
 
   /**
@@ -336,7 +375,12 @@ export class CampaignConfigService {
   ) {
     this.ensureOrganization(ctx);
     await this.getCampaignWithAuth(ctx, campaignId);
-    return this.campaignListRepo.create({ campaignId, ...data });
+    return this.campaignListRepo.create({
+      name: data.name,
+      description: data.description,
+      source: data.source,
+      campaignId,
+    });
   }
 
   async listLists(ctx: OwnershipContext, campaignId: string) {
@@ -348,6 +392,10 @@ export class CampaignConfigService {
   async deleteList(ctx: OwnershipContext, campaignId: string, listId: string) {
     this.ensureOrganization(ctx);
     await this.getCampaignWithAuth(ctx, campaignId);
+    const list = await this.campaignListRepo.findById(listId);
+    if (!list || list.campaignId !== campaignId) {
+      throw new NotFoundException("List not found");
+    }
     return this.campaignListRepo.delete(listId);
   }
 }

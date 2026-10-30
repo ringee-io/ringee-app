@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
 } from "@nestjs/common";
 import { CrmProviderType, CrmSyncStatus } from "@ringee/database";
@@ -35,7 +36,28 @@ import {
   Public,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
-import type { Response } from "express";
+import type { Request, Response } from "express";
+
+/**
+ * Holds the CRM OAuth state's browser binding (see
+ * `CrmOAuthService.createAuthorizationUrl`): set on the response that starts
+ * the round-trip, required by the provider's callback.
+ */
+const CRM_OAUTH_COOKIE = "ringee_crm_oauth";
+const CRM_OAUTH_COOKIE_TTL_MS = 10 * 60 * 1000;
+
+function readCookie(req: Request, name: string): string | null {
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1 || part.slice(0, eq).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 function frontendUrl(): string {
   return (
@@ -109,6 +131,7 @@ export class CrmController {
     @Query("scope") scope: "personal" | "organization" | undefined,
     @Query("redirect") redirect: string | undefined,
     @CurrentUser() user: CurrentUserData,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<{ url: string }> {
     const validProviders: CrmProviderType[] = [
       "attio",
@@ -121,10 +144,20 @@ export class CrmController {
       );
     }
     const ctx = createOwnershipContext(user);
-    const url = await this.oauth.createAuthorizationUrl(ctx, {
-      provider: provider as CrmProviderType,
-      scope,
-      redirectFrontendUrl: redirect,
+    const { url, browserBinding } = await this.oauth.createAuthorizationUrl(
+      ctx,
+      {
+        provider: provider as CrmProviderType,
+        scope,
+        redirectFrontendUrl: redirect,
+      },
+    );
+    res.cookie(CRM_OAUTH_COOKIE, browserBinding, {
+      httpOnly: true,
+      secure: (apiConfiguration.BACKEND_URL ?? "").startsWith("https://"),
+      sameSite: "lax",
+      path: "/",
+      maxAge: CRM_OAUTH_COOKIE_TTL_MS,
     });
     return { url };
   }
@@ -226,20 +259,24 @@ export class CrmController {
     @Query("code") code: string,
     @Query("state") state: string,
     @Query("error") providerError: string | undefined,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const base = frontendUrl().replace(/\/$/, "");
+    const browserBinding = readCookie(req, CRM_OAUTH_COOKIE);
+    res.clearCookie(CRM_OAUTH_COOKIE, { path: "/" });
+    const providerParam = encodeURIComponent(provider);
 
     if (providerError) {
       return res.redirect(
-        `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=${encodeURIComponent(
+        `${base}/dashboard/settings/integrations?crm=error&provider=${providerParam}&reason=${encodeURIComponent(
           providerError,
         )}`,
       );
     }
     if (!code || !state) {
       return res.redirect(
-        `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=missing_code`,
+        `${base}/dashboard/settings/integrations?crm=error&provider=${providerParam}&reason=missing_code`,
       );
     }
     try {
@@ -247,6 +284,7 @@ export class CrmController {
         provider as CrmProviderType,
         code,
         state,
+        browserBinding,
       );
 
       await this.triggerInitialBulkSync(result.connectionId);
@@ -256,13 +294,13 @@ export class CrmController {
         : `${base}/dashboard/settings/integrations`;
       const sep = target.includes("?") ? "&" : "?";
       return res.redirect(
-        `${target}${sep}crm=connected&provider=${provider}&connectionId=${result.connectionId}`,
+        `${target}${sep}crm=connected&provider=${providerParam}&connectionId=${result.connectionId}`,
       );
     } catch (err) {
       const reason = err instanceof Error ? err.message : "oauth_failed";
 
       return res.redirect(
-        `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=${encodeURIComponent(
+        `${base}/dashboard/settings/integrations?crm=error&provider=${providerParam}&reason=${encodeURIComponent(
           reason,
         )}`,
       );
@@ -298,8 +336,11 @@ export class CrmController {
   }
 
   @Post("syncs/:id/retry")
-  async retrySync(@Param("id") id: string) {
-    await this.callLog.manualRetry(id);
+  async retrySync(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    await this.callLog.manualRetry(createOwnershipContext(user), id);
     return { ok: true };
   }
 
@@ -313,11 +354,13 @@ export class CrmController {
       externalId: string;
       externalType: "person" | "company";
     },
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!body.externalId || !body.externalType) {
       throw new BadRequestException("externalId and externalType required");
     }
     await this.matching.resolveAmbiguousMatch(
+      createOwnershipContext(user),
       id,
       body.externalId,
       body.externalType,

@@ -50,6 +50,8 @@ export interface StartCallMsg {
   organizationId?: string;
   /** Backend-created call id, when prepare-call returned one. */
   callId?: string;
+  /** The signed dial authorization prepare-call issued for this leg. */
+  dialToken?: string;
 }
 
 /** side panel → background → offscreen : in-call controls. */

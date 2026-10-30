@@ -28,6 +28,13 @@ export class RecordingRepository {
     });
   }
 
+  /** The recording, only when it is one of `callId`'s. */
+  async findForCall(callId: string, id: string): Promise<Recording | null> {
+    return this.prisma.recording.findFirst({
+      where: { id, callId },
+    });
+  }
+
   async findByCallId(callId: string): Promise<Recording[]> {
     return this.prisma.recording.findMany({
       where: { callId },

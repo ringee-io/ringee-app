@@ -20,7 +20,10 @@ export type SdkKeyPurpose =
   | "agent_session"
   | "call_correlation"
   | "carrier_route"
-  | "carrier_uac";
+  | "carrier_uac"
+  | "dial_authorization"
+  | "sse_ticket"
+  | "media_stream";
 
 const SALTS: Record<SdkKeyPurpose, string> = {
   publishable_key: "ringee_sdk_pk_v1",
@@ -32,6 +35,15 @@ const SALTS: Record<SdkKeyPurpose, string> = {
   // Not an SDK token either: the provider-side (internal) credentials of an
   // external carrier connection, derived so they never need to be stored.
   carrier_uac: "ringee_carrier_uac_v1",
+  // Not an SDK token: the authorization a dialer's pre-flight hands the
+  // browser, which its WebRTC leg carries back to name who is paying.
+  dial_authorization: "ringee_dial_authorization_v1",
+  // Not an SDK token: the short-lived ticket an EventSource opens a stream
+  // with, since it cannot send an Authorization header.
+  sse_ticket: "ringee_sse_ticket_v1",
+  // Not an SDK token: proves a media-stream connection is the one Ringee asked
+  // the carrier to open for a call's realtime transcription.
+  media_stream: "ringee_media_stream_v1",
 };
 
 function baseSecret(): string {

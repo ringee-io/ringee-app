@@ -96,7 +96,13 @@ export class DNCController {
   }
 
   @Delete(":id")
-  async removeFromDNC(@Param("id") id: string) {
-    return this.complianceService.deleteDNCById(id);
+  async removeFromDNC(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.complianceService.deleteDNCById(
+      createOwnershipContext(user),
+      id,
+    );
   }
 }

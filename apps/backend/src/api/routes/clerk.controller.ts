@@ -172,6 +172,19 @@ export class ClerkController {
           break;
         }
 
+        case "organizationMembership.updated": {
+          // A role change (admin ↔ member). Every server-side admin check
+          // reads the stored role, so a demotion must land here or it would
+          // keep its admin powers.
+          const membership = evt.data as any;
+          await this.organizationService.addMembership(
+            membership.organization.id,
+            membership.public_user_data.user_id,
+            membership.role,
+          );
+          break;
+        }
+
         case "organizationMembership.deleted": {
           const membership = evt.data as any;
           await this.organizationService.removeMembership(

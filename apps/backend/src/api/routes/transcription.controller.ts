@@ -1,12 +1,17 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { IsEnum } from "class-validator";
-import { CurrentUser, createOwnershipContext } from "@ringee/platform";
+import {
+  CurrentUser,
+  createOwnershipContext,
+  resolveMemberFilter,
+} from "@ringee/platform";
 import { CallTranscription, TranscriptionSource } from "@ringee/database";
 import { CallTranscriptionView, TranscriptionService } from "@ringee/services";
 
 interface CurrentUserData {
   id: string;
   activeOrgId?: string | null;
+  activeOrgRole?: string | null;
 }
 
 class RetryDto {
@@ -33,7 +38,10 @@ export class TranscriptionController {
     @CurrentUser() user: CurrentUserData,
     @Param("callId") callId: string,
   ): Promise<CallTranscriptionView> {
-    const ctx = createOwnershipContext(user);
+    const ctx = {
+      ...createOwnershipContext(user),
+      memberUserId: resolveMemberFilter(user),
+    };
     return this.transcriptionService.getForCall(ctx, callId);
   }
 
@@ -43,7 +51,10 @@ export class TranscriptionController {
     @CurrentUser() user: CurrentUserData,
     @Param("callId") callId: string,
   ): Promise<CallTranscription> {
-    const ctx = createOwnershipContext(user);
+    const ctx = {
+      ...createOwnershipContext(user),
+      memberUserId: resolveMemberFilter(user),
+    };
     return this.transcriptionService.startRealtime(ctx, callId);
   }
 
@@ -53,7 +64,10 @@ export class TranscriptionController {
     @CurrentUser() user: CurrentUserData,
     @Param("callId") callId: string,
   ): Promise<{ ok: true }> {
-    const ctx = createOwnershipContext(user);
+    const ctx = {
+      ...createOwnershipContext(user),
+      memberUserId: resolveMemberFilter(user),
+    };
     await this.transcriptionService.stopRealtime(ctx, callId);
     return { ok: true };
   }
@@ -67,7 +81,10 @@ export class TranscriptionController {
     @CurrentUser() user: CurrentUserData,
     @Param("callId") callId: string,
   ): Promise<CallTranscription> {
-    const ctx = createOwnershipContext(user);
+    const ctx = {
+      ...createOwnershipContext(user),
+      memberUserId: resolveMemberFilter(user),
+    };
     return this.transcriptionService.transcribeRecording(ctx, callId);
   }
 
@@ -78,7 +95,10 @@ export class TranscriptionController {
     @Param("callId") callId: string,
     @Body() dto: RetryDto,
   ): Promise<CallTranscription> {
-    const ctx = createOwnershipContext(user);
+    const ctx = {
+      ...createOwnershipContext(user),
+      memberUserId: resolveMemberFilter(user),
+    };
     return this.transcriptionService.retry(ctx, callId, dto.source);
   }
 }

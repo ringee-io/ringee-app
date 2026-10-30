@@ -278,6 +278,16 @@ export class McpFunc {
     );
   }
 
+  /**
+   * The member a call-history read is limited to: an organization member sees
+   * only their own calls, exactly like resolveMemberFilter does over HTTP.
+   */
+  private async callHistoryUserId(
+    ctx: OwnershipContext,
+  ): Promise<string | undefined> {
+    return (await this.isOrgAdmin(ctx)) ? undefined : ctx.userId;
+  }
+
   private async assertOrgAdmin(ctx: OwnershipContext): Promise<void> {
     if (!(await this.isOrgAdmin(ctx))) {
       throw new ForbiddenException(
@@ -599,8 +609,9 @@ export class McpFunc {
       openWorldHint: false,
     },
   })
-  async getContact(_ctx: OwnershipContext, input: GetContactInput) {
+  async getContact(ctx: OwnershipContext, input: GetContactInput) {
     const contact = await this.contactService.getContactActivities(
+      ctx,
       input.contactId,
     );
     return text(contact);
@@ -698,6 +709,7 @@ export class McpFunc {
   async listCalls(ctx: OwnershipContext, input: ListCallsInput) {
     const { data, total, page, totalPages } =
       await this.callService.listByOwnerPaginated(ctx, {
+        userId: await this.callHistoryUserId(ctx),
         page: input.page ?? 1,
         limit: input.limit ?? 10,
         contactId: input.contactId,
@@ -1169,24 +1181,31 @@ export class McpFunc {
     },
   })
   async updateContact(ctx: OwnershipContext, input: UpdateContactInput) {
-    const existing = await this.contactService.getContactById(input.contactId);
+    const existing = await this.contactService.getContactById(
+      ctx,
+      input.contactId,
+    );
     this.assertContactOwnership(ctx, existing);
 
-    const updated = await this.contactService.updateContact(input.contactId, {
-      name: input.name,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      phoneNumber: input.phoneNumber as string,
-      email: input.email,
-      jobTitle: input.jobTitle,
-      state: input.state,
-      website: input.website,
-      revenue: input.revenue,
-      companySize: input.companySize,
-      organization: input.organization,
-      source: input.source,
-      tagIds: input.tagIds,
-    });
+    const updated = await this.contactService.updateContact(
+      ctx,
+      input.contactId,
+      {
+        name: input.name,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        phoneNumber: input.phoneNumber as string,
+        email: input.email,
+        jobTitle: input.jobTitle,
+        state: input.state,
+        website: input.website,
+        revenue: input.revenue,
+        companySize: input.companySize,
+        organization: input.organization,
+        source: input.source,
+        tagIds: input.tagIds,
+      },
+    );
 
     return text({
       ok: true,
@@ -1213,7 +1232,10 @@ export class McpFunc {
     },
   })
   async deleteContact(ctx: OwnershipContext, input: DeleteContactInput) {
-    const existing = await this.contactService.getContactById(input.contactId);
+    const existing = await this.contactService.getContactById(
+      ctx,
+      input.contactId,
+    );
     this.assertContactOwnership(ctx, existing);
 
     if (input.confirm !== true) {
@@ -1233,7 +1255,10 @@ export class McpFunc {
       });
     }
 
-    const deleted = await this.contactService.deleteContact(input.contactId);
+    const deleted = await this.contactService.deleteContact(
+      ctx,
+      input.contactId,
+    );
 
     return text({
       ok: true,
@@ -1551,6 +1576,7 @@ export class McpFunc {
     input: ListCampaignLeadsInput,
   ) {
     this.assertOrganization(ctx);
+    const isAdmin = await this.isOrgAdmin(ctx);
 
     const { data, meta } = await this.campaignService.getLeads(
       ctx,
@@ -1559,6 +1585,7 @@ export class McpFunc {
         page: input.page ?? 1,
         limit: input.limit ?? 10,
         status: input.status,
+        requireMembershipForUserId: isAdmin ? undefined : ctx.userId,
       },
     );
 
@@ -1841,8 +1868,10 @@ export class McpFunc {
     const includeCallbacks = input.includeCallbacks ?? true;
     const includeMeetings = input.includeMeetings ?? true;
 
+    const callUserId = await this.callHistoryUserId(ctx);
     const [calls, callbacks, meetings] = await Promise.all([
       this.callService.listByOwnerPaginated(ctx, {
+        userId: callUserId,
         page: 1,
         limit,
         dateFrom: start.toISOString(),
