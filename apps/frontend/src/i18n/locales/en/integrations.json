@@ -363,14 +363,19 @@
       "hint": "Each login creates a key named “CLI · your-computer” in the list above, so you can revoke a terminal at any time."
     },
     "legacy": {
-      "toggle": "Legacy connection URL (no API key)",
-      "description": "For clients that cannot send headers. The URL itself is the credential and cannot be revoked, so prefer an API key wherever you can.",
+      "toggle": "Connection URL for apps that can't send an API key",
+      "description": "claude.ai connectors and the Claude Code plugin only take a URL. Create one here: it carries a secret key you can revoke from your API keys at any time.",
       "scopeOrganization": "This URL gives access to the active organization.",
       "scopeFreelancer": "This URL gives access to your personal workspace.",
       "modeOrganization": "Organization",
       "modeFreelancer": "Personal",
       "warningTitle": "Treat this URL as a secret",
-      "warningDescription": "Anyone with this URL can read and act on your Ringee data. If it leaks, contact support."
+      "warningDescription": "Anyone with this URL can read and act on your Ringee data. If it leaks, revoke its key in API keys.",
+      "create": "Create connection URL",
+      "creating": "Creating…",
+      "createdHint": "Copy it now — it is shown only once. It works until you revoke the key {prefix}… in API keys.",
+      "createError": "Could not create the connection URL.",
+      "oldUrlLabel": "Your previous URL, built from your account ids. It stops working when Ringee retires these URLs — replace it with a new one."
     }
   },
   "crm": {

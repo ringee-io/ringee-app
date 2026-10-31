@@ -1,10 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   RetryRuleRepository,
   CampaignLeadRepository,
   CampaignLeadStatus,
   DispositionCategory,
 } from "@ringee/database";
+import { OwnershipContext } from "@ringee/platform";
+import { CampaignService } from "../campaign.service";
 
 @Injectable()
 export class RetryEngine {
@@ -16,6 +18,7 @@ export class RetryEngine {
   constructor(
     private readonly retryRuleRepo: RetryRuleRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
+    private readonly campaigns: CampaignService,
   ) {}
 
   /**
@@ -78,21 +81,41 @@ export class RetryEngine {
     return this.campaignLeadRepo.requeueStaleLocked(RetryEngine.STALE_LOCK_MS);
   }
 
-  async listRules(campaignId: string) {
+  /** The campaign's rules, once the caller may read the campaign. */
+  async listRules(
+    ctx: OwnershipContext,
+    campaignId: string,
+    options?: { requireMembershipForUserId?: string },
+  ) {
+    await this.campaigns.getCampaignById(ctx, campaignId, options);
     return this.retryRuleRepo.findByCampaign(campaignId);
   }
 
-  async upsertRule(data: {
-    campaignId: string;
-    dispositionCategory: DispositionCategory;
-    maxAttempts: number;
-    delayMinutes: number;
-    delayMultiplier?: number;
-  }) {
-    return this.retryRuleRepo.upsert(data);
+  async upsertRule(
+    ctx: OwnershipContext,
+    campaignId: string,
+    data: {
+      dispositionCategory: DispositionCategory;
+      maxAttempts: number;
+      delayMinutes: number;
+      delayMultiplier?: number;
+    },
+  ) {
+    await this.campaigns.getCampaignById(ctx, campaignId);
+    return this.retryRuleRepo.upsert({
+      campaignId,
+      dispositionCategory: data.dispositionCategory,
+      maxAttempts: data.maxAttempts,
+      delayMinutes: data.delayMinutes,
+      delayMultiplier: data.delayMultiplier,
+    });
   }
 
-  async deleteRule(id: string) {
-    return this.retryRuleRepo.delete(id);
+  /** Deletes one of the campaign's rules; another campaign's reads as missing. */
+  async deleteRule(ctx: OwnershipContext, campaignId: string, id: string) {
+    await this.campaigns.getCampaignById(ctx, campaignId);
+    const rule = await this.retryRuleRepo.findForCampaign(campaignId, id);
+    if (!rule) throw new NotFoundException("Retry rule not found");
+    return this.retryRuleRepo.delete(rule.id);
   }
 }

@@ -10,6 +10,7 @@ import { IsIn, IsOptional } from "class-validator";
 import { normalizePhoneE164 } from "../crm/phone";
 import {
   ALL_CSV_FIELDS,
+  CSV_IMPORT_CONFIG,
   type CsvContactInput,
   type CsvFieldName,
   isValidCsvEmail,
@@ -134,6 +135,12 @@ export function readCsvHeader(
   headers: string[],
   format: CsvImportFormat,
 ): CsvHeaderReading {
+  if (headers.length > CSV_IMPORT_CONFIG.MAX_COLUMNS) {
+    return {
+      ok: false,
+      message: `The file has ${headers.length} columns; at most ${CSV_IMPORT_CONFIG.MAX_COLUMNS} are read.`,
+    };
+  }
   const columns = new Map<string, number>();
   headers.forEach((header, index) => columns.set(headerKey(header), index));
 
@@ -210,14 +217,20 @@ function additionalColumns(
   used: Set<number>,
 ): Record<string, string> | undefined {
   const labels = new Set<string>();
+  // Where each label's numbering continues, so a file that repeats one header
+  // thousands of times is numbered in one pass, not by recounting from 2.
+  const nextSuffix = new Map<string, number>();
   const entries = headers.flatMap((header, index) => {
     const sourceLabel = header.trim();
     const value = cell(values, index);
     if (used.has(index) || !sourceLabel || !value) return [];
     let label = sourceLabel;
-    for (let suffix = 2; labels.has(label); suffix++) {
+    let suffix = nextSuffix.get(sourceLabel) ?? 2;
+    while (labels.has(label)) {
       label = `${sourceLabel} (${suffix})`;
+      suffix++;
     }
+    nextSuffix.set(sourceLabel, suffix);
     labels.add(label);
     return [[label, value]];
   });

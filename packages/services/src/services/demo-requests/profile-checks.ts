@@ -9,6 +9,7 @@ import { getDomain } from "tldts";
 import {
   fetchPublicPage,
   htmlToText,
+  readPageText,
   requirePublicUrl,
 } from "../voice-agents/public-url";
 
@@ -145,8 +146,6 @@ const SOCIAL_PROFILE_DOMAINS = [
 
 const MX_TIMEOUT_MS = 5_000;
 const PAGE_TIMEOUT_MS = 10_000;
-/** A page larger than this is cut; the review reads its beginning only. */
-const MAX_PAGE_BYTES = 1_000_000;
 const MAX_PAGE_TEXT_CHARACTERS = 6_000;
 const USER_AGENT =
   "Mozilla/5.0 (compatible; RingeeBot/1.0; +https://www.ringee.io)";
@@ -400,10 +399,9 @@ export const liveProfileProbes: ProfileProbes = {
       });
       if (!response) return nothing;
 
+      // A page larger than the budget is cut; the review reads its beginning.
       const html =
-        response.ok && isHtml(response)
-          ? await readCapped(response, MAX_PAGE_BYTES)
-          : null;
+        response.ok && isHtml(response) ? await readPageText(response) : null;
       return {
         status: response.status,
         finalUrl: response.url || url.href,
@@ -422,26 +420,6 @@ export const liveProfileProbes: ProfileProbes = {
 function isHtml(response: Response): boolean {
   const type = response.headers.get("content-type");
   return !type || /html|xml/i.test(type);
-}
-
-/** The page is the requester's to choose, so it is never read whole. */
-async function readCapped(
-  response: Response,
-  maxBytes: number,
-): Promise<string> {
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let text = "";
-  let size = 0;
-  while (size < maxBytes) {
-    const { done, value } = await reader.read();
-    if (done || !value) break;
-    size += value.byteLength;
-    text += decoder.decode(value, { stream: true });
-  }
-  await reader.cancel().catch(() => undefined);
-  return text;
 }
 
 function pageTitle(html: string): string | null {

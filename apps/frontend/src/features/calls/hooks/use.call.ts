@@ -188,6 +188,9 @@ export function useCall(call?: Call | null) {
     // when it's on, the backend rotates to the best country-matched number.
     let callerId = selectedNumber?.phoneNumber ?? null;
     let carrierCallId: string | null = null;
+    // The server's signed authorization for this one leg; the call is billed
+    // to whoever it names, not to the headers this browser adds.
+    let dialToken: string | undefined;
     try {
       const res = await api.post<{
         phoneNumber: string | null;
@@ -195,6 +198,7 @@ export function useCall(call?: Call | null) {
         destinationUri?: string;
         callToken?: string;
         callId?: string;
+        dialToken?: string;
       }>('/caller-id-rotation/resolve', {
         destination: number,
         ...(external ? { source: 'external_carrier' } : {}),
@@ -205,6 +209,7 @@ export function useCall(call?: Call | null) {
             : null
       });
       callerId = res?.phoneNumber ?? null;
+      dialToken = res?.dialToken;
       if (external) {
         if (!res?.destinationUri || !res.callToken) {
           toast.error(t('externalCarrier.unavailable'));
@@ -269,6 +274,7 @@ export function useCall(call?: Call | null) {
         carrierRoute,
         userId: userId!,
         organizationId: orgId ?? undefined,
+        dialToken,
         debug: process.env.NODE_ENV === 'development'
       });
     } catch (err) {

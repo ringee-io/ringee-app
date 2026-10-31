@@ -198,16 +198,18 @@ export class EnrichmentController {
   }
 
   @Get("jobs/:id")
-  async getJob(@Param("id") id: string) {
-    return this.enrichment.getJob(id);
+  async getJob(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
+    return this.enrichment.getJob(createOwnershipContext(user), id);
   }
 
   @Get("contacts/:id/jobs")
   async listContactJobs(
     @Param("id") contactId: string,
+    @CurrentUser() user: CurrentUserData,
     @Query("limit") limit?: string,
   ) {
     return this.enrichment.listJobsForContact(
+      createOwnershipContext(user),
       contactId,
       limit ? Number(limit) : undefined,
     );

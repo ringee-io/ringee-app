@@ -1,5 +1,16 @@
 import { Logger } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import { CrmError } from "../../errors";
+import {
+  ResponseTooLargeError,
+  requestPublic,
+} from "../../../net/public-network";
+
+/**
+ * The largest decoded Odoo reply read. A tenant chooses the server, so a reply
+ * is not trusted to be small — a compressed one could expand without bound.
+ */
+export const ODOO_MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
 import { classifyOdooError } from "./odoo.errors";
 import type { OdooCredentialPayload } from "./odoo.types";
 
@@ -119,8 +130,6 @@ export class OdooRpcClient {
     baseUrl: string,
     params: { service: string; method: string; args: unknown[] },
   ): Promise<T> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const payload = {
       jsonrpc: "2.0",
       method: "call",
@@ -130,7 +139,9 @@ export class OdooRpcClient {
 
     let res: Response;
     try {
-      res = await fetch(`${baseUrl}/jsonrpc`, {
+      // The customer's server, so the request goes through Ringee's network
+      // policy: no private addresses, no redirects, a bounded body.
+      res = await requestPublic(new URL(`${baseUrl}/jsonrpc`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,12 +149,13 @@ export class OdooRpcClient {
           "User-Agent": "ringee/1.0 odoo-rpc",
         },
         body: JSON.stringify(payload),
-        signal: controller.signal,
+        timeoutMs: this.timeoutMs,
+        maxBodyBytes: ODOO_MAX_RESPONSE_BYTES,
+        allowPrivateNetwork: apiConfiguration.OUTBOUND_ALLOW_PRIVATE_NETWORK,
       });
     } catch (err: unknown) {
-      clearTimeout(timer);
       const name = (err as { name?: string }).name;
-      if (name === "AbortError") {
+      if (name === "AbortError" || name === "TimeoutError") {
         throw new CrmError(
           "TRANSIENT",
           true,
@@ -153,13 +165,20 @@ export class OdooRpcClient {
       const msg = err instanceof Error ? err.message : String(err);
       throw new CrmError("TRANSIENT", true, `odoo network error: ${msg}`);
     }
-    clearTimeout(timer);
 
     let body: unknown = undefined;
     try {
-      body = await res.json();
-    } catch {
-      body = await res.text().catch(() => undefined);
+      const text = await res.text();
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+    } catch (err) {
+      if (err instanceof ResponseTooLargeError) {
+        throw new CrmError("TRANSIENT", false, `odoo ${err.message}`);
+      }
+      body = undefined;
     }
 
     if (!res.ok) throw classifyOdooError(res.status, body);

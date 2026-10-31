@@ -70,6 +70,23 @@ function ChartContainer({
   );
 }
 
+/**
+ * A config key as a CSS identifier. Keys can come from data (a campaign's
+ * disposition codes), so any character that could end the declaration or the
+ * rule is escaped; the property still matches `var(--color-<key>)`.
+ */
+function cssIdent(value: string): string {
+  return value.replace(
+    /[^a-zA-Z0-9_-]/gu,
+    (ch) => `\\${ch.codePointAt(0)!.toString(16)} `,
+  );
+}
+
+/** A color value that cannot break out of its declaration, else `null`. */
+function cssColor(value: string): string | null {
+  return /^[#a-zA-Z0-9(),.%\s/+-]+$/.test(value) ? value : null;
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color,
@@ -88,10 +105,11 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([configKey, itemConfig]) => {
-    const color =
+    const raw =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color;
-    return color ? `  --color-${configKey}: ${color};` : null;
+    const color = raw ? cssColor(raw) : null;
+    return color ? `  --color-${cssIdent(configKey)}: ${color};` : null;
   })
   .join("\n")}
 }

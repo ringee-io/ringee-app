@@ -95,6 +95,11 @@ export class OrganizationService {
     return this.organizationRepository.updateCustomerId(id, customerId);
   }
 
+  /** Whether the user currently belongs to the organization. */
+  async isMember(userId: string, organizationId: string): Promise<boolean> {
+    return this.organizationRepository.isMember(userId, organizationId);
+  }
+
   /** Organizations the user can switch into (resolved memberships only). */
   async listMembershipsForUser(
     userId: string,

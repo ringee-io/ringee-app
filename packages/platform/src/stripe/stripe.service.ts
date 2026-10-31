@@ -1,6 +1,12 @@
 import Stripe from "stripe";
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
+import { trustedFrontendOrigin } from "../auth/frontend-origin";
 
 const stripe = new Stripe(apiConfiguration.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -10,6 +16,31 @@ const stripe = new Stripe(apiConfiguration.STRIPE_SECRET_KEY!, {
 export class StripeService {
   private readonly logger = new Logger(StripeService.name);
   private billingPortalConfigurationId?: Promise<string>;
+
+  /** Invoice-finalized metadata and subtotal are immutable billing evidence. */
+  getMonthlyCreditInvoiceFunding(invoice: Stripe.Invoice): {
+    userId: string;
+    organizationId: string | null;
+    amountUsd: number;
+  } {
+    const snapshot = invoice.parent?.subscription_details?.metadata;
+    if (
+      snapshot?.fn !== "creditSubscription" ||
+      !snapshot.userId ||
+      invoice.currency !== "usd" ||
+      !Number.isSafeInteger(invoice.subtotal) ||
+      invoice.subtotal < 0
+    ) {
+      throw new BadRequestException("Invalid monthly credit invoice snapshot");
+    }
+    return {
+      userId: snapshot.userId,
+      organizationId: snapshot.organizationId || null,
+      // Face value before discounts and tax, including the invoice's own
+      // prorations. Never cap this with a mutable subscription's current price.
+      amountUsd: invoice.subtotal / 100,
+    };
+  }
 
   async createCustomer(
     userId: string,
@@ -106,8 +137,9 @@ export class StripeService {
     amountUsd: number;
   }> {
     const msg = `You have added ${amountUsd} credits to your Ringee balance.`;
-    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
-    const callbackUrl = frontendOrigin
+    const trustedOrigin = trustedFrontendOrigin(frontendOrigin);
+    const baseUrl = trustedOrigin || process.env.FRONTEND_URL!;
+    const callbackUrl = trustedOrigin
       ? baseUrl + "/call?"
       : baseUrl + "/dashboard/overview?";
     const cancelUrl = callbackUrl + "payment=cancel";
@@ -230,6 +262,11 @@ export class StripeService {
   ): Promise<void> {
     const clean = email.trim();
     if (!clean) return;
+    // Only the caller's own live top-up: an intent id from the request proves
+    // nothing about whose payment it is.
+    if (paymentIntentId) {
+      await this.getEditableTopupIntent(customerId, paymentIntentId);
+    }
     await stripe.customers.update(customerId, { email: clean });
     if (paymentIntentId) {
       await stripe.paymentIntents.update(paymentIntentId, {
@@ -365,6 +402,26 @@ export class StripeService {
     if (minAmount && faceCents < minAmount) {
       throw new BadRequestException(
         `This code needs a minimum of $${(minAmount / 100).toFixed(2)}.`,
+      );
+    }
+    // Stripe enforces the rest of a code's restrictions only where it applies
+    // the discount itself (Checkout, invoices), never on an intent priced
+    // here — so they are checked here, before the charge is reduced.
+    if (promo.expires_at && promo.expires_at * 1000 <= Date.now()) {
+      throw new BadRequestException("That code has expired.");
+    }
+    // Updating a PaymentIntent amount does not redeem a Stripe coupon.
+    // Neither succeeded-payment searches nor pending-intent counts reserve a
+    // redemption. These restrictions require Stripe-native Checkout/invoices;
+    // refuse them here rather than promise limits we cannot enforce atomically.
+    if (
+      promo.restrictions?.first_time_transaction ||
+      promo.max_redemptions != null ||
+      coupon.max_redemptions != null ||
+      (coupon.applies_to?.products?.length ?? 0) > 0
+    ) {
+      throw new BadRequestException(
+        "This code requires a Stripe Checkout purchase and cannot be applied to this payment.",
       );
     }
 
@@ -554,12 +611,21 @@ export class StripeService {
    * The frontend polls this after completing 3-D Secure so it never trusts the
    * client-side result on its own.
    */
-  async getPaymentIntentStatus(paymentIntentId: string): Promise<{
+  async getPaymentIntentStatus(
+    customerId: string,
+    paymentIntentId: string,
+  ): Promise<{
     paymentIntentId: string;
     status: "succeeded" | "processing" | "requires_action" | "failed";
     amountUsd: number | null;
   }> {
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const piCustomer =
+      typeof pi.customer === "string" ? pi.customer : (pi.customer?.id ?? null);
+    // Another customer's payment reads as missing, never as its status.
+    if (piCustomer !== customerId) {
+      throw new NotFoundException("Payment not found");
+    }
     return {
       paymentIntentId: pi.id,
       status: this.mapPaymentIntentStatus(pi.status),
@@ -608,7 +674,8 @@ export class StripeService {
     upfrontCostUsd: number;
   }> {
     const msg = `Your phone number ${phoneNumber} has been added to your account.`;
-    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
+    const baseUrl =
+      trustedFrontendOrigin(frontendOrigin) || process.env.FRONTEND_URL!;
     const callbackUrl = baseUrl + "/dashboard/buy-number";
     const cancelUrl =
       returnUrls?.cancelUrl ?? callbackUrl + "?tab=buy&payment=cancel";
@@ -684,7 +751,8 @@ export class StripeService {
     sessionId: string;
   }> {
     const msg = "Organization subscription added successfully";
-    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
+    const baseUrl =
+      trustedFrontendOrigin(frontendOrigin) || process.env.FRONTEND_URL!;
     const callbackUrl = baseUrl + "/dashboard/overview";
     const cancelUrl = callbackUrl + "?payment=cancel";
     const successUrl = callbackUrl + `?payment=success&msg=${msg}`;
@@ -744,8 +812,9 @@ export class StripeService {
     sessionId: string;
   }> {
     const msg = `Monthly credit fund of $${amountUsd} activated successfully.`;
-    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
-    const callbackUrl = frontendOrigin
+    const trustedOrigin = trustedFrontendOrigin(frontendOrigin);
+    const baseUrl = trustedOrigin || process.env.FRONTEND_URL!;
+    const callbackUrl = trustedOrigin
       ? baseUrl + "/call?"
       : baseUrl + "/dashboard/overview?";
     const cancelUrl = callbackUrl + "payment=cancel";
@@ -1106,8 +1175,9 @@ export class StripeService {
     sessionId: string;
   }> {
     const msg = `Auto-reload enabled. $${reloadAmount} will be added when your balance is low.`;
-    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
-    const callbackUrl = frontendOrigin
+    const trustedOrigin = trustedFrontendOrigin(frontendOrigin);
+    const baseUrl = trustedOrigin || process.env.FRONTEND_URL!;
+    const callbackUrl = trustedOrigin
       ? baseUrl + "/call?"
       : baseUrl + "/dashboard/overview?";
     const cancelUrl = callbackUrl + "payment=cancel";

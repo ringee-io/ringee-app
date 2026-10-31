@@ -3,6 +3,7 @@ import { InboundRouteController } from "./inbound-route.controller";
 import { RingGroupController } from "./ring-group.controller";
 import { InboundCallController } from "./inbound-call.controller";
 import { Module } from "@nestjs/common";
+import { SseRateLimitGuard } from "../guards/sse-rate-limit.guard";
 import { ChatAuthController } from "./chat.auth.controller";
 import { WhatsappController } from "./whatsapp.controller";
 import { McpModule } from "../../mcp/mcp.module";
@@ -173,6 +174,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.
   providers: [
+    SseRateLimitGuard,
     EnrichmentFeatureGuard,
     TranscriptionMediaGateway,
     StripeAbuseProtectionService,

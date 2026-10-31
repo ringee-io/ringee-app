@@ -22,6 +22,33 @@ import { TRANSCRIPT_SEGMENT_ORDER } from "./call.transcription.repository";
  * insertion: a provider redelivers them out of order, and a transcript read
  * back in arrival order is unreadable.
  */
+/** A call whose own leg or one of whose inbound ring legs has this session. */
+function callSessionMatch(callSessionId: string): Prisma.CallWhereInput {
+  return {
+    OR: [
+      { callSessionId },
+      {
+        ringAttempts: {
+          some: {
+            OR: [
+              { providerCallSessionId: callSessionId },
+              { recipientCallSessionId: callSessionId },
+            ],
+          },
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * The agent a call list names. Never the whole `User` row: it carries the
+ * personal encryption key and private account metadata.
+ */
+const CALL_USER_SELECT = {
+  select: { id: true, firstName: true, lastName: true, imageUrl: true },
+} satisfies Prisma.UserDefaultArgs;
+
 export const CALL_DETAIL_INCLUDE = {
   contact: {
     select: {
@@ -34,9 +61,7 @@ export const CALL_DETAIL_INCLUDE = {
       jobTitle: true,
     },
   },
-  user: {
-    select: { id: true, firstName: true, lastName: true, imageUrl: true },
-  },
+  user: CALL_USER_SELECT,
   callerId: { select: { id: true, phoneNumber: true, isoCountry: true } },
   sipDevice: { select: { id: true, label: true, publicRef: true } },
   recordings: {
@@ -200,6 +225,16 @@ export class CallRepository {
 
   async findById(id: string): Promise<Call | null> {
     return this.prisma.call.findUnique({ where: { id } });
+  }
+
+  /** {@link findById}, but only when the call belongs to the workspace. */
+  async findByIdForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Call | null> {
+    return this.prisma.call.findFirst({
+      where: { id, ...buildOwnershipFilter(ctx) },
+    });
   }
 
   /**
@@ -634,19 +669,37 @@ export class CallRepository {
 
   async findOneBySessionId(callSessionId: string): Promise<Call | null> {
     return this.prisma.call.findFirst({
+      where: callSessionMatch(callSessionId),
+    });
+  }
+
+  /**
+   * {@link findOneBySessionId} within the workspace. `participantUserId`
+   * further limits it to calls that member placed, answered or was rung for —
+   * an organization member's view, which still covers an inbound call another
+   * member owns but they picked up.
+   */
+  async findOneBySessionIdForOwner(
+    ctx: OwnershipContext,
+    callSessionId: string,
+    participantUserId?: string,
+  ): Promise<Call | null> {
+    return this.prisma.call.findFirst({
       where: {
-        OR: [
-          { callSessionId },
-          {
-            ringAttempts: {
-              some: {
-                OR: [
-                  { providerCallSessionId: callSessionId },
-                  { recipientCallSessionId: callSessionId },
-                ],
-              },
-            },
-          },
+        ...buildOwnershipFilter(ctx),
+        AND: [
+          callSessionMatch(callSessionId),
+          ...(participantUserId
+            ? [
+                {
+                  OR: [
+                    { userId: participantUserId },
+                    { answeredByUserId: participantUserId },
+                    { ringAttempts: { some: { userId: participantUserId } } },
+                  ],
+                },
+              ]
+            : []),
         ],
       },
     });
@@ -1182,7 +1235,7 @@ export class CallRepository {
                 },
               }
             : true,
-          user: true,
+          user: CALL_USER_SELECT,
           recordings: true,
           // Which agent placed the call. Always selected, and deliberately
           // narrow: the history table only needs to name the agent, and the
@@ -1391,7 +1444,7 @@ export class CallRepository {
         include: {
           recordings: true,
           contact: true,
-          user: true,
+          user: CALL_USER_SELECT,
         },
       }),
       this.prisma.call.count({ where }),

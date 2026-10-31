@@ -25,7 +25,6 @@ import { ApiError, RingeeApi } from "../lib/ringee-api";
 import {
   ERROR_COPY,
   buildStartCall,
-  buildStaticStartCall,
   callEventSnapshotPatch,
   failureSnapshot,
 } from "../lib/call-flow";
@@ -137,30 +136,10 @@ async function dial(target: DialTarget, tabId?: number) {
       preferredCallerId,
     });
   } catch (e) {
+    // No backend, no call: the backend is what mints the leg's credential and
+    // authorizes it, so there is nothing to dial with on its failure.
     const code = e instanceof ApiError ? e.code : "UNKNOWN";
     const serverMessage = e instanceof ApiError ? e.message : null;
-    // If static env credentials are configured (web-app style), dial with them
-    // even when the backend prepare-call is unavailable. Deliberate refusals —
-    // compliance, permissions, and the one-call-at-a-time rule — are NEVER
-    // bypassed this way; only an unreachable/erroring backend is.
-    const fallback =
-      code === "DNC_BLOCKED" ||
-      code === "FORBIDDEN" ||
-      code === "CONCURRENT_CALL"
-        ? null
-        : buildStaticStartCall(target, identity, preferredCallerId);
-    if (fallback) {
-      setSnapshot({
-        state: "connecting",
-        destination: target.destination,
-        contact: undefined,
-        callId: undefined,
-        startedAt: Date.now(),
-      });
-      await ensureOffscreen();
-      chrome.runtime.sendMessage(fallback).catch(() => {});
-      return;
-    }
     setSnapshot(failureSnapshot(code, serverMessage));
     return;
   }

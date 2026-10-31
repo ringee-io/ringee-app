@@ -13,6 +13,7 @@ import {
   CrmRecordRef,
   normalizePhoneE164,
   RedisService,
+  OwnershipContext,
 } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 
@@ -178,12 +179,17 @@ export class CrmMatchingService {
   }
 
   async resolveAmbiguousMatch(
+    ctx: OwnershipContext,
     syncId: string,
     chosenExternalId: string,
     chosenExternalType: "person" | "company",
   ): Promise<void> {
     const sync = await this.syncRepo.findById(syncId);
     if (!sync) throw new NotFoundException("sync not found");
+    // Only a workspace that owns the sync's CRM connection may link it.
+    const connection = await this.connections.findById(sync.connectionId);
+    if (!connection) throw new NotFoundException("sync not found");
+    await this.connections.assertAccess(ctx, connection);
     if (sync.status !== "needs_resolution") {
       throw new Error("sync is not in needs_resolution status");
     }

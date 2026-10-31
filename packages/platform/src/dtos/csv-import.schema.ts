@@ -7,6 +7,8 @@
 export const CSV_IMPORT_CONFIG = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
   MAX_ROWS: 10000,
+  /** Apollo exports run to ~100 columns; far more is not a contacts file. */
+  MAX_COLUMNS: 500,
   BATCH_SIZE: 200,
   ALLOWED_DELIMITERS: [",", ";", "\t", "|"],
 } as const;

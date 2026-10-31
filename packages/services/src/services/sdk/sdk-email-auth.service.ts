@@ -58,7 +58,21 @@ const CHALLENGE_TTL_SECONDS = 300; // 5 min
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
 const MAX_RESENDS = 3;
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+/** Longest address SMTP carries (RFC 5321 path limit). */
+const EMAIL_MAX_LENGTH = 254;
+
+/**
+ * `local@domain.tld`: one `@`, no whitespace, and a dot inside the domain.
+ * Checked by hand rather than by a pattern whose repetitions can split a long
+ * dotted domain every possible way — this runs before any rate limit.
+ */
+function isPlausibleEmail(email: string): boolean {
+  if (email.length > EMAIL_MAX_LENGTH || /\s/.test(email)) return false;
+  const at = email.indexOf("@");
+  if (at < 1 || at !== email.lastIndexOf("@")) return false;
+  const domain = email.slice(at + 1);
+  return domain.length >= 3 && domain.slice(1, -1).includes(".");
+}
 
 // Rate-limit windows (per 10 min).
 const RL_WINDOW = 600;
@@ -97,7 +111,7 @@ export class SdkEmailAuthService {
     ip?: string | null;
   }): Promise<SdkChallengeResponse> {
     const email = params.email?.trim().toLowerCase() ?? "";
-    if (!EMAIL_RE.test(email)) {
+    if (!isPlausibleEmail(email)) {
       throw new SdkError("INVALID_EMAIL", "A valid email is required.");
     }
 
@@ -160,32 +174,55 @@ export class SdkEmailAuthService {
     code: string;
   }): Promise<SdkVerifiedIdentity> {
     const key = this.challengeKey(params.challengeId);
-    const challenge = await this.redis.get<StoredChallenge>(key);
-
-    if (
-      !challenge ||
-      challenge.integrationId !== params.integration.id ||
-      challenge.origin !== params.origin
-    ) {
-      throw new SdkError(
+    const expired = () =>
+      new SdkError(
         "EMAIL_CHALLENGE_EXPIRED",
         "This code request expired. Please request a new one.",
       );
-    }
-    if (challenge.expiresAt <= Date.now()) {
-      await this.redis.del(key);
-      throw new SdkError(
-        "EMAIL_CHALLENGE_EXPIRED",
-        "This code expired. Please request a new one.",
-      );
-    }
-    if (challenge.attempts >= MAX_ATTEMPTS) {
-      await this.redis.del(key);
-      throw new SdkError(
+    const exhausted = () =>
+      new SdkError(
         "EMAIL_CODE_ATTEMPTS_EXCEEDED",
         "Too many attempts. Please request a new code.",
       );
+
+    // Every guess first reserves one of the challenge's attempts with a
+    // compare-and-swap on the stored state, and only then is checked; a
+    // correct guess consumes the challenge the same way. Guesses sent at once
+    // therefore each spend an attempt, and exactly one request can consume it.
+    let challenge: StoredChallenge | null = null;
+    let reserved = "";
+    for (let read = 0; read < MAX_ATTEMPTS && !challenge; read++) {
+      const raw = await this.redis.getRaw(key);
+      const current = raw ? (JSON.parse(raw) as StoredChallenge) : null;
+      if (
+        !raw ||
+        !current ||
+        current.integrationId !== params.integration.id ||
+        current.origin !== params.origin
+      ) {
+        throw expired();
+      }
+      if (current.expiresAt <= Date.now()) {
+        await this.redis.compareAndSwap(key, raw, null);
+        throw new SdkError(
+          "EMAIL_CHALLENGE_EXPIRED",
+          "This code expired. Please request a new one.",
+        );
+      }
+      if (current.attempts >= MAX_ATTEMPTS) {
+        await this.redis.compareAndSwap(key, raw, null);
+        throw exhausted();
+      }
+      const next = JSON.stringify({
+        ...current,
+        attempts: current.attempts + 1,
+      });
+      if (await this.redis.compareAndSwap(key, raw, next)) {
+        challenge = { ...current, attempts: current.attempts + 1 };
+        reserved = next;
+      }
     }
+    if (!challenge) throw expired();
 
     const code = (params.code ?? "").trim();
     const valid =
@@ -194,24 +231,17 @@ export class SdkEmailAuthService {
       verifyOtp(code, challenge.id, challenge.codeHash);
 
     if (!valid) {
-      const attempts = challenge.attempts + 1;
-      if (attempts >= MAX_ATTEMPTS) {
-        await this.redis.del(key);
-        throw new SdkError(
-          "EMAIL_CODE_ATTEMPTS_EXCEEDED",
-          "Too many attempts. Please request a new code.",
-        );
+      if (challenge.attempts >= MAX_ATTEMPTS) {
+        await this.redis.compareAndSwap(key, reserved, null);
+        throw exhausted();
       }
-      const ttl = Math.max(
-        1,
-        Math.ceil((challenge.expiresAt - Date.now()) / 1000),
-      );
-      await this.redis.set(key, { ...challenge, attempts }, ttl * 1000);
       throw new SdkError("INVALID_EMAIL_CODE", "The code is incorrect.");
     }
 
-    // Consume: one-time use.
-    await this.redis.del(key);
+    // Consume: one-time use, by exactly one request.
+    if (!(await this.redis.compareAndSwap(key, reserved, null))) {
+      throw expired();
+    }
 
     // Re-resolve to pick up any live change (block, membership removal) since
     // the challenge was created — never trust the cached authorization alone.

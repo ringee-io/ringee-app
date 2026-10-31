@@ -110,13 +110,22 @@ export class ContactController {
   }
 
   @Get(":id")
-  async getContact(@Param("id") id: string) {
-    return this.contactService.getContactById(id);
+  async getContact(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.contactService.getContactById(createOwnershipContext(user), id);
   }
 
   @Get(":id/activities")
-  async getContactActivities(@Param("id") id: string) {
-    return this.contactService.getContactActivities(id);
+  async getContactActivities(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.contactService.getContactActivities(
+      createOwnershipContext(user),
+      id,
+    );
   }
 
   @Get()
@@ -154,8 +163,12 @@ export class ContactController {
   }
 
   @Put(":id")
-  async updateContact(@Param("id") id: string, @Body() dto: UpdateContactDto) {
-    return this.contactService.updateContact(id, {
+  async updateContact(
+    @Param("id") id: string,
+    @Body() dto: UpdateContactDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.contactService.updateContact(createOwnershipContext(user), id, {
       organization: dto.organization,
       name: dto.name,
       firstName: dto.firstName,
@@ -174,15 +187,24 @@ export class ContactController {
     @Body() dto: AddNoteDto,
     @CurrentUser() user: CurrentUserData,
   ) {
-    return this.contactService.addNoteToContact(user.id, contactId, dto);
+    return this.contactService.addNoteForOwner(
+      createOwnershipContext(user),
+      contactId,
+      dto,
+    );
   }
 
   @Delete(":id/notes/:noteId")
   async deleteNote(
     @Param("id") contactId: string,
     @Param("noteId") noteId: string,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.contactService.deleteNote(contactId, noteId);
+    return this.contactService.deleteNote(
+      createOwnershipContext(user),
+      contactId,
+      noteId,
+    );
   }
 
   @Delete("by-tags")
@@ -198,7 +220,10 @@ export class ContactController {
   }
 
   @Delete(":id")
-  async deleteContact(@Param("id") id: string) {
-    return this.contactService.deleteContact(id);
+  async deleteContact(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.contactService.deleteContact(createOwnershipContext(user), id);
   }
 }

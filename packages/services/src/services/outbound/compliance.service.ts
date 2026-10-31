@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   DNCEntryRepository,
   DNCOwnerScope,
@@ -61,8 +61,11 @@ export class ComplianceService {
     return this.dncRepo.listForOwner(owner, options);
   }
 
-  async deleteDNCById(id: string) {
-    return this.dncRepo.delete(id);
+  /** Removes one entry of the owner's own DNC list. */
+  async deleteDNCById(owner: DNCOwnerScope, id: string) {
+    const entry = await this.dncRepo.findByIdForOwner(owner, id);
+    if (!entry) throw new NotFoundException("DNC entry not found");
+    return this.dncRepo.delete(entry.id);
   }
 
   /**

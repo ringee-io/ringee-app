@@ -267,6 +267,7 @@ export class MeetingController {
     // Resolve callId from Telnyx session ID if callId was not provided
     if (!callId && dto.callSessionId) {
       const call = await this.meetingService.findCallBySessionId(
+        ctx,
         dto.callSessionId,
       );
       callId = call?.id;

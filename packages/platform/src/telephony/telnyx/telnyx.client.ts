@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import axios, { AxiosInstance } from "axios";
 import { uacErrorDiagnostics } from "./telnyx.uac";
+import { describeTelnyxError, sanitizeMediaStreamError } from "./telnyx.error";
 
 const TELNYX_ORIGIN = "https://api.telnyx.com";
 const TELNYX_BASE_PATH = "/v2";
@@ -79,6 +80,13 @@ export class TelnyxClient {
     path: string,
     body?: unknown,
   ): never {
+    if (path.endsWith("/actions/streaming_start")) {
+      const safeError = sanitizeMediaStreamError(error);
+      this.logger.warn(
+        `${method} ${path} failed: ${describeTelnyxError(safeError, "Media streaming failed")}`,
+      );
+      throw safeError;
+    }
     // A path `apiUrl` refused never reached Telnyx: keep its 400 as-is.
     if (error instanceof HttpException) throw error;
     const status = error.response?.status;

@@ -25,7 +25,9 @@ import {
   OwnershipContext,
   TelephonyService,
   StripeService,
+  trustedFrontendOrigin,
 } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
 import {
   CampaignMemberService,
   CampaignConfigService,
@@ -861,7 +863,13 @@ export class InfrastructureService {
       input.phoneNumber,
     );
 
-    const base = (input.frontendOrigin || "").replace(/\/$/, "");
+    // Only a known Ringee frontend: anything else would make this checkout a
+    // redirect to another site.
+    const base = (
+      trustedFrontendOrigin(input.frontendOrigin) ||
+      apiConfiguration.FRONTEND_URL ||
+      ""
+    ).replace(/\/$/, "");
     const successUrl =
       `${base}/infra/overview?checkout=success&resource=phone_number` +
       `&number=${encodeURIComponent(input.phoneNumber)}&session_id={CHECKOUT_SESSION_ID}`;
@@ -1140,6 +1148,7 @@ export class InfrastructureService {
       throw new BadRequestException("No documents for this resource.");
     }
     return this.numberPurchasedService.getNumberRequirements(
+      ctx,
       resource.referenceId,
     );
   }

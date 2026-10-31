@@ -16,6 +16,7 @@ import {
   SipDeviceRepository,
   SipDeviceWithNumber,
   NumberPurchasedRepository,
+  OrganizationRepository,
 } from "@ringee/database";
 import {
   CryptoService,
@@ -49,6 +50,7 @@ export class SipDeviceService {
     private readonly telnyx: TelnyxService,
     private readonly crypto: CryptoService,
     private readonly inboundRoutes: InboundRouteRepository,
+    private readonly organizations: OrganizationRepository,
   ) {}
 
   // ───────────────────────────────────────────────────────────────────────
@@ -153,7 +155,21 @@ export class SipDeviceService {
 
     const allowInbound = input.allowInbound ?? true;
     const allowOutbound = input.allowOutbound ?? true;
-    const assignedUserId = input.assignedUserId?.trim() || actingUserId;
+    // A device belongs to someone in this workspace: a personal one to its
+    // creator, an organization's to one of its members. Its calls are
+    // attributed — and billed — to that person.
+    const assignedUserId = ctx.organizationId
+      ? input.assignedUserId?.trim() || actingUserId
+      : ctx.userId;
+    if (
+      ctx.organizationId &&
+      assignedUserId !== actingUserId &&
+      !(await this.organizations.isMember(assignedUserId, ctx.organizationId))
+    ) {
+      throw new BadRequestException(
+        "A device can only be assigned to a member of this organization.",
+      );
+    }
 
     // Resolve the optional number BEFORE touching Telnyx so we fail fast.
     let number: NumberPurchased | null = null;
@@ -235,6 +251,7 @@ export class SipDeviceService {
     ctx: OwnershipContext,
     id: string,
   ): Promise<CreatedSipDevice> {
+    this.assertFeatureEnabled();
     const device = await this.getOwnedDevice(ctx, id);
     if (device.status === SipDeviceStatus.deleted) {
       throw new BadRequestException("Cannot regenerate a deleted device.");
@@ -262,6 +279,9 @@ export class SipDeviceService {
     id: string,
     enabled: boolean,
   ): Promise<SipDeviceView> {
+    // Switching a device off stays possible while the feature is off; turning
+    // one back on is not.
+    if (enabled) this.assertFeatureEnabled();
     const device = await this.getOwnedDevice(ctx, id);
     if (device.status === SipDeviceStatus.deleted) {
       throw new BadRequestException("Cannot toggle a deleted device.");

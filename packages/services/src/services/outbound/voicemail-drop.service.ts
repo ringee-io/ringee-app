@@ -12,7 +12,12 @@ import {
   CallStatus,
   VoicemailDropAsset,
 } from "@ringee/database";
-import { TelephonyService, UploadFactory } from "@ringee/platform";
+import {
+  TelephonyService,
+  UploadFactory,
+  signCallCorrelation,
+} from "@ringee/platform";
+import { randomUUID } from "node:crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import { OwnershipContext } from "@ringee/platform";
 import { InboxTimelineService } from "../inbox/inbox.timeline.service";
@@ -49,6 +54,7 @@ const ALLOWED_AUDIO_EXTENSIONS = new Set(["mp3", "wav"]);
 export interface VoicemailDropClientState extends Record<string, unknown> {
   action: "voicemail_drop_send";
   assetId: string;
+  dropToken?: string;
   callId?: string;
 }
 
@@ -272,13 +278,44 @@ export class VoicemailDropService {
       );
     }
 
+    const pendingCallId = randomUUID();
     // `action` stays the first key: analytics tell a drop's leg from a call by
     // the encoded opening of this JSON (CALL-012, `answered-call.sql.ts`).
     const clientState: VoicemailDropClientState = {
       action: "voicemail_drop_send",
       assetId: asset.id,
+      dropToken: signCallCorrelation(pendingCallId),
       ...(input.callId ? { callId: input.callId } : {}),
     };
+
+    const contact = await this.resolveContact(
+      ctx,
+      organizationId,
+      destination,
+      input.contactId,
+    );
+
+    const presentedNumberId = await this.callerIdRotationService
+      .registerOutboundCall(ctx, callerId)
+      .catch(() => null);
+
+    // Persist admission before dialing. An early provider webhook can bind
+    // this signed pending row without trusting arbitrary client_state.
+    const call = await this.callRepo.createCall(ctx, {
+      id: pendingCallId,
+      contact: contact ? { connect: { id: contact.id } } : undefined,
+      fromNumber: callerId,
+      toNumber: destination,
+      connectionId: apiConfiguration.TELNYX_CALL_CONTROL_APP_ID,
+      direction: "outbound",
+      status: CallStatus.pending,
+      startedAt: new Date(),
+      source: input.source ?? "voicemail_drop",
+      clientState: Buffer.from(JSON.stringify(clientState)).toString("base64"),
+      callerId: presentedNumberId
+        ? { connect: { id: presentedNumberId } }
+        : undefined,
+    });
 
     const leg = await this.telephonyService.dial({
       to: destination,
@@ -296,36 +333,14 @@ export class VoicemailDropService {
       throw new BadRequestException("Provider did not return a call");
     }
 
-    const contact = await this.resolveContact(
-      ctx,
-      organizationId,
-      destination,
-      input.contactId,
-    );
-
-    const presentedNumberId = await this.callerIdRotationService
-      .registerOutboundCall(ctx, callerId)
-      .catch(() => null);
-
-    // Created here rather than on `call.initiated`: the webhook for a
-    // server-originated leg carries none of the custom headers the WebRTC
-    // path relies on to attribute the call, so it would be dropped.
-    const call = await this.callRepo.createCall(ctx, {
-      contact: contact ? { connect: { id: contact.id } } : undefined,
-      fromNumber: callerId,
-      toNumber: destination,
-      connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
+    // The webhook may already have bound this row; the atomic claim never
+    // rewinds an answered/completed call to ringing.
+    await this.callRepo.claimPendingCall(call.id, {
       callControlId: leg.callControlId,
-      callSessionId: leg.callSessionId ?? undefined,
-      callLegId: leg.callLegId ?? undefined,
-      direction: "outbound",
-      status: CallStatus.ringing,
+      callSessionId: leg.callSessionId ?? null,
+      callLegId: leg.callLegId ?? null,
+      connectionId: apiConfiguration.TELNYX_CALL_CONTROL_APP_ID ?? null,
       startedAt: new Date(),
-      source: input.source ?? "voicemail_drop",
-      clientState: Buffer.from(JSON.stringify(clientState)).toString("base64"),
-      callerId: presentedNumberId
-        ? { connect: { id: presentedNumberId } }
-        : undefined,
     });
 
     void this.appendTimelineEvent({
@@ -565,7 +580,7 @@ export class VoicemailDropService {
   ): Promise<{ id: string } | null> {
     if (contactId) {
       const contact = await this.contactService
-        .getContactById(contactId)
+        .findContactByIdForOwner(ctx, contactId)
         .catch(() => null);
       if (contact && contact.organizationId === organizationId) {
         return contact;

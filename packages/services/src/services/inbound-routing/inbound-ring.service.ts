@@ -971,6 +971,14 @@ export class InboundRingService {
       ? attempts.some((attempt) => attempt.userId === userId)
       : call.userId === userId;
     if (!isTarget) return { status: "not_a_target" };
+    // An offer is not a standing right: a member removed since it rang no
+    // longer takes the organization's calls.
+    if (
+      call.organizationId &&
+      !(await this.organizations.isMember(userId, call.organizationId))
+    ) {
+      return { status: "not_a_target" };
+    }
     // Controlled media legs elect the endpoint on the provider's answer. A UI
     // claim only authorizes answering, otherwise a lost browser would block all handsets.
     if (

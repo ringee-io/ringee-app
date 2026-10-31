@@ -631,7 +631,9 @@ export class InboxTimelineService {
       if (thread.organizationId !== ctx.organizationId) {
         throw new ForbiddenException("Access denied");
       }
-    } else if (thread.userId !== ctx.userId) {
+    } else if (thread.userId !== ctx.userId || thread.organizationId !== null) {
+      // A personal session reaches personal threads only: an organization's
+      // thread that names this user stays the organization's.
       throw new ForbiddenException("Access denied");
     }
     return thread;
@@ -688,15 +690,9 @@ export class InboxTimelineService {
   ): Promise<InboxThread> {
     await this.ensureAccess(ctx, threadId);
     if (contactId) {
-      const contact = await this.contactRepo.findById(contactId);
+      const contact = await this.contactRepo.findByIdForOwner(ctx, contactId);
       if (!contact) {
         throw new NotFoundException("Contact not found");
-      }
-      const sameOwner = ctx.organizationId
-        ? contact.organizationId === ctx.organizationId
-        : contact.userId === ctx.userId;
-      if (!sameOwner) {
-        throw new ForbiddenException("Access denied");
       }
     }
     return this.threadRepo.update(threadId, {
@@ -724,7 +720,12 @@ export class InboxTimelineService {
       };
     }
 
-    const contact = (await this.contactRepo.findById(thread.contactId)) as
+    // The thread names its contact, but only one of the reader's own contacts
+    // is shown: a link must never become a window into another workspace.
+    const contact = (await this.contactRepo.findDetailForOwner(
+      ctx,
+      thread.contactId,
+    )) as
       | (Contact & {
           calls?: Call[];
           notes?: ContactNote[];

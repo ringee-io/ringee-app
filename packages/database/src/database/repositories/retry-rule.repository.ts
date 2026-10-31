@@ -53,6 +53,13 @@ export class RetryRuleRepository {
     });
   }
 
+  async findForCampaign(
+    campaignId: string,
+    id: string,
+  ): Promise<RetryRule | null> {
+    return this.prisma.retryRule.findFirst({ where: { id, campaignId } });
+  }
+
   async delete(id: string): Promise<RetryRule> {
     return this.prisma.retryRule.delete({ where: { id } });
   }

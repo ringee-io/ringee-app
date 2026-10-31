@@ -82,6 +82,11 @@ export class CallerIdService {
     const requestedAt = !resend && inFlightSince ? inFlightSince : new Date();
     const isRejoiningPendingAttempt = !resend && !!inFlightSince;
 
+    // Rejoining the attempt in flight is that attempt: it was billed and sent
+    // already, so it is returned as it is. Sending it again would be a free
+    // second verification — and its failure would refund the first one's fee.
+    if (isRejoiningPendingAttempt && existing) return existing;
+
     // Billing gate: a user without enough credit cannot verify a caller ID,
     // unless they are rejoining an existing pending attempt that was already paid for.
     const fee = this.getVerificationFee();

@@ -15,6 +15,7 @@ import {
   ValidationPipe,
 } from "@nestjs/common";
 import { IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import { createHash, timingSafeEqual } from "crypto";
 import {
   CurrentUser,
   CurrentUserData,
@@ -22,7 +23,9 @@ import {
   createOwnershipContext,
 } from "@ringee/platform";
 import {
+  CALENDAR_OAUTH_TTL_MS,
   CalendarService,
+  toCalendarIntegrationView,
   CalendarAvailabilityWindow,
   MAX_MEETING_DURATION_MINUTES,
   MIN_MEETING_DURATION_MINUTES,
@@ -51,26 +54,51 @@ class SetCalendarConnectionDto {
 }
 
 /**
- * The OAuth `state` Ringee round-trips through the provider.
+ * Binds a calendar OAuth round-trip to the browser that started it.
  *
- * `calendarId` is which Ringee calendar the user pressed "connect" on, so the
- * account lands attached to it. It is only ever a hint: the callback still
- * verifies the calendar belongs to the workspace in the state before linking.
+ * The `state` names a single-use server-side record of who is connecting
+ * (`CalendarService.beginOAuth`), and this cookie carries its hash: a
+ * provider callback is only accepted from the browser holding it, so an
+ * authorization link started by someone else cannot attach the account that
+ * approves it to their workspace.
  */
-interface CalendarOAuthState {
-  userId: string;
-  orgId: string | null;
-  calendarId: string | null;
+const CALENDAR_OAUTH_COOKIE = "ringee_calendar_oauth";
+
+function setOAuthCookie(res: Response, state: string): void {
+  res.cookie(CALENDAR_OAUTH_COOKIE, oauthStateHash(state), {
+    httpOnly: true,
+    secure: (process.env.BACKEND_URL ?? "").startsWith("https://"),
+    sameSite: "lax",
+    path: "/",
+    maxAge: CALENDAR_OAUTH_TTL_MS,
+  });
 }
 
-function encodeOAuthState(state: CalendarOAuthState): string {
-  return Buffer.from(JSON.stringify(state)).toString("base64url");
+/** Whether this browser started the round-trip `state` names. Clears the binding. */
+function takeOAuthCookie(req: Request, res: Response, state: string): boolean {
+  res.clearCookie(CALENDAR_OAUTH_COOKIE, { path: "/" });
+  const bound = readCookie(req, CALENDAR_OAUTH_COOKIE);
+  if (!bound || !state) return false;
+  const a = Buffer.from(bound);
+  const b = Buffer.from(oauthStateHash(state));
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function decodeOAuthState(state: string): CalendarOAuthState {
-  return JSON.parse(
-    Buffer.from(state, "base64url").toString(),
-  ) as CalendarOAuthState;
+function oauthStateHash(state: string): string {
+  return createHash("sha256").update(state).digest("base64url");
+}
+
+function readCookie(req: Request, name: string): string | null {
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1 || part.slice(0, eq).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -106,29 +134,48 @@ export class CalendarController {
     @Query("calendarId") calendarId?: string,
   ) {
     const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
-    const state = encodeOAuthState({
-      userId: user.id,
-      orgId: user.activeOrgId ?? null,
-      calendarId: calendarId ?? null,
-    });
+    const state = await this.calendarService.beginOAuth(
+      createOwnershipContext(user),
+      "google" as CalendarProvider,
+      calendarId ?? null,
+    );
     const url = this.calendarService.getGoogleOAuthUrl(redirectUri, state);
+    setOAuthCookie(res, state);
     res.redirect(url);
   }
 
+  /**
+   * Public because the provider redirects here; what authorizes it is the
+   * single-use `state` record together with the cookie of the browser that
+   * started the round-trip.
+   */
   @Public()
   @Get("oauth/google/callback")
   async googleOAuthCallback(
     @Query("code") code: string,
     @Query("state") state: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     let calendarId: string | null = null;
     try {
       const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
 
-      const stateData = decodeOAuthState(state);
-      calendarId = stateData.calendarId;
-      const ctx = { userId: stateData.userId, organizationId: stateData.orgId };
+      if (!takeOAuthCookie(req, res, state)) {
+        throw new BadRequestException("OAuth state not bound to this browser");
+      }
+      const transaction = await this.calendarService.consumeOAuth(
+        "google" as CalendarProvider,
+        state,
+      );
+      if (!transaction) {
+        throw new BadRequestException("OAuth state expired or already used");
+      }
+      calendarId = transaction.calendarId;
+      const ctx = {
+        userId: transaction.userId,
+        organizationId: transaction.organizationId,
+      };
 
       const tokens = await this.calendarService.exchangeGoogleCode(
         code,
@@ -141,7 +188,7 @@ export class CalendarController {
         refreshToken: tokens.refreshToken,
         expiresAt: tokens.expiresAt?.toISOString(),
         email: tokens.email,
-        linkCalendarId: stateData.calendarId,
+        linkCalendarId: transaction.calendarId,
       });
 
       res.redirect(calendarOAuthReturnUrl("connected", "google", calendarId));
@@ -151,7 +198,6 @@ export class CalendarController {
     }
   }
 
-  @Public()
   @Get("oauth/microsoft")
   async microsoftOAuthRedirect(
     @CurrentUser() user: CurrentUserData,
@@ -159,12 +205,13 @@ export class CalendarController {
     @Query("calendarId") calendarId?: string,
   ) {
     const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/microsoft/callback`;
-    const state = encodeOAuthState({
-      userId: user.id,
-      orgId: user.activeOrgId ?? null,
-      calendarId: calendarId ?? null,
-    });
+    const state = await this.calendarService.beginOAuth(
+      createOwnershipContext(user),
+      "microsoft" as CalendarProvider,
+      calendarId ?? null,
+    );
     const url = this.calendarService.getMicrosoftOAuthUrl(redirectUri, state);
+    setOAuthCookie(res, state);
     res.redirect(url);
   }
 
@@ -181,9 +228,21 @@ export class CalendarController {
       const host = req.headers["x-forwarded-host"] || req.get("host");
       const redirectUri = `${protocol}://${host}/api/calendar/oauth/microsoft/callback`;
 
-      const stateData = decodeOAuthState(state);
-      calendarId = stateData.calendarId;
-      const ctx = { userId: stateData.userId, organizationId: stateData.orgId };
+      if (!takeOAuthCookie(req, res, state)) {
+        throw new BadRequestException("OAuth state not bound to this browser");
+      }
+      const transaction = await this.calendarService.consumeOAuth(
+        "microsoft" as CalendarProvider,
+        state,
+      );
+      if (!transaction) {
+        throw new BadRequestException("OAuth state expired or already used");
+      }
+      calendarId = transaction.calendarId;
+      const ctx = {
+        userId: transaction.userId,
+        organizationId: transaction.organizationId,
+      };
 
       const tokens = await this.calendarService.exchangeMicrosoftCode(
         code,
@@ -196,7 +255,7 @@ export class CalendarController {
         refreshToken: tokens.refreshToken,
         expiresAt: tokens.expiresAt?.toISOString(),
         email: tokens.email,
-        linkCalendarId: stateData.calendarId,
+        linkCalendarId: transaction.calendarId,
       });
 
       res.redirect(
@@ -223,7 +282,9 @@ export class CalendarController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
-    return this.calendarService.connectCalendar(ctx, dto);
+    return toCalendarIntegrationView(
+      await this.calendarService.connectCalendar(ctx, dto),
+    );
   }
 
   @Get("integrations")

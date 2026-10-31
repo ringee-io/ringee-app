@@ -1,9 +1,9 @@
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { createHmac } from "node:crypto";
-import { isIP } from "node:net";
 import type { Request } from "express";
 import { apiConfiguration } from "@ringee/configuration";
 import { RedisService } from "@ringee/platform";
+import { clientIp } from "../client-ip";
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 
 const KEY_PREFIX = "stripe-abuse:v1";
@@ -224,36 +224,10 @@ export class StripeAbuseProtectionService {
   }
 
   private fingerprintRequestIp(request: Request): string {
-    // Railway documents X-Real-IP as the client address it sets at its edge.
-    // Only trust it when Railway's own deployment marker is present; otherwise
-    // a direct client could forge this header to rotate limiter identities.
-    const railwayIp = process.env.RAILWAY_ENVIRONMENT_ID
-      ? this.validIpHeader(request.headers["x-real-ip"])
-      : null;
-    const rawIp =
-      railwayIp || request.ip || request.socket.remoteAddress || "unknown";
-    const normalized = this.normalizeIp(rawIp);
     return createHmac("sha256", apiConfiguration.APP_ENCRYPTION_SECRET)
-      .update(normalized)
+      .update(clientIp(request))
       .digest("hex")
       .slice(0, 32);
-  }
-
-  private validIpHeader(value: string | string[] | undefined): string | null {
-    const candidate = (Array.isArray(value) ? value[0] : value)
-      ?.split(",")[0]
-      ?.trim();
-    if (!candidate) return null;
-    const normalized = this.normalizeIp(candidate);
-    return isIP(normalized) ? normalized : null;
-  }
-
-  private normalizeIp(value: string): string {
-    return value
-      .trim()
-      .replace(/^::ffff:/, "")
-      .replace(/%.+$/, "")
-      .toLowerCase();
   }
 
   private blockKey(kind: "user" | "ip", identity: string): string {

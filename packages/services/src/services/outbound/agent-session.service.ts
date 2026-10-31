@@ -10,6 +10,8 @@ import {
   AgentSessionRepository,
   CallAttemptRepository,
   CampaignLeadRepository,
+  CampaignMemberRepository,
+  OrganizationRepository,
   AgentSessionStatus,
 } from "@ringee/database";
 import { UserService } from "../user.service";
@@ -26,6 +28,8 @@ export class AgentSessionService {
     private readonly userService: UserService,
     private readonly sseBridge: SSEBridgeService,
     private readonly attemptRepo: CallAttemptRepository,
+    private readonly campaignMembers: CampaignMemberRepository,
+    private readonly organizations: OrganizationRepository,
   ) {}
 
   async startSession(data: {
@@ -150,8 +154,34 @@ export class AgentSessionService {
     return this.sessionRepo.incrementStats(sessionId, stats);
   }
 
+  /**
+   * Ready sessions that may still take this campaign's leads: their agent is
+   * assigned to it, or administers its organization — the rule a session is
+   * started under. Someone removed since keeps no session that leads flow to.
+   */
   async findReadyByCampaign(campaignId: string) {
-    return this.sessionRepo.findReadyByCampaign(campaignId);
+    const sessions = await this.sessionRepo.findReadyByCampaign(campaignId);
+    return this.stillAllowed(campaignId, sessions);
+  }
+
+  /** Whether the session's agent may still place this campaign's calls. */
+  async mayDialCampaign(session: AgentSession): Promise<boolean> {
+    const allowed = await this.stillAllowed(session.campaignId, [session]);
+    return allowed.length === 1;
+  }
+
+  private async stillAllowed(
+    campaignId: string,
+    sessions: AgentSession[],
+  ): Promise<AgentSession[]> {
+    if (sessions.length === 0) return sessions;
+    const userIds = [...new Set(sessions.map((session) => session.userId))];
+    const [members, admins] = await Promise.all([
+      this.campaignMembers.listMemberUserIds(campaignId, userIds),
+      this.organizations.listAdminUserIds(sessions[0].organizationId, userIds),
+    ]);
+    const allowed = new Set([...members, ...admins]);
+    return sessions.filter((session) => allowed.has(session.userId));
   }
 
   async findActiveByCampaign(campaignId: string) {
@@ -192,16 +222,24 @@ export class AgentSessionService {
   }
 
   /**
-   * Load a session and assert it belongs to the given organization. Use this
-   * for any request that acts on a session on behalf of an authenticated user,
-   * so one tenant cannot drive another tenant's session by guessing its id.
+   * Load a session and assert it is the caller's own, in their organization.
+   * Use this for any request that acts on a session on behalf of an
+   * authenticated user: a session is one agent's dialer, so neither another
+   * tenant nor a teammate may drive it by knowing its id.
    */
-  async getByIdForOrg(sessionId: string, organizationId: string) {
+  async getByIdForOrg(
+    sessionId: string,
+    organizationId: string,
+    userId: string,
+  ) {
     const session = await this.getSession(sessionId);
     if (session.organizationId !== organizationId) {
       throw new ForbiddenException(
         "Session does not belong to your organization",
       );
+    }
+    if (session.userId !== userId) {
+      throw new ForbiddenException("Session belongs to another agent");
     }
     return session;
   }

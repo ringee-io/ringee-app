@@ -56,6 +56,10 @@ const apiConfiguration = {
   // CRUD endpoints and the dedicated desk-phone webhook reject all traffic, so
   // the flow can be shipped dark and toggled on per environment.
   DESK_PHONES_ENABLED: process.env.DESK_PHONES_ENABLED === "true",
+  /** @deprecated Dial authorization is always required; retained for consumers. */
+  TELEPHONY_REQUIRE_DIAL_TOKEN: true,
+  /** @deprecated UUIDs are identifiers, never MCP credentials. */
+  MCP_LEGACY_UUID_URLS: false,
   // Hard per-call ceiling (minutes) for desk-phone outbound calls. Enforced as
   // a Telnyx `time_limit_secs` on the bridged call so an unattended phone can't
   // rack up runaway spend; the real cost is still settled from Telnyx CDRs.
@@ -191,7 +195,21 @@ const apiConfiguration = {
     "oauth crm.objects.contacts.read crm.objects.contacts.write crm.objects.companies.read crm.objects.companies.write crm.objects.owners.read",
   HUBSPOT_OAUTH_OPTIONAL_SCOPES:
     process.env.HUBSPOT_OAUTH_OPTIONAL_SCOPES ?? "crm.lists.read files.write",
+  /**
+   * Who on the team hears about each account Ringee creates and each demo
+   * request it decides (LIFE-004, LIFE-005). Unset means Ringee's own team,
+   * which a self-hosted deployment should replace with its own address.
+   */
+  ACCOUNTS_TEAM_EMAIL: process.env.ACCOUNTS_TEAM_EMAIL,
   CRM_DRY_RUN: process.env.CRM_DRY_RUN === "true",
+  /**
+   * Let servers a customer names — their Odoo, their Custom Integration
+   * webhook — live on a private or loopback address. Only for a deployment
+   * whose systems share its own network, or local development: on a shared
+   * API it would let any tenant reach Ringee's.
+   */
+  OUTBOUND_ALLOW_PRIVATE_NETWORK:
+    process.env.OUTBOUND_ALLOW_PRIVATE_NETWORK === "true",
   // ── Data Enrichment & Lead Search ──
   ENRICHMENT_FEATURE_ENABLED:
     process.env.ENRICHMENT_FEATURE_ENABLED !== "false",

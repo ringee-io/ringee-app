@@ -380,12 +380,23 @@ export class OfferService {
       CLAIM_CONSUMING_STATUSES.includes(p.status),
     ).length;
 
-    return this.participations.openClaim({
-      offerId: offer.id,
-      userId: ctx.userId,
-      organizationId: ctx.organizationId ?? null,
-      claimIndex,
-    });
+    // The cap is checked again where the claim is written, under the offer's
+    // lock: the count above can be stale by the time two claimants both act.
+    const opened = await this.participations.openClaimWithinCap(
+      {
+        offerId: offer.id,
+        userId: ctx.userId,
+        organizationId: ctx.organizationId ?? null,
+        claimIndex,
+      },
+      offer.maxClaims,
+    );
+    if (!opened) {
+      throw new ConflictException(
+        "You have already claimed this offer, or it has reached its limit.",
+      );
+    }
+    return opened;
   }
 
   /** The claim that is still in flight (started or awaiting review), if any. */

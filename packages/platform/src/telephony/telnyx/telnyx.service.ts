@@ -24,7 +24,11 @@ import {
 import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
-import { isTelnyxCallEndedError } from "./telnyx.error";
+import {
+  describeTelnyxError,
+  isTelnyxCallEndedError,
+  sanitizeMediaStreamError,
+} from "./telnyx.error";
 import {
   AddressValidationInput,
   AddressValidationResult,
@@ -1588,15 +1592,13 @@ export class TelnyxService implements TelephonyService {
         },
       );
     } catch (error: any) {
-      // Surface Telnyx's real validation detail (otherwise it's masked as a
-      // generic "Http Exception" upstream).
-      const body = error?.getResponse?.() ?? error?.response?.data;
+      // The stream URL carries the media-stream token and Telnyx echoes
+      // rejected values, so only the provider's error codes are kept.
+      const safeError = sanitizeMediaStreamError(error);
       this.logger.error(
-        `Telnyx streaming_start failed for ${callControlId} (stream_url=${streamUrl}): ${JSON.stringify(
-          body,
-        )}`,
+        `Telnyx streaming_start failed for ${callControlId}: ${describeTelnyxError(safeError, "Media streaming failed")}`,
       );
-      throw error;
+      throw safeError;
     }
   }
 

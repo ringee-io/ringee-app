@@ -683,28 +683,31 @@ export class ProspectingTools {
         }
 
         const tag = await this.tags.createTag(rt.ctx, { name });
-        for (const cid of ids) {
-          await this.tagRepo
-            .assignToContact(cid, [tag.id])
-            .catch((err) =>
-              this.logger.warn(
-                `failed to attach tag ${tag.id} to ${cid}: ${err}`,
-              ),
-            );
+        // The ids come from the model: only the workspace's own contacts are
+        // attached, whatever else it names.
+        const { tagged, skipped } = await this.tags.tagOwnedContacts(
+          rt.ctx,
+          ids.map(String),
+          tag.id,
+        );
+        if (skipped > 0) {
+          this.logger.warn(
+            `list ${tag.id}: ${skipped} contact id(s) outside the workspace were not attached`,
+          );
         }
 
         await rt.emit({
           kind: "list_created",
           tagId: tag.id,
           tagName: tag.name,
-          contactCount: ids.length,
+          contactCount: tagged,
         });
 
         return {
           ok: true,
           tagId: tag.id,
           name: tag.name,
-          contactCount: ids.length,
+          contactCount: tagged,
         };
       },
     };

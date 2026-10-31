@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
@@ -135,7 +136,17 @@ export class MessageService {
       const existing = await this.messageRepo.findByIdempotencyKey(
         input.idempotencyKey,
       );
-      if (existing) return existing;
+      if (existing) {
+        // The key is unique across every workspace: a replay returns only the
+        // caller's own message, never another owner's.
+        const own = ctx.organizationId
+          ? existing.organizationId === ctx.organizationId
+          : existing.userId === ctx.userId && existing.organizationId === null;
+        if (!own) {
+          throw new ConflictException("This idempotency key is already used");
+        }
+        return existing;
+      }
     }
 
     // 1) Validate the Ringee number belongs to this owner.
@@ -149,7 +160,7 @@ export class MessageService {
       if (number.organizationId !== ctx.organizationId) {
         throw new ForbiddenException("Number does not belong to organization");
       }
-    } else if (number.userId !== ctx.userId) {
+    } else if (number.userId !== ctx.userId || number.organizationId !== null) {
       throw new ForbiddenException("Number does not belong to user");
     }
 
@@ -160,22 +171,33 @@ export class MessageService {
       );
     }
 
-    // 3) DNC / unsubscribed checks via Contact (best-effort).
-    const contact = input.contactId
-      ? await this.contactRepo.findById(input.contactId).catch(() => null)
-      : await this.contactRepo
-          .findByPhone(ctx, input.toNumber)
-          .catch(() => null);
-    if (contact && (contact.doNotCall || contact.unsubscribed)) {
-      throw new BadRequestException("Contact is on DNC / unsubscribed");
+    // 3) DNC / unsubscribed checks via Contact (best-effort). The recipient is
+    // `toNumber`, so its own contact is always checked; a `contactId` the
+    // caller names must be one of theirs, and is checked as well.
+    const recipient = await this.contactRepo
+      .findByPhone(ctx, input.toNumber)
+      .catch(() => null);
+    const named = input.contactId
+      ? await this.contactRepo
+          .findByIdForOwner(ctx, input.contactId)
+          .catch(() => null)
+      : null;
+    if (input.contactId && !named) {
+      throw new NotFoundException("Contact not found");
     }
+    for (const candidate of [recipient, named]) {
+      if (candidate && (candidate.doNotCall || candidate.unsubscribed)) {
+        throw new BadRequestException("Contact is on DNC / unsubscribed");
+      }
+    }
+    const contact = named ?? recipient;
 
     // 4) Resolve thread.
     const thread = await this.inboxService.findOrCreateThread({
       ctx,
       ringeeNumber: input.fromNumber,
       participantNumber: input.toNumber,
-      contactId: contact?.id ?? input.contactId ?? null,
+      contactId: contact?.id ?? null,
     });
 
     const isMms = !!input.mediaUrls?.length;

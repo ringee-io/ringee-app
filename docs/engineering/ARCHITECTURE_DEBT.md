@@ -96,23 +96,12 @@ enum like every neighbouring status, but promoting a `String` column to an enum
 needs a migration, and the migration workflow is what is unresolved here. The
 TypeScript-level enforcement has been tightened in the meantime — see below.
 
-### DEBT-005 — MCP authorization is a capability URL · High · Open (intentional)
+### DEBT-005 — MCP authorization is a capability URL · High · Fixed
 
-**Where:** `apps/backend/src/api/routes/mcp.controller.ts`
-(`resolveContextById`, `resolveOrgContext`)
-
-**What:** `/api/mcp/:id/sse` and `/messages` are `@Public()`. The workspace is
-resolved from the UUID in the path — a valid user or organization UUID is the
-only thing required to drive the full tool surface. The org-scoped variant acts
-"on behalf of" the first member it finds, or `createdBy`.
-
-**Status:** confirmed intentional for now. The connector URL is the credential,
-the same model as a Slack or Stripe webhook URL.
-
-**Consequence to keep in mind:** workspace UUIDs are therefore secrets. Do not
-log them, put them in error messages, or expose them in URLs that reach a third
-party. Revisit if MCP connectors are ever shared more widely than one operator
-per workspace — a signed, revocable connector token would be the upgrade.
+UUID connector URLs now return 410 unconditionally. MCP requires a personal
+API key (bearer or revocable keyed connector URL) or the ChatGPT OAuth flow.
+Migrate old connectors using Integrations → Connectors; the deprecated
+`MCP_LEGACY_UUID_URLS` setting cannot restore identifier-based authentication.
 
 ### BILL-017 — Whether enrichment stays off Ringee credits · Open (needs product confirmation)
 

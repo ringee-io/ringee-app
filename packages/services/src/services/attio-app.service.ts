@@ -1,11 +1,22 @@
 import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { PrismaService } from "@ringee/database";
-import { CryptoService, buildOwnershipFilter } from "@ringee/platform";
+import {
+  CryptoService,
+  RedisService,
+  buildOwnershipFilter,
+} from "@ringee/platform";
 import type { OwnershipContext } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 
+/** What an Attio integration token is for, so no other sealed payload passes. */
+const ATTIO_APP_TOKEN_TYPE = "attio_app_token";
+
 export interface AttioAppTokenPayload {
   v: 1;
+  type: typeof ATTIO_APP_TOKEN_TYPE;
+  /** Which issue this is; only the latest one per workspace is honored. */
+  jti: string;
   userId: string;
   organizationId: string | null;
   scope: "personal" | "organization";
@@ -16,6 +27,12 @@ export interface AttioAppContext {
   userId: string;
   organizationId: string | null;
   scope: "personal" | "organization";
+  /**
+   * Set when the token's issuer is an ordinary organization member: their
+   * call history reads are limited to their own calls, the same rule the
+   * dashboard applies (`resolveMemberFilter`).
+   */
+  memberUserId?: string;
 }
 
 export interface CallHistoryEntry {
@@ -55,37 +72,93 @@ export class AttioAppService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly redis: RedisService,
   ) {}
 
-  generateToken(ctx: OwnershipContext): string {
+  /**
+   * Issues the workspace's Attio token and makes it the only one honored:
+   * generating a new token revokes every earlier one, as the UI promises.
+   */
+  async generateToken(ctx: OwnershipContext): Promise<string> {
     const payload: AttioAppTokenPayload = {
       v: 1,
+      type: ATTIO_APP_TOKEN_TYPE,
+      jti: randomUUID(),
       userId: ctx.userId,
       organizationId: ctx.organizationId ?? null,
       scope: ctx.organizationId ? "organization" : "personal",
       createdAt: Date.now(),
     };
+    await this.redis.set(this.activeTokenKey(payload), payload.jti);
     return this.crypto.encrypt(payload as unknown as Record<string, unknown>);
   }
 
-  validateToken(token: string): AttioAppContext {
+  async validateToken(token: string): Promise<AttioAppContext> {
+    let payload: Record<string, unknown>;
     try {
-      const payload = this.crypto.decrypt(
-        token,
-      ) as unknown as AttioAppTokenPayload;
-      if (payload.v !== 1 || !payload.userId) {
-        throw new UnauthorizedException("Invalid integration token");
-      }
-      return {
-        userId: payload.userId,
-        organizationId: payload.organizationId,
-        scope: payload.scope,
-      };
-    } catch (err) {
-      if (err instanceof UnauthorizedException) throw err;
+      payload = this.crypto.decrypt(token);
+    } catch {
       this.logger.warn("Failed to validate Attio app token");
       throw new UnauthorizedException("Invalid or expired integration token");
     }
+
+    // Typed tokens only: old unversioned credentials must be regenerated.
+    // Other encrypted payloads are never integration credentials.
+    const typed = payload.type === ATTIO_APP_TOKEN_TYPE;
+    if (
+      payload.v !== 1 ||
+      typeof payload.userId !== "string" ||
+      !payload.userId ||
+      !typed ||
+      typeof payload.jti !== "string" ||
+      !payload.jti
+    ) {
+      throw new UnauthorizedException("Invalid integration token");
+    }
+    const organizationId =
+      typeof payload.organizationId === "string"
+        ? payload.organizationId
+        : null;
+    const ctx: AttioAppContext = {
+      userId: payload.userId,
+      organizationId,
+      scope: organizationId ? "organization" : "personal",
+    };
+
+    // This is a credential registry, not an optional cache. An absent record
+    // cannot prove a token is still current; legacy tokens must be regenerated.
+    const active = await this.redis.getRaw(this.activeTokenKey(ctx));
+    if (!typed || !active || active !== payload.jti) {
+      throw new UnauthorizedException("This integration token was revoked");
+    }
+
+    // The issuer must still have access to the workspace, and an ordinary
+    // member's token sees only their own calls.
+    if (organizationId) {
+      const membership = await this.prisma.organizationMembership.findFirst({
+        where: { organizationId, userId: ctx.userId },
+        select: { role: true },
+      });
+      if (!membership) {
+        throw new UnauthorizedException("Invalid integration token");
+      }
+      if (membership.role !== "org:admin") ctx.memberUserId = ctx.userId;
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { blockedAt: true },
+    });
+    if (!user || user.blockedAt) {
+      throw new UnauthorizedException("Invalid integration token");
+    }
+    return ctx;
+  }
+
+  private activeTokenKey(ctx: {
+    userId: string;
+    organizationId: string | null;
+  }): string {
+    return `attio-app:active-token:${ctx.userId}:${ctx.organizationId ?? "personal"}`;
   }
 
   async getContextInfo(ctx: AttioAppContext): Promise<{
@@ -133,6 +206,7 @@ export class AttioAppService {
     const calls = await this.prisma.call.findMany({
       where: {
         ...ownerFilter,
+        ...(ctx.memberUserId ? { userId: ctx.memberUserId } : {}),
         OR: [
           { fromNumber: { in: phoneNumbers } },
           { toNumber: { in: phoneNumbers } },

@@ -175,9 +175,16 @@ async function main() {
   for (const contact of toRestore) {
     const externalId = externalIdOf(contact);
     if (!externalId) continue;
+    // Only a link of this organization's own CRM connection: another tenant
+    // can hold the same external id, and its link must never point here.
     const res = await prisma.crmContactLink
       .updateMany({
-        where: { externalId, externalType: "person", contactId: null },
+        where: {
+          externalId,
+          externalType: "person",
+          contactId: null,
+          connection: { organizationId: ORG_ID },
+        },
         data: { contactId: contact.id },
       })
       .catch(() => ({ count: 0 }));

@@ -45,6 +45,11 @@ export interface PrepareCallResponse {
   callerId: string;
   credential: TelephonyCredential;
   destination: string;
+  /**
+   * The signed authorization the leg must carry so the server attributes the
+   * call to this user and workspace. Absent from an older backend.
+   */
+  dialToken?: string;
 }
 
 /** Stable error codes the backend returns so the side panel can show the right state. */

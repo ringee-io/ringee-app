@@ -19,13 +19,16 @@ import {
 import {
   DeepgramService,
   describeTelnyxError,
+  sanitizeMediaStreamError,
   OrchestratorService,
   OwnershipContext,
   RedisService,
   TelephonyService,
+  deriveSdkKey,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
-import { CreditService } from "../credit.service";
+import { createHmac, timingSafeEqual } from "crypto";
+import { CreditService, incurredCostDebitRef } from "../credit.service";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
 import {
   CallTranscriptionView,
@@ -39,6 +42,36 @@ import {
   trackToSpeaker,
 } from "./transcription.constants";
 import { PipelineFanoutService } from "../ai-pipeline";
+
+/**
+ * Who is asking, plus the member their reads are limited to: an organization
+ * member's `resolveMemberFilter`. Absent for an admin or a personal workspace.
+ */
+export type TranscriptionAccessContext = OwnershipContext & {
+  memberUserId?: string;
+};
+
+/**
+ * The token a realtime transcription's media stream carries: an HMAC of the
+ * call and the transcription it feeds, so audio is accepted only from the
+ * stream Ringee itself asked the carrier to open.
+ */
+export function mediaStreamToken(callId: string, transcriptionId: string) {
+  return createHmac("sha256", deriveSdkKey("media_stream"))
+    .update(`${callId}:${transcriptionId}`)
+    .digest("base64url");
+}
+
+export function isMediaStreamToken(
+  token: string | null,
+  callId: string,
+  transcriptionId: string,
+): boolean {
+  if (!token) return false;
+  const expected = Buffer.from(mediaStreamToken(callId, transcriptionId));
+  const actual = Buffer.from(token);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 
 @Injectable()
 export class TranscriptionService {
@@ -65,9 +98,14 @@ export class TranscriptionService {
    *  - the call is personal → the caller owns it.
    * No cross-tenant access.
    */
-  private assertCallAccess(ctx: OwnershipContext, call: Call): void {
+  private assertCallAccess(ctx: TranscriptionAccessContext, call: Call): void {
     if (call.organizationId) {
       if (ctx.organizationId !== call.organizationId) {
+        throw new ForbiddenException("No access to this call's transcription");
+      }
+      // An organization member reads and drives their own calls' transcripts
+      // only — the rule call detail applies to the same call.
+      if (ctx.memberUserId && call.userId !== ctx.memberUserId) {
         throw new ForbiddenException("No access to this call's transcription");
       }
       return;
@@ -78,7 +116,7 @@ export class TranscriptionService {
   }
 
   private async loadCallForCtx(
-    ctx: OwnershipContext,
+    ctx: TranscriptionAccessContext,
     callId: string,
   ): Promise<Call> {
     const call = await this.callRepo.findById(callId);
@@ -238,7 +276,11 @@ export class TranscriptionService {
     });
 
     const base = apiConfiguration.TRANSCRIPTION_MEDIA_STREAM_PUBLIC_URL;
-    const streamUrl = `${base}${base.includes("?") ? "&" : "?"}callId=${call.id}`;
+    // The carrier connects back with this URL; the token is what tells the
+    // gateway the connection is that one, for this transcription only.
+    const streamUrl =
+      `${base}${base.includes("?") ? "&" : "?"}callId=${call.id}` +
+      `&token=${mediaStreamToken(call.id, header.id)}`;
 
     try {
       await this.telephonyService.startStreaming(
@@ -249,7 +291,7 @@ export class TranscriptionService {
       this.logger.log(`▶️ Realtime transcription started for call ${call.id}`);
     } catch (err) {
       const detail = describeTelnyxError(
-        err,
+        sanitizeMediaStreamError(err),
         "The carrier refused to start the media stream.",
       );
       await this.transcriptionRepo.markStatus(
@@ -260,8 +302,7 @@ export class TranscriptionService {
         },
       );
       this.logger.error(
-        `Failed to start media streaming for call ${call.id} ` +
-          `(streamUrl=${streamUrl}): ${detail}`,
+        `Failed to start media streaming for call ${call.id}: ${detail}`,
       );
       throw new BadRequestException("Failed to start live transcription");
     }
@@ -631,10 +672,13 @@ export class TranscriptionService {
             organizationId: header.organizationId,
           },
           chargedCredits,
-          {
-            idempotencyKey: `transcription-recording:${header.id}`,
-            source: "deepgram.recording-transcription",
-          },
+          // The provider was just paid for THIS run: a retranscription reuses
+          // the header but is new work, so it is a new debit (BILLING:
+          // incurred costs are never collapsed into an earlier one).
+          incurredCostDebitRef(
+            `transcription-recording:${header.id}`,
+            "deepgram.recording-transcription",
+          ),
         );
       }
 

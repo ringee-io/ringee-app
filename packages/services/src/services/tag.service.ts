@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  ContactRepository,
   Tag,
   TagRepository,
   UserRepository,
@@ -17,6 +18,7 @@ export class TagService {
     private readonly repo: TagRepository,
     private readonly userRepo: UserRepository,
     private readonly orgRepo: OrganizationRepository,
+    private readonly contactRepo: ContactRepository,
   ) {}
 
   async createTag(ctx: OwnershipContext, dto: CreateTagDto): Promise<Tag> {
@@ -48,10 +50,8 @@ export class TagService {
     );
   }
 
-  async getTagById(id: string): Promise<Tag> {
-    const tag = await this.repo.findById(id);
-    if (!tag) throw new NotFoundException("Tag not found");
-    return tag;
+  async getTagById(ctx: OwnershipContext, id: string): Promise<Tag> {
+    return this.ensureOwned(ctx, id);
   }
 
   async listTags(ctx: OwnershipContext): Promise<Tag[]> {
@@ -64,16 +64,20 @@ export class TagService {
     return this.repo.listByOwner({ userId: dbUserId, organizationId: dbOrgId });
   }
 
-  async updateTag(id: string, dto: UpdateTagDto): Promise<Tag> {
-    await this.ensureExists(id);
+  async updateTag(
+    ctx: OwnershipContext,
+    id: string,
+    dto: UpdateTagDto,
+  ): Promise<Tag> {
+    await this.ensureOwned(ctx, id);
     return this.repo.update(id, {
       name: dto.name?.trim(),
       color: dto.color,
     });
   }
 
-  async deleteTag(id: string): Promise<Tag> {
-    await this.ensureExists(id);
+  async deleteTag(ctx: OwnershipContext, id: string): Promise<Tag> {
+    await this.ensureOwned(ctx, id);
     return this.repo.delete(id);
   }
 
@@ -85,17 +89,37 @@ export class TagService {
   }
 
   async removeTagsFromContact(
+    ctx: OwnershipContext,
     contactId: string,
     tagIds: string[],
   ): Promise<number> {
+    await this.ensureContactOwned(ctx, contactId);
     return this.repo.removeFromContact(contactId, tagIds);
   }
 
-  async setContactTags(contactId: string, tagIds: string[]): Promise<void> {
-    return this.repo.setContactTags(contactId, tagIds);
+  /** Replaces the contact's tags; every tag must belong to the workspace. */
+  async setContactTags(
+    ctx: OwnershipContext,
+    contactId: string,
+    tagIds: string[],
+  ): Promise<void> {
+    const scope = await this.resolveCtx(ctx);
+    await this.ensureContactOwned(scope, contactId);
+    const uniqueTagIds = [...new Set(tagIds)];
+    const ownedTagIds = await this.repo.findOwnedIds(scope, uniqueTagIds);
+    if (ownedTagIds.length !== uniqueTagIds.length) {
+      throw new BadRequestException(
+        "One or more tags are invalid or do not belong to this workspace",
+      );
+    }
+    return this.repo.setContactTags(contactId, uniqueTagIds);
   }
 
-  async getContactTags(contactId: string): Promise<Tag[]> {
+  async getContactTags(
+    ctx: OwnershipContext,
+    contactId: string,
+  ): Promise<Tag[]> {
+    await this.ensureContactOwned(ctx, contactId);
     return this.repo.getContactTags(contactId);
   }
 
@@ -106,10 +130,52 @@ export class TagService {
     return this.repo.assignTagsToContacts(contactIds, tagIds);
   }
 
-  private async ensureExists(id: string): Promise<Tag> {
-    const tag = await this.repo.findById(id);
+  /**
+   * Tags the workspace's own contacts among `contactIds` with one of its own
+   * tags. Ids from elsewhere (a model's tool call, a client) are dropped, never
+   * linked: a tag must not reach into another workspace's contacts.
+   */
+  async tagOwnedContacts(
+    ctx: OwnershipContext,
+    contactIds: string[],
+    tagId: string,
+  ): Promise<{ tagged: number; skipped: number }> {
+    const scope = await this.resolveCtx(ctx);
+    await this.ensureOwned(scope, tagId);
+    const unique = [...new Set(contactIds)];
+    const owned = await this.contactRepo.findOwnedIds(scope, unique);
+    await this.repo.assignTagsToContacts(owned, [tagId]);
+    return { tagged: owned.length, skipped: unique.length - owned.length };
+  }
+
+  private async ensureOwned(ctx: OwnershipContext, id: string): Promise<Tag> {
+    const tag = await this.repo.findByIdForOwner(
+      await this.resolveCtx(ctx),
+      id,
+    );
     if (!tag) throw new NotFoundException("Tag not found");
     return tag;
+  }
+
+  private async ensureContactOwned(
+    ctx: OwnershipContext,
+    contactId: string,
+  ): Promise<void> {
+    const contact = await this.contactRepo.findByIdForOwner(
+      await this.resolveCtx(ctx),
+      contactId,
+    );
+    if (!contact) throw new NotFoundException("Contact not found");
+  }
+
+  /** The context with Clerk ids mapped to Ringee ids, as tags are stored. */
+  private async resolveCtx(ctx: OwnershipContext): Promise<OwnershipContext> {
+    return {
+      userId: await this.resolveUserId(ctx.userId),
+      organizationId: ctx.organizationId
+        ? await this.resolveOrgId(ctx.organizationId)
+        : null,
+    };
   }
 
   private async resolveUserId(clerkOrDbId: string): Promise<string> {

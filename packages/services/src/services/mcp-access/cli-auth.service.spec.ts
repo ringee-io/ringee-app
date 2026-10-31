@@ -121,6 +121,7 @@ describe("CliAuthService — `ringee login`", () => {
     } as unknown as OrganizationService;
     const apiKeys = {
       mint: PersonalApiKeyService.prototype.mint,
+      assertMayHoldKeys: async () => undefined,
       describeAccount: async (_: string, orgId: string | null) => ({
         user: { email: "agent@example.com", name: "Agent" },
         workspace: orgId

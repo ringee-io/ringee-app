@@ -25,14 +25,16 @@ export class AttioAppController {
     return authHeader.slice(7);
   }
 
-  private resolveContext(authHeader: string | undefined): AttioAppContext {
+  private async resolveContext(
+    authHeader: string | undefined,
+  ): Promise<AttioAppContext> {
     const token = this.extractToken(authHeader);
     return this.attioApp.validateToken(token);
   }
 
   @Post("generate-token")
   async generateToken(@CurrentUser() user: CurrentUserData) {
-    const token = this.attioApp.generateToken({
+    const token = await this.attioApp.generateToken({
       userId: user.id,
       organizationId: user.activeOrgId ?? null,
     });
@@ -47,7 +49,7 @@ export class AttioAppController {
   @Public()
   @Post("validate")
   async validate(@Headers("authorization") auth: string | undefined) {
-    const ctx = this.resolveContext(auth);
+    const ctx = await this.resolveContext(auth);
     const context = await this.attioApp.getContextInfo(ctx);
     return { valid: true, context };
   }
@@ -55,7 +57,7 @@ export class AttioAppController {
   @Public()
   @Get("context")
   async getContext(@Headers("authorization") auth: string | undefined) {
-    const ctx = this.resolveContext(auth);
+    const ctx = await this.resolveContext(auth);
     return this.attioApp.getContextInfo(ctx);
   }
 
@@ -66,7 +68,7 @@ export class AttioAppController {
     @Query("phones") phones: string | undefined,
     @Query("limit") limit: string | undefined,
   ) {
-    const ctx = this.resolveContext(auth);
+    const ctx = await this.resolveContext(auth);
     if (!phones)
       throw new BadRequestException("phones query parameter required");
     const phoneList = phones
@@ -83,7 +85,7 @@ export class AttioAppController {
   @Public()
   @Get("caller-ids")
   async getCallerIds(@Headers("authorization") auth: string | undefined) {
-    const ctx = this.resolveContext(auth);
+    const ctx = await this.resolveContext(auth);
     return this.attioApp.getCallerIds(ctx);
   }
 
@@ -100,7 +102,7 @@ export class AttioAppController {
       attioObjectType?: string;
     },
   ) {
-    const ctx = this.resolveContext(auth);
+    const ctx = await this.resolveContext(auth);
     if (!body.toNumber || !body.fromNumber) {
       throw new BadRequestException("toNumber and fromNumber are required");
     }

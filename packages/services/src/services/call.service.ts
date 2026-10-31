@@ -11,7 +11,9 @@ import {
 import { apiConfiguration } from "@ringee/configuration";
 import {
   CallRepository,
+  CallSessionItemStatus,
   CallSessionRepository,
+  CallSessionStatus,
   CallStatus,
   CallOutcome,
   Call,
@@ -20,11 +22,14 @@ import {
   type CallDetail,
 } from "@ringee/database";
 import {
+  DIAL_AUTHORIZATION_HEADER,
   OrchestratorService,
   OwnershipContext,
   RedisService,
   TelephonyService,
   carrierInboundLegCorrelation,
+  signDialAuthorization,
+  verifyDialAuthorization,
   carrierOutboundLeg,
   isCarrierCallKey,
   signCallCorrelation,
@@ -95,6 +100,25 @@ const EXTERNAL_CALL_HEADER = "X-Ringee-Byoc-Call-Id";
 
 /** Attribution for a contact saved because it called in. */
 const INBOUND_CALL_CONTACT_SOURCE = "inbound-call";
+
+/** A phone number's digits, so `+1 (415) 555…` and `1415555…` compare equal. */
+function phoneDigits(value: string | null | undefined): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+/**
+ * Authorization requires the complete international number. Never infer a
+ * country from a matching suffix: distinct countries can share those digits.
+ */
+function sameLine(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const x = phoneDigits(a);
+  const y = phoneDigits(b);
+  if (!x || !y) return false;
+  return /^[1-9]\d{6,14}$/.test(x) && x === y;
+}
 
 /**
  * A caller id that is a real number. A withheld one (`anonymous`) or a SIP
@@ -1259,6 +1283,82 @@ export class CallService implements OnModuleDestroy {
    * Returns true when the token was handled (adopted OR hung up for credit),
    * false when it should be ignored (bad signature / not adoptable).
    */
+  /**
+   * The workspace a magic-link session leg is billed to, or `null` when the
+   * leg is not one the session admitted.
+   *
+   * The session headers are browser-supplied, so they are only a claim. What
+   * authorizes the leg is `startCallForItem`: it checked the token, the
+   * session's state and allowance, and moved this one item to `calling`. The
+   * leg must name that item, and dial the item's own number.
+   */
+  private async admitSessionLeg(
+    sessionId: string,
+    itemId: string | null,
+    event: TelephonyEvent,
+  ): Promise<OwnershipContext | null> {
+    const callSession = await this.callSessionRepository.findById(sessionId);
+    if (!callSession || callSession.deletedAt) {
+      this.logger.warn(`⚠️ Call session ${sessionId} not found or deleted`);
+      return null;
+    }
+    if (
+      callSession.status !== CallSessionStatus.ready &&
+      callSession.status !== CallSessionStatus.active
+    ) {
+      this.logger.warn(
+        `⛔ Session ${sessionId} is ${callSession.status}; refusing its leg`,
+      );
+      return null;
+    }
+    if (
+      callSession.expiresAt &&
+      callSession.expiresAt.getTime() <= Date.now()
+    ) {
+      this.logger.warn(`⛔ Session ${sessionId} has expired; refusing its leg`);
+      return null;
+    }
+    const item = itemId
+      ? await this.callSessionRepository.findItemById(itemId)
+      : null;
+    // A redelivered `call.initiated` finds its item already linked to the
+    // call this very leg created; that is the same admission, not a new one.
+    const redelivered =
+      !!item?.callId &&
+      (await this.callRepository.findByControlId(event.callControlId))?.id ===
+        item.callId;
+    if (
+      !item ||
+      item.callSessionId !== sessionId ||
+      item.status !== CallSessionItemStatus.calling ||
+      (item.callId && !redelivered) ||
+      !sameLine(item.phoneNumber, event.to)
+    ) {
+      this.logger.warn(
+        `⛔ Session ${sessionId} leg does not match an item it admitted; refusing it`,
+      );
+      return null;
+    }
+    const ctx = {
+      userId: callSession.userId,
+      organizationId: callSession.organizationId,
+    };
+    // The browser also chooses `from`. This lookup is read-only and scoped
+    // to the session owner's workspace; a different tenant's number is refused.
+    const presentedNumberId =
+      await this.callerIdRotationService.registerOutboundCall(
+        ctx,
+        event.from ?? "",
+      );
+    if (!presentedNumberId) {
+      this.logger.warn(
+        `Session ${sessionId} leg presents an unowned caller ID`,
+      );
+      return null;
+    }
+    return ctx;
+  }
+
   private async adoptSdkCall(
     correlationToken: string,
     callControlId: string,
@@ -1271,8 +1371,8 @@ export class CallService implements OnModuleDestroy {
     if (
       !existing ||
       existing.source !== "sdk" ||
-      existing.status !== CallStatus.pending ||
-      existing.callControlId ||
+      ((existing.status !== CallStatus.pending || existing.callControlId) &&
+        existing.callControlId !== callControlId) ||
       !existing.userId
     ) {
       return false;
@@ -1282,6 +1382,23 @@ export class CallService implements OnModuleDestroy {
       userId: existing.userId,
       organizationId: existing.organizationId,
     };
+
+    // The token authorizes the number it was issued for (DNC and calling
+    // window were checked against it), not whatever the leg actually dials.
+    if (
+      (existing.toNumber && !sameLine(existing.toNumber, event.to)) ||
+      (existing.fromNumber && !sameLine(existing.fromNumber, event.from))
+    ) {
+      this.logger.warn(
+        `⛔ Hanging up SDK leg ${callControlId}: it does not dial what call ${existing.id} authorized`,
+      );
+      await this.telephonyService.hangupCall(callControlId);
+      return true;
+    }
+
+    // The provider retries call.initiated after adoption. A token already
+    // bound to THIS leg is a replay, not another unauthorized call.
+    if (existing.callControlId === callControlId) return true;
 
     // Same credit/enablement gate as the web path (hangs up if unaffordable).
     if (!(await this.ensureCallAffordable(ctx, callControlId))) {
@@ -1294,6 +1411,21 @@ export class CallService implements OnModuleDestroy {
       return true;
     }
 
+    const claimed = await this.callRepository.claimPendingCall(existing.id, {
+      callControlId,
+      callSessionId: event.callSessionId ?? null,
+      callLegId: event.callLegId ?? null,
+      connectionId: apiConfiguration.TELNYX_CONNECTION_ID ?? null,
+      startedAt: event.startedAt ? new Date(event.startedAt) : null,
+    });
+    if (!claimed) {
+      const bound = await this.callRepository.findById(existing.id);
+      if (bound?.callControlId !== callControlId) {
+        await this.telephonyService.hangupCall(callControlId);
+      }
+      return true;
+    }
+
     // Audit which owned number presented as caller ID.
     const presentedNumberId = await this.callerIdRotationService
       .registerOutboundCall(ctx, event.from ?? "")
@@ -1301,11 +1433,6 @@ export class CallService implements OnModuleDestroy {
 
     const adopted = await this.callRepository.attachTelephony(existing.id, {
       callControlId,
-      callSessionId: event.callSessionId ?? undefined,
-      callLegId: event.callLegId ?? undefined,
-      connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
-      startedAt: event.startedAt ?? undefined,
-      status: CallStatus.ringing,
       callerIdId: presentedNumberId ?? existing.callerIdId ?? undefined,
     });
 
@@ -1496,6 +1623,42 @@ export class CallService implements OnModuleDestroy {
     return this.callRepository.findOneBySessionId(callSessionId);
   }
 
+  /**
+   * The signed authorization a dialer's pre-flight hands the browser for one
+   * outbound leg to `destination`. The leg carries it back
+   * (`X-Ringee-Dial-Token`) and `call.initiated` attributes the call by it
+   * instead of by the browser's own user/organization headers.
+   */
+  issueDialAuthorization(
+    ctx: OwnershipContext,
+    destination: string,
+    callerId?: string | null,
+  ): string {
+    return signDialAuthorization({
+      userId: ctx.userId,
+      organizationId: ctx.organizationId ?? null,
+      destination,
+      callerId,
+    });
+  }
+
+  /**
+   * The workspace call a WebRTC session belongs to. `participantUserId` is the
+   * member scoping `resolveMemberFilter` gives: a member reaches only calls
+   * they placed, answered or were rung for.
+   */
+  async findOneBySessionIdForOwner(
+    ctx: OwnershipContext,
+    callSessionId: string,
+    options: { participantUserId?: string } = {},
+  ): Promise<Call | null> {
+    return this.callRepository.findOneBySessionIdForOwner(
+      ctx,
+      callSessionId,
+      options.participantUserId,
+    );
+  }
+
   async findById(id: string): Promise<Call | null> {
     return this.callRepository.findById(id);
   }
@@ -1657,10 +1820,47 @@ export class CallService implements OnModuleDestroy {
       return false;
     }
 
+    // `client_state` alone proves nothing: a browser can stamp any value on a
+    // leg it places. A drop is a leg THIS server dialed, and the proof is the
+    // row it wrote at dial time carrying the same state. A playback state is
+    // only ever set by a server playback command, after answer.
+    const isPlaybackEvent =
+      eventType === "call.playback.started" ||
+      eventType === "call.playback.ended";
+    if (!isPlaybackEvent) {
+      if (!dropState) return false;
+      let row = await this.callRepository.findByControlId(callControlId);
+      if (!row && dropState.dropToken) {
+        const pendingId = verifyCallCorrelation(dropState.dropToken);
+        const pending = pendingId
+          ? await this.callRepository.findById(pendingId)
+          : null;
+        if (
+          pending?.status === CallStatus.pending &&
+          !pending.callControlId &&
+          pending.clientState === event.clientState &&
+          sameLine(pending.toNumber, event.to) &&
+          sameLine(pending.fromNumber, event.from)
+        ) {
+          await this.callRepository.claimPendingCall(pending.id, {
+            callControlId,
+            callSessionId: event.callSessionId ?? null,
+            callLegId: event.callLegId ?? null,
+            connectionId: event.connectionId ?? null,
+            startedAt: event.startedAt ? new Date(event.startedAt) : null,
+          });
+          row = await this.callRepository.findByControlId(callControlId);
+        }
+      }
+      if (!row || !row.clientState || row.clientState !== event.clientState) {
+        // No stored admission for this leg: ordinary authorization applies.
+        return false;
+      }
+    }
+
     switch (eventType) {
       case "call.initiated":
-        // The Call row was written at dial time — nothing to adopt, and the
-        // WebRTC attribution path below would drop this leg anyway.
+        // The Call row was written at dial time — nothing to adopt.
         return true;
 
       case "call.answered":
@@ -1813,6 +2013,7 @@ export class CallService implements OnModuleDestroy {
               this.logger.warn(
                 `⚠️ SDK correlation present but not adoptable; dropping ${callControlId}`,
               );
+              await this.telephonyService.hangupCall(callControlId);
             } else {
               await this.replayParkedCallEvents(callControlId);
             }
@@ -1834,49 +2035,54 @@ export class CallService implements OnModuleDestroy {
 
         let outboundCtx: OwnershipContext;
         if (ringeeSessionId) {
-          const callSession =
-            await this.callSessionRepository.findById(ringeeSessionId);
-          if (!callSession || callSession.deletedAt) {
+          const sessionLeg = await this.admitSessionLeg(
+            ringeeSessionId,
+            ringeeSessionItemId,
+            event,
+          );
+          if (!sessionLeg) {
+            await this.telephonyService.hangupCall(callControlId);
+            return;
+          }
+          outboundCtx = sessionLeg;
+        } else if (
+          this.getCustomHeader(event.customHeaders, DIAL_AUTHORIZATION_HEADER)
+        ) {
+          // A dialer that went through its pre-flight carries the server's
+          // signed authorization: it alone names who pays. A forged, expired or
+          // mismatched one is refused rather than read some other way.
+          const authorization = verifyDialAuthorization(
+            this.getCustomHeader(
+              event.customHeaders,
+              DIAL_AUTHORIZATION_HEADER,
+            ),
+          );
+          if (
+            !authorization ||
+            !sameLine(authorization.destination, event.to) ||
+            (authorization.callerId !== null &&
+              !sameLine(authorization.callerId, event.from))
+          ) {
             this.logger.warn(
-              `⚠️ Call session ${ringeeSessionId} not found or deleted`,
+              `⛔ Hanging up ${callControlId}: its dial authorization is invalid, expired or for another number`,
             );
+            await this.telephonyService.hangupCall(callControlId);
             return;
           }
           outboundCtx = {
-            userId: callSession.userId,
-            organizationId: callSession.organizationId,
+            userId: authorization.userId,
+            organizationId: authorization.organizationId,
           };
         } else {
-          const clerkUserId = this.getClerkUserIdFromHeaders(
-            event.customHeaders,
+          // Identity headers are attacker-controlled. Every ordinary browser
+          // leg must carry the signed pre-flight authorization, even when it
+          // omits identity headers altogether. Provider failures propagate so
+          // the webhook is retried until the unauthorized leg is terminated.
+          this.logger.warn(
+            `Hanging up unauthorized outbound leg ${callControlId}`,
           );
-
-          if (!clerkUserId) {
-            // Drop the leg rather than guess. Attributing an unidentified call
-            // to "whoever the lookup returns" bills a stranger and takes their
-            // one-call-at-a-time slot, which shows up as a teammate being told
-            // they are already on a call they never made.
-            this.logger.warn(
-              `⚠️ Dropping outbound call ${callControlId}: no X-User-Id custom header ` +
-                `(from=${event.from} to=${event.to}) — it cannot be attributed to a user`,
-            );
-            return;
-          }
-
-          const organizationId = await this.getOrganizationIdFromHeaders(
-            event.customHeaders,
-          );
-          const user = await this.userService.getCachedByClerkId(clerkUserId);
-
-          if (!user) {
-            this.logger.warn(`⚠️ User ${clerkUserId} not found`);
-            return;
-          }
-
-          outboundCtx = {
-            userId: user.id,
-            organizationId: organizationId,
-          };
+          await this.telephonyService.hangupCall(callControlId);
+          return;
         }
 
         // A campaign leg names its CallAttempt in `client_state`. When that
@@ -1987,11 +2193,13 @@ export class CallService implements OnModuleDestroy {
 
         // Link to the originating CallSessionItem so the public dialer
         // can resolve the Ringee callId without an extra round-trip.
-        if (ringeeSessionItemId && outboundCall) {
+        if (ringeeSessionId && ringeeSessionItemId && outboundCall) {
           await this.callSessionRepository
-            .updateItem(ringeeSessionItemId, {
-              call: { connect: { id: outboundCall.id } },
-            })
+            .linkItemToCall(
+              ringeeSessionId,
+              ringeeSessionItemId,
+              outboundCall.id,
+            )
             .catch((err) =>
               this.logger.warn(
                 `Failed to link CallSessionItem ${ringeeSessionItemId} to call ${outboundCall.id}: ${err.message}`,

@@ -18,10 +18,12 @@ import { UserService } from "../user.service";
 import { generateTemporaryPassword } from "./temporary-password";
 
 /**
- * Copied on every email Ringee sends a new account, or a demo requester about
- * their request, so the team sees each one (LIFE-004, LIFE-005).
+ * Told about every account Ringee creates and copied on what it tells a demo
+ * requester, so the team sees each one (LIFE-004, LIFE-005). Never sent a
+ * password: a new account's credentials go to its owner alone.
  */
-export const ACCOUNTS_CC_EMAIL = "edison@getringee.com";
+export const ACCOUNTS_CC_EMAIL =
+  apiConfiguration.ACCOUNTS_TEAM_EMAIL || "edison@getringee.com";
 
 /** These emails are written in Edison's voice ("I have created your account"). */
 export const ACCOUNTS_SENDER_NAME = "Edison from Ringee";
@@ -193,7 +195,10 @@ export class AccountProvisioningService {
     }
   }
 
-  /** True once the provider accepted the credentials email. */
+  /**
+   * True once the provider accepted the credentials email. The password goes
+   * to the account's owner only; the team gets a notice without it.
+   */
   async sendCredentials(view: CredentialsEmailView): Promise<boolean> {
     const { subject, html } = buildCredentialsEmail(view);
     const result: unknown = await this.email
@@ -203,11 +208,24 @@ export class AccountProvisioningService {
         html,
         ACCOUNTS_SENDER_NAME,
         apiConfiguration.EMAIL_FROM_ADDRESS,
-        undefined,
-        [ACCOUNTS_CC_EMAIL],
       )
       .catch((error: Error) => ({ error }));
-    return wasEmailAccepted(result);
+    const accepted = wasEmailAccepted(result);
+    const notice = buildTeamNotice(view, accepted);
+    await this.email
+      .sendEmail(
+        ACCOUNTS_CC_EMAIL,
+        notice.subject,
+        notice.html,
+        ACCOUNTS_SENDER_NAME,
+        apiConfiguration.EMAIL_FROM_ADDRESS,
+      )
+      .catch((error: Error) =>
+        this.logger.warn(
+          `Could not notify the team of account ${view.email}: ${error.message}`,
+        ),
+      );
+    return accepted;
   }
 
   /**
@@ -293,6 +311,21 @@ function toHttpException(error: unknown): HttpException {
         `Clerk could not create the account: ${error.message}`,
       );
   }
+}
+
+/** What the team is told about a new account: who, and whether it was sent. */
+export function buildTeamNotice(
+  view: CredentialsEmailView,
+  delivered: boolean,
+): { subject: string; html: string } {
+  return {
+    subject: `New Ringee account: ${view.email}`,
+    html: `
+    <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #171717; line-height: 1.5;">
+      <p>A Ringee account was created for ${escapeHtml(view.firstName)} &lt;${escapeHtml(view.email)}&gt;${view.requestedDemo ? " from their demo request" : ""}.</p>
+      <p>${delivered ? "Their sign-in details were emailed to them." : "Their sign-in email was not accepted for delivery."} The password is never copied here.</p>
+    </div>`,
+  };
 }
 
 function escapeHtml(value: string): string {

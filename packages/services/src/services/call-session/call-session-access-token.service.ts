@@ -94,6 +94,11 @@ export class CallSessionAccessTokenService {
     ) {
       throw new UnauthorizedException("Session is no longer available");
     }
+    // The session's own deadline wins over the token's: an owner who shortens
+    // the session shortens every link to it.
+    if (session.expiresAt && session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException("Session link has expired");
+    }
 
     return { accessToken, session };
   }

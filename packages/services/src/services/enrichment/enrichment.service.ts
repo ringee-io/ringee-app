@@ -59,12 +59,25 @@ export class EnrichmentService {
     private readonly merge: EnrichmentMergeService,
   ) {}
 
-  async getJob(id: string): Promise<EnrichmentJob | null> {
-    return this.jobs.findById(id);
+  /** One of the workspace's enrichment jobs; another workspace's reads as missing. */
+  async getJob(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<EnrichmentJob | null> {
+    const job = await this.jobs.findById(id);
+    return job && ownsRow(ctx, job) ? job : null;
   }
 
-  listJobsForContact(contactId: string, limit = 25): Promise<EnrichmentJob[]> {
-    return this.jobs.listByContact(contactId, limit);
+  /** The enrichment history of one of the workspace's contacts. */
+  async listJobsForContact(
+    ctx: OwnershipContext,
+    contactId: string,
+    limit = 25,
+  ): Promise<EnrichmentJob[]> {
+    const contact = await this.contactRepo.findByIdForOwner(ctx, contactId);
+    if (!contact) throw new NotFoundException("Contact not found");
+    const jobs = await this.jobs.listByContact(contactId, limit);
+    return jobs.filter((job) => ownsRow(ctx, job));
   }
 
   /**
@@ -457,10 +470,20 @@ export class EnrichmentService {
       }
       return;
     }
-    if (contact.userId !== ctx.userId) {
+    if (contact.userId !== ctx.userId || contact.organizationId !== null) {
       throw new ForbiddenException("Cannot access this contact");
     }
   }
+}
+
+/** Whether a workspace-owned row belongs to `ctx` (WRK-001). */
+function ownsRow(
+  ctx: OwnershipContext,
+  row: { userId: string; organizationId: string | null },
+): boolean {
+  return ctx.organizationId
+    ? row.organizationId === ctx.organizationId
+    : row.userId === ctx.userId && row.organizationId === null;
 }
 
 function priority(p: EnrichmentProviderType): number {

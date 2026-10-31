@@ -219,7 +219,9 @@ export class UserAccessEnforcementService {
 
     // Do not wait for eventual webhook delivery before reflecting the action.
     // The signed user.updated webhook remains an idempotent fallback.
-    const synced = await this.syncClerkAccessToRingee(userId, banned);
+    const synced = await this.syncClerkAccessToRingee(userId, banned, {
+      administrative: true,
+    });
 
     // `syncClerkAccessToRingee` already locks down when it is the call that
     // blocks the account. Only run it here when the user was blocked before —
@@ -244,10 +246,16 @@ export class UserAccessEnforcementService {
    * Returns the enforcement result when this call is the one that blocked the
    * account, so a caller that already knows about the ban does not run (and
    * broadcast) a second lockdown.
+   *
+   * `administrative` is set only by the backoffice's own unban. A payment-abuse
+   * block is Ringee's decision, not Clerk's: its Clerk ban may never have
+   * landed, so a webhook saying "not banned" proves nothing about it and must
+   * not lift it.
    */
   async syncClerkAccessToRingee(
     userId: string,
     banned: boolean,
+    options: { administrative?: boolean } = {},
   ): Promise<EnforcementResult | null> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -271,7 +279,8 @@ export class UserAccessEnforcementService {
     const isRestorableClerkBan =
       user.blockedAt &&
       (user.blockedReason === CLERK_USER_BAN_REASON ||
-        user.blockedReason === STRIPE_PAYMENT_ABUSE_REASON);
+        (options.administrative === true &&
+          user.blockedReason === STRIPE_PAYMENT_ABUSE_REASON));
     if (!isRestorableClerkBan) {
       return null;
     }

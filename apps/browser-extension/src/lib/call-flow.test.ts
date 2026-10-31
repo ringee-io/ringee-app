@@ -1,24 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { MessageType } from "@ringee/dialer-core/contracts";
 import {
   ERROR_COPY,
   buildStartCall,
-  buildStaticStartCall,
   callEventSnapshotPatch,
   failureSnapshot,
   statusTextFor,
 } from "./call-flow";
 import type { PrepareCallResponse } from "./ringee-api";
-
-// Vitest loads the project's .env, so the static-credential vars may be set.
-// Clear them before each test and let the cases that need them stub explicitly,
-// keeping every assertion deterministic regardless of the local .env.
-beforeEach(() => {
-  vi.stubEnv("VITE_TELNYX_LOGIN", "");
-  vi.stubEnv("VITE_TELNYX_PASSWORD", "");
-  vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "");
-});
-afterEach(() => vi.unstubAllEnvs());
 
 const PREPARED: PrepareCallResponse = {
   callId: "call_1",
@@ -103,73 +92,19 @@ describe("buildStartCall (prepare-call → offscreen)", () => {
   });
 });
 
-describe("static env credentials (web-app style)", () => {
-  it("overrides the SIP creds but NEVER the backend-resolved caller ID", () => {
-    vi.stubEnv("VITE_TELNYX_LOGIN", "useredison44068");
-    vi.stubEnv("VITE_TELNYX_PASSWORD", "G7bJ#!+Gtj=K");
-    vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "+17869460882");
-
+describe("backend-minted credentials only", () => {
+  it("dials with the credential prepare-call minted, never a bundled one", () => {
     const msg = buildStartCall(PREPARED, { userId: "user_1" });
-    expect(msg.sip).toEqual({
-      username: "useredison44068",
-      password: "G7bJ#!+Gtj=K",
-    });
-    // The backend caller ID honors the user's "Call from" pick — the static
-    // public caller ID must not silently replace it.
+    expect(msg.sip).toEqual({ username: "sip-user", password: "sip-pass" });
     expect(msg.callerId).toBe("+14155550000");
-    // Backend attribution (contact/callId) is still carried through.
-    expect(msg.callId).toBe("call_1");
   });
 
-  it("buildStaticStartCall dials straight from env, bypassing the backend", () => {
-    vi.stubEnv("VITE_TELNYX_LOGIN", "useredison44068");
-    vi.stubEnv("VITE_TELNYX_PASSWORD", "G7bJ#!+Gtj=K");
-    vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "+17869460882");
-
-    const msg = buildStaticStartCall(
-      { destination: "+18095551234" },
-      { userId: "user_1", orgId: "org_1" },
-    );
-    expect(msg).not.toBeNull();
-    expect(msg!.type).toBe(MessageType.StartCall);
-    expect(msg!.callerId).toBe("+17869460882");
-    expect(msg!.destination).toBe("+18095551234");
-    expect(msg!.callId).toBeUndefined();
-  });
-
-  it("buildStaticStartCall prefers the user's picked caller ID over the static one", () => {
-    vi.stubEnv("VITE_TELNYX_LOGIN", "useredison44068");
-    vi.stubEnv("VITE_TELNYX_PASSWORD", "G7bJ#!+Gtj=K");
-    vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "+17869460882");
-
-    const msg = buildStaticStartCall(
-      { destination: "+18095551234" },
+  it("carries the dial authorization prepare-call issued", () => {
+    const msg = buildStartCall(
+      { ...PREPARED, dialToken: "v1.claims.sig" },
       { userId: "user_1" },
-      "+16465559999",
     );
-    expect(msg!.callerId).toBe("+16465559999");
-
-    // A pick alone also suffices — no static caller ID configured.
-    vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "");
-    const picked = buildStaticStartCall(
-      { destination: "+18095551234" },
-      { userId: "user_1" },
-      "+16465559999",
-    );
-    expect(picked!.callerId).toBe("+16465559999");
-  });
-
-  it("buildStaticStartCall returns null unless creds AND caller ID are set", () => {
-    expect(
-      buildStaticStartCall({ destination: "+18095551234" }, { userId: "u" }),
-    ).toBeNull();
-
-    vi.stubEnv("VITE_TELNYX_LOGIN", "useredison44068");
-    vi.stubEnv("VITE_TELNYX_PASSWORD", "G7bJ#!+Gtj=K");
-    // No caller ID → still null.
-    expect(
-      buildStaticStartCall({ destination: "+18095551234" }, { userId: "u" }),
-    ).toBeNull();
+    expect(msg.dialToken).toBe("v1.claims.sig");
   });
 });
 

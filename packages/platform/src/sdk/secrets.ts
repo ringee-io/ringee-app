@@ -20,7 +20,10 @@ export type SdkKeyPurpose =
   | "agent_session"
   | "call_correlation"
   | "carrier_route"
-  | "carrier_uac";
+  | "carrier_uac"
+  | "dial_authorization"
+  | "sse_ticket"
+  | "media_stream";
 
 const SALTS: Record<SdkKeyPurpose, string> = {
   publishable_key: "ringee_sdk_pk_v1",
@@ -32,6 +35,15 @@ const SALTS: Record<SdkKeyPurpose, string> = {
   // Not an SDK token either: the provider-side (internal) credentials of an
   // external carrier connection, derived so they never need to be stored.
   carrier_uac: "ringee_carrier_uac_v1",
+  // Not an SDK token: the authorization a dialer's pre-flight hands the
+  // browser, which its WebRTC leg carries back to name who is paying.
+  dial_authorization: "ringee_dial_authorization_v1",
+  // Not an SDK token: the short-lived ticket an EventSource opens a stream
+  // with, since it cannot send an Authorization header.
+  sse_ticket: "ringee_sse_ticket_v1",
+  // Not an SDK token: proves a media-stream connection is the one Ringee asked
+  // the carrier to open for a call's realtime transcription.
+  media_stream: "ringee_media_stream_v1",
 };
 
 function baseSecret(): string {
@@ -50,9 +62,24 @@ function baseSecret(): string {
 }
 
 /**
+ * Each purpose's key, derived once per base secret. scrypt blocks the event
+ * loop for tens of milliseconds, and public routes (SSE streams, the media
+ * stream, SDK tokens) verify a token per request: deriving it each time let one
+ * unauthenticated request buy a full KDF run.
+ */
+const derivedKeys = new Map<SdkKeyPurpose, { secret: string; key: Buffer }>();
+
+/**
  * A 32-byte HMAC key for the given SDK token purpose, deterministically derived
  * from the base secret. Never expose or log the returned buffer.
  */
 export function deriveSdkKey(purpose: SdkKeyPurpose): Buffer {
-  return scryptSync(baseSecret(), SALTS[purpose], 32);
+  const secret = baseSecret();
+  let cached = derivedKeys.get(purpose);
+  if (!cached || cached.secret !== secret) {
+    cached = { secret, key: scryptSync(secret, SALTS[purpose], 32) };
+    derivedKeys.set(purpose, cached);
+  }
+  // A copy: a caller must not be able to mutate the shared cached key.
+  return Buffer.from(cached.key);
 }

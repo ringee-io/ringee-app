@@ -10,6 +10,7 @@ import {
 import {
   CurrentUser,
   CurrentUserData,
+  resolveMemberFilter,
   createOwnershipContext,
 } from "@ringee/platform";
 import { PendingActionService } from "@ringee/services";
@@ -96,13 +97,17 @@ export class PendingActionController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
-    return this.service.complete(ctx, id);
+    return this.service.complete(ctx, id, {
+      memberUserId: resolveMemberFilter(user),
+    });
   }
 
   @Post(":id/dismiss")
   async dismiss(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
-    return this.service.dismiss(ctx, id);
+    return this.service.dismiss(ctx, id, {
+      memberUserId: resolveMemberFilter(user),
+    });
   }
 
   @Post(":id/snooze")
@@ -123,6 +128,8 @@ export class PendingActionController {
     } else {
       until = new Date(Date.now() + 24 * 60 * 60 * 1000); // default 1 day
     }
-    return this.service.snooze(ctx, id, until);
+    return this.service.snooze(ctx, id, until, {
+      memberUserId: resolveMemberFilter(user),
+    });
   }
 }

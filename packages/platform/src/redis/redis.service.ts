@@ -234,6 +234,36 @@ export class RedisService {
     return this.client.ttl(key);
   }
 
+  /** Renew only the lease still owned by this caller, never its successor. */
+  async renewLease(
+    key: string,
+    token: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.client.eval(
+      `if redis.call("GET", KEYS[1]) ~= ARGV[1] then return 0 end
+       return redis.call("EXPIRE", KEYS[1], ARGV[2])`,
+      { keys: [key], arguments: [token, String(ttlSeconds)] },
+    );
+    return Number(result) === 1;
+  }
+
+  /** Remove recovery state atomically with verifying the caller's lease. */
+  async hashDeleteUnderLease(
+    hashKey: string,
+    field: string,
+    leaseKey: string,
+    token: string,
+  ): Promise<boolean> {
+    const result = await this.client.eval(
+      `if redis.call("GET", KEYS[1]) ~= ARGV[1] then return 0 end
+       redis.call("HDEL", KEYS[2], ARGV[2])
+       return 1`,
+      { keys: [leaseKey, hashKey], arguments: [token, field] },
+    );
+    return Number(result) === 1;
+  }
+
   /**
    * Write one field of a hash and (re)arm the whole hash's expiry. Used for
    * registries whose members come and go — the TTL is a safety net so a crashed

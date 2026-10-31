@@ -124,6 +124,12 @@ export class AiConfirmationService {
       (overrides.revealPhone as boolean | undefined) ??
       (payload.revealPhone as boolean | undefined) ??
       false;
+    // What the person approved: an approval for the phone alone is not one
+    // for the email too.
+    const revealEmail =
+      (overrides.revealEmail as boolean | undefined) ??
+      (payload.revealEmail as boolean | undefined) ??
+      true;
     if (
       !jobId ||
       !Array.isArray(externalIdsInput) ||
@@ -148,6 +154,7 @@ export class AiConfirmationService {
           externalId,
           {
             revealPhone,
+            revealEmail,
           },
         );
         revealed.push({

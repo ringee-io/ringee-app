@@ -259,17 +259,15 @@ export class NumberPurchasedService {
    * a DID still on the application rings its new owner, while an AI route on
    * a DID that left it would be refused. A carrier failure keeps the transfer
    * and is logged; the number's next route save or reset moves it.
+   *
+   * The carrier is told on every transfer, whatever `providerConnectionId`
+   * says: pinning a DID to a desk phone moves it to that phone's connection
+   * without updating the column, and a stale value must not leave the old
+   * workspace's phone ringing for calls to a number it no longer owns.
    */
   private async leaveCallControlApplication(
     number: NumberPurchased,
   ): Promise<NumberPurchased> {
-    const appId = apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
-    if (
-      !appId ||
-      appId === apiConfiguration.TELNYX_CONNECTION_ID ||
-      number.providerConnectionId !== appId
-    )
-      return number;
     try {
       const assigned = await this.telephonyService.assignNumberToConnection(
         number.phoneNumber,
@@ -364,11 +362,10 @@ export class NumberPurchasedService {
    * Returns the updated row, or null when the number is not found.
    */
   async refreshMessagingCapabilities(
+    ctx: OwnershipContext,
     numberPurchasedId: string,
   ): Promise<NumberPurchased | null> {
-    const number =
-      await this.numberPurchasedRepository.findById(numberPurchasedId);
-    if (!number) throw new NotFoundException("Number not found");
+    const number = await this.requireOwnedNumber(ctx, numberPurchasedId);
 
     let features: {
       sms?: boolean;
@@ -672,11 +669,10 @@ export class NumberPurchasedService {
    * pending number, enriched with descriptions so the UI can guide the user.
    */
   async getNumberRequirements(
+    ctx: OwnershipContext,
     numberPurchasedId: string,
   ): Promise<NumberOrderRequirements> {
-    const number =
-      await this.numberPurchasedRepository.findById(numberPurchasedId);
-    if (!number) throw new NotFoundException("Number not found");
+    const number = await this.requireOwnedNumber(ctx, numberPurchasedId);
     if (!number.providerNumberId) {
       throw new BadRequestException(
         "This number has no provider order to fulfil requirements for",
@@ -703,6 +699,25 @@ export class NumberPurchasedService {
     };
   }
 
+  /**
+   * One of the workspace's own numbers. Another workspace's number reads as
+   * missing: its verification values and carrier order are its owner's.
+   */
+  private async requireOwnedNumber(
+    ctx: OwnershipContext,
+    numberPurchasedId: string,
+  ): Promise<NumberPurchased> {
+    const number =
+      await this.numberPurchasedRepository.findById(numberPurchasedId);
+    const owned =
+      !!number &&
+      (ctx.organizationId
+        ? number.organizationId === ctx.organizationId
+        : number.userId === ctx.userId && number.organizationId === null);
+    if (!owned) throw new NotFoundException("Number not found");
+    return number!;
+  }
+
   /** Maps a persisted requirement value into the draft shape the UI expects. */
   private toDraft(value: RequirementValueWithDocument): RequirementDraft {
     if (value.fieldType === "document") {
@@ -726,9 +741,7 @@ export class NumberPurchasedService {
     numberPurchasedId: string,
     inputs: DraftRegulatoryRequirementInput[],
   ): Promise<{ saved: number }> {
-    const number =
-      await this.numberPurchasedRepository.findById(numberPurchasedId);
-    if (!number) throw new NotFoundException("Number not found");
+    const number = await this.requireOwnedNumber(ctx, numberPurchasedId);
 
     for (const input of inputs) {
       if (!input.requirementId) continue;
@@ -790,9 +803,7 @@ export class NumberPurchasedService {
     numberPurchasedId: string,
     inputs: SubmitRegulatoryRequirementInput[],
   ): Promise<NumberOrderRequirements> {
-    const number =
-      await this.numberPurchasedRepository.findById(numberPurchasedId);
-    if (!number) throw new NotFoundException("Number not found");
+    const number = await this.requireOwnedNumber(ctx, numberPurchasedId);
     if (!number.providerNumberId) {
       throw new BadRequestException(
         "This number has no provider order to fulfil requirements for",
@@ -802,16 +813,35 @@ export class NumberPurchasedService {
       throw new BadRequestException("No requirements provided");
     }
 
+    // What each requirement IS comes from the carrier's order, not from the
+    // form: a document requirement is fulfilled only with one of the
+    // workspace's own documents, so a raw carrier id sent as "text" must not
+    // reach it.
+    const authoritative =
+      await this.telephonyService.getNumberOrderRequirements(
+        number.providerNumberId,
+      );
+    const typeOf = new Map(
+      authoritative.requirements.map((req) => [req.id, req.fieldType]),
+    );
+
     // Track a human-readable summary per requirement for the follow-up email,
     // and the persisted form value so a reload reflects what was submitted.
     const summaries: { requirementId: string; summary: string }[] = [];
     const values: RegulatoryRequirementValue[] = [];
     const now = new Date();
 
-    for (const input of inputs) {
-      if (!input.requirementId) {
+    for (const submitted of inputs) {
+      if (!submitted.requirementId) {
         throw new BadRequestException("Missing requirementId on a requirement");
       }
+      const fieldType = typeOf.get(submitted.requirementId);
+      if (!fieldType) {
+        throw new BadRequestException(
+          `Requirement ${submitted.requirementId} is not one this number needs`,
+        );
+      }
+      const input = { ...submitted, fieldType };
 
       if (input.fieldType === "address") {
         if (!input.address) {

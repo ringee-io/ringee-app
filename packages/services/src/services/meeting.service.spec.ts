@@ -77,7 +77,9 @@ function build(
       },
       findById: async () => options.storedMeeting ?? STORED_MEETING,
     } as never,
-    {} as never,
+    {
+      findByIdForOwner: async (_ctx: unknown, id: string) => ({ id }),
+    } as never,
     {
       resolveCalendar: async (
         _ctx: unknown,
@@ -121,7 +123,10 @@ function build(
     } as never,
     { enqueueMeetingSync: async () => undefined } as never,
     { scheduleForSubject: async () => undefined } as never,
-    { findById: async () => null } as never,
+    {
+      findById: async () => null,
+      findByIdForOwner: async (_ctx: unknown, id: string) => ({ id }),
+    } as never,
     { enqueue: async () => undefined } as never,
     {} as never,
     {} as never,

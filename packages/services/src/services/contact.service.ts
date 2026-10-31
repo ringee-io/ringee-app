@@ -106,6 +106,8 @@ export class ContactService {
       throw new BadRequestException("Contact already exists");
     }
 
+    const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
+
     return this.repo.create(ctx, {
       name: dto.name,
       firstName: dto.firstName,
@@ -128,9 +130,9 @@ export class ContactService {
           }
         : undefined,
       tags:
-        dto.tagIds && dto.tagIds.length > 0
+        tagIds.length > 0
           ? {
-              create: dto.tagIds.map((tagId) => ({
+              create: tagIds.map((tagId) => ({
                 tag: { connect: { id: tagId } },
               })),
             }
@@ -138,8 +140,9 @@ export class ContactService {
     });
   }
 
-  async getContactById(id: string): Promise<Contact> {
-    const contact = await this.repo.findById(id);
+  /** The contact with its history, when it belongs to the workspace. */
+  async getContactById(ctx: OwnershipContext, id: string): Promise<Contact> {
+    const contact = await this.repo.findDetailForOwner(ctx, id);
     if (!contact) throw new NotFoundException("Contact not found");
     return contact;
   }
@@ -181,14 +184,14 @@ export class ContactService {
     return this.repo.listByCallOutcome(ctx, options);
   }
 
-  async updateContact(id: string, dto: UpdateContactDto): Promise<Contact> {
-    const contact = await this.ensureExists(id);
+  async updateContact(
+    ctx: OwnershipContext,
+    id: string,
+    dto: UpdateContactDto,
+  ): Promise<Contact> {
+    const contact = await this.ensureOwned(ctx, id);
 
     if (dto.phoneNumber && dto.phoneNumber !== contact.phoneNumber) {
-      const ctx: OwnershipContext = {
-        userId: contact.userId,
-        organizationId: contact.organizationId,
-      };
       const exists = await this.repo.findByPhone(ctx, dto.phoneNumber);
 
       if (exists) {
@@ -197,7 +200,8 @@ export class ContactService {
     }
 
     if (dto.tagIds) {
-      await this.tagRepo.setContactTags(id, dto.tagIds);
+      const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
+      await this.tagRepo.setContactTags(id, tagIds);
     }
 
     return this.repo.update(id, {
@@ -230,6 +234,16 @@ export class ContactService {
       data: buildNoteEventData(note, contact),
     });
     return note;
+  }
+
+  /** A note the caller writes on one of their workspace's contacts. */
+  async addNoteForOwner(
+    ctx: OwnershipContext,
+    contactId: string,
+    dto: AddNoteDto,
+  ) {
+    await this.ensureOwned(ctx, contactId);
+    return this.addNoteToContact(ctx.userId, contactId, dto);
   }
 
   /**
@@ -271,23 +285,27 @@ export class ContactService {
     return this.repo.updateLastCall(contactId, date);
   }
 
-  async deleteContact(contactId: string): Promise<Contact> {
-    await this.ensureExists(contactId);
+  async deleteContact(
+    ctx: OwnershipContext,
+    contactId: string,
+  ): Promise<Contact> {
+    await this.ensureOwned(ctx, contactId);
     return this.repo.deleteContact(contactId);
   }
 
-  async deleteNote(contactId: string, noteId: string) {
-    await this.ensureExists(contactId);
-    return this.repo.deleteNote(noteId);
+  async deleteNote(ctx: OwnershipContext, contactId: string, noteId: string) {
+    await this.ensureOwned(ctx, contactId);
+    return this.repo.deleteNote(contactId, noteId);
   }
 
   /**
    * Get a contact's recent activities: calls, notes, meetings, and tags.
    */
-  async getContactActivities(contactId: string): Promise<Contact> {
-    const contact = await this.repo.findById(contactId);
-    if (!contact) throw new NotFoundException("Contact not found");
-    return contact;
+  async getContactActivities(
+    ctx: OwnershipContext,
+    contactId: string,
+  ): Promise<Contact> {
+    return this.getContactById(ctx, contactId);
   }
 
   async findByPhone(
@@ -447,7 +465,7 @@ export class ContactService {
     tagIds?: string[],
     format?: CsvImportFormat,
   ): Promise<CsvImportResult> {
-    const validatedTagIds = await this.validateImportTagIds(ctx, tagIds);
+    const validatedTagIds = await this.validateOwnedTagIds(ctx, tagIds);
     const parsed = this.parseContactsCsv(csvContent, format);
     const { result, insertedPhones } = await this.writeImportedRows(
       ctx,
@@ -710,7 +728,7 @@ export class ContactService {
     );
   }
 
-  private async validateImportTagIds(
+  private async validateOwnedTagIds(
     ctx: OwnershipContext,
     tagIds?: string[],
   ): Promise<string[]> {
@@ -735,5 +753,11 @@ export class ContactService {
     const exists = await this.repo.findById(id);
     if (!exists) throw new NotFoundException("Contact not found");
     return exists;
+  }
+
+  private async ensureOwned(ctx: OwnershipContext, id: string) {
+    const contact = await this.repo.findByIdForOwner(ctx, id);
+    if (!contact) throw new NotFoundException("Contact not found");
+    return contact;
   }
 }

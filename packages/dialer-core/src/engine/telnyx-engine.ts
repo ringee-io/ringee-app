@@ -114,7 +114,8 @@ export function setOutboundRingbackVolume(
 
 /** Place an outbound call. Returns the Telnyx `Call` handle. */
 export function placeCall(opts: PlaceCallOptions): Call {
-  const { client, destination, callerId, userId, organizationId } = opts;
+  const { client, destination, callerId, userId, organizationId, dialToken } =
+    opts;
   const route = opts.carrierRoute;
   const call = client.newCall({
     ...(opts.id ? { id: opts.id } : {}),
@@ -128,7 +129,7 @@ export function placeCall(opts: PlaceCallOptions): Call {
       // headers would try to override the caller ID the PBX presents.
       ...(route
         ? [{ name: EXTERNAL_CARRIER_CALL_HEADER, value: route.callToken }]
-        : buildCallHeaders({ callerId, userId, organizationId })),
+        : buildCallHeaders({ callerId, userId, organizationId, dialToken })),
       ...(opts.extraHeaders ?? []),
     ],
     keepConnectionAliveOnSocketClose: true,

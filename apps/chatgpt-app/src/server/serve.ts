@@ -51,9 +51,26 @@ function text(res: ServerResponse, status: number, body: string): void {
 const OPENAI_APPS_CHALLENGE_TOKEN =
   process.env.OPENAI_APPS_CHALLENGE_TOKEN_CHATGPT ?? "";
 
+/** Largest request body accepted; an MCP call is a few kilobytes. */
+const MAX_BODY_BYTES = 1024 * 1024;
+
+/**
+ * Most JSON-RPC messages one request may batch. The SDK's response bookkeeping
+ * is quadratic in a batch's size, so a large batch of cheap pings would stall
+ * every other request on this process.
+ */
+const MAX_BATCH_MESSAGES = 10;
+
+class RequestTooLarge extends Error {}
+
 async function readBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY_BYTES) throw new RequestTooLarge();
+    chunks.push(chunk as Buffer);
+  }
   if (chunks.length === 0) return undefined;
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -118,7 +135,19 @@ const httpServer = createServer(async (req, res) => {
     }
 
     try {
-      const body = await readBody(req);
+      let body: unknown;
+      try {
+        body = await readBody(req);
+      } catch (err) {
+        if (err instanceof RequestTooLarge)
+          return json(res, 413, { error: "Request body too large" });
+        throw err;
+      }
+      if (Array.isArray(body) && body.length > MAX_BATCH_MESSAGES) {
+        return json(res, 400, {
+          error: `A batch may carry at most ${MAX_BATCH_MESSAGES} messages`,
+        });
+      }
       const server = createRingeeAppServer(ringeeClient);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined, // stateless
@@ -142,10 +171,19 @@ const httpServer = createServer(async (req, res) => {
   json(res, 404, { error: "Not found. Use POST /mcp." });
 });
 
-httpServer.listen(PORT, () => {
+// Without OAuth every request runs as the operator's own env-configured
+// account, so that mode answers this machine only — never the network.
+const HOST = auth.enabled ? undefined : "127.0.0.1";
+if (!auth.enabled && process.env.NODE_ENV === "production") {
+  process.stderr.write(
+    "RINGEE_REQUIRE_AUTH is not true: serving on 127.0.0.1 only. Set it (and the OAuth issuer/JWKS) to accept ChatGPT's connections.\n",
+  );
+}
+
+httpServer.listen(PORT, HOST, () => {
   process.stdout.write(
     `Ringee ChatGPT App MCP on http://localhost:${PORT}/mcp` +
-      (auth.enabled ? " (OAuth required)" : " (no auth — dev)") +
+      (auth.enabled ? " (OAuth required)" : " (no auth — dev, local only)") +
       "\n",
   );
 });

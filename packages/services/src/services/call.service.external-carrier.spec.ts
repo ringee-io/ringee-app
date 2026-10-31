@@ -527,15 +527,15 @@ describe("CallService external carrier outbound", () => {
     assert.deepEqual(s.hostLookups, []);
   });
 
-  it("does not look up or refuse ordinary PSTN legs", async () => {
+  it("does not classify ordinary PSTN legs as carrier calls, but refuses missing authorization", async () => {
     const s = setup();
     s.state.carrierHosts = [];
-    // Without attribution headers the existing web path drops the leg, as before.
+    // Ordinary legs still require admission; no headers cannot authorize a call.
     await s.service.handleTelephonyEvent(s.leg({ to: "+12125550199" }));
     await s.service.handleTelephonyEvent(
       s.leg({ to: "sip:+12125550199@sip.example.com", callControlId: "leg-2" }),
     );
-    assert.deepEqual(s.hangups, []);
+    assert.deepEqual(s.hangups, ["leg-1", "leg-2"]);
     assert.deepEqual(s.hostLookups, ["sip.example.com"]);
   });
 

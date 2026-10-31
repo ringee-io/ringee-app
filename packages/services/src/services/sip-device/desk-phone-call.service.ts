@@ -7,6 +7,7 @@ import {
   SipDeviceStatus,
   SipDeviceWithNumber,
   BlockedCallLogRepository,
+  OutboundSource,
 } from "@ringee/database";
 import {
   OwnershipContext,
@@ -249,6 +250,11 @@ export class DeskPhoneCallService {
   ): Promise<void> {
     const callControlId = payload.call_control_id as string;
     const ctx = this.ownerCtx(device);
+    // The one-call slot is reserved for THIS leg, not the handset: a lease is
+    // replaced only by its own device's next request, and a multi-line phone
+    // dialing again before the first leg is bound would otherwise take the
+    // slot from its own first call.
+    const leaseDevice = `sip:${device.id}:${callControlId}`;
 
     const block = async (reason: BlockReason, detail?: string) => {
       this.logger.warn(
@@ -259,10 +265,7 @@ export class DeskPhoneCallService {
       // its owner busy until the lease expires. No-op when the slot is held by
       // something else (which is the case for CONCURRENT_CALL itself) or when
       // it is already bound to a real leg.
-      await this.concurrentCallGuard.releasePending(
-        device.userId,
-        `sip:${device.id}`,
-      );
+      await this.concurrentCallGuard.releasePending(device.userId, leaseDevice);
       await this.telnyx.hangupCall(callControlId).catch(() => undefined);
       await this.blockedCallRepo.record({
         organizationId: device.organizationId,
@@ -298,7 +301,7 @@ export class DeskPhoneCallService {
     // One call at a time per user, across every device. Lifting the handset
     // while a browser call is up is exactly the case this rule forbids.
     const decision = await this.concurrentCallGuard.requestDial(device.userId, {
-      deviceId: `sip:${device.id}`,
+      deviceId: leaseDevice,
       deviceLabel: device.label ?? "a desk phone",
       source: "sip_device",
       organizationId: ctx.organizationId,
@@ -330,6 +333,20 @@ export class DeskPhoneCallService {
       return block(
         "CALLER_ID_NOT_ALLOWED",
         `caller ID ${callerId} not owned by workspace`,
+      );
+    }
+    // Owned is not enough: the same eligibility every other surface applies —
+    // usable status, and the number's own surface and member allow-lists.
+    const eligible = await this.numberPurchasedService
+      .listOutboundCallerIds(ctx, {
+        source: OutboundSource.sip_device,
+        userId: device.userId,
+      })
+      .catch(() => []);
+    if (!eligible.some((n) => n.id === callerNumber.id)) {
+      return block(
+        "CALLER_ID_NOT_ALLOWED",
+        `caller ID ${callerId} is not enabled for this desk phone`,
       );
     }
 

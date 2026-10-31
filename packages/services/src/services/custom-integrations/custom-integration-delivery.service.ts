@@ -4,7 +4,8 @@ import {
   CustomIntegrationDeliveryRepository,
   CustomIntegrationRepository,
 } from "@ringee/database";
-import { signOutboundEvent } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
+import { requestPublic, signOutboundEvent } from "@ringee/platform";
 import { CustomIntegrationService } from "./custom-integration.service";
 import { CustomIntegrationFailureNotifierService } from "./custom-integration-failure-notifier.service";
 
@@ -12,6 +13,8 @@ const MAX_ATTEMPTS = 10;
 const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
+/** A receiver's reply is not read, only drained; it need not be large. */
+const MAX_RESPONSE_BYTES = 64 * 1024;
 // Deliveries are independent rows, so send them in small parallel waves: a
 // batch of 100 against dead endpoints (15s timeout each) takes at most ~5min
 // in parallel waves, keeping the drain inside its activity timeout.
@@ -134,10 +137,12 @@ export class CustomIntegrationDeliveryService {
     timestampHeader: string,
   ): Promise<DeliveryAttemptResult> {
     const started = Date.now();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(url, {
+      // The integration owner picks the destination; the request leaves from
+      // inside Ringee's network. It may only reach a public address — checked
+      // on the address the socket connects to — and redirects are not
+      // followed.
+      const res = await requestPublic(new URL(url), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -146,8 +151,12 @@ export class CustomIntegrationDeliveryService {
           "Ringee-Timestamp": timestampHeader,
         },
         body,
-        signal: controller.signal,
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        maxBodyBytes: MAX_RESPONSE_BYTES,
+        allowPrivateNetwork: apiConfiguration.OUTBOUND_ALLOW_PRIVATE_NETWORK,
       });
+      // Only the status matters; the body is drained so the socket closes.
+      await res.arrayBuffer().catch(() => undefined);
       const latencyMs = Date.now() - started;
       if (res.status >= 200 && res.status < 300) {
         return { ok: true, statusCode: res.status, latencyMs };
@@ -165,8 +174,6 @@ export class CustomIntegrationDeliveryService {
         latencyMs,
         error: err instanceof Error ? err.message : String(err),
       };
-    } finally {
-      clearTimeout(timer);
     }
   }
 }

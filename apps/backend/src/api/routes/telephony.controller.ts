@@ -219,13 +219,25 @@ export class TelephonyController {
   }
 
   @Post("phone-numbers/:id/refresh-messaging")
-  async refreshMessaging(@Param("id") id: string) {
-    return this.numberPurchasedService.refreshMessagingCapabilities(id);
+  async refreshMessaging(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.numberPurchasedService.refreshMessagingCapabilities(
+      createOwnershipContext(user),
+      id,
+    );
   }
 
   @Get("phone-numbers/:id/requirements")
-  async getPendingNumberRequirements(@Param("id") id: string) {
-    return this.numberPurchasedService.getNumberRequirements(id);
+  async getPendingNumberRequirements(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.numberPurchasedService.getNumberRequirements(
+      createOwnershipContext(user),
+      id,
+    );
   }
 
   /** Lists the workspace's reusable regulatory-document bucket. */
@@ -370,9 +382,14 @@ export class TelephonyController {
 
   @Get("calls/by-session/:sessionId")
   async getCallBySession(
+    @CurrentUser() user: CurrentUserData,
     @Param("sessionId") sessionId: string,
   ): Promise<Call | null> {
-    return this.callService.findOneBySessionId(sessionId);
+    return this.callService.findOneBySessionIdForOwner(
+      createOwnershipContext(user),
+      sessionId,
+      { participantUserId: resolveMemberFilter(user) },
+    );
   }
 
   /** Adjacent calls in the same filtered, member-scoped history result. */
@@ -420,8 +437,15 @@ export class TelephonyController {
   }
 
   @Post("recordings/start")
-  async start(@Body("callSessionId") callSessionId: string) {
-    const call = await this.callService.findOneBySessionId(callSessionId);
+  async start(
+    @CurrentUser() user: CurrentUserData,
+    @Body("callSessionId") callSessionId: string,
+  ) {
+    const call = await this.callService.findOneBySessionIdForOwner(
+      createOwnershipContext(user),
+      callSessionId,
+      { participantUserId: resolveMemberFilter(user) },
+    );
 
     if (!call) {
       throw new NotFoundException("Call not found");
@@ -438,6 +462,7 @@ export class TelephonyController {
 
   @Post("recordings/stop")
   async stop(
+    @CurrentUser() user: CurrentUserData,
     @Body("recordingId") recordingId: string,
     @Body("callSessionId") callSessionId: string,
   ) {
@@ -447,13 +472,20 @@ export class TelephonyController {
       );
     }
 
-    const call = await this.callService.findOneBySessionId(callSessionId);
+    const call = await this.callService.findOneBySessionIdForOwner(
+      createOwnershipContext(user),
+      callSessionId,
+      { participantUserId: resolveMemberFilter(user) },
+    );
 
     if (!call) {
       throw new NotFoundException("Call not found");
     }
 
-    const recording = await this.recordingService.getRecording(recordingId);
+    const recording = await this.recordingService.getRecordingForCall(
+      call.id,
+      recordingId,
+    );
 
     if (!recording) {
       throw new NotFoundException("Recording not found");

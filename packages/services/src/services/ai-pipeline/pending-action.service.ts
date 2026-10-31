@@ -129,8 +129,16 @@ export class PendingActionService {
     );
   }
 
-  async complete(ctx: OwnershipContext, id: string): Promise<PendingAction> {
-    const action = await this.requireOwned(ctx, id);
+  /**
+   * `memberUserId` is the member scoping `resolveMemberFilter` gives: an
+   * organization member acts on their own actions only, as the list shows them.
+   */
+  async complete(
+    ctx: OwnershipContext,
+    id: string,
+    access: { memberUserId?: string } = {},
+  ): Promise<PendingAction> {
+    const action = await this.requireOwned(ctx, id, access);
     const updated = await this.repo.updateStatus(
       id,
       PendingActionStatus.completed,
@@ -140,8 +148,12 @@ export class PendingActionService {
     return updated;
   }
 
-  async dismiss(ctx: OwnershipContext, id: string): Promise<PendingAction> {
-    const action = await this.requireOwned(ctx, id);
+  async dismiss(
+    ctx: OwnershipContext,
+    id: string,
+    access: { memberUserId?: string } = {},
+  ): Promise<PendingAction> {
+    const action = await this.requireOwned(ctx, id, access);
     const updated = await this.repo.updateStatus(
       id,
       PendingActionStatus.dismissed,
@@ -155,8 +167,9 @@ export class PendingActionService {
     ctx: OwnershipContext,
     id: string,
     snoozedUntil: Date,
+    access: { memberUserId?: string } = {},
   ): Promise<PendingAction> {
-    await this.requireOwned(ctx, id);
+    await this.requireOwned(ctx, id, access);
     return this.repo.updateStatus(id, PendingActionStatus.snoozed, {
       snoozedUntil,
     });
@@ -165,11 +178,15 @@ export class PendingActionService {
   private async requireOwned(
     ctx: OwnershipContext,
     id: string,
+    access: { memberUserId?: string } = {},
   ): Promise<PendingAction> {
     const action = await this.repo.findById(id);
     if (!action) throw new NotFoundException("Pending action not found");
     if (ctx.organizationId) {
       if (action.organizationId !== ctx.organizationId) {
+        throw new ForbiddenException("Access denied");
+      }
+      if (access.memberUserId && action.userId !== access.memberUserId) {
         throw new ForbiddenException("Access denied");
       }
     } else if (action.userId !== ctx.userId || action.organizationId !== null) {

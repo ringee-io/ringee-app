@@ -363,14 +363,19 @@
       "hint": "Elke login maakt een sleutel met de naam “CLI · jouw-computer” in de lijst hierboven, zodat je een terminal altijd kunt intrekken."
     },
     "legacy": {
-      "toggle": "Verouderde verbindings-URL (zonder API-sleutel)",
-      "description": "Voor clients die geen headers kunnen sturen. De URL zelf is de inloggegevens en kan niet worden ingetrokken, dus gebruik waar mogelijk een API-sleutel.",
+      "toggle": "Verbindings-URL voor apps zonder API-sleutel",
+      "description": "claude.ai-connectors en de Claude Code-plugin accepteren alleen een URL. Maak die hier aan: hij bevat een geheime sleutel die je altijd kunt intrekken bij je API-sleutels.",
       "scopeOrganization": "Deze URL geeft toegang tot de actieve organisatie.",
       "scopeFreelancer": "Deze URL geeft toegang tot je persoonlijke werkruimte.",
       "modeOrganization": "Organisatie",
       "modeFreelancer": "Persoonlijk",
       "warningTitle": "Behandel deze URL als geheim",
-      "warningDescription": "Iedereen met deze URL kan je Ringee-gegevens lezen en ermee handelen. Neem contact op met support als hij uitlekt."
+      "warningDescription": "Iedereen met deze URL kan je Ringee-gegevens lezen en wijzigen. Lekt hij uit, trek dan de sleutel in bij API-sleutels.",
+      "create": "Verbindings-URL aanmaken",
+      "creating": "Aanmaken…",
+      "createdHint": "Kopieer hem nu: hij wordt maar één keer getoond. Hij werkt tot je de sleutel {prefix}… intrekt bij API-sleutels.",
+      "createError": "De verbindings-URL kon niet worden aangemaakt.",
+      "oldUrlLabel": "Je vorige URL, gemaakt van de id's van je account. Die werkt niet meer zodra Ringee deze URL's uitschakelt — vervang hem door een nieuwe."
     }
   },
   "crm": {

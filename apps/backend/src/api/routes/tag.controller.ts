@@ -41,18 +41,25 @@ export class TagController {
   }
 
   @Get(":id")
-  async getTag(@Param("id") id: string) {
-    return this.tagService.getTagById(id);
+  async getTag(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
+    return this.tagService.getTagById(createOwnershipContext(user), id);
   }
 
   @Put(":id")
-  async updateTag(@Param("id") id: string, @Body() dto: UpdateTagDto) {
-    return this.tagService.updateTag(id, dto);
+  async updateTag(
+    @Param("id") id: string,
+    @Body() dto: UpdateTagDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.tagService.updateTag(createOwnershipContext(user), id, dto);
   }
 
   @Delete(":id")
-  async deleteTag(@Param("id") id: string) {
-    return this.tagService.deleteTag(id);
+  async deleteTag(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.tagService.deleteTag(createOwnershipContext(user), id);
   }
 }
 
@@ -61,24 +68,37 @@ export class ContactTagController {
   constructor(private readonly tagService: TagService) {}
 
   @Get(":contactId/tags")
-  async getContactTags(@Param("contactId") contactId: string) {
-    return this.tagService.getContactTags(contactId);
+  async getContactTags(
+    @Param("contactId") contactId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.tagService.getContactTags(
+      createOwnershipContext(user),
+      contactId,
+    );
   }
 
   @Post(":contactId/tags")
   async assignTags(
     @Param("contactId") contactId: string,
     @Body() dto: AssignTagsDto,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.tagService.setContactTags(contactId, dto.tagIds);
+    return this.tagService.setContactTags(
+      createOwnershipContext(user),
+      contactId,
+      dto.tagIds,
+    );
   }
 
   @Delete(":contactId/tags")
   async removeTags(
     @Param("contactId") contactId: string,
     @Body() dto: AssignTagsDto,
+    @CurrentUser() user: CurrentUserData,
   ) {
     const count = await this.tagService.removeTagsFromContact(
+      createOwnershipContext(user),
       contactId,
       dto.tagIds,
     );

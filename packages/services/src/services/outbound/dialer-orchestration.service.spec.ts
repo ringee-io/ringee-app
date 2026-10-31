@@ -194,6 +194,7 @@ function createWorld(
     abandonExternalOutbound: async (_ctx: unknown, token: string) => {
       carrier.abandoned.push(token);
     },
+    issueDialAuthorization: () => "dial-token",
   };
   const rotation = {
     selections: 0,
@@ -531,6 +532,8 @@ function createWorld(
     userService as never,
     sseBridge as never,
     attemptRepo as never,
+    { listMemberUserIds: async (_c: string, ids: string[]) => ids } as never,
+    { listAdminUserIds: async () => [] } as never,
   );
   const callAttemptService = new CallAttemptService(
     attemptRepo as never,
