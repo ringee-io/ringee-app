@@ -63,9 +63,17 @@ Every workspace-scoped read and write goes through the ownership context:
 `createOwnershipContext(user)` → `buildOwnershipFilter(ctx)` (`@ringee/platform`).
 
 - An organization scope filters by `organizationId`; a personal scope filters by
-  `userId` **and** `organizationId: null`. Never mix them.
+  `userId` **and** `organizationId: null`. Never mix them — a hand-written
+  `row.userId === ctx.userId` without `organizationId === null` is that mix.
 - Never look a resource up by its id alone and act on it. Load it, then verify it
   belongs to the caller's workspace.
+- A child id (a call's recording, a contact's note, a campaign's list) is looked
+  up together with its authorized parent's id, and every id a write links
+  (`connect`, a foreign key, `tagIds`) is authorized like the resource itself —
+  including ids an AI tool received from the model.
+- Inside an organization a member reaches only their own calls, transcripts,
+  recordings, dialer sessions and pending actions (`resolveMemberFilter`), on
+  every surface: REST, MCP, Attio, SSE.
 - Never trust a `userId`, `organizationId`, `memberId` or resource id sent by the
   client as an authorization claim. Derive identity from the auth layer.
 - Frontend role checks (`useOrgRole`, `RoleGuard`) are UX only. The server-side
@@ -103,6 +111,14 @@ without verifying its signature; or widen `@Public()` beyond what a route needs.
 
 Every `@Public()` route must carry its own proof of authorization — a verified
 provider signature, a hashed magic-link token, an SDK session, or an API key.
+
+Before writing code that takes an id from a request or a model, links records,
+calls a URL a customer chose, renders user text into HTML or CSS, moves money, or
+issues a token, read the **Secure coding standards** in
+`docs/engineering/SECURITY.md`. They come from a 125-finding review
+(2026-10-30). The ones broken most often besides the rules above: never pass a
+request body as Prisma `data`, never return `include: { user: true }`, and make
+every check-then-write (attempt counters, caps, single-use tokens) atomic.
 
 ## Backwards compatibility
 

@@ -248,11 +248,151 @@ read-only token; only the CodeQL job receives `security-events: write`, which it
 needs to publish findings to GitHub code scanning. Its other permissions are
 read-only.
 
+## Secure coding standards
+
+A CodeRabbit review of the whole repository (2026-10-30) reported 125
+vulnerabilities. Almost all of them were a handful of mistakes repeated surface
+after surface; these rules exist so they are not written again. They hold for
+every entry point alike: REST controllers, MCP tools, the ChatGPT app, the Attio
+and HubSpot apps, SSE and WebSocket streams, webhooks, Temporal activities,
+AI-agent tools, the backoffice and one-off scripts.
+
+### Identifiers are not authorization
+
+1. **Resolve every id inside the caller's workspace.** An id from a path, body,
+   query, header, `client_state`, MCP argument or LLM tool call is chosen by
+   whoever sent it. Load it with a scoped finder (`findByIdForOwner(ctx, id)`,
+   `buildOwnershipFilter(ctx)`) and answer a foreign id exactly like a missing
+   one. Contacts, tags, DNC entries, numbers, CRM syncs, enrichment jobs,
+   recordings and Stripe payment intents were all read or changed by id alone.
+2. **Bind a child to its authorized parent.** When a route names a parent and a
+   child — campaign and list, call and recording, contact and note, campaign and
+   retry rule, session and item — look the child up with both ids
+   (`where: { id: recordingId, callId: call.id }`). Authorizing the parent says
+   nothing about an unrelated child: a recording id stopped another workspace's
+   recording, and a note id deleted another contact's note.
+3. **Authorize every id you link or store.** A relation (`connect`, a foreign
+   key, `tagIds`, `contactIds`, `assignedUserId`) is checked like the main
+   resource before the write; otherwise the caller's own meeting, callback or
+   thread exposes the foreign row. Ids an AI tool receives from the model are
+   untrusted input too.
+4. **Personal scope is `userId` and `organizationId: null`.** Written by hand,
+   that is `row.organizationId === ctx.organizationId` in an organization and
+   `row.userId === ctx.userId && row.organizationId === null` in a personal
+   workspace. `row.userId === ctx.userId` alone let former members keep using an
+   organization's threads, meetings, numbers and jobs from their personal
+   workspace.
+5. **Inside an organization, a member reaches their own work only.** A
+   teammate's calls, transcripts, recordings, dialer sessions and pending
+   actions are for admins: apply `resolveMemberFilter(user)` (services take it
+   as `memberUserId`), and require the campaign assignment of a non-admin
+   (`getCampaignById(ctx, id, { requireMembershipForUserId })`). Every surface
+   applies the same rule — MCP `list_calls` and Attio tokens once skipped it.
+
+### Identity, proof and freshness
+
+6. **Identity comes from the auth layer or from a token this server signed.**
+   Never from `X-User-Id`/`X-Organization-Id`, a URL segment, `client_state` or
+   a body field. When a request cannot carry a session, reuse one of the
+   [proofs that are not a session](#proofs-that-are-not-a-session). A new proof
+   is signed, short-lived, single-purpose — its verifier checks the purpose: the
+   Attio verifier once accepted call-session tokens — and bound to everything it
+   authorizes: user, workspace, destination, caller ID.
+7. **Re-check authority when acting, not only when granting.** Membership, role,
+   a block, phone verification, campaign or session status and expiry all change
+   after a session, token, stream or lease was issued. Read them again before
+   each privileged step; a long-lived stream re-checks while it is open; a
+   revocation (regenerated token, removed member, pause, shorter expiry) reaches
+   credentials issued before it. Admit an explicit list of states (`ready`,
+   `active`), never "anything not closed". A provider fact kept locally is kept
+   in sync (Clerk `organizationMembership.updated`) or read live.
+8. **A policy guards every path to its side effect.** A feature switch,
+   caller-ID eligibility, the recording policy, DNC, a dry-run flag, the scope
+   of an approval: the check lives in the service method that performs the side
+   effect, so a re-activation, a retry, a second surface or an AI executor
+   cannot go around it.
+
+### Data in and out
+
+9. **Never hand a request object to Prisma.** Build `data` from named fields
+   (`pickCampaignSettings`, the auto-reload patch in `CreditService`). A body
+   passed as `data` carries nested relation writes and server-owned columns: a
+   balance, a Stripe id, an owner.
+10. **Return a view, not a row.** Never `include: { user: true }` (or a whole
+    `Organization`) in anything a client receives — `User.encryptionKey`
+    reached organization admins that way. Select the display fields, strip
+    credentials (`toCalendarIntegrationView`), return what the consumer needs.
+11. **Escape where the text lands.** HTML-escape user text before adding `<br>`
+    or links to an email, build an `href` only from a parsed `http(s)` URL, and
+    never put a stored value into CSS or `dangerouslySetInnerHTML` unescaped
+    (chart keys came from disposition codes).
+12. **Bound the work an attacker can size.** Cap a length before parsing it;
+    no regular expression with overlapping repetition on untrusted text — scan
+    it in linear time; cap decoded bodies (`maxBodyBytes`, `readPageText`),
+    column counts and batch sizes; no quadratic loop over input.
+
+### Outbound requests, redirects and navigation
+
+13. **A URL a customer chose goes through `requestPublic`**, never `fetch()` —
+    see [requests to addresses a customer chose](#requests-to-addresses-a-customer-chose).
+    A redirect is followed only after its target passes the same check.
+14. **Redirect only to Ringee's own frontend.** Build return URLs from
+    configuration; a client-supplied origin or path passes
+    `trustedFrontendOrigin` (`auth/frontend-origin.ts`) or a relative-path check
+    such as `safeReturnUrl` first.
+15. **Bind an OAuth round-trip to the browser that started it:** a single-use,
+    server-side state plus an HttpOnly cookie holding its hash, consumed before
+    the code is exchanged.
+16. **Navigation and synthetic input cause nothing.** A page opened from a link
+    never dials, creates or sends on load — the user clicks first. The
+    extension acts only on `event.isTrusted` input.
+
+### Concurrency and money
+
+17. **Check-and-act is one atomic step.** Attempt counters, caps, single-use
+    consumption, call leases and start/stop toggles race when they are read and
+    written apart. Use `RedisService.compareAndSwap`, a conditional update whose
+    count is checked, `SELECT … FOR UPDATE` inside a transaction, or a
+    per-resource lease lock.
+18. **Money follows what the provider settled.** Credit a Checkout only when it
+    is `paid` (and on `checkout.session.async_payment_succeeded`), for the
+    amount on the immutable session or invoice, never a subscription setting
+    the customer can still change. A new provider cost is a new debit
+    (`incurredCostDebitRef`); a resend is a new billed attempt. A Stripe
+    restriction that cannot be enforced atomically (first purchase, redemption
+    limits) is refused, not approximated. See [BILLING.md](BILLING.md).
+
+### Secrets and operations
+
+19. **Provider credentials never reach a client.** Nothing secret goes in
+    `NEXT_PUBLIC_*`, `PLASMO_PUBLIC_*` or a test fixture; mint short-lived
+    credentials on the server. A credential that shipped must be rotated —
+    deleting it from the code does not take it back.
+20. **Logs and emails carry no secrets.** Log an error's kind or code, not its
+    message: Prisma and providers echo ids, tokens and rejected values. A
+    password goes to its owner only.
+21. **No unauthenticated mode beyond loopback**, and a CI publish step trusts
+    nothing the build produced: it validates the manifest and fixes the
+    registry and proxy itself.
+22. **Scripts and the backoffice respect workspaces.** A recovery script links
+    only within its own tenant; a resource moved to another owner drops the
+    previous owner's data (requirement values, routes, links).
+23. **A client address comes from `clientIp`** (`apps/backend/src/api/client-ip.ts`),
+    never from the leftmost `X-Forwarded-For`.
+
 ## Checklist before merging anything security-adjacent
 
 - Does any new route need `@Public()`? What proves the caller?
 - Is a workspace resource loaded by id and then checked against the caller?
+- Is a child id checked against its parent, and every id a write links checked
+  against the workspace?
+- Does a personal-scope check require `organizationId: null`? Does a member see
+  only their own work on this surface too?
 - Is a client-supplied id used as an authorization claim anywhere?
+- Is a request object passed as Prisma `data`, or a whole `user` returned?
+- Can a concurrent request slip between a check and the write that follows it?
+- Does it fetch a customer-chosen URL without `requestPublic`, or redirect to an
+  origin that does not come from configuration?
 - Is a secret compared with `===` instead of `timingSafeEqual`?
-- Does a failure path log a token, a key, or a signed URL?
+- Does a failure path log a token, a key, a signed URL or a raw error message?
 - Does a new provider callback verify its signature against the raw body?
