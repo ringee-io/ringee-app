@@ -129,8 +129,14 @@ export function useNav(): NavValue {
 export interface AppData {
   api: RingeeApi;
   me: CurrentUser | null;
-  onDial: (raw: string, name?: string) => void;
+  /** Resolves `true` once the leg was placed; one dial at a time. */
+  onDial: (raw: string, name?: string) => Promise<boolean>;
   notify: (kind: "success" | "error", message: string) => void;
+  /**
+   * Goes up each time a call's screen closes. What the call changed — a
+   * callback done, a missed call returned — is worth re-reading then.
+   */
+  callsFinished: number;
 }
 
 const AppContext = createContext<AppData | null>(null);

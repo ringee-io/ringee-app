@@ -36,6 +36,16 @@ export interface DialRequestMsg {
 }
 
 /**
+ * background → the sender of a DIAL_REQUEST : whether the leg was placed — the
+ * backend authorized it (credit, DNC, caller ID, one call at a time) and the
+ * offscreen engine was told to start it. The side panel's queue completes a
+ * callback only once it has actually been called.
+ */
+export interface DialResult {
+  placed: boolean;
+}
+
+/**
  * background → offscreen : place the WebRTC call.
  *
  * The caller ID and SIP credentials are resolved by the backend and passed
@@ -148,6 +158,10 @@ export function isDialRequest(m: unknown): m is DialRequestMsg {
     typeof m.target.destination === "string" &&
     m.target.destination.length > 0
   );
+}
+
+export function isDialResult(m: unknown): m is DialResult {
+  return isObject(m) && typeof m.placed === "boolean";
 }
 
 export function isStartCall(m: unknown): m is StartCallMsg {
