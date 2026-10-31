@@ -10,6 +10,7 @@ import { isLiveCallState } from "@ringee/dialer-core/contracts";
 import {
   MessageType,
   isCallSnapshot,
+  isDialResult,
   type CallCommandMsg,
   type CallSnapshotMsg,
   type CallState,
@@ -36,6 +37,9 @@ const EMPTY_SNAPSHOT: CallSnapshotMsg = {
   type: MessageType.CallSnapshot,
   state: "idle",
 };
+
+/** How long a dial waits for the background to say whether it was placed. */
+const DIAL_ANSWER_MS = 30_000;
 
 export function CallExperience() {
   const { getToken } = useAuth();
@@ -237,29 +241,58 @@ export function CallExperience() {
     setCreditKey((k) => k + 1);
   }, [resetCallStore]);
 
-  const dialManual = useCallback((e164: string, name?: string) => {
-    const msg: DialRequestMsg = {
-      type: MessageType.DialRequest,
-      target: { destination: e164, name },
-    };
-    send(msg);
-  }, []);
+  // The background answers once the backend has authorized the call and the
+  // engine was told to start it — or refused it. A worker that never answers
+  // counts as not placed, so a stuck request cannot hold up the next dial.
+  const dialManual = useCallback(
+    async (e164: string, name?: string): Promise<boolean> => {
+      const msg: DialRequestMsg = {
+        type: MessageType.DialRequest,
+        target: { destination: e164, name },
+      };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<unknown>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), DIAL_ANSWER_MS);
+      });
+      try {
+        const res = await Promise.race([
+          chrome.runtime.sendMessage(msg),
+          timeout,
+        ]);
+        return isDialResult(res) && res.placed;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    [],
+  );
+
+  // A second tap while a dial is starting would ask the backend for a second
+  // call: drop it, the way the web app's `useDial` does.
+  const dialing = useRef(false);
 
   // Resolve free-text / a row's number to E.164 (worldwide) before dialing.
   // Grab the mic grant first (in this visible context) so the offscreen engine
   // can actually capture audio — otherwise the call rings and immediately drops.
   const handleDial = useCallback(
-    async (raw: string, name?: string) => {
+    async (raw: string, name?: string): Promise<boolean> => {
       const e164 = resolveDialNumber(raw, DEFAULT_REGION);
-      if (!e164) return;
-      const micOk = await ensureMicrophoneAccess();
-      if (!micOk) {
-        setToast(
-          "Allow microphone access in the tab we just opened, then place your call again.",
-        );
-        return;
+      if (!e164 || dialing.current) return false;
+      dialing.current = true;
+      try {
+        const micOk = await ensureMicrophoneAccess();
+        if (!micOk) {
+          setToast(
+            "Allow microphone access in the tab we just opened, then place your call again.",
+          );
+          return false;
+        }
+        return await dialManual(e164, name);
+      } finally {
+        dialing.current = false;
       }
-      dialManual(e164, name);
     },
     [dialManual],
   );
@@ -284,8 +317,16 @@ export function CallExperience() {
   const open = isLiveCallState(snap.state) || postCallPhase;
 
   const appData = useMemo<AppData>(
-    () => ({ api, me, onDial: handleDial, notify }),
-    [api, me, handleDial, notify],
+    () => ({
+      api,
+      me,
+      onDial: handleDial,
+      notify,
+      // Bumped together with the credit pill's key: both re-read what a
+      // finished call changed.
+      callsFinished: creditKey,
+    }),
+    [api, me, handleDial, notify, creditKey],
   );
 
   return (

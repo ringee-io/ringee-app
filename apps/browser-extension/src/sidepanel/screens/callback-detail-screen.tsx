@@ -76,6 +76,24 @@ export function CallbackDetailScreen({ item }: { item: CallbackNavItem }) {
     }
   };
 
+  // Calling it is what completes it (CALL-013), once the call goes out — a
+  // dial the backend refused leaves it owed. The call is already up by then,
+  // so a failure to mark it cannot undo it.
+  const callNow = async () => {
+    if (!item.phoneNumber || busy) return;
+    const placed = await onDial(
+      item.phoneNumber,
+      item.contactName ?? undefined,
+    );
+    if (!placed || !isOpen) return;
+    try {
+      await api.completeCallback(item.id);
+      setStatus("completed");
+    } catch (err) {
+      console.warn("Failed to mark callback completed", err);
+    }
+  };
+
   const reschedule = async () => {
     const date = new Date(when);
     if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
@@ -135,9 +153,7 @@ export function CallbackDetailScreen({ item }: { item: CallbackNavItem }) {
 
         {item.phoneNumber && (
           <button
-            onClick={() =>
-              onDial(item.phoneNumber!, item.contactName ?? undefined)
-            }
+            onClick={() => void callNow()}
             className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 text-sm font-semibold text-white transition hover:bg-emerald-600"
           >
             <Phone className="h-4 w-4" /> Call now

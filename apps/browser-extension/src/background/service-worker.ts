@@ -18,6 +18,7 @@ import {
   isCallEvent,
   isDialRequest,
   type CallSnapshotMsg,
+  type DialResult,
   type DialTarget,
 } from "@ringee/dialer-core/contracts";
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
@@ -97,7 +98,8 @@ async function closeOffscreen() {
 }
 
 // ── Main dial pipeline ────────────────────────────────────────────────────────
-async function dial(target: DialTarget, tabId?: number) {
+/** Resolves `true` once the leg was handed to the offscreen engine. */
+async function dial(target: DialTarget, tabId?: number): Promise<boolean> {
   setSnapshot({
     state: "requesting",
     destination: target.destination,
@@ -117,7 +119,7 @@ async function dial(target: DialTarget, tabId?: number) {
   const identity = await getIdentity();
   if (!identity) {
     setSnapshot({ state: "failed", error: ERROR_COPY.UNAUTHENTICATED });
-    return;
+    return false;
   }
 
   // The number the user picked in the panel header (null → Automatic). The
@@ -141,7 +143,7 @@ async function dial(target: DialTarget, tabId?: number) {
     const code = e instanceof ApiError ? e.code : "UNKNOWN";
     const serverMessage = e instanceof ApiError ? e.message : null;
     setSnapshot(failureSnapshot(code, serverMessage));
-    return;
+    return false;
   }
 
   setSnapshot({
@@ -156,13 +158,19 @@ async function dial(target: DialTarget, tabId?: number) {
   chrome.runtime
     .sendMessage(buildStartCall(prepared, identity))
     .catch(() => {});
+  return true;
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (isDialRequest(msg)) {
-    void dial(msg.target, _sender.tab?.id);
-    return false;
+    // Answer with whether the leg was placed: the side panel's queue completes
+    // a callback only once it has actually been called (CALL-013).
+    dial(msg.target, _sender.tab?.id).then(
+      (placed) => sendResponse({ placed } satisfies DialResult),
+      () => sendResponse({ placed: false } satisfies DialResult),
+    );
+    return true;
   }
   if (isCallCommand(msg)) {
     // From side panel → forward verbatim to the offscreen engine.

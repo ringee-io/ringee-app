@@ -1,10 +1,13 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  HttpCode,
   HttpException,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
 } from "@nestjs/common";
@@ -26,9 +29,15 @@ import {
   ContactService,
   CreditService,
   MeetingService,
+  MyDayService,
   NumberPurchasedService,
   RecordingService,
   TranscriptionService,
+  type MyDayContact,
+  type MyDayList,
+  type MyDayListNext,
+  type MyDayQueueItem,
+  type MyDayReason,
   type TranscriptionAccessContext,
 } from "@ringee/services";
 import type { Call } from "@ringee/database";
@@ -97,6 +106,7 @@ export class ExtensionController {
     private readonly recordingService: RecordingService,
     private readonly transcriptionService: TranscriptionService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly myDay: MyDayService,
   ) {}
 
   /**
@@ -234,6 +244,112 @@ export class ExtensionController {
       }));
 
     return { callbacks, calls, meetings };
+  }
+
+  /**
+   * The side-panel queue: the day the web Call page works ("My day"), on the
+   * extension's own route — the callbacks the user owes, their missed calls and
+   * their follow-ups, in order (CALL-013), only their own in the active
+   * workspace (CALL-014). `until` is the end of the browser's local day: the
+   * server cannot know the time zone.
+   */
+  @Get("queue")
+  async queue(
+    @CurrentUser() user: CurrentUserData,
+    @Query("until") until?: string,
+  ) {
+    const queue = await this.myDay.getQueue(
+      createOwnershipContext(user),
+      parseOptionalDate(until, "until"),
+    );
+    return {
+      items: queue.items.map(toQueueItem),
+      until: queue.until,
+      generatedAt: queue.generatedAt,
+    };
+  }
+
+  /**
+   * How the user's own day is going — their calls, conversations and meetings
+   * booked between the bounds of the browser's local day — and their next
+   * meeting (CALL-014).
+   */
+  @Get("summary")
+  async summary(
+    @CurrentUser() user: CurrentUserData,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+  ) {
+    const start = parseOptionalDate(from, "from");
+    const end = parseOptionalDate(to, "to");
+    if (!start !== !end) {
+      throw new BadRequestException("from and to go together");
+    }
+    const summary = await this.myDay.getSummary(
+      createOwnershipContext(user),
+      start && end ? { from: start, to: end } : undefined,
+    );
+    const meeting = summary.nextMeeting;
+    return {
+      calls: summary.calls,
+      conversations: summary.conversations,
+      meetingsBooked: summary.meetingsBooked,
+      nextMeeting: meeting
+        ? {
+            id: meeting.id,
+            title: meeting.title,
+            scheduledAt: meeting.scheduledAt,
+            duration: meeting.duration,
+            location: meeting.location,
+            contact: meeting.contact
+              ? {
+                  id: meeting.contact.id,
+                  name: meeting.contact.name,
+                  phoneNumber: meeting.contact.phoneNumber,
+                }
+              : null,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * The lists "Call next" can work once nobody in the queue is due: the ones
+   * assigned to the user in this workspace — an admin's too, never a
+   * teammate's (LIST-005).
+   */
+  @Get("lists")
+  async lists(@CurrentUser() user: CurrentUserData) {
+    const { data } = await this.myDay.getLists(createOwnershipContext(user));
+    return { data: data.map(toCallList) };
+  }
+
+  /** Who to call next from one of those lists; any other list is a 404. */
+  @Get("lists/:listId/next")
+  async listNext(
+    @CurrentUser() user: CurrentUserData,
+    @Param("listId", ParseUUIDPipe) listId: string,
+  ) {
+    return toCallListNext(
+      await this.myDay.getListNext(createOwnershipContext(user), listId),
+    );
+  }
+
+  /** Sends a list's contact to the back of it; answers with who comes next. */
+  @Post("lists/:listId/entries/:entryId/skip")
+  @HttpCode(HttpStatus.OK)
+  async skipListEntry(
+    @CurrentUser() user: CurrentUserData,
+    @Param("listId", ParseUUIDPipe) listId: string,
+    @Param("entryId", ParseUUIDPipe) entryId: string,
+  ) {
+    return toCallListNext(
+      await this.myDay.skipListEntry(
+        createOwnershipContext(user),
+        listId,
+        entryId,
+      ),
+    );
   }
 
   /**
@@ -532,4 +648,91 @@ export class ExtensionController {
   ): never {
     throw new HttpException({ code, message, statusCode: status }, status);
   }
+}
+
+// ── The side panel's queue contract ──────────────────────────────────────────
+// Mapped field by field: these responses belong to the extension, so a change
+// to the web app's My day never reaches a published extension unannounced.
+
+function toQueueContact(contact: MyDayContact) {
+  return {
+    id: contact.id,
+    name: contact.name,
+    company: contact.company,
+    phoneNumber: contact.phoneNumber,
+    timezone: contact.timezone,
+    country: contact.country,
+  };
+}
+
+function toQueueReason(reason: MyDayReason) {
+  switch (reason.kind) {
+    case "callback":
+      return {
+        kind: reason.kind,
+        callbackId: reason.callbackId,
+        at: reason.at,
+        note: reason.note,
+      };
+    case "missed_call":
+      return {
+        kind: reason.kind,
+        threadId: reason.threadId,
+        at: reason.at,
+        voicemail: reason.voicemail,
+      };
+    case "follow_up":
+      return {
+        kind: reason.kind,
+        actionId: reason.actionId,
+        actionType: reason.actionType,
+        title: reason.title,
+        priority: reason.priority,
+        dueAt: reason.dueAt,
+      };
+  }
+}
+
+function toQueueItem(item: MyDayQueueItem) {
+  return {
+    key: item.key,
+    group: item.group,
+    dueAt: item.dueAt,
+    contact: toQueueContact(item.contact),
+    doNotCall: item.doNotCall,
+    reasons: item.reasons.map(toQueueReason),
+    lists: item.lists.map((list) => ({ id: list.id, name: list.name })),
+  };
+}
+
+function toCallList(list: MyDayList) {
+  return {
+    id: list.id,
+    name: list.name,
+    description: list.description,
+    contactCount: list.contactCount,
+    remaining: list.remaining,
+  };
+}
+
+function toCallListNext({ list, next }: MyDayListNext) {
+  return {
+    list: toCallList(list),
+    next: next
+      ? {
+          entryId: next.entryId,
+          skipped: next.skipped,
+          contact: toQueueContact(next.contact),
+        }
+      : null,
+  };
+}
+
+function parseOptionalDate(value: string | undefined, name: string) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException(`${name} must be an ISO 8601 date`);
+  }
+  return date;
 }

@@ -139,3 +139,56 @@ describe("RingeeApi post-call save", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("RingeeApi Today queue", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const ok = (body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  // The extension keeps its own routes: a change to the web app's My day must
+  // never reach a published extension, so nothing here calls /my-day.
+  it("reads the queue, the day and the lists from the extension's routes", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => ok({}));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new RingeeApi(async () => "token");
+
+    const until = new Date("2026-10-31T03:59:59.999Z");
+    await api.getQueue(until);
+    await api.getSummary({
+      from: new Date("2026-10-30T04:00:00.000Z"),
+      to: until,
+    });
+    await api.listCallLists();
+    await api.getListNext("list 1");
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls.map((url) => new URL(url).pathname)).toEqual([
+      "/api/extension/queue",
+      "/api/extension/summary",
+      "/api/extension/lists",
+      "/api/extension/lists/list%201/next",
+    ]);
+    expect(new URL(urls[0]).searchParams.get("until")).toBe(
+      until.toISOString(),
+    );
+    expect(urls.some((url) => url.includes("/my-day"))).toBe(false);
+  });
+
+  it("skips a list's contact with a POST to the extension's route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok({ list: {}, next: null }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new RingeeApi(async () => "token");
+
+    await api.skipListEntry("list-1", "entry-1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(new URL(String(url)).pathname).toBe(
+      "/api/extension/lists/list-1/entries/entry-1/skip",
+    );
+    expect((init as RequestInit).method).toBe("POST");
+  });
+});
