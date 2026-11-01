@@ -4,6 +4,7 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
+import { ResponseTooLargeError } from "@ringee/platform";
 import { RecordingService } from "./recording.service";
 
 const ctx = { userId: "user-1", organizationId: "org-1" };
@@ -112,7 +113,7 @@ describe("RecordingService.getPlaybackAudio", () => {
     assert.deepEqual(decrypted, [{ data: [9, 8, 7], key: "workspace-key" }]);
   });
 
-  it("answers null when the call has no finished recording yet", async () => {
+  it("answers null while no recording has its file yet", async () => {
     let fetchedAny = false;
     globalThis.fetch = (async () => {
       fetchedAny = true;
@@ -130,6 +131,95 @@ describe("RecordingService.getPlaybackAudio", () => {
 
     assert.equal(await service.getPlaybackAudio(ctx, "call-1"), null);
     assert.equal(fetchedAny, false);
+  });
+
+  it("plays a stored file whatever its row's status, as the dashboard does", async () => {
+    // Processing writes the file and `completed` together; a file on a row
+    // with another status is still the call's recording.
+    const fetched: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      fetched.push(url);
+      return new Response(new Uint8Array([1]));
+    }) as unknown as typeof fetch;
+
+    const service = new RecordingService(
+      {
+        findByCallId: async () => [
+          recording({ url: "https://storage.test/legacy.bin", status: null }),
+        ],
+      } as never,
+      { findByIdForOwner: async () => ({ id: "call-1" }) } as never,
+      { getWorkspaceKey: async () => "workspace-key" } as never,
+      { decryptBuffer: () => Buffer.from("mp3") } as never,
+    );
+
+    assert.equal(
+      (await service.getPlaybackAudio(ctx, "call-1"))?.toString(),
+      "mp3",
+    );
+    assert.deepEqual(fetched, ["https://storage.test/legacy.bin"]);
+  });
+
+  it("refuses a file declared larger than the playback cap, unread", async () => {
+    let decrypted = false;
+    globalThis.fetch = (async () =>
+      new Response("x", {
+        headers: { "content-length": String(Number.MAX_SAFE_INTEGER) },
+      })) as typeof fetch;
+
+    const service = new RecordingService(
+      {
+        findByCallId: async () => [
+          recording({ url: "https://storage.test/a.bin", status: "completed" }),
+        ],
+      } as never,
+      { findByIdForOwner: async () => ({ id: "call-1" }) } as never,
+      { getWorkspaceKey: async () => "workspace-key" } as never,
+      {
+        decryptBuffer: () => {
+          decrypted = true;
+          return Buffer.from("mp3");
+        },
+      } as never,
+    );
+
+    await assert.rejects(
+      service.getPlaybackAudio(ctx, "call-1"),
+      ResponseTooLargeError,
+    );
+    assert.equal(decrypted, false);
+  });
+
+  it("stops reading a file that streams past the playback cap", async () => {
+    // No length up front: an endless body, 1 MB at a time.
+    const chunk = new Uint8Array(1024 * 1024);
+    let cancelled = false;
+    globalThis.fetch = (async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          pull: (controller) => controller.enqueue(chunk),
+          cancel: () => {
+            cancelled = true;
+          },
+        }),
+      )) as typeof fetch;
+
+    const service = new RecordingService(
+      {
+        findByCallId: async () => [
+          recording({ url: "https://storage.test/a.bin", status: "completed" }),
+        ],
+      } as never,
+      { findByIdForOwner: async () => ({ id: "call-1" }) } as never,
+      { getWorkspaceKey: async () => "workspace-key" } as never,
+      {} as never,
+    );
+
+    await assert.rejects(
+      service.getPlaybackAudio(ctx, "call-1"),
+      ResponseTooLargeError,
+    );
+    assert.equal(cancelled, true);
   });
 
   it("fails rather than playing when storage does not return the file", async () => {

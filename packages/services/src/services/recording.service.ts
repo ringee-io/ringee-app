@@ -8,12 +8,42 @@ import {
   CreateRecordingDto,
   CryptoService,
   OwnershipContext,
+  ResponseTooLargeError,
   UpdateRecordingDto,
 } from "@ringee/platform";
 import { EncryptionKeyService } from "./encryption-key.service";
 
 /** How long reading a stored recording back may take before playback fails. */
 const RECORDING_READ_TIMEOUT_MS = 30_000;
+
+/**
+ * Largest stored recording played back. Calls are recorded at about 4 KB of
+ * mp3 a second, so this is hours of audio; it stops one request from holding
+ * an unbounded file, and its decrypted copy, in memory.
+ */
+const MAX_PLAYBACK_BYTES = 100 * 1024 * 1024;
+
+/** The body of `res`, failing as soon as it passes `maxBytes`. */
+async function readCapped(res: Response, maxBytes: number): Promise<Buffer> {
+  if (Number(res.headers.get("content-length")) > maxBytes) {
+    await res.body?.cancel();
+    throw new ResponseTooLargeError(maxBytes);
+  }
+  if (!res.body) return Buffer.alloc(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return Buffer.concat(chunks, size);
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      throw new ResponseTooLargeError(maxBytes);
+    }
+    chunks.push(value);
+  }
+}
 
 /** The recording a player opens: the first finished one, as the dashboard picks it. */
 function playableRecording(recordings: Recording[]): Recording | null {
@@ -110,10 +140,8 @@ export class RecordingService {
         `Recording ${recording.id} could not be read: HTTP ${res.status}`,
       );
     }
+    const encrypted = await readCapped(res, MAX_PLAYBACK_BYTES);
     const key = await this.encryptionKeys.getWorkspaceKey(ctx);
-    return this.cryptoService.decryptBuffer(
-      Buffer.from(await res.arrayBuffer()),
-      key,
-    );
+    return this.cryptoService.decryptBuffer(encrypted, key);
   }
 }

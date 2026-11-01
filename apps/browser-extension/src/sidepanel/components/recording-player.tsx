@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { RotateCw } from "lucide-react";
 import type { RingeeApi } from "../../lib/ringee-api";
 import { Spinner } from "./ui";
 
@@ -16,31 +17,45 @@ export function RecordingPlayer({
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // "Try again" bumps it to load the recording once more.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    let alive = true;
+    // Leaving the screen stops the download instead of finishing it unseen.
+    const request = new AbortController();
     let blobUrl: string | null = null;
     setSrc(null);
     setFailed(false);
     api
-      .getCallRecording(callId)
+      .getCallRecording(callId, request.signal)
       .then((audio) => {
-        if (!alive) return;
+        if (request.signal.aborted) return;
         blobUrl = URL.createObjectURL(audio);
         setSrc(blobUrl);
       })
-      .catch(() => alive && setFailed(true));
+      .catch(() => {
+        if (!request.signal.aborted) setFailed(true);
+      });
     return () => {
-      alive = false;
+      request.abort();
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [api, callId]);
+  }, [api, callId, attempt]);
 
   if (failed) {
     return (
-      <p className="text-muted-foreground text-xs">
-        Couldn&apos;t load the recording.
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-muted-foreground text-xs">
+          Couldn&apos;t load the recording.
+        </p>
+        <button
+          onClick={() => setAttempt((n) => n + 1)}
+          className="hover:bg-accent flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition"
+        >
+          <RotateCw className="h-3.5 w-3.5" />
+          Try again
+        </button>
+      </div>
     );
   }
   if (!src) return <Spinner inline />;

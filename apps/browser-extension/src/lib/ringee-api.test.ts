@@ -74,12 +74,18 @@ describe("RingeeApi call recording", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
+    const leaving = new AbortController();
     const audio = await new RingeeApi(async () => "token").getCallRecording(
       "call-1",
+      leaving.signal,
     );
 
     expect(String(fetchMock.mock.calls[0][0])).toMatch(
       /\/extension\/calls\/call-1\/recording$/,
+    );
+    // The player cancels the download by this signal when it unmounts.
+    expect((fetchMock.mock.calls[0][1] as RequestInit).signal).toBe(
+      leaving.signal,
     );
     expect(audio.type).toBe("audio/mpeg");
     expect([...new Uint8Array(await audio.arrayBuffer())]).toEqual([1, 2, 3]);
