@@ -34,11 +34,20 @@ import {
   type StartCallMsg,
 } from "@ringee/dialer-core/contracts";
 
+import { createCommandFilter } from "../lib/call-flow";
+
 type TelnyxClient = ReturnType<typeof createTelnyxClient>;
 
 let client: TelnyxClient | null = null;
 let activeCall: Call | null = null;
 let activeTelnyxSessionId: string | undefined;
+/** START_CALL arrived and its leg is not placed yet (mic check, line login). */
+let starting = false;
+/** Hung up before the leg existed: it is never placed. */
+let calledOff = false;
+/** The hang-up is on its way out; the SDK reports `destroy` once it is. */
+let hangingUp = false;
+const firstDelivery = createCommandFilter();
 
 /**
  * The side panel passes `remoteStream={null}` to the Active Call Modal — it's a
@@ -103,6 +112,7 @@ function cleanup() {
   client = null;
   activeCall = null;
   activeTelnyxSessionId = undefined;
+  hangingUp = false;
 }
 
 async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
@@ -133,6 +143,12 @@ async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
     // outcome/notes always carry a stable backend correlation key.
     activeTelnyxSessionId =
       call.telnyxIDs?.telnyxSessionId ?? activeTelnyxSessionId;
+    // `hangup` is the SDK starting to end the call — it reports it, then sends
+    // the BYE, then reports `destroy` once the BYE is out (or after 5 s).
+    // Ending here tore the socket down before that BYE, and a leg placed with
+    // keepConnectionAliveOnSocketClose outlives its socket: the far end kept
+    // ringing after END CALL. The call is over at `destroy` (or `purge`).
+    if (call.state === "hangup") return;
     const mapped = mapTelnyxState(call.state);
     // Play carrier early media when present, but keep it quiet for headset
     // users until the far end answers. `attachRemoteAudio` restores full volume
@@ -177,6 +193,8 @@ async function verifyMicrophone(): Promise<boolean> {
 }
 
 async function startCall(msg: StartCallMsg) {
+  starting = true;
+  calledOff = false;
   try {
     if (!(await verifyMicrophone())) {
       emit("failed", {
@@ -187,7 +205,11 @@ async function startCall(msg: StartCallMsg) {
       cleanup();
       return;
     }
+    if (calledOff) return callOff();
     const c = await connect(msg.sip);
+    // Hung up while the line was logging in: the leg is never placed, so
+    // nobody's phone rings.
+    if (calledOff) return callOff();
     activeCall = placeCall({
       client: c,
       callerId: msg.callerId,
@@ -201,17 +223,40 @@ async function startCall(msg: StartCallMsg) {
       error: err instanceof Error ? err.message : "Could not connect the call.",
     });
     cleanup();
+  } finally {
+    starting = false;
   }
 }
 
+/** A dial hung up before its leg existed: back to no call, no post-call. */
+function callOff() {
+  emit("idle");
+  cleanup();
+}
+
+/** Ends the call — or, before its leg exists, calls the dial off. */
+function hangup() {
+  const call = activeCall;
+  if (!call) {
+    if (starting) calledOff = true;
+    return;
+  }
+  if (hangingUp) return;
+  hangingUp = true;
+  hangupCall(call).catch((err) => {
+    // Still up: let the next press try again.
+    hangingUp = false;
+    console.error("[Ringee] hangup failed", err);
+  });
+}
+
 function handleCommand(msg: CallCommandMsg) {
+  if (!firstDelivery(msg.id)) return;
+  const cmd = msg.command;
+  if (cmd.action === "hangup") return hangup();
   const call = activeCall;
   if (!call) return;
-  const cmd = msg.command;
   switch (cmd.action) {
-    case "hangup":
-      void hangupCall(call);
-      break;
     case "mute":
       void muteCall(call, cmd.value);
       break;

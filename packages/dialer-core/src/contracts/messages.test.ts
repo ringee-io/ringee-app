@@ -124,6 +124,15 @@ describe("isCallCommand", () => {
       }),
     ).toBe(false);
   });
+  it("carries an optional per-press id, as a string", () => {
+    const command = { action: "hangup" } as const;
+    expect(
+      isCallCommand({ type: MessageType.CallCommand, id: "press-1", command }),
+    ).toBe(true);
+    expect(
+      isCallCommand({ type: MessageType.CallCommand, id: 7, command }),
+    ).toBe(false);
+  });
 });
 
 describe("isCallEvent / isCallSnapshot", () => {

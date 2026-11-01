@@ -125,10 +125,32 @@ export function pickNextCall(
   };
 }
 
-/** With nobody due, who comes due next today. */
+/**
+ * With nobody due, who comes due next today: the soonest, since someone added
+ * to the queue later can be due before everyone already in it.
+ */
 export function upcomingCall(items: QueueItem[], now: Date): QueueItem | null {
   if (items.some((item) => isCallableNow(item, now))) return null;
-  return (
-    items.find((item) => item.group === "later" && !item.doNotCall) ?? null
+  let soonest: { item: QueueItem; at: number } | null = null;
+  for (const item of items) {
+    if (item.group !== "later" || item.doNotCall || !item.dueAt) continue;
+    const at = new Date(item.dueAt).getTime();
+    if (!soonest || at < soonest.at) soonest = { item, at };
+  }
+  return soonest?.item ?? null;
+}
+
+/**
+ * The queue without whoever's callback was just called from it: done
+ * (CALL-013), whether or not the server has heard yet.
+ */
+export function withoutCalled(
+  items: QueueItem[],
+  called: ReadonlySet<string>,
+): QueueItem[] {
+  if (called.size === 0) return items;
+  return items.filter(
+    (item) =>
+      !owedCallbacks(item).some((reason) => called.has(reason.callbackId)),
   );
 }

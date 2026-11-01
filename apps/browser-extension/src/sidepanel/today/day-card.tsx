@@ -14,11 +14,14 @@ function joinUrlOf(location: string | null): string | null {
 export function DayCard({
   summary,
   failed,
+  stale,
   now,
   onOpenMeeting,
 }: {
   summary: TodaySummary | null;
   failed: boolean;
+  /** The numbers shown are the last ones loaded: a refresh failed since. */
+  stale: boolean;
   now: Date;
   onOpenMeeting: (id: string) => void;
 }) {
@@ -63,6 +66,11 @@ export function DayCard({
         <Skeleton className="h-[58px] w-full" />
       ) : (
         <>
+          {stale && (
+            <p className="text-muted-foreground text-xs">
+              Couldn&apos;t refresh. These are the numbers from earlier.
+            </p>
+          )}
           <dl className="grid grid-cols-3 gap-2">
             {stats.map((stat) => (
               <div

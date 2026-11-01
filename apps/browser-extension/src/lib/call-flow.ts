@@ -5,6 +5,7 @@
  */
 import {
   MessageType,
+  isLiveCallState,
   type CallEventMsg,
   type CallSnapshotMsg,
   type CallState,
@@ -108,4 +109,35 @@ export const STATUS_TEXT: Record<CallState, string> = {
 
 export function statusTextFor(state: CallState): string {
   return STATUS_TEXT[state] ?? STATUS_TEXT.idle;
+}
+
+/** Shown from the END CALL press until the line confirms the call is over. */
+export const ENDING_TEXT = "Ending call…";
+
+/**
+ * Whether the engine's first report on a dial says its leg was placed: a live
+ * state does; `idle` (called off before the leg existed), `failed` and `ended`
+ * do not.
+ */
+export function reportsPlacedLeg(state: CallState): boolean {
+  return isLiveCallState(state) && state !== "requesting";
+}
+
+/**
+ * Lets each in-call command act once. A runtime message reaches every
+ * extension page, so the offscreen engine hears a press from the side panel and
+ * again from the worker that forwards it — twice would send a DTMF digit twice.
+ * A command without an id always passes.
+ */
+export function createCommandFilter(
+  remember = 50,
+): (id: string | undefined) => boolean {
+  const seen: string[] = [];
+  return (id) => {
+    if (!id) return true;
+    if (seen.includes(id)) return false;
+    seen.push(id);
+    if (seen.length > remember) seen.shift();
+    return true;
+  };
 }

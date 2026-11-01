@@ -25,5 +25,11 @@ export function useSummary(api: RingeeApi) {
 
   useLiveRefresh(refresh, POLL_MS);
 
-  return { summary, failed: failed && summary === null, refresh };
+  return {
+    summary,
+    failed: failed && summary === null,
+    /** The last numbers still show, but the latest refresh failed. */
+    stale: failed && summary !== null,
+    refresh,
+  };
 }

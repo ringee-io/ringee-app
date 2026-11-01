@@ -111,6 +111,18 @@ alone, so an interrupted call can still be reattached.
 `reconnect-session.test.ts` runs the real SDK and fails if an upgrade changes
 where the token is read.
 
+### A browser hang-up is over at `destroy`, not `hangup`
+
+`call.hangup()` reports the `hangup` state synchronously, then sends the BYE,
+then reports `destroy` once the BYE is out (or after 5 s). `mapTelnyxState`
+maps both to `ended`, which is right for the screen — but a host that tears
+its client down per call must wait for `destroy`. Legs are placed with
+`keepConnectionAliveOnSocketClose`, so a socket closed before the BYE leaves
+the call up at the provider: the extension's END CALL used to show the call
+ended while the far end kept ringing. The extension's offscreen engine
+releases its client at `destroy`, and the worker closes the offscreen document
+only then (`offscreen.test.ts`).
+
 ## Call lifecycle
 
 ```

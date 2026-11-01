@@ -80,7 +80,8 @@ export function ListPickerSheet({
         </div>
       ) : (
         <>
-          {lists.length >= SEARCH_FROM && (
+          {/* A search still filtering stays in reach, though fewer lists came back. */}
+          {(lists.length >= SEARCH_FROM || query !== "") && (
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}

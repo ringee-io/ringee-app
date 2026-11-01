@@ -25,6 +25,7 @@ import {
   owedCallbacks,
   pickNextCall,
   upcomingCall,
+  withoutCalled,
 } from "../../lib/today-queue";
 import { ListRow, RowIcon, Section } from "../components/ui";
 import { useApp, useNav } from "../navigation";
@@ -80,7 +81,7 @@ function TodayBody({ workspaceKey }: { workspaceKey: string | null }) {
     void refreshRecent();
   }, [refreshQueue, refreshSummary, refreshListNext, refreshRecent]);
 
-  const { callItem, dialingKey } = useQueueDial(refreshAll);
+  const { callItem, dialingKey, called } = useQueueDial(refreshAll);
 
   // What a call changed — a callback done, a missed call returned, a list
   // moved on — is worth re-reading once its screen closes.
@@ -97,13 +98,23 @@ function TodayBody({ workspaceKey }: { workspaceKey: string | null }) {
     if (listPickerOpen) void refreshLists();
   }, [listPickerOpen, refreshLists]);
 
+  // Whoever was just called back is done, though the server may not know yet.
+  const queueItems = useMemo(
+    () => withoutCalled(queue.items, called),
+    [queue.items, called],
+  );
+  // The list's next only once the queue has loaded and nobody in it is due
+  // (LIST-005): a queue not read yet may hold someone who is.
   const next = useMemo(
-    () => pickNextCall(queue.items, callList.next, now),
-    [queue.items, callList.next, now],
+    () =>
+      queue.loading || queue.failed
+        ? null
+        : pickNextCall(queueItems, callList.next, now),
+    [queue.loading, queue.failed, queueItems, callList.next, now],
   );
   const upcoming = useMemo(
-    () => upcomingCall(queue.items, now),
-    [queue.items, now],
+    () => upcomingCall(queueItems, now),
+    [queueItems, now],
   );
   const hasLists = callList.lists.length > 0;
 
@@ -167,8 +178,11 @@ function TodayBody({ workspaceKey }: { workspaceKey: string | null }) {
             queue.loading ||
             (!next && (callList.nextLoading || callList.listsLoading))
           }
+          queueFailed={queue.failed}
+          onRetryQueue={() => void refreshQueue()}
           now={now}
           dialing={next !== null && dialingKey === next.item.key}
+          busy={dialingKey !== null}
           skipping={callList.skipping}
           onCall={(item) => void callItem(item)}
           onSkip={(entryId) => {
@@ -179,7 +193,7 @@ function TodayBody({ workspaceKey }: { workspaceKey: string | null }) {
         />
 
         <QueueSection
-          items={queue.items}
+          items={queueItems}
           incoming={queue.incoming}
           loading={queue.loading}
           failed={queue.failed}
@@ -203,6 +217,7 @@ function TodayBody({ workspaceKey }: { workspaceKey: string | null }) {
         <DayCard
           summary={summary.summary}
           failed={summary.failed}
+          stale={summary.stale}
           now={now}
           onOpenMeeting={(id) => nav.push({ name: "meeting", id })}
         />
@@ -329,7 +344,8 @@ function useRecentCalls(api: RingeeApi) {
   return {
     calls,
     loading: calls === null && !failed,
-    failed: failed && calls === null,
+    /** The latest request failed — the first load, or a refresh since. */
+    failed,
     refresh,
   };
 }
@@ -364,20 +380,29 @@ function RecentCalls({
         </button>
       }
     >
-      {failed ? (
+      {failed && calls === null ? (
         <p className="text-muted-foreground px-3 py-3 text-xs">
           Today&apos;s calls didn&apos;t load. Tap refresh to retry.
         </p>
-      ) : !calls?.length ? (
-        <p className="text-muted-foreground/70 px-3 py-3 text-xs">
-          {loading ? "Loading…" : "No calls yet today."}
-        </p>
       ) : (
-        <ul className="divide-border/40 divide-y">
-          {calls.map((c) => (
-            <CallRow key={c.id} item={c} onClick={() => onOpen(c.id)} />
-          ))}
-        </ul>
+        <>
+          {failed && (
+            <p className="text-muted-foreground px-3 pt-3 text-xs">
+              Couldn&apos;t refresh today&apos;s calls. Tap refresh to retry.
+            </p>
+          )}
+          {!calls?.length ? (
+            <p className="text-muted-foreground/70 px-3 py-3 text-xs">
+              {loading ? "Loading…" : "No calls yet today."}
+            </p>
+          ) : (
+            <ul className="divide-border/40 divide-y">
+              {calls.map((c) => (
+                <CallRow key={c.id} item={c} onClick={() => onOpen(c.id)} />
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </Section>
   );

@@ -9,6 +9,7 @@ import {
   owedCallbacks,
   pickNextCall,
   upcomingCall,
+  withoutCalled,
 } from "./today-queue";
 
 const NOW = new Date("2026-10-30T15:00:00.000Z");
@@ -122,6 +123,51 @@ describe("upcomingCall", () => {
       doNotCall: true,
     });
     expect(upcomingCall([blocked], NOW)).toBeNull();
+  });
+
+  it("names the soonest, not whoever was added first", () => {
+    const evening = item("evening", {
+      group: "later",
+      dueAt: "2026-10-30T18:00:00.000Z",
+    });
+    // Added to the queue after `evening`, due before it.
+    const afternoon = item("afternoon", {
+      group: "later",
+      dueAt: "2026-10-30T16:00:00.000Z",
+    });
+    expect(upcomingCall([evening, afternoon], NOW)).toBe(afternoon);
+  });
+
+  it("skips a later item with no time to come due at", () => {
+    const untimed = item("untimed", { group: "later", dueAt: null });
+    expect(upcomingCall([untimed], NOW)).toBeNull();
+  });
+});
+
+describe("withoutCalled", () => {
+  const owing = (key: string, callbackId: string) =>
+    item(key, {
+      reasons: [
+        {
+          kind: "callback",
+          callbackId,
+          at: "2026-10-30T14:30:00.000Z",
+          note: null,
+        },
+      ],
+    });
+
+  it("leaves out whoever's callback was called, before the server hears", () => {
+    const items = [owing("a", "cb-a"), owing("b", "cb-b"), item("c")];
+    expect(withoutCalled(items, new Set(["cb-a"])).map((i) => i.key)).toEqual([
+      "b",
+      "c",
+    ]);
+  });
+
+  it("keeps everyone when nothing was called", () => {
+    const items = [owing("a", "cb-a")];
+    expect(withoutCalled(items, new Set())).toBe(items);
   });
 });
 

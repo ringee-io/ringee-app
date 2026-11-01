@@ -40,8 +40,13 @@ interface NextCallCardProps {
   hasLists: boolean;
   /** Not known yet whether there is anybody to call. */
   settling: boolean;
+  /** Today's queue didn't load: nobody, a list's next included, is next. */
+  queueFailed: boolean;
+  onRetryQueue: () => void;
   now: Date;
   dialing: boolean;
+  /** A call from the queue is starting — this one or a row's. */
+  busy: boolean;
   skipping: boolean;
   onCall: (item: QueueItem) => void;
   onSkip: (entryId: string) => void;
@@ -57,8 +62,11 @@ export function NextCallCard({
   picked,
   hasLists,
   settling,
+  queueFailed,
+  onRetryQueue,
   now,
   dialing,
+  busy,
   skipping,
   onCall,
   onSkip,
@@ -67,7 +75,7 @@ export function NextCallCard({
 }: NextCallCardProps) {
   if (settling) return <Skeleton className="h-[124px] w-full rounded-xl" />;
 
-  if (!next && !picked && !hasLists) {
+  if (!next && !picked && !hasLists && !upcoming && !queueFailed) {
     return <StartCalling onCreateList={onCreateList} />;
   }
 
@@ -76,12 +84,15 @@ export function NextCallCard({
       <ListChip list={picked?.list ?? null} onClick={onChooseList} />
     ) : null;
 
-  if (!next) {
+  // A queue not read yet may hold someone due: the list waits for it (LIST-005).
+  if (!next || queueFailed) {
     return (
       <NothingToCall
         upcoming={upcoming}
         picked={picked}
         hasLists={hasLists}
+        queueFailed={queueFailed}
+        onRetryQueue={onRetryQueue}
         now={now}
         chip={chip}
       />
@@ -146,7 +157,7 @@ export function NextCallCard({
         {fromList && (
           <button
             onClick={() => onSkip(fromList.entry.entryId)}
-            disabled={dialing || skipping}
+            disabled={busy || skipping}
             title="Skip: they go to the end of the list"
             className="hover:bg-background/70 flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition disabled:opacity-40"
           >
@@ -160,7 +171,7 @@ export function NextCallCard({
         )}
         <button
           onClick={() => onCall(item)}
-          disabled={dialing || skipping}
+          disabled={busy || skipping}
           className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-500 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
         >
           {dialing ? (
@@ -257,12 +268,16 @@ function NothingToCall({
   upcoming,
   picked,
   hasLists,
+  queueFailed,
+  onRetryQueue,
   now,
   chip,
 }: {
   upcoming: QueueItem | null;
   picked: PickedList | null;
   hasLists: boolean;
+  queueFailed: boolean;
+  onRetryQueue: () => void;
   now: Date;
   chip: React.ReactNode;
 }) {
@@ -274,9 +289,15 @@ function NothingToCall({
 
   let title: string;
   let hint: string;
-  if (picked?.failed) {
+  let onRetry: (() => void) | null = null;
+  if (queueFailed) {
+    title = "Today's queue didn't load";
+    hint = "Call next waits for it, so nobody due is passed over.";
+    onRetry = onRetryQueue;
+  } else if (picked?.failed) {
     title = "Your list's next contact didn't load";
     hint = "Check your connection and try again.";
+    onRetry = picked.onRetry;
   } else if (picked?.list) {
     const remaining = picked.list.remaining;
     title = `Nobody left to call in ${picked.list.name}`;
@@ -308,9 +329,9 @@ function NothingToCall({
           <p className="text-muted-foreground text-xs">{hint}</p>
         </div>
       </div>
-      {picked?.failed && (
+      {onRetry && (
         <button
-          onClick={picked.onRetry}
+          onClick={onRetry}
           className="hover:bg-accent mt-2.5 flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition"
         >
           <RotateCw className="h-3.5 w-3.5" />

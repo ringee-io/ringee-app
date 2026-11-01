@@ -258,6 +258,7 @@ export function QueueSection({
                     now={now}
                     isNext={item.key === nextKey}
                     dialing={item.key === dialingKey}
+                    busy={dialingKey !== null}
                     preferredListId={pickedList?.id ?? null}
                     onCall={() => onCall(item)}
                     onOpen={onOpen(item)}
@@ -297,6 +298,7 @@ function QueueRow({
   now,
   isNext,
   dialing,
+  busy,
   preferredListId,
   onCall,
   onOpen,
@@ -305,6 +307,8 @@ function QueueRow({
   now: Date;
   isNext: boolean;
   dialing: boolean;
+  /** A call from the queue is starting — this row's or another's. */
+  busy: boolean;
   preferredListId: string | null;
   onCall: () => void;
   onOpen: (() => void) | null;
@@ -377,7 +381,7 @@ function QueueRow({
       )}
       <button
         onClick={onCall}
-        disabled={item.doNotCall || dialing}
+        disabled={item.doNotCall || busy}
         title={item.doNotCall ? "On the Do Not Call list" : callLabel}
         aria-label={`${callLabel} ${name}`}
         className="hover:bg-accent flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-emerald-600 transition disabled:opacity-40"

@@ -38,8 +38,9 @@ export interface DialRequestMsg {
 /**
  * background → the sender of a DIAL_REQUEST : whether the leg was placed — the
  * backend authorized it (credit, DNC, caller ID, one call at a time) and the
- * offscreen engine was told to start it. The side panel's queue completes a
- * callback only once it has actually been called.
+ * offscreen engine reported it live. A dial refused, or hung up before its leg
+ * existed, was not. The side panel's queue completes a callback only once it
+ * has actually been called.
  */
 export interface DialResult {
   placed: boolean;
@@ -67,6 +68,12 @@ export interface StartCallMsg {
 /** side panel → background → offscreen : in-call controls. */
 export interface CallCommandMsg {
   type: typeof MessageType.CallCommand;
+  /**
+   * One per press. A runtime message reaches every extension page, so the
+   * offscreen engine hears a command from the side panel and again forwarded
+   * by the worker; the id is how it acts on it once.
+   */
+  id?: string;
   command:
     | { action: "hangup" }
     | { action: "mute"; value: boolean }
@@ -181,6 +188,7 @@ const COMMAND_ACTIONS = new Set(["hangup", "mute", "hold", "dtmf"]);
 
 export function isCallCommand(m: unknown): m is CallCommandMsg {
   if (!isObject(m) || m.type !== MessageType.CallCommand) return false;
+  if (m.id !== undefined && typeof m.id !== "string") return false;
   const cmd = m.command;
   if (!isObject(cmd) || typeof cmd.action !== "string") return false;
   if (!COMMAND_ACTIONS.has(cmd.action)) return false;

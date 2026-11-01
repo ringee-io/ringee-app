@@ -17,6 +17,7 @@ import {
   isCallCommand,
   isCallEvent,
   isDialRequest,
+  type CallCommandMsg,
   type CallSnapshotMsg,
   type DialResult,
   type DialTarget,
@@ -28,6 +29,7 @@ import {
   buildStartCall,
   callEventSnapshotPatch,
   failureSnapshot,
+  reportsPlacedLeg,
 } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import { getSelectedCallerId } from "../lib/selected-caller-id";
@@ -98,8 +100,83 @@ async function closeOffscreen() {
 }
 
 // ── Main dial pipeline ────────────────────────────────────────────────────────
-/** Resolves `true` once the leg was handed to the offscreen engine. */
-async function dial(target: DialTarget, tabId?: number): Promise<boolean> {
+/** A snapshot with no call in it. */
+const NO_CALL: Partial<Omit<CallSnapshotMsg, "type">> = {
+  state: "idle",
+  destination: undefined,
+  contact: undefined,
+  origin: undefined,
+  callId: undefined,
+  error: undefined,
+  dncBlocked: false,
+  concurrentCall: false,
+  startedAt: undefined,
+  telnyxSessionId: undefined,
+};
+
+/** How long a dial waits for the engine to report its leg. */
+const ENGINE_REPORT_MS = 20_000;
+
+interface DialAttempt {
+  /** Hung up while the backend was still authorizing it. */
+  cancelled: boolean;
+  /** Answers the dial at once: it was called off. */
+  callOff: () => void;
+}
+
+/** The dial in progress, so a hang-up before its leg exists calls it off. */
+let currentDial: DialAttempt | null = null;
+
+/** Answers the dial that waits on the engine's first report on its leg. */
+let settleDial: ((placed: boolean) => void) | null = null;
+
+/**
+ * Resolves with whether the engine's first report says the leg was placed. A
+ * leg not reported in time is called off, so it is never placed after its dial
+ * was answered as not placed.
+ */
+function engineReport(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      chrome.runtime
+        .sendMessage({
+          type: MessageType.CallCommand,
+          id: crypto.randomUUID(),
+          command: { action: "hangup" },
+        } satisfies CallCommandMsg)
+        .catch(() => {});
+      settle(false);
+    }, ENGINE_REPORT_MS);
+    const settle = (placed: boolean) => {
+      clearTimeout(timer);
+      if (settleDial === settle) settleDial = null;
+      resolve(placed);
+    };
+    settleDial = settle;
+  });
+}
+
+/**
+ * Resolves `true` once the leg was placed — the backend authorized it and the
+ * engine reported it live — and `false` as soon as it is refused or called off.
+ */
+function dial(target: DialTarget, tabId?: number): Promise<boolean> {
+  let callOff = () => {};
+  const calledOff = new Promise<boolean>((resolve) => {
+    callOff = () => resolve(false);
+  });
+  const attempt: DialAttempt = { cancelled: false, callOff };
+  currentDial = attempt;
+  // A dial still waiting on the engine is superseded by this one.
+  settleDial?.(false);
+  return Promise.race([placeDial(attempt, target, tabId), calledOff]);
+}
+
+async function placeDial(
+  attempt: DialAttempt,
+  target: DialTarget,
+  tabId?: number,
+): Promise<boolean> {
   setSnapshot({
     state: "requesting",
     destination: target.destination,
@@ -117,6 +194,7 @@ async function dial(target: DialTarget, tabId?: number): Promise<boolean> {
   if (tabId !== undefined) chrome.sidePanel.open({ tabId }).catch(() => {});
 
   const identity = await getIdentity();
+  if (attempt.cancelled) return false;
   if (!identity) {
     setSnapshot({ state: "failed", error: ERROR_COPY.UNAUTHENTICATED });
     return false;
@@ -138,6 +216,7 @@ async function dial(target: DialTarget, tabId?: number): Promise<boolean> {
       preferredCallerId,
     });
   } catch (e) {
+    if (attempt.cancelled) return false;
     // No backend, no call: the backend is what mints the leg's credential and
     // authorizes it, so there is nothing to dial with on its failure.
     const code = e instanceof ApiError ? e.code : "UNKNOWN";
@@ -145,6 +224,10 @@ async function dial(target: DialTarget, tabId?: number): Promise<boolean> {
     setSnapshot(failureSnapshot(code, serverMessage));
     return false;
   }
+
+  // Hung up while the backend was authorizing: no leg is placed, and the
+  // backend's pending dial lease lapses on its own.
+  if (attempt.cancelled) return false;
 
   setSnapshot({
     state: "connecting",
@@ -155,10 +238,11 @@ async function dial(target: DialTarget, tabId?: number): Promise<boolean> {
   });
 
   await ensureOffscreen();
+  const placed = engineReport();
   chrome.runtime
     .sendMessage(buildStartCall(prepared, identity))
     .catch(() => {});
-  return true;
+  return placed;
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -173,11 +257,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (isCallCommand(msg)) {
+    // A hang-up while the backend is still authorizing the dial: there is no
+    // leg to end yet, so the dial is called off and never placed.
+    if (
+      msg.command.action === "hangup" &&
+      snapshot.state === "requesting" &&
+      currentDial &&
+      !currentDial.cancelled
+    ) {
+      currentDial.cancelled = true;
+      currentDial.callOff();
+      setSnapshot(NO_CALL);
+      return false;
+    }
     // From side panel → forward verbatim to the offscreen engine.
     chrome.runtime.sendMessage(msg).catch(() => {});
     return false;
   }
   if (isCallEvent(msg)) {
+    // The engine's first report on a dial answers it: a live leg was placed.
+    settleDial?.(reportsPlacedLeg(msg.state));
+    // Hung up before its leg existed: back to no call, with no post-call.
+    if (msg.state === "idle") {
+      setSnapshot(NO_CALL);
+      void closeOffscreen();
+      return false;
+    }
     // From offscreen → reflect in the snapshot for the side panel. A call that
     // ends/fails carries the Telnyx hangup cause; keep it so an unexpected
     // auto-hangup is visible instead of a silent "Call ended".
@@ -200,18 +305,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === MessageType.EndCall) {
     void closeOffscreen();
-    setSnapshot({
-      state: "idle",
-      destination: undefined,
-      contact: undefined,
-      origin: undefined,
-      callId: undefined,
-      error: undefined,
-      dncBlocked: false,
-      concurrentCall: false,
-      startedAt: undefined,
-      telnyxSessionId: undefined,
-    });
+    setSnapshot(NO_CALL);
     return false;
   }
   return false;

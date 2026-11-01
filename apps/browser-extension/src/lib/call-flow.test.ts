@@ -4,7 +4,9 @@ import {
   ERROR_COPY,
   buildStartCall,
   callEventSnapshotPatch,
+  createCommandFilter,
   failureSnapshot,
+  reportsPlacedLeg,
   statusTextFor,
 } from "./call-flow";
 import type { PrepareCallResponse } from "./ringee-api";
@@ -113,5 +115,43 @@ describe("statusTextFor", () => {
     expect(statusTextFor("active")).toBe("Connected");
     expect(statusTextFor("held")).toBe("On hold");
     expect(statusTextFor("ringing")).toBe("Ringing…");
+  });
+});
+
+describe("reportsPlacedLeg", () => {
+  it("counts a live leg as placed", () => {
+    for (const state of ["connecting", "ringing", "active", "held"] as const) {
+      expect(reportsPlacedLeg(state)).toBe(true);
+    }
+  });
+
+  it("does not count a dial called off, refused or already over", () => {
+    for (const state of ["idle", "requesting", "failed", "ended"] as const) {
+      expect(reportsPlacedLeg(state)).toBe(false);
+    }
+  });
+});
+
+describe("createCommandFilter", () => {
+  it("acts on a press once, however many times it is delivered", () => {
+    const firstDelivery = createCommandFilter();
+    expect(firstDelivery("press-1")).toBe(true);
+    expect(firstDelivery("press-1")).toBe(false);
+    expect(firstDelivery("press-2")).toBe(true);
+  });
+
+  it("lets a command without an id through", () => {
+    const firstDelivery = createCommandFilter();
+    expect(firstDelivery(undefined)).toBe(true);
+    expect(firstDelivery(undefined)).toBe(true);
+  });
+
+  it("forgets the oldest ids past its limit", () => {
+    const firstDelivery = createCommandFilter(2);
+    firstDelivery("a");
+    firstDelivery("b");
+    firstDelivery("c");
+    expect(firstDelivery("a")).toBe(true);
+    expect(firstDelivery("c")).toBe(false);
   });
 });

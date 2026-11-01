@@ -102,6 +102,9 @@ export function useCallList() {
         dropList();
         return;
       }
+      // Whoever was next may have been called since: offering them again
+      // could reach them twice (CALL-013).
+      setNext(null);
       setNextFailed(true);
     }
   }, [api, dropList, selectedId]);

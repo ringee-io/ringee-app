@@ -9,6 +9,7 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
+import { isISO8601 } from "class-validator";
 import {
   CurrentUser,
   CurrentUserData,
@@ -87,8 +88,10 @@ export class MyDayController {
 
 function parseOptionalDate(value: string | undefined, name: string) {
   if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  // `new Date` alone also reads "1" or "Oct 30 2026", and rolls Feb 30 into
+  // March.
+  const date = isISO8601(value, { strict: true }) ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) {
     throw new BadRequestException(`${name} must be an ISO 8601 date`);
   }
   return date;

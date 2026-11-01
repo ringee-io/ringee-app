@@ -15,7 +15,12 @@ import { useCallFinished } from '../../hooks/use.call.finished';
 import { useCallList } from '../../hooks/use.call.list';
 import { useCallPageShortcuts } from '../../hooks/use.call.page.shortcuts';
 import { useDial } from '../../hooks/use.dial';
-import { isCallableNow, useMyDayQueue } from '../../hooks/use.my.day.queue';
+import {
+  isCallableNow,
+  upcomingCall,
+  useMyDayQueue,
+  withoutCalled
+} from '../../hooks/use.my.day.queue';
 import { useMyDaySummary } from '../../hooks/use.my.day.summary';
 import { useQueueDial } from '../../hooks/use.queue.dial';
 import { useNumbersStore } from '../../store/number.selector.store';
@@ -111,7 +116,7 @@ export function MyDayView() {
     void refreshListNext();
   }, [refreshQueue, refreshSummary, refreshListNext]);
 
-  const { callItem, dialingKey, busy } = useQueueDial(refreshAll);
+  const { callItem, dialingKey, busy, called } = useQueueDial(refreshAll);
   useCallFinished(refreshAll);
 
   // What is left in each list moves with every call: re-read it on opening.
@@ -126,14 +131,19 @@ export function MyDayView() {
     if (phoneNumber) setQuery(`+${phoneNumber.replace(/^\+/, '')}`);
   }, [searchParams]);
 
-  const dueNow = queue.items.find((item) => isCallableNow(item, now)) ?? null;
-  const upcoming = dueNow
-    ? null
-    : (queue.items.find((item) => item.group === 'later' && !item.doNotCall) ??
-      null);
+  // Whoever was just called back is done, though the server may not know yet.
+  const queueItems = useMemo(
+    () => withoutCalled(queue.items, called),
+    [queue.items, called]
+  );
+  const dueNow = queueItems.find((item) => isCallableNow(item, now)) ?? null;
+  const upcoming = upcomingCall(queueItems, now);
   const listNext = callList.next;
-  // Today's queue first; the list only once nobody in it is due.
+  const queueReady = !queue.loading && !queue.failed;
+  // Today's queue first; the list only once the queue has loaded and nobody
+  // in it is due (LIST-005): a queue not read yet may hold someone who is.
   const next = useMemo<NextCall | null>(() => {
+    if (!queueReady) return null;
     if (dueNow) return { source: 'queue', item: dueNow };
     if (!listNext?.next) return null;
     return {
@@ -142,7 +152,7 @@ export function MyDayView() {
       entry: listNext.next,
       list: listNext.list
     };
-  }, [dueNow, listNext]);
+  }, [queueReady, dueNow, listNext]);
 
   const dialFromSearch = useCallback(
     async (phoneNumber: string) => {
@@ -202,7 +212,12 @@ export function MyDayView() {
     onCallNext: () => {
       if (next) {
         if (!callList.skipping) void callItem(next.item);
-      } else if (!hasLists && !callList.listsLoading && !queue.loading) {
+      } else if (
+        !hasLists &&
+        !callList.listsLoading &&
+        !queue.loading &&
+        !queue.failed
+      ) {
         startCalling();
       }
     },
@@ -305,6 +320,8 @@ export function MyDayView() {
           spotlight={spotlight}
           onSpotlightDone={endSpotlight}
           loading={queue.loading}
+          queueFailed={queue.failed}
+          onRetryQueue={() => void refreshQueue()}
           now={now}
           fromLabel={fromLabel}
           dialing={next !== null && dialingKey === next.item.key}
@@ -315,7 +332,7 @@ export function MyDayView() {
         />
 
         <TodayQueue
-          items={queue.items}
+          items={queueItems}
           incoming={queue.incoming}
           loading={queue.loading}
           failed={queue.failed}

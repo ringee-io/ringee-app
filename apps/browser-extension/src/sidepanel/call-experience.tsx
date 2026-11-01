@@ -18,7 +18,7 @@ import {
 } from "@ringee/dialer-core/contracts";
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
 import { RingeeApi, type CurrentUser } from "../lib/ringee-api";
-import { statusTextFor } from "../lib/call-flow";
+import { ENDING_TEXT, ERROR_COPY, statusTextFor } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import {
   ensureMicrophoneAccess,
@@ -33,6 +33,15 @@ function send(msg: CallCommandMsg | DialRequestMsg | { type: string }): void {
   chrome.runtime.sendMessage(msg).catch(() => {});
 }
 
+/** An in-call control, with an id per press so the engine acts on it once. */
+function command(cmd: CallCommandMsg["command"]): void {
+  send({
+    type: MessageType.CallCommand,
+    id: crypto.randomUUID(),
+    command: cmd,
+  });
+}
+
 const EMPTY_SNAPSHOT: CallSnapshotMsg = {
   type: MessageType.CallSnapshot,
   state: "idle",
@@ -40,6 +49,25 @@ const EMPTY_SNAPSHOT: CallSnapshotMsg = {
 
 /** How long a dial waits for the background to say whether it was placed. */
 const DIAL_ANSWER_MS = 30_000;
+
+/** Whether the background says the dial was placed; no answer at all is no. */
+async function requestDial(msg: DialRequestMsg): Promise<boolean> {
+  try {
+    const res: unknown = await chrome.runtime.sendMessage(msg);
+    return isDialResult(res) && res.placed;
+  } catch {
+    return false;
+  }
+}
+
+/** What `promise` settles to within `ms`; undefined once that has passed. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), ms);
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
 
 export function CallExperience() {
   const { getToken } = useAuth();
@@ -89,6 +117,13 @@ export function CallExperience() {
     send({ type: MessageType.RequestSnapshot });
     return () => chrome.runtime.onMessage.removeListener(onMsg);
   }, []);
+
+  // END CALL was pressed and the line has yet to confirm — the BYE's round
+  // trip, a few seconds at most: say so instead of looking unresponsive.
+  const [ending, setEnding] = useState(false);
+  useEffect(() => {
+    if (!isLiveCallState(snap.state)) setEnding(false);
+  }, [snap.state]);
 
   // Reset optimistic toggles whenever a new call starts.
   useEffect(() => {
@@ -188,20 +223,17 @@ export function CallExperience() {
   const onToggleMute = useCallback(async () => {
     const value = !muted;
     setMuted(value);
-    send({ type: MessageType.CallCommand, command: { action: "mute", value } });
+    command({ action: "mute", value });
   }, [muted]);
 
   const onToggleHold = useCallback(async () => {
     const value = !onHold;
     setOnHold(value);
-    send({ type: MessageType.CallCommand, command: { action: "hold", value } });
+    command({ action: "hold", value });
   }, [onHold]);
 
   const onSendDTMF = useCallback((digit: string) => {
-    send({
-      type: MessageType.CallCommand,
-      command: { action: "dtmf", digit },
-    });
+    command({ action: "dtmf", digit });
   }, []);
 
   const onToggleRecording = useCallback(async () => {
@@ -226,7 +258,8 @@ export function CallExperience() {
   }, [api, isRecording, snap.telnyxSessionId]);
 
   const onHangup = useCallback(() => {
-    send({ type: MessageType.CallCommand, command: { action: "hangup" } });
+    setEnding(true);
+    command({ action: "hangup" });
   }, []);
 
   const onPostCallClose = useCallback(() => {
@@ -241,30 +274,25 @@ export function CallExperience() {
     setCreditKey((k) => k + 1);
   }, [resetCallStore]);
 
-  // The background answers once the backend has authorized the call and the
-  // engine was told to start it — or refused it. A worker that never answers
-  // counts as not placed, so a stuck request cannot hold up the next dial.
+  // The background answers once the engine reports the leg placed, or as soon
+  // as the dial is refused or called off. A dial still unanswered in time is
+  // called off — hung up before its leg exists, it is never placed — and its
+  // answer still taken, so a leg placed meanwhile counts and the queue
+  // completes the callback it owed. Called off, it is answered at once or
+  // within the worker's own wait on the engine; silence even then counts as
+  // not placed, so a stuck request cannot hold up the next dial.
   const dialManual = useCallback(
     async (e164: string, name?: string): Promise<boolean> => {
-      const msg: DialRequestMsg = {
+      const answer = requestDial({
         type: MessageType.DialRequest,
         target: { destination: e164, name },
-      };
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const timeout = new Promise<unknown>((resolve) => {
-        timer = setTimeout(() => resolve(undefined), DIAL_ANSWER_MS);
       });
-      try {
-        const res = await Promise.race([
-          chrome.runtime.sendMessage(msg),
-          timeout,
-        ]);
-        return isDialResult(res) && res.placed;
-      } catch {
-        return false;
-      } finally {
-        clearTimeout(timer);
-      }
+      const placed = await within(answer, DIAL_ANSWER_MS);
+      if (placed !== undefined) return placed;
+      command({ action: "hangup" });
+      if (await within(answer, DIAL_ANSWER_MS)) return true;
+      setToast(ERROR_COPY.UNKNOWN);
+      return false;
     },
     [],
   );
@@ -352,7 +380,7 @@ export function CallExperience() {
                 onClose={onHangup}
                 number={snap.destination || "+CALL"}
                 contactName={snap.contact?.name}
-                statusText={statusTextFor(snap.state)}
+                statusText={ending ? ENDING_TEXT : statusTextFor(snap.state)}
                 isMuted={muted}
                 isOnHold={onHold}
                 isRecording={isRecording}
