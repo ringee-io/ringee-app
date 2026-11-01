@@ -1,8 +1,6 @@
 import { ExternalLink, RefreshCw } from "lucide-react";
+import { webAppUrl } from "../lib/web-app";
 import { RingeeLogo } from "./ringee-logo";
-
-const SYNC_HOST =
-  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
 
 /**
  * Signed-out state. The extension shares the Ringee web-app session via Clerk's
@@ -14,7 +12,7 @@ const SYNC_HOST =
 export function SignInScreen() {
   const openRingee = () => {
     // No `tabs` permission needed just to open a tab.
-    chrome.tabs.create({ url: "https://www.ringee.io" });
+    chrome.tabs.create({ url: webAppUrl() });
   };
 
   return (
@@ -50,7 +48,7 @@ export function SignInScreen() {
 
       <p className="text-muted-foreground/70 max-w-[240px] text-[11px]">
         Signed in at{" "}
-        <span className="font-medium">{new URL(SYNC_HOST).host}</span>
+        <span className="font-medium">{new URL(webAppUrl()).host}</span>
       </p>
     </div>
   );

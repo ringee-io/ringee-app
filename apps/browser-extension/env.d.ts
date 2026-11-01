@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_CLERK_SYNC_HOST?: string;
   /** Ringee backend API base, e.g. https://api.ringee.io/api */
   readonly VITE_RINGEE_API_URL?: string;
+  /** The web app the panel opens (create a list, upgrade, sign in), e.g. https://ringee.io */
+  readonly VITE_RINGEE_WEB_URL?: string;
   /** Default region (ISO 3166-1 alpha-2) for numbers without a country code. */
   readonly VITE_DEFAULT_REGION?: string;
 }

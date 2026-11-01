@@ -105,6 +105,7 @@ Fill in `apps/browser-extension/.env`:
 | `VITE_CLERK_PUBLISHABLE_KEY` | **Same Clerk instance as the web app** (so the session syncs). |
 | `VITE_CLERK_SYNC_HOST`       | The web app origin, e.g. `https://www.ringee.io`.              |
 | `VITE_RINGEE_API_URL`        | Backend base incl. `/api`, e.g. `https://api.ringee.io/api`.   |
+| `VITE_RINGEE_WEB_URL`        | Web app the panel opens (Create list, Upgrade, Sign in).       |
 | `VITE_DEFAULT_REGION`        | Default region for numbers without a country code (e.g. `US`). |
 
 ### 2. Build
