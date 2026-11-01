@@ -155,10 +155,12 @@ offscreen engine now captures the microphone once and hands it to the leg as
 panel reads the grant with `navigator.permissions.query`, which does not open
 the device. Do not put another `getUserMedia` in front of a dial.
 
-That change alone did not remove the holes. Every answered extension call now
-records its outgoing audio (`createCallQualityProbe` → `CallQualitySummary`):
-microphone seconds captured against elapsed seconds, packets sent per window,
-the local network path and the SDK's warnings. The worker keeps the last 20 in
+That change alone did not remove the holes. An extension call that stays
+connected for about two seconds after the answer now records its outgoing
+audio (`createCallQualityProbe` → `CallQualitySummary`): microphone seconds
+captured against elapsed seconds, packets sent per window, the local network
+path and the SDK's warnings. A call that ends sooner has a single reading and
+leaves no record. The worker keeps the last 20 records in
 `chrome.storage.local` (`ringee:callQualityLog`). On 2026-11-01 those records
 showed the browser capturing and sending steadily (50 packets a second, no
 gaps) while Telnyx received 85% of the packets on one call and 99% on the next

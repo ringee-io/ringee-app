@@ -50,6 +50,17 @@ describe("recordCallQuality", () => {
     ]);
   });
 
+  it("keeps both of two calls recorded at once", async () => {
+    await Promise.all([
+      recordCallQuality(summary(10), new Date("2026-10-31T10:00:00Z")),
+      recordCallQuality(summary(20), new Date("2026-10-31T10:05:00Z")),
+    ]);
+    const log = store["ringee:callQualityLog"] as Array<{
+      measuredSec: number;
+    }>;
+    expect(log.map((e) => e.measuredSec)).toEqual([20, 10]);
+  });
+
   it("keeps only the last 20 calls", async () => {
     for (let i = 1; i <= 25; i += 1) await recordCallQuality(summary(i));
     const log = store["ringee:callQualityLog"] as Array<{

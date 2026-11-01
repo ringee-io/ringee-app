@@ -178,4 +178,13 @@ describe("isCallQuality", () => {
     ).toBe(false);
     expect(isCallQuality({ type: MessageType.CallEvent, summary })).toBe(false);
   });
+  it("rejects a partial record", () => {
+    for (const key of Object.keys(summary)) {
+      const partial: Record<string, unknown> = { ...summary };
+      delete partial[key];
+      expect(
+        isCallQuality({ type: MessageType.CallQuality, summary: partial }),
+      ).toBe(false);
+    }
+  });
 });

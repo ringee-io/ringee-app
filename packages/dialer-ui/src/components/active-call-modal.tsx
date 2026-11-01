@@ -245,6 +245,11 @@ export function ActiveCallModal({
   const isConnected =
     isConnectedProp ?? (statusText === "Connected" || elapsed > 0);
   const wide = showRightPanel;
+  const statusLabel = meetingBooked
+    ? "MEETING BOOKED"
+    : isRecording
+      ? "RECORDING"
+      : statusText;
 
   return (
     <Dialog modal={false} open={open} onOpenChange={onClose}>
@@ -274,7 +279,7 @@ export function ActiveCallModal({
         {/* Radix needs a labelled dialog; the caller ID heading below is
             what sighted users read, so the announced pair is hidden here. */}
         <DialogTitle className="sr-only">{contactName || number}</DialogTitle>
-        <DialogDescription className="sr-only">{statusText}</DialogDescription>
+        <DialogDescription className="sr-only">{statusLabel}</DialogDescription>
         {/* Free trial banner */}
         {isFreeTrialCall && (
           <div className="relative shrink-0 overflow-hidden border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
@@ -388,11 +393,7 @@ export function ActiveCallModal({
                         : "text-muted-foreground",
                   )}
                 >
-                  {meetingBooked
-                    ? "MEETING BOOKED"
-                    : isRecording
-                      ? "RECORDING"
-                      : statusText}
+                  {statusLabel}
                 </span>
               </div>
 

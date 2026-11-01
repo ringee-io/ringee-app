@@ -95,17 +95,16 @@ export function summarizeQuality(
     // Hold sends nothing by design; a counter that went back means the call
     // was recovered on a new connection between the two readings.
     if (sec <= 0 || from.held || to.held || wentBack(from, to)) continue;
+    // Without capture and sending at both ends, the window's time would be
+    // counted without its audio and read as a gap.
+    if (!measured(from) || !measured(to)) continue;
     measuredSec += sec;
-    if (from.capturedSec !== undefined && to.capturedSec !== undefined) {
-      const captured = to.capturedSec - from.capturedSec;
-      capturedSec += captured;
-      if (captured < sec * CAPTURE_GAP_SHARE) captureGaps += 1;
-    }
-    if (from.packetsSent !== undefined && to.packetsSent !== undefined) {
-      const sent = to.packetsSent - from.packetsSent;
-      packetsSent += sent;
-      sendRates.push(sent / sec);
-    }
+    const captured = to.capturedSec - from.capturedSec;
+    capturedSec += captured;
+    if (captured < sec * CAPTURE_GAP_SHARE) captureGaps += 1;
+    const sent = to.packetsSent - from.packetsSent;
+    packetsSent += sent;
+    sendRates.push(sent / sec);
     packetsReceived += growth(from.packetsReceived, to.packetsReceived);
     packetsLost += growth(from.packetsLost, to.packetsLost);
   }
@@ -167,6 +166,7 @@ export function createCallQualityProbe(
   let micEnded = false;
   let timer: ReturnType<typeof setInterval> | undefined;
   let finished = false;
+  let inFlight = false;
 
   const onMute = () => {
     muteEvents += 1;
@@ -180,7 +180,9 @@ export function createCallQualityProbe(
 
   const read = async () => {
     const peer = options.peer();
-    if (!peer || finished) return;
+    // One `getStats()` at a time, so readings land in the order taken.
+    if (!peer || finished || inFlight) return;
+    inFlight = true;
     const heldBefore = held;
     try {
       const report = await peer.getStats();
@@ -191,6 +193,8 @@ export function createCallQualityProbe(
       });
     } catch {
       // The connection closed between two readings.
+    } finally {
+      inFlight = false;
     }
   };
 
@@ -230,6 +234,13 @@ function wentBack(from: QualityReading, to: QualityReading): boolean {
     const after = to[key];
     return before !== undefined && after !== undefined && after < before;
   });
+}
+
+/** The reading saw both the microphone and the sender. */
+function measured(
+  r: QualityReading,
+): r is QualityReading & { capturedSec: number; packetsSent: number } {
+  return r.capturedSec !== undefined && r.packetsSent !== undefined;
 }
 
 function growth(from?: number, to?: number): number {

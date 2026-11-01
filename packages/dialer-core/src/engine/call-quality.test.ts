@@ -181,6 +181,15 @@ describe("summarizeQuality", () => {
     expect(summary.captureGaps).toBe(0);
   });
 
+  it("leaves out the windows a reading could not measure", () => {
+    const readings = call([steady, steady, steady]);
+    delete readings[2]!.packetsSent;
+    const summary = summarizeQuality(readings, about);
+    expect(summary.measuredSec).toBe(2);
+    expect(summary.capturedSec).toBe(2);
+    expect(summary.sentPerSec).toBe(50);
+  });
+
   it("keeps the worst jitter and round trip in ms", () => {
     const readings = call([steady, steady]);
     readings[1]!.jitterSec = 0.03;
@@ -278,6 +287,28 @@ describe("createCallQualityProbe", () => {
     const probe = createCallQualityProbe({ peer: () => pc });
     probe.start();
     probe.start();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(pc.getStats).toHaveBeenCalledTimes(2);
+    probe.finish();
+  });
+
+  it("takes one reading at a time, however slowly the connection answers", async () => {
+    let fail: ((err: Error) => void) | undefined;
+    const pc = {
+      getStats: vi.fn(
+        () =>
+          new Promise<RTCStatsReport>((_, reject) => {
+            fail = reject;
+          }),
+      ),
+    } as unknown as RTCPeerConnection & { getStats: ReturnType<typeof vi.fn> };
+    const probe = createCallQualityProbe({ peer: () => pc });
+    probe.start();
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(pc.getStats).toHaveBeenCalledTimes(1);
+
+    // A reading that fails lets the next one through.
+    fail?.(new Error("closed"));
     await vi.advanceTimersByTimeAsync(2000);
     expect(pc.getStats).toHaveBeenCalledTimes(2);
     probe.finish();

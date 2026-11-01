@@ -20,11 +20,19 @@ export interface CallQualityEntry extends CallQualitySummary {
   at: string;
 }
 
+/** Each record reads the log and writes it back, so they take turns. */
+let queue: Promise<void> = Promise.resolve();
+
 export async function recordCallQuality(
   summary: CallQualitySummary,
   at = new Date(),
 ): Promise<void> {
   console.info("[Ringee] call audio", summary);
+  queue = queue.then(() => append(summary, at));
+  return queue;
+}
+
+async function append(summary: CallQualitySummary, at: Date): Promise<void> {
   try {
     const stored = await chrome.storage.local.get(KEY);
     const log: CallQualityEntry[] = Array.isArray(stored?.[KEY])

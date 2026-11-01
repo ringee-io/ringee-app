@@ -238,12 +238,24 @@ export function isCallSnapshot(m: unknown): m is CallSnapshotMsg {
   );
 }
 
+/** The counts every `CallQualitySummary` carries. */
+const QUALITY_COUNTS = [
+  "measuredSec",
+  "capturedSec",
+  "captureGaps",
+  "packetsSent",
+  "sentPerSec",
+  "sendGaps",
+  "packetsReceived",
+  "packetsLost",
+] as const satisfies readonly (keyof CallQualitySummary)[];
+
 export function isCallQuality(m: unknown): m is CallQualityMsg {
+  if (!isObject(m) || m.type !== MessageType.CallQuality) return false;
+  const summary = m.summary;
   return (
-    isObject(m) &&
-    m.type === MessageType.CallQuality &&
-    isObject(m.summary) &&
-    typeof m.summary.measuredSec === "number" &&
-    isObject(m.summary.warnings)
+    isObject(summary) &&
+    QUALITY_COUNTS.every((key) => typeof summary[key] === "number") &&
+    isObject(summary.warnings)
   );
 }
