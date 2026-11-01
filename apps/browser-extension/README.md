@@ -194,7 +194,16 @@ build` (standalone), then click the reload ↻ icon in `chrome://extensions`.
   missing or `VITE_CLERK_PUBLISHABLE_KEY` isn't set. Fill it in and rebuild
   (Vite inlines `VITE_*` at build time).
 - **After any rebuild, reload the extension** in `chrome://extensions` for the
-  new `dist/` to take effect.
+  new `dist/` to take effect. Pages already open keep the previous detector
+  (Chrome does not re-inject it), and its card says "Reload page to call"; a
+  store update does the same to users' open tabs.
+- **The person called hears the agent choppy** — open `chrome://extensions` →
+  Ringee → _service worker_ and run
+  `await chrome.storage.local.get("ringee:callQualityLog")`: the last 20
+  answered calls, newest first. `capturedSec` well under `measuredSec` means
+  the microphone stopped delivering; full capture with `sentPerSec` under 50
+  means the browser did not send it. See "The extension opens the microphone
+  once per call" in `docs/engineering/TELEPHONY.md`.
 
 ## Permissions & why
 

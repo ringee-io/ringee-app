@@ -19,10 +19,14 @@ import {
   hangupCall,
   sendDtmf,
   onCallUpdate,
+  onCallWarning,
   mapTelnyxState,
+  getCallPeerConnection,
+  createCallQualityProbe,
   TELNYX_EVENTS,
   OUTBOUND_RINGBACK_VOLUME,
   type Call,
+  type CallQualityProbe,
 } from "@ringee/dialer-core/engine";
 import {
   MessageType,
@@ -30,6 +34,7 @@ import {
   isStartCall,
   type CallCommandMsg,
   type CallEventMsg,
+  type CallQualityMsg,
   type CallState,
   type StartCallMsg,
 } from "@ringee/dialer-core/contracts";
@@ -47,7 +52,13 @@ let starting = false;
 let calledOff = false;
 /** The hang-up is on its way out; the SDK reports `destroy` once it is. */
 let hangingUp = false;
+/** The leg's end was reported; what the SDK reports after is its teardown. */
+let legEnded = false;
 const firstDelivery = createCommandFilter();
+/** The microphone captured for the call (see `captureMicrophone`). */
+let micStream: MediaStream | null = null;
+/** How the call's outgoing audio flows, reported before `ended`. */
+let quality: CallQualityProbe | null = null;
 
 /**
  * The side panel passes `remoteStream={null}` to the Active Call Modal — it's a
@@ -103,16 +114,40 @@ function hangupCause(call: Call): string | undefined {
 
 /** Release the socket + mic when there's no active call (cleanup, MV3-safe). */
 function cleanup() {
-  try {
-    client?.disconnect?.();
-  } catch {
-    /* ignore */
-  }
-  detachRemoteAudio();
+  // The SDK's disconnect purges a leg it still holds and reports that back into
+  // the call handler, which ends here again. With the line still set, that
+  // second pass disconnected again, and so on until the stack gave out:
+  // thousands of `ended` reports, BYEs and call reports from one hang-up, and a
+  // panel stuck on "Ending call…" (2026-10-31). Taken first, a second pass
+  // finds no line.
+  const line = client;
   client = null;
+  if (line) disconnectAfterTeardown(line);
+  detachRemoteAudio();
+  // The SDK stops the stream when a placed leg ends; a dial called off or
+  // failed before its leg existed still holds it.
+  micStream?.getTracks().forEach((track) => track.stop());
+  micStream = null;
+  quality?.finish();
+  quality = null;
   activeCall = null;
   activeTelnyxSessionId = undefined;
   hangingUp = false;
+}
+
+/**
+ * Close the line on the next task. The end is reported from inside the SDK's
+ * own state change, before it drops the leg (`_finalize`); disconnecting then
+ * would purge the leg and send it a second BYE.
+ */
+function disconnectAfterTeardown(line: TelnyxClient) {
+  setTimeout(() => {
+    try {
+      void Promise.resolve(line.disconnect()).catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }, 0);
 }
 
 async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
@@ -137,6 +172,7 @@ async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
   });
 
   onCallUpdate(c, (call) => {
+    if (legEnded) return;
     activeCall = call;
     // Telnyx may omit telnyxIDs from its terminal update. Retain the last
     // observed session id until after `ended` has been emitted so post-call
@@ -154,11 +190,16 @@ async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
     // users until the far end answers. `attachRemoteAudio` restores full volume
     // for the active conversation.
     attachRemoteAudio(call, mapped);
+    followQuality(mapped);
     const cause = mapped === "ended" ? hangupCause(call) : undefined;
     if (mapped === "ended" && cause) {
       console.warn(
         `[Ringee] call ended — ${cause} (telnyx state: ${call.state})`,
       );
+    }
+    if (mapped === "ended") {
+      legEnded = true;
+      reportQuality();
     }
     emit(mapped, {
       telnyxSessionId: activeTelnyxSessionId,
@@ -166,37 +207,65 @@ async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
     });
     if (mapped === "ended") cleanup();
   });
+  onCallWarning(c, (name) => quality?.warn(name));
 
   client = c;
   return c;
 }
 
+/** Measure the outgoing audio while the far end is on the line, not on hold. */
+function followQuality(state: CallState) {
+  if (state === "active") {
+    quality?.setHeld(false);
+    quality?.start();
+  } else if (state === "held") {
+    quality?.setHeld(true);
+  }
+}
+
 /**
- * Prove the offscreen document can actually capture the mic BEFORE dialing.
- * The side panel grants the permission (it's the only visible context that can
- * prompt), but the live call's getUserMedia runs HERE — if the grant didn't
- * reach the offscreen, Telnyx negotiates with no outbound audio and the far end
- * (or Telnyx) tears the call down seconds after it connects. That's the
- * "calls hang up by themselves" symptom. We acquire + immediately release so
- * Telnyx owns the device during the call, and surface a precise error instead
- * of a silent drop when the grant is missing.
+ * Hand the worker the call's audio record. It goes before `ended`, on which
+ * the worker closes this document.
  */
-async function verifyMicrophone(): Promise<boolean> {
+function reportQuality() {
+  const summary = quality?.finish(activeTelnyxSessionId);
+  quality = null;
+  if (!summary) return;
+  const msg: CallQualityMsg = { type: MessageType.CallQuality, summary };
+  chrome.runtime.sendMessage(msg).catch(() => {});
+}
+
+/**
+ * Capture the mic BEFORE dialing. The side panel grants the permission (it's
+ * the only visible context that can prompt), but the live call's capture runs
+ * HERE — if the grant didn't reach the offscreen, Telnyx negotiates with no
+ * outbound audio and the far end (or Telnyx) tears the call down seconds after
+ * it connects. That's the "calls hang up by themselves" symptom, so a missing
+ * grant surfaces as a precise error instead of a silent drop.
+ *
+ * The stream is the call's own: it goes to the SDK as the leg's `localStream`,
+ * so the device is opened once per call, as web calls open it. This used to
+ * open the mic, release it, and let the SDK open it again a moment later, and
+ * the extension's legs were the ones Telnyx measured sending a fraction of
+ * their audio (2026-10-31, docs/engineering/TELEPHONY.md).
+ */
+async function captureMicrophone(): Promise<MediaStream | null> {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach((t) => t.stop());
-    return true;
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
     console.error("[Ringee] offscreen microphone access failed", err);
-    return false;
+    return null;
   }
 }
 
 async function startCall(msg: StartCallMsg) {
   starting = true;
   calledOff = false;
+  legEnded = false;
   try {
-    if (!(await verifyMicrophone())) {
+    const mic = await captureMicrophone();
+    micStream = mic;
+    if (!mic) {
       emit("failed", {
         error:
           "Microphone access is blocked for Ringee — allow it and try again.",
@@ -217,6 +286,12 @@ async function startCall(msg: StartCallMsg) {
       userId: msg.userId,
       organizationId: msg.organizationId,
       dialToken: msg.dialToken,
+      localStream: mic,
+    });
+    quality = createCallQualityProbe({
+      // A recovered call gets a new connection; read the current one.
+      peer: () => getCallPeerConnection(activeCall),
+      mic,
     });
   } catch (err) {
     emit("failed", {

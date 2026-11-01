@@ -123,6 +123,54 @@ ended while the far end kept ringing. The extension's offscreen engine
 releases its client at `destroy`, and the worker closes the offscreen document
 only then (`offscreen.test.ts`).
 
+Close the line after the SDK has dropped the leg, never from inside the report
+of its end. The SDK reports `destroy` from inside its own state change, before
+`_finalize` removes the leg from the client, and `client.disconnect()` sets
+every leg it still holds to `purge` and reports that synchronously. The
+extension disconnected from inside that report, so the purge came back into
+the same handler and disconnected again until the stack gave out: one hang-up
+produced thousands of `ended` reports, BYEs and call reports, held the
+extension process near 100% CPU for minutes and froze the side panel on
+"Ending call…" (2026-11-01). The engine now ignores reports after a leg's end,
+takes the line before disconnecting, and disconnects on the next task. The
+SDK fake in `offscreen.test.ts` purges the way the real one does.
+
+### The extension opens the microphone once per call
+
+Telnyx's per-leg statistics (`call_quality_stats` on the `call.hangup`
+webhook, where `inbound` is what the browser sent) showed extension legs
+arriving with holes that web legs do not have. Over 26–31 Oct 2026 Telnyx
+skipped a median 19.6% of an extension leg's packets against 4.8% on web
+legs, and in the worst tenth of extension calls the browser sent a third or
+less of the packets it received. The audio Telnyx sent to the browser arrived
+intact, and the same agents' web calls on the same networks were clean, so the
+loss starts in the extension's browser. Over 30 days, 64% of answered
+extension calls had a CDR MOS of 1, against 1.2% of all other calls.
+
+Web calls open the microphone once, inside the SDK. The extension opened it
+to check the grant, released it, and let the SDK open it again a moment later;
+the side panel also opened and released it before a panel's first call. The
+offscreen engine now captures the microphone once and hands it to the leg as
+`localStream` (`placeCall`), and the SDK stops it when the leg ends. The side
+panel reads the grant with `navigator.permissions.query`, which does not open
+the device. Do not put another `getUserMedia` in front of a dial.
+
+That change alone did not remove the holes. An extension call that stays
+connected for about two seconds after the answer now records its outgoing
+audio (`createCallQualityProbe` → `CallQualitySummary`): microphone seconds
+captured against elapsed seconds, packets sent per window, the local network
+path and the SDK's warnings. A call that ends sooner has a single reading and
+leaves no record. The worker keeps the last 20 records in
+`chrome.storage.local` (`ringee:callQualityLog`). On 2026-11-01 those records
+showed the browser capturing and sending steadily (50 packets a second, no
+gaps) while Telnyx received 85% of the packets on one call and 99% on the next
+two: the loss on that call happened between the browser and Telnyx, not in
+capture or sending. The purge loop described above ran after every extension
+hang-up and kept the extension's process busy into the calls that followed;
+whether it accounts for the gap is measured by comparing `inbound` against
+`outbound` packet counts on new extension legs, where a healthy leg is near
+0.97.
+
 ## Call lifecycle
 
 ```

@@ -147,6 +147,15 @@
   pointer-events: none;
 }
 
+/* A copy of the script left behind by an extension update: reload, not call. */
+.ringee-pop--stale .ringee-pop__btn--call {
+  background: #f59e0b;
+  color: #0a0a0a;
+}
+.ringee-pop--stale .ringee-pop__btn--call:hover {
+  background: #d97706;
+}
+
 @keyframes ringee-pop-in {
   from {
     opacity: 0;

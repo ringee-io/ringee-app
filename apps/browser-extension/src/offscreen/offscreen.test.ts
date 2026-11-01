@@ -11,8 +11,20 @@ const sdk = vi.hoisted(() => {
     readyLater: false,
     fireReady: () => {},
     onUpdate: null as ((call: unknown) => void) | null,
-    calls: [] as Array<{ state: string; hangup: () => Promise<void> }>,
+    calls: [] as Array<{
+      state: string;
+      finalized: boolean;
+      set: (next: string) => void;
+      hangup: () => Promise<void>;
+    }>,
     dtmf: [] as string[],
+    placed: [] as Array<Record<string, unknown>>,
+    onWarning: null as ((name: string) => void) | null,
+    probe: {
+      started: 0,
+      warnings: [] as string[],
+      summary: null as Record<string, unknown> | null,
+    },
   };
   const client = {
     handlers: {} as Record<string, () => void>,
@@ -25,18 +37,24 @@ const sdk = vi.hoisted(() => {
       state.fireReady = () => client.handlers["telnyx.ready"]?.();
       if (!state.readyLater) state.fireReady();
     },
+    // Like `BrowserSession.disconnect()`: a call the client still holds is
+    // set to `purge` first, reported synchronously.
     disconnect() {
       state.connected = false;
       state.log.push("disconnect");
+      for (const call of state.calls) if (!call.finalized) call.set("purge");
     },
   };
   function newCall() {
     const call = {
       state: "new",
+      finalized: false,
       telnyxIDs: { telnyxSessionId: "session-1" },
       set(next: string) {
         call.state = next;
         state.onUpdate?.(call);
+        // The SDK drops a leg (`_finalize`) only after reporting its end.
+        if (next === "destroy" || next === "purge") call.finalized = true;
       },
       hangup: async () => {
         call.set("hangup");
@@ -54,7 +72,10 @@ const sdk = vi.hoisted(() => {
 
 vi.mock("@ringee/dialer-core/engine", () => ({
   createTelnyxClient: () => sdk.client,
-  placeCall: () => sdk.newCall(),
+  placeCall: (options: Record<string, unknown>) => {
+    sdk.state.placed.push(options);
+    return sdk.newCall();
+  },
   muteCall: async () => {},
   holdCall: async () => {},
   hangupCall: async (call: { hangup: () => Promise<void> } | null) =>
@@ -64,6 +85,19 @@ vi.mock("@ringee/dialer-core/engine", () => ({
     sdk.state.onUpdate = handler;
     return () => {};
   },
+  onCallWarning: (_client: unknown, handler: (name: string) => void) => {
+    sdk.state.onWarning = handler;
+    return () => {};
+  },
+  getCallPeerConnection: () => undefined,
+  createCallQualityProbe: () => ({
+    start: () => {
+      sdk.state.probe.started += 1;
+    },
+    setHeld: () => {},
+    warn: (name: string) => sdk.state.probe.warnings.push(name),
+    finish: () => sdk.state.probe.summary,
+  }),
   mapTelnyxState: (telnyxState: string) =>
     ({ new: "connecting", trying: "connecting", active: "active" })[
       telnyxState
@@ -71,7 +105,11 @@ vi.mock("@ringee/dialer-core/engine", () => ({
     (["hangup", "destroy", "purge"].includes(telnyxState)
       ? "ended"
       : "connecting"),
-  TELNYX_EVENTS: { ready: "telnyx.ready", error: "telnyx.error" },
+  TELNYX_EVENTS: {
+    ready: "telnyx.ready",
+    error: "telnyx.error",
+    warning: "telnyx.warning",
+  },
   OUTBOUND_RINGBACK_VOLUME: 0.3,
 }));
 
@@ -95,6 +133,8 @@ const flush = async () => {
 
 let deliver: (msg: unknown) => void;
 let sent: unknown[];
+/** Every microphone stream the engine opened, with how often it was stopped. */
+let mics: Array<{ stopped: number; getTracks: () => { stop: () => void }[] }>;
 
 beforeEach(async () => {
   Object.assign(sdk.state, {
@@ -104,12 +144,25 @@ beforeEach(async () => {
     onUpdate: null,
     calls: [],
     dtmf: [],
+    placed: [],
+    onWarning: null,
+    probe: { started: 0, warnings: [], summary: null },
   });
   sdk.client.handlers = {};
   sent = [];
+  mics = [];
   vi.stubGlobal("document", { getElementById: () => null });
   vi.stubGlobal("navigator", {
-    mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) },
+    mediaDevices: {
+      getUserMedia: async () => {
+        const mic = {
+          stopped: 0,
+          getTracks: () => [{ stop: () => (mic.stopped += 1) }],
+        };
+        mics.push(mic);
+        return mic;
+      },
+    },
   });
   vi.stubGlobal("chrome", {
     runtime: {
@@ -177,6 +230,91 @@ describe("offscreen engine — END CALL", () => {
 
     expect(sdk.state.calls).toHaveLength(0);
     expect(reported()).toEqual(["idle"]);
+    expect(sdk.state.log).toEqual(["disconnect"]);
+  });
+});
+
+describe("offscreen engine — microphone and outgoing audio", () => {
+  it("opens the microphone once and hands it to the leg", async () => {
+    deliver(START_CALL);
+    await flush();
+
+    expect(mics).toHaveLength(1);
+    expect(sdk.state.placed[0]?.localStream).toBe(mics[0]);
+  });
+
+  it("releases the microphone of a dial called off before its leg exists", async () => {
+    sdk.state.readyLater = true;
+    deliver(START_CALL);
+    await flush();
+
+    deliver(command("press-1", { action: "hangup" }));
+    sdk.state.fireReady();
+    await flush();
+
+    expect(sdk.state.placed).toHaveLength(0);
+    expect(mics[0]?.stopped).toBe(1);
+  });
+
+  it("reports the call's outgoing audio before it reports the end", async () => {
+    sdk.state.probe.summary = { measuredSec: 30, warnings: {} };
+    deliver(START_CALL);
+    await flush();
+    sdk.state.calls[0]!.set("active");
+    sdk.state.onWarning?.("HIGH_JITTER");
+
+    deliver(command("press-1", { action: "hangup" }));
+    await flush();
+
+    const order = sent.map((m) =>
+      (m as { type: string }).type === MessageType.CallQuality
+        ? "quality"
+        : (m as CallEventMsg).state,
+    );
+    expect(order).toEqual(["connecting", "active", "quality", "ended"]);
+    expect(sdk.state.probe.started).toBe(1);
+    expect(sdk.state.probe.warnings).toEqual(["HIGH_JITTER"]);
+  });
+
+  it("reports nothing for a call that was never measured", async () => {
+    deliver(START_CALL);
+    await flush();
+    deliver(command("press-1", { action: "hangup" }));
+    await flush();
+
+    expect(
+      sent.some(
+        (m) => (m as { type: string }).type === MessageType.CallQuality,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("offscreen engine — the line's teardown after the end", () => {
+  it("reports the end once, though disconnecting purges the leg it still holds", async () => {
+    deliver(START_CALL);
+    await flush();
+    sdk.state.calls[0]!.set("active");
+
+    deliver(command("press-1", { action: "hangup" }));
+    await flush();
+
+    expect(reported()).toEqual(["connecting", "active", "ended"]);
+    expect(sdk.state.log).toEqual(["bye sent", "disconnect"]);
+  });
+
+  it("reports the end once when the server purges the leg", async () => {
+    deliver(START_CALL);
+    await flush();
+    sdk.state.calls[0]!.set("active");
+
+    // `serverDisconnect()`: purge first, then the SDK hangs the leg up itself.
+    sdk.state.calls[0]!.set("purge");
+    sdk.state.calls[0]!.set("hangup");
+    sdk.state.calls[0]!.set("destroy");
+    await flush();
+
+    expect(reported()).toEqual(["connecting", "active", "ended"]);
     expect(sdk.state.log).toEqual(["disconnect"]);
   });
 });

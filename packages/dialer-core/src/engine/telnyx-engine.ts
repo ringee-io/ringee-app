@@ -12,7 +12,7 @@
  * the host after the backend has resolved them.
  */
 import { TelnyxRTC } from "@telnyx/webrtc";
-import type { Call, INotification } from "@telnyx/webrtc";
+import type { Call, INotification, ITelnyxWarningEvent } from "@telnyx/webrtc";
 import { buildCallHeaders, type CallAttribution } from "./attribution";
 import {
   EXTERNAL_CARRIER_CALL_HEADER,
@@ -91,6 +91,12 @@ export interface PlaceCallOptions extends CallAttribution {
   carrierRoute?: CarrierRoute;
   /** Extra custom SIP headers to append (e.g. campaign / session ids). */
   extraHeaders?: { name: string; value: string }[];
+  /**
+   * The microphone stream the leg sends, when the host already captured it.
+   * The SDK then sends it instead of opening the device again, and stops it
+   * when the leg ends. Omitted, the SDK captures the default microphone.
+   */
+  localStream?: MediaStream;
   debug?: boolean;
 }
 
@@ -124,6 +130,7 @@ export function placeCall(opts: PlaceCallOptions): Call {
       : { callerNumber: callerId }),
     destinationNumber: route?.destinationUri ?? destination,
     audio: true,
+    ...(opts.localStream ? { localStream: opts.localStream } : {}),
     customHeaders: [
       // A carrier leg is attributed by its signed token alone; identity
       // headers would try to override the caller ID the PBX presents.
@@ -204,6 +211,7 @@ export function sendDtmf(call: Call | null, digit: string): void {
 export const TELNYX_EVENTS = {
   ready: "telnyx.ready",
   error: "telnyx.error",
+  warning: "telnyx.warning",
   socketOpen: "telnyx.socket.open",
   socketClose: "telnyx.socket.close",
   socketError: "telnyx.socket.error",
@@ -225,4 +233,29 @@ export function onCallUpdate(
   };
   client.on(TELNYX_EVENTS.notification, listener);
   return () => client.off(TELNYX_EVENTS.notification, listener);
+}
+
+/**
+ * Subscribe to the SDK's quality and connectivity warnings (high jitter, no
+ * bytes sent, network path changed…), handing over only the warning's name.
+ * Returns an unsubscribe fn.
+ */
+export function onCallWarning(
+  client: TelnyxRTC,
+  handler: (name: string) => void,
+): () => void {
+  const listener = (event: ITelnyxWarningEvent) =>
+    handler(event?.warning?.name ?? "UNKNOWN");
+  client.on(TELNYX_EVENTS.warning, listener);
+  return () => client.off(TELNYX_EVENTS.warning, listener);
+}
+
+/**
+ * The leg's RTCPeerConnection, to read its `getStats()`. The SDK builds a new
+ * one when it recovers a call after a reconnect, so read it each time.
+ */
+export function getCallPeerConnection(
+  call: Call | null | undefined,
+): RTCPeerConnection | undefined {
+  return call?.peer?.instance;
 }

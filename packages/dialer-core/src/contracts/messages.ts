@@ -9,11 +9,18 @@
  *   content   ──DIAL_REQUEST──▶  background  ──START_CALL──▶  offscreen (WebRTC)
  *   sidepanel ◀──CALL_SNAPSHOT── background  ◀──CALL_EVENT──  offscreen
  *   sidepanel ──CALL_COMMAND───▶ background  ──CALL_COMMAND─▶ offscreen
+ *                                background  ◀─CALL_QUALITY─  offscreen
  *
  * These types live in `@ringee/dialer-core` (not the extension) so the offscreen
  * engine, the side panel, and any test can import the identical contract.
  */
-import type { CallState, ContactRef, DialTarget, PageOrigin } from "./call";
+import type {
+  CallQualitySummary,
+  CallState,
+  ContactRef,
+  DialTarget,
+  PageOrigin,
+} from "./call";
 
 export const MESSAGE_PREFIX = "RINGEE_" as const;
 
@@ -25,6 +32,7 @@ export const MessageType = {
   CallSnapshot: "RINGEE_CALL_SNAPSHOT",
   RequestSnapshot: "RINGEE_REQUEST_SNAPSHOT",
   EndCall: "RINGEE_END_CALL",
+  CallQuality: "RINGEE_CALL_QUALITY",
 } as const;
 
 export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -132,6 +140,16 @@ export interface EndCallMsg {
   type: typeof MessageType.EndCall;
 }
 
+/**
+ * offscreen → background : how an answered call's outgoing audio flowed. Sent
+ * before the call's `ended` event, on which the worker closes the offscreen
+ * document that measured it.
+ */
+export interface CallQualityMsg {
+  type: typeof MessageType.CallQuality;
+  summary: CallQualitySummary;
+}
+
 export type RingeeMessage =
   | DialRequestMsg
   | StartCallMsg
@@ -139,7 +157,8 @@ export type RingeeMessage =
   | CallEventMsg
   | CallSnapshotMsg
   | RequestSnapshotMsg
-  | EndCallMsg;
+  | EndCallMsg
+  | CallQualityMsg;
 
 // ── Runtime guards ────────────────────────────────────────────────────────────
 // Messages arrive from other extension contexts and must be validated before
@@ -216,5 +235,27 @@ export function isCallSnapshot(m: unknown): m is CallSnapshotMsg {
     isObject(m) &&
     m.type === MessageType.CallSnapshot &&
     typeof m.state === "string"
+  );
+}
+
+/** The counts every `CallQualitySummary` carries. */
+const QUALITY_COUNTS = [
+  "measuredSec",
+  "capturedSec",
+  "captureGaps",
+  "packetsSent",
+  "sentPerSec",
+  "sendGaps",
+  "packetsReceived",
+  "packetsLost",
+] as const satisfies readonly (keyof CallQualitySummary)[];
+
+export function isCallQuality(m: unknown): m is CallQualityMsg {
+  if (!isObject(m) || m.type !== MessageType.CallQuality) return false;
+  const summary = m.summary;
+  return (
+    isObject(summary) &&
+    QUALITY_COUNTS.every((key) => typeof summary[key] === "number") &&
+    isObject(summary.warnings)
   );
 }

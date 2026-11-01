@@ -112,3 +112,39 @@ export interface CallerId {
   isDefault?: boolean;
   label?: string;
 }
+
+/**
+ * How one answered call's outgoing audio flowed, measured in the browser that
+ * sent it (`engine/call-quality.ts`). Counts and rates only: no stats frames,
+ * network addresses or audio.
+ */
+export interface CallQualitySummary {
+  /** Telnyx's id for the call, to line it up with the provider's records. */
+  telnyxSessionId?: string;
+  /** Seconds measured, from the answer to the last reading before the end. */
+  measuredSec: number;
+  /** Seconds of microphone audio captured over the same span. */
+  capturedSec: number;
+  /** Windows (about 2 s each) in which the microphone delivered under 80% of real time. */
+  captureGaps: number;
+  /** Audio packets sent over the span. */
+  packetsSent: number;
+  /** Audio packets sent per second; 50 with the usual 20 ms packets. */
+  sentPerSec: number;
+  /** Windows in which the browser sent under 60% of the call's usual rate. */
+  sendGaps: number;
+  /** Audio packets received, and reported lost, over the span. */
+  packetsReceived: number;
+  packetsLost: number;
+  /** Highest receive jitter and round-trip time seen, in ms. */
+  jitterMsMax?: number;
+  rttMsMax?: number;
+  /** Local end of the network path, e.g. `host/udp`, `srflx/udp` or `relay/tcp`. */
+  path?: string;
+  /** Times the connection selected a network path; 1 on a steady call. */
+  pathChanges?: number;
+  /** The microphone the call captured. `ended` means the device went away mid-call. */
+  mic?: { label: string; muteEvents: number; ended: boolean };
+  /** Warnings the provider SDK raised during the call, by name. */
+  warnings: Record<string, number>;
+}
