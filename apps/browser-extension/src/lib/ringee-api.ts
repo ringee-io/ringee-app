@@ -230,6 +230,103 @@ export interface TodayData {
   meetings: TodayMeetingItem[];
 }
 
+// ── Today's queue (`/extension/queue`, `/extension/lists`) ────────────────────
+// The day the web Call page works ("My day"), on the extension's own routes.
+
+/** When in the user's day an item belongs. */
+export type QueueGroup = "now" | "later" | "anytime";
+
+/** Why the person is in the queue. One person can have several reasons. */
+export type QueueReason =
+  | { kind: "callback"; callbackId: string; at: string; note: string | null }
+  | { kind: "missed_call"; threadId: string; at: string; voicemail: boolean }
+  | {
+      kind: "follow_up";
+      actionId: string;
+      actionType: string;
+      title: string;
+      priority: "low" | "medium" | "high";
+      dueAt: string | null;
+    };
+
+export interface QueueContact {
+  /** Null for a caller who is not a saved contact. */
+  id: string | null;
+  name: string | null;
+  company: string | null;
+  /** E.164. */
+  phoneNumber: string;
+  /** IANA zone, only when known. */
+  timezone: string | null;
+  /** ISO country of the number. */
+  country: string | null;
+}
+
+/** A contact list, as the queue names it. */
+export interface CallListRef {
+  id: string;
+  name: string;
+}
+
+export interface QueueItem {
+  /** Stable across refreshes. */
+  key: string;
+  group: QueueGroup;
+  /** When a "later" item comes due. */
+  dueAt: string | null;
+  contact: QueueContact;
+  /** On the Do Not Call list: shown, never picked as the next call. */
+  doNotCall: boolean;
+  /** The most pressing first. */
+  reasons: QueueReason[];
+  /** The user's own lists the contact is in. */
+  lists: CallListRef[];
+}
+
+export interface TodayQueue {
+  items: QueueItem[];
+  until: string;
+  generatedAt: string;
+}
+
+/** A list assigned to the user, to work when nobody in the queue is due. */
+export interface CallList extends CallListRef {
+  description: string | null;
+  contactCount: number;
+  /** Contacts nobody has called since they joined the list. */
+  remaining: number;
+}
+
+/** The next contact of a list. */
+export interface CallListEntry {
+  /** What a skip names. */
+  entryId: string;
+  /** Skipped before, and back now that everyone after it was called. */
+  skipped: boolean;
+  contact: QueueContact;
+}
+
+export interface CallListNext {
+  list: CallList;
+  /** Null when nobody in the list can be called now. */
+  next: CallListEntry | null;
+}
+
+/** The user's own day so far (`/extension/summary`). */
+export interface TodaySummary {
+  calls: number;
+  conversations: number;
+  meetingsBooked: number;
+  nextMeeting: {
+    id: string;
+    title: string | null;
+    scheduledAt: string;
+    duration: number;
+    location: string | null;
+    contact: { id: string; name: string | null; phoneNumber: string } | null;
+  } | null;
+}
+
 export interface CallDetail {
   callId: string;
   recording: {
@@ -336,6 +433,46 @@ export class RingeeApi {
       start.toISOString(),
     )}&to=${encodeURIComponent(end.toISOString())}`;
     return this.request<TodayData>(`/extension/today${qs}`);
+  }
+
+  /**
+   * Today's queue: the callbacks the user owes, their missed calls and their
+   * follow-ups, in order. `until` is the end of the browser's local day.
+   */
+  getQueue(until: Date) {
+    return this.request<TodayQueue>(
+      `/extension/queue?until=${encodeURIComponent(until.toISOString())}`,
+    );
+  }
+
+  /** Calls, conversations and meetings booked between `from` and `to`. */
+  getSummary(range: { from: Date; to: Date }) {
+    const qs = `?from=${encodeURIComponent(
+      range.from.toISOString(),
+    )}&to=${encodeURIComponent(range.to.toISOString())}`;
+    return this.request<TodaySummary>(`/extension/summary${qs}`);
+  }
+
+  /** The lists assigned to the user in the active workspace. */
+  listCallLists() {
+    return this.request<{ data: CallList[] }>("/extension/lists");
+  }
+
+  /** Who to call next from one of those lists. */
+  getListNext(listId: string) {
+    return this.request<CallListNext>(
+      `/extension/lists/${encodeURIComponent(listId)}/next`,
+    );
+  }
+
+  /** Sends a list's contact to the back of it; answers with who comes next. */
+  skipListEntry(listId: string, entryId: string) {
+    return this.request<CallListNext>(
+      `/extension/lists/${encodeURIComponent(
+        listId,
+      )}/entries/${encodeURIComponent(entryId)}/skip`,
+      { method: "POST" },
+    );
   }
 
   /** Recording + transcript detail for one recent call. */

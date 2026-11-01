@@ -3,6 +3,7 @@ import {
   MessageType,
   isRingeeMessage,
   isDialRequest,
+  isDialResult,
   isStartCall,
   isCallCommand,
   isCallEvent,
@@ -39,6 +40,18 @@ describe("isDialRequest", () => {
       }),
     ).toBe(false);
     expect(isDialRequest({ type: MessageType.CallCommand })).toBe(false);
+  });
+});
+
+describe("isDialResult", () => {
+  it("accepts a placed or refused dial", () => {
+    expect(isDialResult({ placed: true })).toBe(true);
+    expect(isDialResult({ placed: false })).toBe(true);
+  });
+  it("rejects anything else, a closed channel's undefined included", () => {
+    expect(isDialResult(undefined)).toBe(false);
+    expect(isDialResult({})).toBe(false);
+    expect(isDialResult({ placed: "yes" })).toBe(false);
   });
 });
 
@@ -109,6 +122,15 @@ describe("isCallCommand", () => {
         type: MessageType.CallCommand,
         command: { action: "explode" },
       }),
+    ).toBe(false);
+  });
+  it("carries an optional per-press id, as a string", () => {
+    const command = { action: "hangup" } as const;
+    expect(
+      isCallCommand({ type: MessageType.CallCommand, id: "press-1", command }),
+    ).toBe(true);
+    expect(
+      isCallCommand({ type: MessageType.CallCommand, id: 7, command }),
     ).toBe(false);
   });
 });

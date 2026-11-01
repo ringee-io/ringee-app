@@ -34,6 +34,16 @@ one-call-at-a-time rule treat it as a distinct device. Version lives in its
 `package.json` and ships to the Chrome store — old versions stay in the field, so
 API changes must be additive.
 
+The extension and the web app do not share endpoints for a feature: the panel
+reads through its own routes under `/api/extension/*` (`ExtensionController`),
+which delegate to the same service as the web route and map the result field by
+field. The Today tab is the web Call page's day ("My day") on
+`/extension/queue`, `/extension/summary` and `/extension/lists/*`, over
+`MyDayService` — never `/my-day/*`. A new panel feature gets an `/extension/*`
+route over the service that owns it, so a change to a web route never reaches an
+extension already in the field. (A few older calls — callbacks, meetings,
+contacts, recordings — still go to shared routes.)
+
 ### CLI (`apps/agent-cli`, published as `ringee`)
 
 Drives the MCP tool surface. Commands mirror the tool catalog: activity,

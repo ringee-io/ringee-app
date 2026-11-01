@@ -10,6 +10,7 @@ import { isLiveCallState } from "@ringee/dialer-core/contracts";
 import {
   MessageType,
   isCallSnapshot,
+  isDialResult,
   type CallCommandMsg,
   type CallSnapshotMsg,
   type CallState,
@@ -17,7 +18,7 @@ import {
 } from "@ringee/dialer-core/contracts";
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
 import { RingeeApi, type CurrentUser } from "../lib/ringee-api";
-import { statusTextFor } from "../lib/call-flow";
+import { ENDING_TEXT, ERROR_COPY, statusTextFor } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import {
   ensureMicrophoneAccess,
@@ -32,10 +33,41 @@ function send(msg: CallCommandMsg | DialRequestMsg | { type: string }): void {
   chrome.runtime.sendMessage(msg).catch(() => {});
 }
 
+/** An in-call control, with an id per press so the engine acts on it once. */
+function command(cmd: CallCommandMsg["command"]): void {
+  send({
+    type: MessageType.CallCommand,
+    id: crypto.randomUUID(),
+    command: cmd,
+  });
+}
+
 const EMPTY_SNAPSHOT: CallSnapshotMsg = {
   type: MessageType.CallSnapshot,
   state: "idle",
 };
+
+/** How long a dial waits for the background to say whether it was placed. */
+const DIAL_ANSWER_MS = 30_000;
+
+/** Whether the background says the dial was placed; no answer at all is no. */
+async function requestDial(msg: DialRequestMsg): Promise<boolean> {
+  try {
+    const res: unknown = await chrome.runtime.sendMessage(msg);
+    return isDialResult(res) && res.placed;
+  } catch {
+    return false;
+  }
+}
+
+/** What `promise` settles to within `ms`; undefined once that has passed. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), ms);
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
 
 export function CallExperience() {
   const { getToken } = useAuth();
@@ -85,6 +117,13 @@ export function CallExperience() {
     send({ type: MessageType.RequestSnapshot });
     return () => chrome.runtime.onMessage.removeListener(onMsg);
   }, []);
+
+  // END CALL was pressed and the line has yet to confirm — the BYE's round
+  // trip, a few seconds at most: say so instead of looking unresponsive.
+  const [ending, setEnding] = useState(false);
+  useEffect(() => {
+    if (!isLiveCallState(snap.state)) setEnding(false);
+  }, [snap.state]);
 
   // Reset optimistic toggles whenever a new call starts.
   useEffect(() => {
@@ -184,20 +223,17 @@ export function CallExperience() {
   const onToggleMute = useCallback(async () => {
     const value = !muted;
     setMuted(value);
-    send({ type: MessageType.CallCommand, command: { action: "mute", value } });
+    command({ action: "mute", value });
   }, [muted]);
 
   const onToggleHold = useCallback(async () => {
     const value = !onHold;
     setOnHold(value);
-    send({ type: MessageType.CallCommand, command: { action: "hold", value } });
+    command({ action: "hold", value });
   }, [onHold]);
 
   const onSendDTMF = useCallback((digit: string) => {
-    send({
-      type: MessageType.CallCommand,
-      command: { action: "dtmf", digit },
-    });
+    command({ action: "dtmf", digit });
   }, []);
 
   const onToggleRecording = useCallback(async () => {
@@ -222,7 +258,8 @@ export function CallExperience() {
   }, [api, isRecording, snap.telnyxSessionId]);
 
   const onHangup = useCallback(() => {
-    send({ type: MessageType.CallCommand, command: { action: "hangup" } });
+    setEnding(true);
+    command({ action: "hangup" });
   }, []);
 
   const onPostCallClose = useCallback(() => {
@@ -237,29 +274,53 @@ export function CallExperience() {
     setCreditKey((k) => k + 1);
   }, [resetCallStore]);
 
-  const dialManual = useCallback((e164: string, name?: string) => {
-    const msg: DialRequestMsg = {
-      type: MessageType.DialRequest,
-      target: { destination: e164, name },
-    };
-    send(msg);
-  }, []);
+  // The background answers once the engine reports the leg placed, or as soon
+  // as the dial is refused or called off. A dial still unanswered in time is
+  // called off — hung up before its leg exists, it is never placed — and its
+  // answer still taken, so a leg placed meanwhile counts and the queue
+  // completes the callback it owed. Called off, it is answered at once or
+  // within the worker's own wait on the engine; silence even then counts as
+  // not placed, so a stuck request cannot hold up the next dial.
+  const dialManual = useCallback(
+    async (e164: string, name?: string): Promise<boolean> => {
+      const answer = requestDial({
+        type: MessageType.DialRequest,
+        target: { destination: e164, name },
+      });
+      const placed = await within(answer, DIAL_ANSWER_MS);
+      if (placed !== undefined) return placed;
+      command({ action: "hangup" });
+      if (await within(answer, DIAL_ANSWER_MS)) return true;
+      setToast(ERROR_COPY.UNKNOWN);
+      return false;
+    },
+    [],
+  );
+
+  // A second tap while a dial is starting would ask the backend for a second
+  // call: drop it, the way the web app's `useDial` does.
+  const dialing = useRef(false);
 
   // Resolve free-text / a row's number to E.164 (worldwide) before dialing.
   // Grab the mic grant first (in this visible context) so the offscreen engine
   // can actually capture audio — otherwise the call rings and immediately drops.
   const handleDial = useCallback(
-    async (raw: string, name?: string) => {
+    async (raw: string, name?: string): Promise<boolean> => {
       const e164 = resolveDialNumber(raw, DEFAULT_REGION);
-      if (!e164) return;
-      const micOk = await ensureMicrophoneAccess();
-      if (!micOk) {
-        setToast(
-          "Allow microphone access in the tab we just opened, then place your call again.",
-        );
-        return;
+      if (!e164 || dialing.current) return false;
+      dialing.current = true;
+      try {
+        const micOk = await ensureMicrophoneAccess();
+        if (!micOk) {
+          setToast(
+            "Allow microphone access in the tab we just opened, then place your call again.",
+          );
+          return false;
+        }
+        return await dialManual(e164, name);
+      } finally {
+        dialing.current = false;
       }
-      dialManual(e164, name);
     },
     [dialManual],
   );
@@ -284,8 +345,16 @@ export function CallExperience() {
   const open = isLiveCallState(snap.state) || postCallPhase;
 
   const appData = useMemo<AppData>(
-    () => ({ api, me, onDial: handleDial, notify }),
-    [api, me, handleDial, notify],
+    () => ({
+      api,
+      me,
+      onDial: handleDial,
+      notify,
+      // Bumped together with the credit pill's key: both re-read what a
+      // finished call changed.
+      callsFinished: creditKey,
+    }),
+    [api, me, handleDial, notify, creditKey],
   );
 
   return (
@@ -311,7 +380,7 @@ export function CallExperience() {
                 onClose={onHangup}
                 number={snap.destination || "+CALL"}
                 contactName={snap.contact?.name}
-                statusText={statusTextFor(snap.state)}
+                statusText={ending ? ENDING_TEXT : statusTextFor(snap.state)}
                 isMuted={muted}
                 isOnHold={onHold}
                 isRecording={isRecording}

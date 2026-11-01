@@ -541,7 +541,8 @@ voicemail the same way.
 
 ### CALL-013 — "My day" never offers a call that something else will place
 
-The Call page's queue (`GET /my-day/queue`) is manual calling only. It leaves
+The Call page's queue (`GET /my-day/queue`; in the Chrome extension's Today tab,
+`GET /extension/queue`) is manual calling only. It leaves
 out campaign callbacks — when one comes due the campaign re-queues its lead —
 and the callbacks an AI voice agent scheduled, which the agent places itself.
 An item leaves the queue once it is handled: a missed call when anyone in the

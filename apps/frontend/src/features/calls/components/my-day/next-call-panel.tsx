@@ -67,6 +67,9 @@ interface NextCallPanelProps {
   spotlight: boolean;
   onSpotlightDone: () => void;
   loading: boolean;
+  /** Today's queue didn't load: nobody, a list's next included, is next. */
+  queueFailed: boolean;
+  onRetryQueue: () => void;
   now: Date;
   /** The caller ID the call will go out from, as the user chose it. */
   fromLabel: string | null;
@@ -90,6 +93,8 @@ export function NextCallPanel({
   spotlight,
   onSpotlightDone,
   loading,
+  queueFailed,
+  onRetryQueue,
   now,
   fromLabel,
   dialing,
@@ -136,17 +141,20 @@ export function NextCallPanel({
     return <Skeleton className='h-[92px] w-full rounded-xl' />;
   }
 
-  if (!next && !picked && !hasLists) {
+  if (!next && !picked && !hasLists && !queueFailed) {
     return <StartCalling reward={reward} onStart={onStart} />;
   }
 
-  if (!next) {
+  // A queue not read yet may hold someone due: the list waits for it (LIST-005).
+  if (!next || queueFailed) {
     return (
       <NothingToCall
         ref={panelRef}
         upcoming={upcoming}
         picked={picked}
         hasLists={hasLists}
+        queueFailed={queueFailed}
+        onRetryQueue={onRetryQueue}
         onChooseList={onChooseList}
         now={now}
       />
@@ -328,13 +336,22 @@ function NothingToCall({
   upcoming,
   picked,
   hasLists,
+  queueFailed,
+  onRetryQueue,
   onChooseList,
   now
 }: Pick<
   NextCallPanelProps,
-  'upcoming' | 'picked' | 'hasLists' | 'onChooseList' | 'now'
+  | 'upcoming'
+  | 'picked'
+  | 'hasLists'
+  | 'queueFailed'
+  | 'onRetryQueue'
+  | 'onChooseList'
+  | 'now'
 > & { ref?: React.Ref<HTMLElement> }) {
   const t = useTranslations('calls.myDay.next');
+  const tQueue = useTranslations('calls.myDay.queue');
   const fmt = useMyDayFormat();
   const nameOf = useQueueItemName();
   const upcomingAt = upcoming?.dueAt ? new Date(upcoming.dueAt) : null;
@@ -348,9 +365,16 @@ function NothingToCall({
 
   let title: string;
   let hint: string;
-  if (picked?.failed) {
+  let onRetry: (() => void) | null = null;
+  if (queueFailed) {
+    title = tQueue('failedTitle');
+    // The same connection hint as a list's next that didn't load.
+    hint = t('listFailedHint');
+    onRetry = onRetryQueue;
+  } else if (picked?.failed) {
     title = t('listFailed');
     hint = t('listFailedHint');
+    onRetry = picked.onRetry;
   } else if (picked?.list) {
     title = t('listDone', { list: picked.list.name });
     hint =
@@ -380,12 +404,12 @@ function NothingToCall({
           <p className='text-muted-foreground text-[13px]'>{hint}</p>
         </div>
       </div>
-      {picked?.failed ? (
+      {onRetry ? (
         <Button
           variant='outline'
           size='sm'
           className='shrink-0 self-start sm:self-center'
-          onClick={picked.onRetry}
+          onClick={onRetry}
         >
           <RotateCw />
           {t('retry')}
