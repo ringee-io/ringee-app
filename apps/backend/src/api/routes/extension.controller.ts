@@ -3,13 +3,16 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpException,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
+  StreamableFile,
 } from "@nestjs/common";
 import { isISO8601 } from "class-validator";
 import {
@@ -400,6 +403,31 @@ export class ExtensionController {
           }
         : null,
     };
+  }
+
+  /**
+   * The call's recording as playable mp3. `recording.url` above is the
+   * encrypted copy (REC-001): handed to the panel's <audio> it plays nothing,
+   * and the panel's CSP reaches only this API, so the audio is decrypted
+   * server-side. Another workspace's call, a teammate's for a member, and a
+   * call with no finished recording are the same 404.
+   */
+  @Get("calls/:id/recording")
+  @Header("Cache-Control", "private, no-store")
+  async callRecording(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+  ): Promise<StreamableFile> {
+    const audio = await this.recordingService.getPlaybackAudio(
+      createOwnershipContext(user),
+      id,
+      { filterUserId: resolveMemberFilter(user) },
+    );
+    if (!audio) throw new NotFoundException("Recording not found");
+    return new StreamableFile(audio, {
+      type: "audio/mpeg",
+      length: audio.length,
+    });
   }
 
   /** Map a Call (with included contact/recordings/transcriptions) to a row. */

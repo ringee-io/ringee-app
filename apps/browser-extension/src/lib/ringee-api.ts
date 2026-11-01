@@ -359,6 +359,12 @@ export class RingeeApi {
   constructor(private readonly getToken: TokenProvider) {}
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await this.send(path, init);
+    return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+  }
+
+  /** An authenticated request that answered 2xx; anything else throws `ApiError`. */
+  private async send(path: string, init?: RequestInit): Promise<Response> {
     let res = await this.fetchWithToken(path, init, false);
     // Stale Clerk JWT → force a refresh and try once more before giving up. This
     // is the single most common cause of the panel "losing" auth mid-session.
@@ -379,7 +385,7 @@ export class RingeeApi {
       }
       throw new ApiError(res.status, code, message);
     }
-    return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+    return res;
   }
 
   private async fetchWithToken(
@@ -480,6 +486,19 @@ export class RingeeApi {
     return this.request<CallDetail>(
       `/extension/calls/${encodeURIComponent(callId)}`,
     );
+  }
+
+  /**
+   * The call's recording as playable audio. A recording URL points at the
+   * encrypted copy, which an <audio> element cannot play, so the API decrypts
+   * it and this is what the player gets.
+   */
+  async getCallRecording(callId: string, signal?: AbortSignal): Promise<Blob> {
+    const res = await this.send(
+      `/extension/calls/${encodeURIComponent(callId)}/recording`,
+      { signal },
+    );
+    return res.blob();
   }
 
   /**

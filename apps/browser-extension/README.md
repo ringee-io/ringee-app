@@ -103,8 +103,9 @@ Fill in `apps/browser-extension/.env`:
 | Var                          | Meaning                                                        |
 | ---------------------------- | -------------------------------------------------------------- |
 | `VITE_CLERK_PUBLISHABLE_KEY` | **Same Clerk instance as the web app** (so the session syncs). |
-| `VITE_CLERK_SYNC_HOST`       | The web app origin, e.g. `https://www.ringee.io`.              |
+| `VITE_CLERK_SYNC_HOST`       | Where the Clerk session syncs from. Not used for links.        |
 | `VITE_RINGEE_API_URL`        | Backend base incl. `/api`, e.g. `https://api.ringee.io/api`.   |
+| `VITE_RINGEE_WEB_URL`        | Web app the links open; required for a non-production host.    |
 | `VITE_DEFAULT_REGION`        | Default region for numbers without a country code (e.g. `US`). |
 
 ### 2. Build

@@ -68,6 +68,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Calling rates (cached table)          | `TelephonyRateService`                                                               |
 | Dialer campaign authorization         | `CampaignService.assertDialableCampaign` / `assertCampaignInWorkspace`               |
 | Workspace encryption key (read)       | `EncryptionKeyService`                                                               |
+| Recording decrypted server-side       | `RecordingService.getPlaybackAudio` — clients that cannot decrypt (REC-001)          |
 | Mobile reads + their visibility check | `MobileReadService`                                                                  |
 | Clerk user/org sync                   | `UserService.syncFromClerk`, `OrganizationService.syncFromClerk`                     |
 | Push-token registration               | `UserDeviceService.registerPushToken`                                                |

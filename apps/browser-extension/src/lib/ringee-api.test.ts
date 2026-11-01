@@ -62,6 +62,52 @@ describe("RingeeApi auth retry", () => {
   });
 });
 
+describe("RingeeApi call recording", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("plays what the extension route returns, not the stored URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { "Content-Type": "audio/mpeg" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const leaving = new AbortController();
+    const audio = await new RingeeApi(async () => "token").getCallRecording(
+      "call-1",
+      leaving.signal,
+    );
+
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(
+      /\/extension\/calls\/call-1\/recording$/,
+    );
+    // The player cancels the download by this signal when it unmounts.
+    expect((fetchMock.mock.calls[0][1] as RequestInit).signal).toBe(
+      leaving.signal,
+    );
+    expect(audio.type).toBe("audio/mpeg");
+    expect([...new Uint8Array(await audio.arrayBuffer())]).toEqual([1, 2, 3]);
+  });
+
+  it("surfaces a missing recording as an ApiError", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: "Recording not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(
+      new RingeeApi(async () => "token").getCallRecording("call-1"),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
 describe("RingeeApi post-call save", () => {
   afterEach(() => {
     vi.useRealTimers();

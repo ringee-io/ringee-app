@@ -42,7 +42,10 @@ field. The Today tab is the web Call page's day ("My day") on
 `MyDayService` — never `/my-day/*`. A new panel feature gets an `/extension/*`
 route over the service that owns it, so a change to a web route never reaches an
 extension already in the field. (A few older calls — callbacks, meetings,
-contacts, recordings — still go to shared routes.)
+contacts, recordings — still go to shared routes.) A recording plays from
+`/extension/calls/:id/recording`, decrypted server-side (`REC-001`): the panel's
+CSP reaches only the API, so it cannot fetch and decrypt the stored copy the way
+the web app does.
 
 ### CLI (`apps/agent-cli`, published as `ringee`)
 

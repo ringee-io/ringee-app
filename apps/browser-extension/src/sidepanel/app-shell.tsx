@@ -1,5 +1,6 @@
 import { AlertCircle, Home, Users } from "lucide-react";
 import { cn } from "@ringee/frontend-shared/lib/utils";
+import { webAppUrl } from "../lib/web-app";
 import { RingeeLogo } from "./ringee-logo";
 import { CreditPill } from "./credit/credit-pill";
 import { CallerIdPicker } from "./caller-id/caller-id-picker";
@@ -12,10 +13,6 @@ import { CallDetailScreen } from "./screens/call-detail-screen";
 import { CallbackDetailScreen } from "./screens/callback-detail-screen";
 import { MeetingDetailScreen } from "./screens/meeting-detail-screen";
 import { ScheduleScreen } from "./screens/schedule-screen";
-
-/** Web app host — the same one Clerk syncs the session from. */
-const APP_HOST =
-  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
 
 /**
  * The signed-in side-panel shell: a branded header (with the admin-only credit
@@ -85,7 +82,7 @@ export function AppShell({
                   type="button"
                   onClick={() =>
                     chrome.tabs.create({
-                      url: `${APP_HOST}/dashboard?upgrade=organization`,
+                      url: webAppUrl("/dashboard?upgrade=organization"),
                     })
                   }
                   className="mt-1.5 rounded-md bg-emerald-500/15 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-500/25"

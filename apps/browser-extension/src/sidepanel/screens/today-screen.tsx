@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { formatForDisplay } from "@ringee/dialer-core/phone";
 import { DEFAULT_REGION } from "../../lib/region";
+import { webAppUrl } from "../../lib/web-app";
 import type { QueueItem, RingeeApi, TodayCallItem } from "../../lib/ringee-api";
 import { formatTime, outcomeIsPositive, outcomeLabel } from "../../lib/format";
 import {
@@ -38,10 +39,6 @@ import { useQueue, useQueueDial } from "../today/use-queue";
 import { useSummary } from "../today/use-summary";
 
 const flags = flagComponents as unknown as Flags;
-
-/** Web app host — where lists are made. */
-const APP_HOST =
-  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
 
 const display = (name: string | null, number?: string | null) =>
   name || (number ? formatForDisplay(number) : "Unknown");
@@ -120,7 +117,8 @@ function TodayBody({ workspaceKey }: { workspaceKey: string | null }) {
 
   const createList = useCallback(() => {
     setListPickerOpen(false);
-    chrome.tabs.create({ url: `${APP_HOST}/dashboard/lists` });
+    // Lists are made in the web app.
+    chrome.tabs.create({ url: webAppUrl("/dashboard/lists") });
   }, []);
 
   /** A callback opens its own screen; anyone else, their contact. */
