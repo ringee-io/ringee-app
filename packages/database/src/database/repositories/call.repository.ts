@@ -227,13 +227,21 @@ export class CallRepository {
     return this.prisma.call.findUnique({ where: { id } });
   }
 
-  /** {@link findById}, but only when the call belongs to the workspace. */
+  /**
+   * {@link findById}, but only when the call belongs to the workspace — and,
+   * with `filterUserId`, to that member, the scoping `findDetailForOwner` uses.
+   */
   async findByIdForOwner(
     ctx: OwnershipContext,
     id: string,
+    options: { filterUserId?: string } = {},
   ): Promise<Call | null> {
     return this.prisma.call.findFirst({
-      where: { id, ...buildOwnershipFilter(ctx) },
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        ...(options.filterUserId ? { userId: options.filterUserId } : {}),
+      },
     });
   }
 

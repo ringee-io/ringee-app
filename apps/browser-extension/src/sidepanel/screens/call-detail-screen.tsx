@@ -28,6 +28,7 @@ import {
 } from "../components/ui";
 import { OutcomeSheet } from "../components/outcome-sheet";
 import { NoteSheet } from "../components/note-sheet";
+import { RecordingPlayer } from "../components/recording-player";
 import { useApp, useNav } from "../navigation";
 
 export function CallDetailScreen({ id }: { id: string }) {
@@ -66,7 +67,7 @@ export function CallDetailScreen({ id }: { id: string }) {
     ? c.phoneNumber || (inbound ? c.fromNumber : c.toNumber)
     : "";
   const name = c?.contactName || (number ? formatForDisplay(number) : "Call");
-  const recordingUrl = c?.recordingUrl || detail?.recording?.url || null;
+  const hasRecording = !!(c?.recordingUrl || detail?.recording?.url);
   const transcriptText = detail?.transcript?.text || null;
 
   return (
@@ -161,13 +162,8 @@ export function CallDetailScreen({ id }: { id: string }) {
             <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
               <Mic className="h-3.5 w-3.5" /> Recording
             </h3>
-            {recordingUrl ? (
-              <audio
-                controls
-                src={recordingUrl}
-                className="w-full"
-                preload="none"
-              />
+            {hasRecording ? (
+              <RecordingPlayer api={api} callId={c.id} />
             ) : (
               <p className="text-muted-foreground text-xs">No recording.</p>
             )}

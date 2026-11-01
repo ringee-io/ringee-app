@@ -1277,8 +1277,15 @@ Handing the URL to an `<audio>` element or an `<a download>` gives the user
 ciphertext. The public mp3 is the copy handed to services that fetch by URL:
 CRM sync, Custom Integration events and Deepgram.
 
+The browser extension cannot decrypt it: its CSP reaches Ringee's API, not
+storage. It plays `GET /extension/calls/:id/recording`, which decrypts on the
+server with the same workspace key, so the key never reaches the extension.
+Extension 0.1.11 and older put the encrypted URL in an `<audio>` and play
+silence (2026-11-01).
+
 - **Source of truth:** `RecordingProcessingService.processCallRecording`;
-  client side `frontend-shared/src/lib/crypto.ts`
+  client side `frontend-shared/src/lib/crypto.ts`; extension
+  `RecordingService.getPlaybackAudio`
 
 ### REC-002 — The encryption key is the workspace's
 
