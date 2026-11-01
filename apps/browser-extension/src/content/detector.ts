@@ -62,12 +62,34 @@ function inferName(node: Node): string | undefined {
   return txt && txt.length < 80 ? txt : undefined;
 }
 
-function dial(e164: string, name?: string) {
+/**
+ * Whether this script still reaches its extension. Updating or reloading the
+ * extension while the page stays open leaves the page's copy behind:
+ * `chrome.runtime.id` goes away and every message throws "Extension context
+ * invalidated". Chrome does not re-inject the new copy into open pages.
+ */
+function connected(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
+/** Ask the worker for the call; false when this copy can no longer reach it. */
+function dial(e164: string, name?: string): boolean {
+  if (!connected()) return false;
   const msg: DialRequestMsg = {
     type: MessageType.DialRequest,
     target: { destination: e164, name, origin: pageOrigin() },
   };
-  chrome.runtime.sendMessage(msg);
+  try {
+    // The worker's answer (`DialResult`) is for the side panel's queue.
+    void chrome.runtime.sendMessage(msg).catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ── Popover layer ─────────────────────────────────────────────────────────────
@@ -128,6 +150,18 @@ function positionPop(pop: HTMLElement, anchor: HTMLElement) {
   pop.style.top = `${r.top}px`;
 }
 
+/**
+ * A copy left behind by an update can't place calls: its card says so, and the
+ * one click that would have called reloads the page instead, which brings the
+ * current copy in. Scanning stops; its marks could no longer call.
+ */
+function markStale(pop: HTMLElement) {
+  observer.disconnect();
+  pop.classList.add("ringee-pop--stale");
+  pop.querySelector(".ringee-pop__btn--call span")!.textContent =
+    "Reload page to call";
+}
+
 function closePop(anchor: HTMLElement) {
   const entry = open.get(anchor);
   if (!entry) return;
@@ -172,7 +206,14 @@ function openPop(anchor: HTMLElement, e164: string, name?: string) {
       ) {
         return;
       }
-      dial(e164, name);
+      if (pop.classList.contains("ringee-pop--stale")) {
+        location.reload();
+        return;
+      }
+      if (!dial(e164, name)) {
+        markStale(pop);
+        return;
+      }
       pop.classList.add("ringee-pop--calling");
       pop.querySelector(".ringee-pop__btn--call span")!.textContent =
         "Calling…";
@@ -190,6 +231,7 @@ function openPop(anchor: HTMLElement, e164: string, name?: string) {
   pop.addEventListener("mouseenter", () => cancelClose(anchor));
   pop.addEventListener("mouseleave", () => scheduleClose(anchor));
 
+  if (!connected()) markStale(pop);
   ensureLayer().appendChild(pop);
   open.set(anchor, { anchor, pop });
   positionPop(pop, anchor);

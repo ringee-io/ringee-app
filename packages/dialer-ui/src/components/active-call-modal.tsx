@@ -3,7 +3,9 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogPortal,
+  DialogTitle,
 } from "@ringee/frontend-shared/components/ui/dialog";
 import { Button } from "@ringee/frontend-shared/components/ui/button";
 import {
@@ -224,6 +226,12 @@ export function ActiveCallModal({
             "border-border/60 overflow-hidden border shadow-xl",
           )}
         >
+          {/* Radix needs a labelled dialog; the visible heading lives in the
+              post-call view, so the announced pair is hidden here. */}
+          <DialogTitle className="sr-only">How did it go?</DialogTitle>
+          <DialogDescription className="sr-only">
+            {`Wrap up the call with ${contactName || number}.`}
+          </DialogDescription>
           <PostCallView onClose={onPostCallClose} />
         </DialogContent>
       </Dialog>
@@ -263,6 +271,10 @@ export function ActiveCallModal({
           "transition-all duration-500 ease-in-out",
         )}
       >
+        {/* Radix needs a labelled dialog; the caller ID heading below is
+            what sighted users read, so the announced pair is hidden here. */}
+        <DialogTitle className="sr-only">{contactName || number}</DialogTitle>
+        <DialogDescription className="sr-only">{statusText}</DialogDescription>
         {/* Free trial banner */}
         {isFreeTrialCall && (
           <div className="relative shrink-0 overflow-hidden border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">

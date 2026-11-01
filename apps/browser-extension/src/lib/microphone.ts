@@ -21,9 +21,18 @@ const PERMISSION_PAGE = "src/permission/index.html";
  * any UI when the user granted earlier (the grant is per chrome-extension://
  * origin, so it's visible here and in the offscreen document). Throws — and is
  * NOT able to prompt — from the side panel when the grant is missing.
+ *
+ * The browser's permission state answers first, without opening the device:
+ * the offscreen engine opens the microphone for the call a moment later, and a
+ * probe here put one more open and release of it in front of the dial. The
+ * probe below only runs when that state is not a plain "granted".
  */
 async function hasMicrophoneAccess(): Promise<boolean> {
   if (granted) return true;
+  if (await permissionGranted()) {
+    granted = true;
+    return true;
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     // We only needed the grant — release the device immediately so the offscreen
@@ -31,6 +40,16 @@ async function hasMicrophoneAccess(): Promise<boolean> {
     stream.getTracks().forEach((t) => t.stop());
     granted = true;
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The extension origin's microphone permission, read without the device. */
+async function permissionGranted(): Promise<boolean> {
+  try {
+    const status = await navigator.permissions.query({ name: "microphone" });
+    return status.state === "granted";
   } catch {
     return false;
   }

@@ -8,6 +8,7 @@ import {
   isCallCommand,
   isCallEvent,
   isCallSnapshot,
+  isCallQuality,
 } from "./messages";
 
 describe("isRingeeMessage", () => {
@@ -147,5 +148,34 @@ describe("isCallEvent / isCallSnapshot", () => {
   it("rejects when state is missing", () => {
     expect(isCallEvent({ type: MessageType.CallEvent })).toBe(false);
     expect(isCallSnapshot({ type: MessageType.CallSnapshot })).toBe(false);
+  });
+});
+
+describe("isCallQuality", () => {
+  const summary = {
+    measuredSec: 60,
+    capturedSec: 59.8,
+    captureGaps: 0,
+    packetsSent: 3000,
+    sentPerSec: 50,
+    sendGaps: 0,
+    packetsReceived: 3000,
+    packetsLost: 0,
+    warnings: {},
+  };
+  it("accepts a call's audio record", () => {
+    expect(isCallQuality({ type: MessageType.CallQuality, summary })).toBe(
+      true,
+    );
+  });
+  it("rejects a record without its measurements", () => {
+    expect(isCallQuality({ type: MessageType.CallQuality })).toBe(false);
+    expect(
+      isCallQuality({
+        type: MessageType.CallQuality,
+        summary: { ...summary, measuredSec: "60" },
+      }),
+    ).toBe(false);
+    expect(isCallQuality({ type: MessageType.CallEvent, summary })).toBe(false);
   });
 });

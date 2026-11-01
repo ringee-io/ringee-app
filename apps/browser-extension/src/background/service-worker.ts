@@ -16,6 +16,7 @@ import {
   MessageType,
   isCallCommand,
   isCallEvent,
+  isCallQuality,
   isDialRequest,
   type CallCommandMsg,
   type CallSnapshotMsg,
@@ -31,6 +32,7 @@ import {
   failureSnapshot,
   reportsPlacedLeg,
 } from "../lib/call-flow";
+import { recordCallQuality } from "../lib/call-quality-log";
 import { DEFAULT_REGION } from "../lib/region";
 import { getSelectedCallerId } from "../lib/selected-caller-id";
 
@@ -272,6 +274,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     }
     // From side panel → forward verbatim to the offscreen engine.
     chrome.runtime.sendMessage(msg).catch(() => {});
+    return false;
+  }
+  if (isCallQuality(msg)) {
+    // The offscreen engine's record of how the call's outgoing audio flowed;
+    // that document closes with the call, so the record is kept here.
+    void recordCallQuality(msg.summary);
     return false;
   }
   if (isCallEvent(msg)) {
