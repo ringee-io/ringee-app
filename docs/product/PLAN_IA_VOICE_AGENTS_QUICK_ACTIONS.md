@@ -4,6 +4,14 @@ Propuesta de producto e implementación · 12 de octubre de 2026
 
 Estado (13 de octubre de 2026): entregas 1, 2 y 4 implementadas sin traspaso IA, detrás del flag `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (vacío por defecto). La entrega 0 y la 3 siguen pendientes de la prueba real con Telnyx. No se han probado llamadas reales. Ver §14. Los nombres y citas de la propuesta visual son ejemplos.
 
+Continuación propuesta (revisada el 2 de noviembre de 2026):
+[Seguimiento automático completo en Organization](PLAN_ORGANIZATION_AI_FOLLOWUP.md).
+Incluye entrega del seguimiento desde la llamada fría humana, activación nativa,
+recordatorio a cuatro horas, traspaso con recuperación, cancelación autorizada,
+continuidad entrante, contexto/idioma por contacto y métricas desde el piloto.
+La propuesta nueva revisa el alcance y la experiencia; las limitaciones de la
+implementación histórica descritas aquí todavía no están resueltas en producción.
+
 ## 1. Decisión de producto
 
 Agregar una barra vertical a la derecha con el texto **Ringee IA Voice Agents** (hoy **Trigger AI Voice Agents**, ver §3). Al abrirla aparecen tres capacidades listas para configurar: **Recordatorios y confirmaciones**, **Recepcionista IA** y **Agendar citas**. Cada una tiene nombre propio, activación rápida, una acción útil y acceso a **Personalizar**.
@@ -271,7 +279,7 @@ Alcance acordado: entregas 1, 2 y 4 sin traspaso IA. El handoff (entrega 3 y su 
 
 **Pendiente**
 
-1. Entrega 0: prueba real del handoff recepcionista → especialista; después, entrega 3 y el traspaso a agendamiento.
+1. Entrega 0: prueba real del handoff recepcionista → especialista; después, entrega 3 y el traspaso a agendamiento. El traspaso recordatorios → agendamiento en llamadas salientes está implementado (sin validar con llamadas reales) según [§16 del plan de seguimiento](PLAN_ORGANIZATION_AI_FOLLOWUP.md); el traspaso desde la recepcionista sigue pendiente.
 2. Piloto: activar el flag para una organización y recorrer cita → llamada → confirmación → correo con llamadas reales; verificar el hilo en Gmail y Outlook.
 3. Entrega 5: varios offsets, reintentos tras «sin respuesta», ventanas por equipo y reprogramación por voz. El modelo de datos ya admite varios offsets y ventanas.
 4. Eventos de Custom Integrations para la asistencia (aditivos).

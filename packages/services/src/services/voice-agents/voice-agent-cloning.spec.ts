@@ -178,6 +178,14 @@ function build(
       },
     } as never,
     { listByDestination: async () => [] } as never,
+    {
+      handoffTargetsFor: async () => [],
+      acceptsHandoffs: () => false,
+      resolveDestination: async () => ({
+        ok: false,
+        reason: "automations_disabled",
+      }),
+    } as never,
   );
   return {
     service,

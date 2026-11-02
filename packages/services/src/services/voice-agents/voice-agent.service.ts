@@ -43,6 +43,7 @@ import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
 import { CompanyProfileService } from "./company-profile.service";
+import { VoiceAgentHandoffService } from "./automations/voice-agent-handoff.service";
 import {
   composeVoiceAgentInstructions,
   readVoiceAgentConversationSettings,
@@ -193,6 +194,7 @@ export class VoiceAgentService {
     private readonly numbers: NumberPurchasedService,
     private readonly credits: CreditService,
     private readonly inboundRoutes: InboundRouteRepository,
+    private readonly handoffs: VoiceAgentHandoffService,
   ) {}
 
   // ── Catalogue ────────────────────────────────────────────────
@@ -1098,28 +1100,71 @@ export class VoiceAgentService {
     if (!assistant) return;
 
     const base = this.toolBaseUrl();
-    const expected = this.blueprints
-      .require(agent.type)
-      .buildTools({
-        agentId: agent.id,
-        toolBaseUrl: base,
-        toolSecretRef: this.toolSecretIdentifier(agent.id),
-        // Retrieval stores do not affect the webhook set compared here.
-        knowledgeBucketIds: [],
-      })
+    const handoffTargets = await this.handoffs.handoffTargetsFor(ctx, agent);
+    const expectedTools = this.blueprints.require(agent.type).buildTools({
+      agentId: agent.id,
+      toolBaseUrl: base,
+      toolSecretRef: this.toolSecretIdentifier(agent.id),
+      // Retrieval stores do not affect the webhook set compared here.
+      knowledgeBucketIds: [],
+      handoffTargets,
+      acceptsHandoffs: this.handoffs.acceptsHandoffs(agent),
+    });
+    const expected = expectedTools
       .flatMap((tool) => (tool.kind === "webhook" ? [tool.url] : []))
       .sort();
     const actual = [...assistant.toolWebhookUrls].sort();
+    // The destinations a handoff tool names are compared too: a destination
+    // the workspace no longer authorizes, or a new one, means the assistant
+    // was saved against a different scheduling setup (AGENT-021).
+    const expectedTargets = handoffTargets
+      .map((target) => target.assistantId)
+      .sort();
+    const actualTargets = [...assistant.handoffAssistantIds].sort();
     const matches =
       assistant.runtimeContextConfigured &&
       actual.length === expected.length &&
-      actual.every((url, index) => url === expected[index]);
-    if (matches) return;
+      actual.every((url, index) => url === expected[index]) &&
+      actualTargets.length === expectedTargets.length &&
+      actualTargets.every((id, index) => id === expectedTargets[index]);
+    if (matches) {
+      await this.ensureHandoffDestinations(ctx, agent, handoffTargets);
+      return;
+    }
 
     this.logger.warn(
       `Agent ${agent.id} has stale tools or runtime context; re-syncing against its current blueprint`,
     );
     await this.syncToProvider(ctx, agent.id);
+    await this.ensureHandoffDestinations(ctx, agent, handoffTargets);
+  }
+
+  /**
+   * A handoff lands on an assistant that dials nothing itself, so nothing
+   * else would ever re-sync it: before a reminders agent dials, the
+   * scheduling agent it may hand to is brought up to date too — its
+   * continuation tool must exist before a call can be handed to it.
+   */
+  private async ensureHandoffDestinations(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+    targets: Array<{ assistantId: string }>,
+  ): Promise<void> {
+    if (targets.length === 0 || !ctx.organizationId) return;
+    const destination = await this.handoffs.resolveDestination(
+      { userId: ctx.userId, organizationId: ctx.organizationId },
+      agent.voiceLanguage,
+    );
+    if (!destination.ok || destination.agent.id === agent.id) return;
+    await this.ensureToolEndpoints(ctx, destination.agent).catch(
+      (error: unknown) => {
+        this.logger.warn(
+          `Could not verify the tools of handoff destination ${destination.agent.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    );
   }
 
   /**
@@ -1213,6 +1258,8 @@ export class VoiceAgentService {
       toolBaseUrl: this.toolBaseUrl(),
       toolSecretRef: this.toolSecretIdentifier(agent.id),
       knowledgeBucketIds: this.readyKnowledgeBuckets(agent),
+      handoffTargets: await this.handoffs.handoffTargetsFor(ctx, agent),
+      acceptsHandoffs: this.handoffs.acceptsHandoffs(agent),
     });
 
     return {
@@ -1263,6 +1310,11 @@ export class VoiceAgentService {
       timezone: await this.effectiveTimezone(ctx, agent),
       meetingDurationMinutes: agent.meetingDurationMinutes,
       meetingTitle: agent.meetingTitle,
+      // The prompt says what the tools allow (AGENT-021): a reminders agent
+      // offers to find another time only while a scheduling agent may take
+      // the call, and a scheduling agent knows how to continue one.
+      handoffDestinationName: await this.handoffDestinationName(ctx, agent),
+      acceptsHandoffs: this.handoffs.acceptsHandoffs(agent),
     };
     return {
       company,
@@ -1275,6 +1327,25 @@ export class VoiceAgentService {
         postConversationInstructions: "",
       },
     };
+  }
+
+  private async handoffDestinationName(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<string | null> {
+    if (
+      agent.type !== AiVoiceAgentType.reminders_notifications ||
+      !ctx.organizationId
+    ) {
+      return null;
+    }
+    const destination = await this.handoffs
+      .resolveDestination(
+        { userId: ctx.userId, organizationId: ctx.organizationId },
+        agent.voiceLanguage,
+      )
+      .catch(() => null);
+    return destination?.ok ? destination.agent.name : null;
   }
 
   private validateConversationSettings(

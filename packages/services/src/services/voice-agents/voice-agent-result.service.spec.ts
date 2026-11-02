@@ -81,6 +81,12 @@ function build(
     insightOutcome?: string;
     /** The reminder execution that placed the call (AGENT-017/019). */
     execution?: Record<string, unknown> | null;
+    /** Agents that took part in the call besides its own (AGENT-021). */
+    participants?: Array<{
+      agentCallId: string;
+      agentId: string;
+      role: string;
+    }>;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
@@ -241,6 +247,14 @@ function build(
         settledExecutions.push({ agentCallId, status, from });
         return true;
       },
+    } as never,
+    {
+      findParticipant: async (agentCallId: string, agentId: string) =>
+        over.participants?.find(
+          (participant) =>
+            participant.agentCallId === agentCallId &&
+            participant.agentId === agentId,
+        ) ?? null,
     } as never,
   );
 
@@ -545,6 +559,26 @@ describe("VoiceAgentResultService analysis callback", () => {
 
     assert.equal(accepted, true);
     assert.deepEqual(updates, []);
+  });
+
+  it("keeps the summary of an agent that took the call over, never its outcome (AGENT-021)", async () => {
+    // The same conversation, analysed under the agent it was handed to. What
+    // it says happened is kept; what the call concluded stays the tools'.
+    const { service, updates, callOutcomes, outcomeEvents } = build({
+      agentCall: { ...AGENT_CALL, agentId: "agent-2" },
+      participants: [
+        { agentCallId: "call-1", agentId: AGENT_ID, role: "handoff" },
+      ],
+    });
+
+    const accepted = await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.equal(accepted, true);
+    assert.deepEqual(updates, [{ summary: "Booked a demo." }]);
+    assert.deepEqual(callOutcomes, []);
+    assert.deepEqual(outcomeEvents, []);
   });
 
   it("accepts a delivery for a conversation Ringee did not start", async () => {

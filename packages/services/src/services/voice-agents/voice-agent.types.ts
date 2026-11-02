@@ -1,6 +1,7 @@
 import { AiVoiceAgentOutcome, AiVoiceAgentType } from "@ringee/database";
 import type {
   VoiceAgentGreetingMode,
+  VoiceAgentHandoffTarget,
   VoiceAgentInsightDefinition,
   VoiceAgentTool,
 } from "@ringee/platform";
@@ -89,6 +90,14 @@ export interface VoiceAgentPromptContext {
   timezone?: string | null;
   meetingDurationMinutes?: number;
   meetingTitle?: string | null;
+  /**
+   * Reminders only: the scheduling agent this agent may hand a call to, when
+   * the workspace authorizes one now (AGENT-021). Unset, the reminders agent
+   * says nothing about moving meetings on the call.
+   */
+  handoffDestinationName?: string | null;
+  /** Appointment booking only: it may be handed calls to continue. */
+  acceptsHandoffs?: boolean;
 }
 
 /** Everything a blueprint needs to wire an agent's tools. */
@@ -100,6 +109,13 @@ export interface VoiceAgentToolContext {
   toolSecretRef: string;
   /** Knowledge stores to attach, when the agent has any. */
   knowledgeBucketIds: string[];
+  /**
+   * Reminders only: the assistants the workspace authorizes this agent to
+   * hand a call to now. Resolved on the server; empty means no handoff tool.
+   */
+  handoffTargets?: VoiceAgentHandoffTarget[];
+  /** Appointment booking only: carries the continuation tool. */
+  acceptsHandoffs?: boolean;
 }
 
 export interface VoiceAgentInsightContext {

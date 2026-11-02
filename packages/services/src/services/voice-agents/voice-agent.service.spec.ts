@@ -54,6 +54,7 @@ function build(currentWebhookUrls: string[], runtimeContextConfigured = true) {
         unauthenticatedWebCallsEnabled: false,
         runtimeContextConfigured,
         toolWebhookUrls: currentWebhookUrls,
+        handoffAssistantIds: [],
       }),
     } as never,
     {} as never,
@@ -69,6 +70,14 @@ function build(currentWebhookUrls: string[], runtimeContextConfigured = true) {
     {} as never,
     {} as never,
     { listByDestination: async () => [] } as never,
+    {
+      handoffTargetsFor: async () => [],
+      acceptsHandoffs: () => false,
+      resolveDestination: async () => ({
+        ok: false,
+        reason: "automations_disabled",
+      }),
+    } as never,
   );
 
   (

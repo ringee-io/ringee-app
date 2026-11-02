@@ -135,4 +135,71 @@ export class AiVoiceAgentToolController {
       body ?? {},
     );
   }
+
+  /**
+   * The reminders agent asks to hand the call to the scheduling agent
+   * (AGENT-021). The meeting, the destination and the request's context are
+   * derived from the call the header names; the body carries only what the
+   * person said.
+   */
+  @Public()
+  @Post(":agentId/prepare-reschedule-handoff")
+  prepareRescheduleHandoff(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body()
+    body: {
+      person_said?: string;
+      preferences?: string;
+      identity_confirmed?: boolean | string;
+      language?: string;
+    },
+  ) {
+    return this.tools.prepareRescheduleHandoff(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
+
+  /** A callback by the scheduling agent when the handoff did not happen. */
+  @Public()
+  @Post(":agentId/schedule-reschedule-callback")
+  scheduleRescheduleCallback(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body()
+    body: {
+      scheduled_at?: string;
+      note?: string;
+      why?: string;
+      person_said?: string;
+      preferences?: string;
+    },
+  ) {
+    return this.tools.scheduleRescheduleCallback(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
+
+  /**
+   * What the scheduling agent continues on a handed-over call or a callback
+   * about one. Its first authenticated tool call on a handed-over call is
+   * what proves the handoff completed.
+   */
+  @Public()
+  @Post(":agentId/handoff-context")
+  handoffContext(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+  ) {
+    return this.tools.getHandoffContext(agentId, secret, callControlId ?? null);
+  }
 }

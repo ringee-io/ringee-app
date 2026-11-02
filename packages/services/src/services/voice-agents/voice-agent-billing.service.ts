@@ -4,6 +4,8 @@ import {
   AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
   AiVoiceAgentCallStatus,
+  AiVoiceAgentHandoffRepository,
+  AiVoiceAgentParticipantRole,
   CallRepository,
   CallStatus,
   RecordingRepository,
@@ -89,6 +91,7 @@ export class VoiceAgentBillingService {
     private readonly credits: CreditService,
     private readonly recordingProcessing: RecordingProcessingService,
     private readonly results: VoiceAgentResultService,
+    private readonly handoffs: AiVoiceAgentHandoffRepository,
   ) {}
 
   /**
@@ -136,7 +139,14 @@ export class VoiceAgentBillingService {
     // whose status callback never arrived from reading as "pending" forever.
     current = await this.settleCallLifecycle(current, records);
 
-    const ai = await this.settleAiUsage(current, records);
+    // A call another agent took over is still one call with one AI charge:
+    // the participation adds no debit of its own. If the provider reported
+    // the agent that took over under a conversation of its own, its usage is
+    // part of this call's — read it so it is neither lost nor charged apart.
+    const aiRecords = current.costSettledAt
+      ? records
+      : [...records, ...(await this.handedOverUsage(current))];
+    const ai = await this.settleAiUsage(current, aiRecords);
     const telephonyCostUsd = await this.settleTelephonyLeg(current, records);
     await this.recoverArtifacts(current);
 
@@ -431,6 +441,61 @@ export class VoiceAgentBillingService {
       throw error;
     }
     await this.agentCalls.markAiCostDebited(agentCall.id);
+  }
+
+  /**
+   * The AI usage of conversations a handed-over call produced besides its
+   * own (AGENT-021).
+   *
+   * The provider documents a handoff as happening inside one conversation, so
+   * this normally finds nothing. It is read only for calls another agent took
+   * over, and only from conversations other than the call's: those records are
+   * by construction not among the ones already read, so nothing is counted
+   * twice. The voice leg is never re-read — it is one leg, charged once. The
+   * provider does not split cost by participant, so none is allocated.
+   */
+  private async handedOverUsage(
+    agentCall: AiVoiceAgentCall,
+  ): Promise<VoiceAgentUsageRecord[]> {
+    if (!agentCall.providerConversationId || !agentCall.providerCallControlId) {
+      return [];
+    }
+    const participants = await this.handoffs.listParticipants(agentCall.id);
+    const destination = participants.find(
+      (participant) => participant.role === AiVoiceAgentParticipantRole.handoff,
+    );
+    if (!destination) return [];
+
+    const leg = await this.provider.fetchUsageRecords({
+      callControlId: agentCall.providerCallControlId,
+    });
+    const others = [
+      ...new Set(
+        leg.flatMap((record) =>
+          record.kind === "voice_agent" &&
+          record.conversationId &&
+          record.conversationId !== agentCall.providerConversationId
+            ? [record.conversationId]
+            : [],
+        ),
+      ),
+    ];
+    if (others.length === 0) return [];
+
+    this.logger.warn(
+      `Agent call ${agentCall.id} was handed over and reported under ${others.length} more conversation(s); their AI usage settles with the call`,
+    );
+    if (others.length === 1) {
+      await this.handoffs
+        .setParticipantConversation(destination.id, others[0]!)
+        .catch(() => undefined);
+    }
+    const extra: VoiceAgentUsageRecord[] = [];
+    for (const conversationId of others) {
+      const rows = await this.provider.fetchUsageRecords({ conversationId });
+      extra.push(...rows.filter((record) => record.kind !== "telephony"));
+    }
+    return extra;
   }
 
   // ── The voice leg ────────────────────────────────────────────

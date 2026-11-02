@@ -544,7 +544,9 @@ voicemail the same way.
 The Call page's queue (`GET /my-day/queue`; in the Chrome extension's Today tab,
 `GET /extension/queue`) is manual calling only. It leaves
 out campaign callbacks — when one comes due the campaign re-queues its lead —
-and the callbacks an AI voice agent scheduled, which the agent places itself.
+and the callbacks an AI voice agent scheduled, which the agent places itself:
+those that reuse their source call's id, and those assigned to an agent for a
+handoff request (`CallbackTask.agentCallbackKind`, AGENT-021).
 An item leaves the queue once it is handled: a missed call when anyone in the
 workspace has called the number since, a follow-up when its owner has called
 the contact after it was raised, a callback only when it is completed or
@@ -1593,6 +1595,11 @@ overwrites the one the tool recorded. On a call that is not about a meeting — 
 notification started through the API — an analysed `confirmed` still applies,
 as it always did.
 
+On a call another agent took over (AGENT-021) the same holds across both
+agents: the outcome a tool of either one recorded stands, and an analysis
+delivered under the agent that took over may fill the summary, sentiment and
+extracted fields of the call — it never sets or rewrites its outcome.
+
 - **Source of truth:** `VoiceAgentResultService.applyKnownOutcome`,
   `CallRepository.updateOutcomeUnlessTakenOver`
 
@@ -1756,8 +1763,19 @@ is completed and later callbacks reconcile its rows instead of dialing again.
 A human callback merely becomes due and is never converted into an automated
 call.
 
+A callback can also be **assigned to another agent** — the scheduling agent
+continuing a handoff request (AGENT-021). It names its agent and request on the
+row (`CallbackTask.agentId`, `handoffId`, `agentCallbackKind`), is created under
+a replay-safe key, and is placed by its own path: claimed under a lease with a
+fencing token (a worker that dies is taken over when the lease runs out),
+re-decided from the request right before the dial, and dialed under a key per
+try persisted on `AiVoiceAgentCall.idempotencyKey` before the leg exists, so a
+reclaimed callback links the call its earlier try placed instead of dialing
+again. Callbacks that reuse their source call's id keep the behaviour above.
+
 - **Source of truth:** `VoiceAgentToolService.scheduleCallback`,
-  `CallbackService.scheduleFromVoiceAgent` / `processDueCallbacks`
+  `CallbackService.scheduleFromVoiceAgent` / `scheduleAgentCallback` /
+  `processDueCallbacks`
 
 ### AGENT-015 — The caller's external id follows every event from an agent call
 
@@ -1788,6 +1806,11 @@ tools. It has no per-call variables and no `schedule_callback` tool — an agent
 callback is an outbound call by the same agent — so a caller who wants to be
 called back is handed to `request_human_support`.
 
+A scheduling agent may also **continue** a call another agent placed, through
+an authorized handoff on that same call (AGENT-021). That does not make it an
+inbound destination: no number routes to it, and the resolver and
+`inboundConfig` still refuse it.
+
 - **Source of truth:** `ReceptionistBlueprint`,
   `InboundRouteResolverService.resolveDestination`,
   `VoiceAgentCallService.startCall`
@@ -1808,6 +1831,10 @@ one transaction; repeating the answer on the same call is the same result and
 no second email. Only a clear yes counts — "maybe", silence or a voicemail
 greeting is not a confirmation — and the agent may say the email will be sent,
 never that it was.
+
+A "declined" answer's result says whether the scheduling agent can find another
+time on this call (AGENT-021). Once a handoff completed, the reminders agent's
+tools — this one included — refuse to change anything on the call.
 
 - **Source of truth:** `VoiceAgentToolService.confirmMeetingAttendance`,
   `MeetingService.recordAttendance`, `RemindersNotificationsBlueprint`
@@ -1949,6 +1976,81 @@ provider's deduplication lifetime.
 
 - **Source of truth:** `MeetingEmailService`, `MeetingEmailDeliveryRepository`,
   `EmailInterface.send`
+
+### AGENT-021 — One agent continues another's call only through a handoff the workspace authorized
+
+When the person on a reminder call cannot attend and agrees to look for another
+time, the reminders agent can hand **the same call** to the organization's
+scheduling agent. It is the pilot's first delivery of
+[PLAN_ORGANIZATION_AI_FOLLOWUP](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md):
+the call ends with valid availability offered; moving or cancelling the
+meeting is not in it yet.
+
+- **Mechanism.** The provider switches assistants inside the conversation when
+  the handing model uses its handoff tool (`VoiceAgentHandoffMode`
+  `assistant_tool`); nothing outside the conversation can trigger it, and Call
+  Control commands on a call an assistant runs are documented to conflict. So
+  everything Ringee decides is decided in the tools on either side of it.
+- **Destination.** Only the scheduling automation's agent of the same
+  organization, switched on, active, provisioned and speaking the
+  conversation's language (`resolveDestination`). It is resolved on the server
+  — the reminders assistant's handoff tool names exactly that one, re-synced at
+  dial time when it drifts — and re-validated before every step. A model never
+  supplies it.
+- **Before the handoff.** `prepare_reschedule_handoff` stores the request — call,
+  contact, meeting and schedule version, calendar, responsible member, source
+  and destination, reason, what the person said and preferred, effective
+  language and what was already confirmed — and the source's participation, in
+  one transaction. The model may hand over only after it succeeds. A
+  destination that cannot take the call leaves the request recorded as
+  `needs_attention`, with why.
+- **Proof.** The destination's first authenticated tool call on the live call
+  (its own secret, the provider-filled call header) completes the handoff,
+  under the request's row lock: the source's participation becomes
+  `handed_off` and may change nothing from then on; the destination's opens.
+  Ending a participation never ends the call, and `Call.status` stays
+  `CallService`'s and the status callback's.
+- **Binding.** A participant's tools act on the meeting it was handed, at the
+  schedule version it was handed: availability comes from the meeting's own
+  calendar and length, the meeting does not block its own new time, and a
+  meeting moved or cancelled during the call gets no times offered. While
+  moving an existing meeting `book_appointment` refuses — a second meeting
+  beside the first is exactly what must not happen.
+- **Failure and doubt.** The source still holding the call and scheduling a
+  callback is a confirmed failure. A call that ends with the handoff still
+  prepared is `uncertain` and reconciled first — completed if the
+  destination's participation exists, failed otherwise — and no callback is
+  dialed while the source call may still be live.
+- **Callbacks.** A callback agreed after a failure is assigned to the
+  scheduling agent (AGENT-014) and promised only once it exists. When it comes
+  due its context is rebuilt from the request, and it is withdrawn if someone
+  already moved the meeting; the original time passing, or the meeting being
+  cancelled, resolves nothing. When a call ends before the scheduling agent
+  ever spoke and nothing was agreed, the request is recovered once by policy —
+  at the next opening of the meeting calendar's reminder window, at least an
+  hour later — as a recovery call, never presented as agreed. Anything else
+  that leaves no automated step settles the request as `needs_attention`.
+- **History and money.** One `Call` and one `AiVoiceAgentCall` root, with
+  `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children; `agentId`
+  keeps meaning the agent that placed the call. A participation is not a
+  charge: the leg settles once under `call-cost:<callId>`, the AI half once
+  under `ai-voice-agent-cost:<agentCallId>`. If the provider ever reports the
+  agent that took over under a conversation of its own, that conversation's
+  usage settles with the call, read only for it, and is not allocated per
+  participant.
+- **Language.** The reminders agent speaks its configured voice language — it
+  does not pick the contact's language from earlier calls — and the handoff
+  keeps that voice; the request carries the language, or the one the person
+  asked to switch to. A callback speaks the scheduling agent's configured
+  language.
+
+- **Source of truth:** `VoiceAgentHandoffService`,
+  `AiVoiceAgentHandoffRepository`, `VoiceAgentToolService`
+  (`prepareRescheduleHandoff`, `scheduleRescheduleCallback`,
+  `getHandoffContext`), `CallbackService.processDueCallbacks`
+- **Risk if violated:** a model hands a call to an agent nobody authorized,
+  two agents act on one meeting, a person is called twice, or a request is
+  dropped because the meeting's time passed
 
 ---
 

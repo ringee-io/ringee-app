@@ -92,6 +92,14 @@ trail for any billing dispute.
 Settlement is guarded twice: a non-null `Call.totalCost` short-circuits a
 duplicate webhook, and the ledger key catches anything that slips past.
 
+A call one AI voice agent handed to another (AGENT-021) is still one call: the
+voice leg settles once under `call-cost:<callId>` and the AI half once under
+`ai-voice-agent-cost:<agentCallId>`. A participation is never a charge. If the
+provider reports the agent that took over under a conversation of its own, that
+conversation's AI records are added to the call's — read only for handed-over
+calls, and only from conversations other than the call's, so no record is
+counted twice — and nothing is allocated per participant.
+
 ## Auto-reload and monthly funding
 
 Two distinct products:

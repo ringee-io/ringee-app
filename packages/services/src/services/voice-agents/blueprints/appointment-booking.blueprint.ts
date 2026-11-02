@@ -15,6 +15,7 @@ import {
   buildHumanSupportTool,
   voiceAgentWebhookHeaders,
 } from "./human-support.tool";
+import { buildHandoffContextTool } from "./handoff.tools";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -164,6 +165,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "   call `schedule_callback`. Only say it is scheduled after the tool",
       "   returns success. If it fails, do not promise the callback.",
       "",
+      ...(ctx.acceptsHandoffs ? continuationInstructions() : []),
       "## Ending the call",
       "",
       "Once the meeting is booked, or the person has declined, or you have agreed",
@@ -229,6 +231,16 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  must finish the request, call `request_human_support`. Only promise a",
       "  follow-up after that tool succeeds.",
       "- Honor a clear refusal immediately; thank the person and end the call.",
+      ...(ctx.acceptsHandoffs
+        ? [
+            "- When you join a call already under way, or the reason for your call",
+            "  is moving a meeting, call `get_handoff_context` before you speak and",
+            "  follow it. Never greet again or repeat a check it says was done.",
+            "- While moving an existing meeting, offer only times",
+            "  `get_available_slots` returned for it, never call",
+            "  `book_appointment`, and never say the meeting is moved.",
+          ]
+        : []),
     ].join("\n");
   }
 
@@ -297,6 +309,9 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
           "End the call once the meeting is booked, the person has declined, or a callback has been agreed.",
       },
     ];
+    // A scheduling agent the reminders agent may hand calls to (AGENT-021):
+    // it reads what it continues instead of opening a new call's script.
+    if (ctx.acceptsHandoffs) tools.push(buildHandoffContextTool(ctx));
 
     if (ctx.knowledgeBucketIds.length) {
       tools.push({ kind: "retrieval", bucketIds: ctx.knowledgeBucketIds });
@@ -316,4 +331,40 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       ].join(" "),
     );
   }
+}
+
+/**
+ * How a scheduling agent continues a call it did not start (AGENT-021): taken
+ * over from the reminders agent, or a callback about moving a meeting. The
+ * per-call facts come from `get_handoff_context`, never from this prompt —
+ * the same assistant serves every conversation at once.
+ */
+function continuationInstructions(): string[] {
+  return [
+    "## Continuing a conversation",
+    "",
+    "Sometimes you join a call that is already under way: another assistant",
+    "spoke with the person first and handed the call to you, because they",
+    "cannot attend a meeting and want another time. Sometimes the reason for",
+    "your call says you are following up a request to move a meeting.",
+    "",
+    "- In either case, call `get_handoff_context` before you say anything,",
+    "  and follow its speech_instruction.",
+    "- On a call handed to you, do not greet the person again, do not",
+    "  introduce the company again and do not repeat a check the context",
+    "  says was done. Say one short sentence about why you are taking over,",
+    "  then continue.",
+    "- Keep speaking the conversation's language as the context gives it.",
+    "- You are moving an existing meeting, not booking a new one. Its",
+    "  calendar, length and the member it is with stay as they are, and",
+    "  `get_available_slots` reads that calendar for you. Times are in the",
+    "  time zone its result names.",
+    "- You cannot move the meeting on this call. When they choose a time, say",
+    "  it is noted and that the team will confirm the change — never say it",
+    "  is moved — and call `request_human_support` with the chosen time.",
+    "  Never call `book_appointment` for this meeting.",
+    "- If none of the times suit them and they want to be called again,",
+    "  agree an exact time and call `schedule_callback`.",
+    "",
+  ];
 }

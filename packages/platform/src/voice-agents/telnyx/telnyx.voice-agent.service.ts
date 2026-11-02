@@ -12,6 +12,7 @@ import type {
   VoiceAgentConfig,
   VoiceAgentConversation,
   VoiceAgentEmbeddingStatus,
+  VoiceAgentHandoffMode,
   VoiceAgentInsightDefinition,
   VoiceAgentInsightDelivery,
   VoiceAgentInsightGroupSettings,
@@ -118,6 +119,17 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     private readonly telnyxClient: TelnyxClient,
     private readonly knowledgeStore: TelnyxKnowledgeStore,
   ) {}
+
+  /**
+   * Telnyx hands a conversation between assistants through a `handoff` tool
+   * on the assistant that hands over, decided by its model. There is no
+   * command to trigger it from outside the conversation, and issuing Call
+   * Control commands on a call an assistant runs is documented to conflict
+   * with it — which is why Ringee's outbound agent calls (TeXML) never do.
+   */
+  assistantHandoffMode(): VoiceAgentHandoffMode {
+    return "assistant_tool";
+  }
 
   async startInboundCall(request: VoiceAgentInboundRequest) {
     const path = `/calls/${encodeURIComponent(request.callControlId)}/actions`;

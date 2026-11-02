@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import {
   CallRepository,
+  CallbackAgentKind,
   InboundDestinationType,
   AiVoiceAgent,
   AiVoiceAgentCall,
@@ -20,6 +21,7 @@ import {
   VoiceAgentProviderService,
   hashApiKey,
   safeHashEqual,
+  type OrganizationOwnershipContext,
   type OwnershipContext,
 } from "@ringee/platform";
 import { CalendarService, ResolvedCalendar } from "../calendar.service";
@@ -32,6 +34,12 @@ import {
 } from "./voice-agent.types";
 import { VoiceAgentHumanSupportService } from "./voice-agent-human-support.service";
 import { VoiceAgentResultService } from "./voice-agent-result.service";
+import {
+  VoiceAgentHandoffService,
+  type HandoffContextView,
+  type HandoffGrant,
+  type PrepareRescheduleFailure,
+} from "./automations/voice-agent-handoff.service";
 
 import { InboundRouteResolverService } from "../inbound-routing/inbound-route-resolver.service";
 import { InboundCallRouterService } from "../inbound-routing/inbound-call-router.service";
@@ -51,6 +59,18 @@ const SUPPORT_SUBJECT_MAX = 120;
 const SUPPORT_MESSAGE_MAX = 2000;
 const CALLBACK_NOTE_MAX = 2000;
 const ATTENDANCE_NOTE_MAX = 1000;
+
+/**
+ * Moving the existing meeting is the next delivery's tool. Until it exists, a
+ * participant finding a new time for a handed-over meeting offers real
+ * availability and passes the choice to the team — it never books a second
+ * meeting beside the first.
+ */
+const RESCHEDULE_COMMIT_UNAVAILABLE =
+  "Moving this meeting cannot be completed on this call, and a new meeting must not be booked beside it. Tell the person the time they chose is noted and that the team will confirm the change — never say the meeting is moved — and call request_human_support with the chosen time.";
+
+const RESCHEDULE_SLOT_SPEECH_INSTRUCTION =
+  "These are times the meeting could move to, on its own calendar. Offer them in one natural sentence in the conversation's language, at most three. When the person chooses one, do not say it is booked or moved: say it is noted and that the team will confirm the change, and call request_human_support with the chosen time.";
 
 /** Result shapes the model reads back. Failures are data, not exceptions. */
 export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
@@ -92,6 +112,17 @@ export interface HumanSupportResult {
   speech_instruction: string;
 }
 
+export interface RescheduleHandoffResult {
+  handoff: {
+    status: "ready";
+    /** The assistant the handoff tool passes the call to. */
+    to: string;
+  };
+  speech_instruction: string;
+}
+
+export type HandoffContextResult = HandoffContextView;
+
 /**
  * The server side of the agent's tools.
  *
@@ -124,6 +155,7 @@ export class VoiceAgentToolService {
     private readonly provider: VoiceAgentProviderService,
     private readonly redis: RedisService,
     private readonly reminderExecutions: MeetingReminderExecutionRepository,
+    private readonly handoffs: VoiceAgentHandoffService,
   ) {}
 
   private async authorizeReceptionist(
@@ -340,8 +372,14 @@ export class VoiceAgentToolService {
     const agentCall = callControlId
       ? await this.agentCalls.findByCallControlId(callControlId)
       : null;
-    if (agentCall && agentCall.agentId !== agent.id) {
-      throw new UnauthorizedException("Call does not belong to this agent");
+    if (agentCall) {
+      // Another agent's call is reachable only through a handoff it was
+      // given; its availability is the handed meeting's, not this agent's.
+      const grant = await this.handoffs.grantFor(agent, agentCall);
+      if (grant.kind === "participant") {
+        return this.rescheduleSlots(ctx, grant, date);
+      }
+      if (grant.kind === "refused") return this.refuse(grant);
     }
 
     let resolved: ResolvedCalendar;
@@ -477,10 +515,16 @@ export class VoiceAgentToolService {
     const agentCall = callControlId
       ? await this.agentCalls.findByCallControlId(callControlId)
       : null;
-    if (agentCall && agentCall.agentId !== agent.id) {
+    if (agentCall) {
       // The call named by the header belongs to a different agent: refuse
-      // rather than book against someone else's conversation.
-      throw new UnauthorizedException("Call does not belong to this agent");
+      // rather than book against someone else's conversation — unless it was
+      // handed over, and then a second meeting beside the one being moved is
+      // exactly what must not happen.
+      const grant = await this.handoffs.grantFor(agent, agentCall);
+      if (grant.kind === "participant") {
+        return { ok: false, error: RESCHEDULE_COMMIT_UNAVAILABLE };
+      }
+      if (grant.kind === "refused") return this.refuse(grant);
     }
 
     // One appointment per conversation. The agent can call this tool twice —
@@ -672,8 +716,21 @@ export class VoiceAgentToolService {
         error: "The current call could not be found for a callback.",
       };
     }
-    if (agentCall.agentId !== agent.id) {
-      throw new UnauthorizedException("Call does not belong to this agent");
+    const grant = await this.handoffs.grantFor(agent, agentCall);
+    if (grant.kind === "refused") return this.refuse(grant);
+    if (grant.kind === "participant") {
+      // A specialist continuing a request calls back about that request — not
+      // the agent that placed the call, and not with that call's variables.
+      return this.scheduleRequestCallback(ctx, {
+        agentCall,
+        handoffId: grant.handoff.id,
+        destinationAgentId: agent.id,
+        destinationName: agent.name,
+        contactId: grant.handoff.contactId,
+        key: `handoff:${grant.handoff.id}:agreed:${agentCall.id}`,
+        scheduledAt,
+        note: input.note,
+      });
     }
 
     const contactId = await this.resolveContactId(ctx, agentCall);
@@ -787,8 +844,14 @@ export class VoiceAgentToolService {
     if (!agentCall) {
       return { ok: false, error: "The current call could not be found." };
     }
-    if (agentCall.agentId !== agent.id) {
-      throw new UnauthorizedException("Call does not belong to this agent");
+    const grant = await this.handoffs.grantFor(agent, agentCall);
+    if (grant.kind === "refused") return this.refuse(grant);
+    if (grant.kind === "participant") {
+      return {
+        ok: false,
+        error:
+          "Attendance is recorded by the assistant that placed this call. Continue without it.",
+      };
     }
 
     const execution = await this.reminderExecutions.findByAgentCallId(
@@ -857,12 +920,23 @@ export class VoiceAgentToolService {
     );
 
     if (attendance === "declined") {
+      // Whether this call can continue with the scheduling agent, read now —
+      // the same check the handoff preparation repeats.
+      const destination = ctx.organizationId
+        ? await this.handoffs
+            .resolveDestination(
+              { userId: ctx.userId, organizationId: ctx.organizationId },
+              agent.voiceLanguage,
+            )
+            .catch(() => null)
+        : null;
       return {
         ok: true,
         attendance,
         email: "not_applicable",
-        speech_instruction:
-          "Tell the person their answer is recorded and that the team will be told. Do not promise a new time or a response time.",
+        speech_instruction: destination?.ok
+          ? `Tell the person their answer is recorded. Then ask once whether they would like to find another time now; ${destination.agent.name} can do it on this call. If they agree, ask what days or times suit them if they have not said, then call prepare_reschedule_handoff. If they would rather not, respect it and end the call. Do not promise a new time yourself.`
+          : "Tell the person their answer is recorded and that the team will be told. Do not promise a new time or a response time.",
       };
     }
 
@@ -930,9 +1004,8 @@ export class VoiceAgentToolService {
         error: "The current call could not be found for human follow-up.",
       };
     }
-    if (agentCall.agentId !== agent.id) {
-      throw new UnauthorizedException("Call does not belong to this agent");
-    }
+    const grant = await this.handoffs.grantFor(agent, agentCall);
+    if (grant.kind === "refused") return this.refuse(grant);
 
     const identity = contactIdentityFromVariables(agentCall.variables);
     const storedContact = agentCall.contactId
@@ -962,6 +1035,10 @@ export class VoiceAgentToolService {
       contact,
       subject,
       message,
+      // A participant's request is its own: the source may already have
+      // asked for help earlier on the same call.
+      dedupeScope:
+        grant.kind === "participant" ? grant.participant.id : undefined,
     });
     if (!delivery.delivered) {
       return {
@@ -984,6 +1061,388 @@ export class VoiceAgentToolService {
       speech_instruction:
         "Tell the person that human follow-up has been requested. Do not promise a response time.",
     };
+  }
+
+  // ── Handoff to the scheduling agent (AGENT-021) ──────────────
+
+  /**
+   * The reminders agent asks to hand the call to the scheduling agent, after
+   * the person said they cannot attend and agreed to look for another time.
+   *
+   * Stores the request and its context, and authorizes the destination,
+   * before the provider handoff can happen. The model supplies only what the
+   * person said: the meeting, its version, the contact and the destination
+   * are all derived from the call and the workspace.
+   */
+  async prepareRescheduleHandoff(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: {
+      person_said?: string;
+      preferences?: string;
+      identity_confirmed?: boolean | string;
+      language?: string;
+    },
+  ): Promise<ToolResult<RescheduleHandoffResult> & { fallback?: string }> {
+    const located = await this.locateRootCall(agentId, secret, callControlId);
+    if (!located.ok) return located;
+    const { agent, ctx, agentCall } = located;
+
+    const prepared = await this.handoffs.prepareReschedule(
+      ctx,
+      agent,
+      agentCall,
+      {
+        personSaid: this.optionalText(input.person_said),
+        preferences: this.optionalText(input.preferences),
+        identityConfirmed:
+          input.identity_confirmed === true ||
+          input.identity_confirmed === "true",
+        language: this.optionalText(input.language),
+      },
+    );
+    if (!prepared.ok) return this.prepareFailure(prepared.code);
+
+    const name = prepared.destination.name;
+    const preference = prepared.handoff.preferences
+      ? ` and that you have passed on what suits them (${prepared.handoff.preferences})`
+      : "";
+    return {
+      ok: true,
+      handoff: { status: "ready", to: name },
+      speech_instruction: `In one short sentence, tell the person you are passing them to ${name}, who will find a new time for the meeting${preference}. Then immediately use the handoff tool to hand the call to ${name}, and say nothing more. If the handoff does not go through, offer that ${name} calls them back: agree an exact time and call schedule_reschedule_callback.`,
+    };
+  }
+
+  /**
+   * The reminders agent still holds the call and agrees a callback by the
+   * scheduling agent instead: the handoff did not go through, or the person
+   * would rather be called later. The callback is assigned to the scheduling
+   * agent and bound to the request; the call is promised only once it exists.
+   */
+  async scheduleRescheduleCallback(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: {
+      scheduled_at?: string;
+      note?: string;
+      why?: string;
+      person_said?: string;
+      preferences?: string;
+    },
+  ): Promise<ToolResult<ScheduleCallbackResult>> {
+    const scheduledAt = this.parseOffsetDate(input.scheduled_at);
+    if (!scheduledAt) {
+      return {
+        ok: false,
+        error:
+          "The callback time must be a valid ISO 8601 date and time with a timezone offset.",
+      };
+    }
+    if (scheduledAt.getTime() <= Date.now()) {
+      return { ok: false, error: "The callback time is already in the past." };
+    }
+    const located = await this.locateRootCall(agentId, secret, callControlId);
+    if (!located.ok) return located;
+    const { agent, ctx, agentCall } = located;
+
+    const failed = await this.handoffs.failToCallback(ctx, agent, agentCall, {
+      why: input.why,
+      personSaid: this.optionalText(input.person_said),
+      preferences: this.optionalText(input.preferences),
+    });
+    if (!failed.ok) {
+      return {
+        ok: false,
+        error:
+          failed.code === "meeting_changed"
+            ? "This meeting was moved or cancelled after the call started. Do not promise a call back; tell the person the team will contact them with the current details."
+            : failed.code === "not_about_a_meeting"
+              ? "This call is not about a scheduled meeting. Use schedule_callback instead."
+              : "The scheduling assistant cannot call back right now. Do not promise a call back; if the person wants help, call request_human_support.",
+      };
+    }
+    return this.scheduleRequestCallback(ctx, {
+      agentCall,
+      handoffId: failed.handoff.id,
+      destinationAgentId: failed.destination.id,
+      destinationName: failed.destination.name,
+      contactId: failed.handoff.contactId,
+      key: `handoff:${failed.handoff.id}:agreed:${agentCall.id}`,
+      scheduledAt,
+      note: input.note,
+    });
+  }
+
+  /**
+   * The scheduling agent, having taken a call over or placed a callback for a
+   * request, reads what it continues: the meeting, why, what the person
+   * already said and how far the call got — rebuilt from stored records. Its
+   * first tool call on a handed-over call is also the proof the handoff
+   * completed (`VoiceAgentHandoffService.grantFor`).
+   */
+  async getHandoffContext(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+  ): Promise<ToolResult<HandoffContextResult>> {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    if (!callControlId) {
+      return { ok: false, error: "The current call could not be identified." };
+    }
+    if (!ctx.organizationId) {
+      throw new UnauthorizedException("Unknown agent");
+    }
+    const agentCall = await this.agentCalls.findByCallControlId(callControlId);
+    if (!agentCall) {
+      return { ok: false, error: "The current call could not be found." };
+    }
+    const grant = await this.handoffs.grantFor(agent, agentCall);
+    if (grant.kind === "root") {
+      return {
+        ok: false,
+        error:
+          "Nothing was handed to you on this call. Continue the conversation as usual.",
+      };
+    }
+    if (grant.kind === "refused") return this.refuse(grant);
+    const view = await this.handoffs.describe(
+      { userId: ctx.userId, organizationId: ctx.organizationId },
+      grant,
+    );
+    if (!view) {
+      return {
+        ok: false,
+        error:
+          "The meeting this call is about no longer exists. Apologize, say the team will contact them, and end the call.",
+      };
+    }
+    return { ok: true, ...view };
+  }
+
+  /** Availability for the meeting a participant was handed (AGENT-021). */
+  private async rescheduleSlots(
+    ctx: OwnershipContext,
+    grant: Extract<HandoffGrant, { kind: "participant" }>,
+    date: string,
+  ): Promise<ToolResult<AvailableSlotsResult>> {
+    if (!ctx.organizationId) {
+      throw new UnauthorizedException("Unknown agent");
+    }
+    const orgCtx: OrganizationOwnershipContext = {
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
+    };
+    const scope = await this.handoffs.availabilityFor(orgCtx, grant);
+    if (!scope.ok) return { ok: false, error: scope.error };
+    try {
+      const slots = await this.calendars.getBookableSlotsForCalendar(
+        orgCtx,
+        scope.resolved,
+        {
+          date,
+          durationMinutes: scope.durationMinutes,
+          excludeMeetingId: scope.excludeMeetingId,
+        },
+      );
+      const offered = slots
+        .slice(0, MAX_OFFERED_SLOTS)
+        .map(({ start, label }) => ({ start, label }));
+      await this.handoffs.recordOffer(grant, offered);
+      return {
+        ok: true,
+        timezone: scope.resolved.timezone,
+        duration_minutes: scope.durationMinutes,
+        speech_instruction: `${NATURAL_SLOT_SPEECH_INSTRUCTION} ${RESCHEDULE_SLOT_SPEECH_INSTRUCTION}`,
+        slots: offered,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Reschedule availability failed for handoff ${grant.handoff.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return {
+        ok: false,
+        error:
+          "The calendar could not be reached, so no times can be offered right now.",
+      };
+    }
+  }
+
+  /**
+   * A callback assigned to the scheduling agent and bound to the request.
+   * Replay-safe by key: the same tool call on the same call is the same
+   * callback.
+   */
+  private async scheduleRequestCallback(
+    ctx: OwnershipContext,
+    input: {
+      agentCall: AiVoiceAgentCall;
+      handoffId: string;
+      destinationAgentId: string;
+      destinationName: string;
+      contactId: string | null;
+      key: string;
+      scheduledAt: Date;
+      note?: string;
+    },
+  ): Promise<ToolResult<ScheduleCallbackResult>> {
+    if (!ctx.organizationId || !input.contactId) {
+      return {
+        ok: false,
+        error: "There is no contact to schedule this callback for.",
+      };
+    }
+    try {
+      const callback = await this.callbacks.scheduleAgentCallback({
+        handoffId: input.handoffId,
+        agentId: input.destinationAgentId,
+        kind: CallbackAgentKind.agreed,
+        key: input.key,
+        userId: input.agentCall.userId,
+        organizationId: ctx.organizationId,
+        contactId: input.contactId,
+        callId: input.agentCall.callId,
+        scheduledAt: input.scheduledAt,
+        note:
+          this.supportText(input.note, CALLBACK_NOTE_MAX) ||
+          "Call back to find a new time for a meeting the contact could not attend.",
+      });
+      await this.recordCallbackOutcome(input.agentCall);
+      return {
+        ok: true,
+        callback: {
+          id: callback.id,
+          scheduled_at: callback.scheduledAt.toISOString(),
+          status: callback.status,
+        },
+        speech_instruction: `Confirm the date and time of the call back naturally, in the person's time zone, and say that ${input.destinationName} will call to find a new time. Thank them and end the call.`,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Reschedule callback failed for handoff ${input.handoffId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return {
+        ok: false,
+        error:
+          "The callback could not be scheduled. Do not promise that the call will happen.",
+      };
+    }
+  }
+
+  /**
+   * The source agent's own live call, for the tools only it may use. An agent
+   * that already handed the call over is refused, and so is anyone else.
+   */
+  private async locateRootCall(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+  ): Promise<
+    | {
+        ok: true;
+        agent: AiVoiceAgent;
+        ctx: OrganizationOwnershipContext;
+        agentCall: AiVoiceAgentCall;
+      }
+    | { ok: false; error: string }
+  > {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    if (!ctx.organizationId) throw new UnauthorizedException("Unknown agent");
+    if (!callControlId) {
+      return { ok: false, error: "The current call could not be identified." };
+    }
+    const agentCall = await this.agentCalls.findByCallControlId(callControlId);
+    if (!agentCall) {
+      return { ok: false, error: "The current call could not be found." };
+    }
+    const grant = await this.handoffs.grantFor(agent, agentCall);
+    if (grant.kind === "refused") return this.refuse(grant);
+    if (grant.kind === "participant") {
+      return {
+        ok: false,
+        error:
+          "This call was handed to you; only its first assistant uses this tool.",
+      };
+    }
+    return {
+      ok: true,
+      agent,
+      ctx: { userId: ctx.userId, organizationId: ctx.organizationId },
+      agentCall,
+    };
+  }
+
+  /**
+   * What a refused participation reads back. An agent the workspace never
+   * authorized on the call is refused exactly as before handoffs existed.
+   */
+  private refuse(grant: Extract<HandoffGrant, { kind: "refused" }>): {
+    ok: false;
+    error: string;
+  } {
+    switch (grant.reason) {
+      case "handed_off":
+        return {
+          ok: false,
+          error:
+            "This conversation was handed to another assistant. Do not act on it any more.",
+        };
+      case "call_ended":
+        return { ok: false, error: "The call is no longer active." };
+      case "handoff_failed":
+        return {
+          ok: false,
+          error:
+            "This call was not handed to you. Say the team will follow up, and end the call politely.",
+        };
+      case "not_participant":
+        throw new UnauthorizedException("Call does not belong to this agent");
+    }
+  }
+
+  private prepareFailure(code: PrepareRescheduleFailure): {
+    ok: false;
+    error: string;
+    fallback?: string;
+  } {
+    switch (code) {
+      case "not_about_a_meeting":
+        return {
+          ok: false,
+          error:
+            "This call is not about a scheduled meeting, so it cannot be handed over. Continue without it.",
+        };
+      case "meeting_changed":
+        return {
+          ok: false,
+          error:
+            "This meeting was moved or cancelled after the call started. Do not offer a new time; tell the person the team will contact them with the current details.",
+        };
+      case "call_ended":
+        return { ok: false, error: "The call is no longer active." };
+      case "handoff_already_failed":
+        return {
+          ok: false,
+          fallback: "callback",
+          error:
+            "Handing over did not work on this call. Offer that the scheduling assistant calls them back: agree an exact time and call schedule_reschedule_callback.",
+        };
+      default:
+        // The destination itself is unavailable: it could not call back
+        // either, so nothing is promised.
+        return {
+          ok: false,
+          fallback: "human_support",
+          error:
+            "Finding a new time is not available right now. Tell the person their answer is recorded and that the team will follow up; if they want a person, call request_human_support. Do not hand the call over.",
+        };
+    }
   }
 
   // ── Authorization ────────────────────────────────────────────
@@ -1039,6 +1498,10 @@ export class VoiceAgentToolService {
 
   private supportText(value: string | undefined, maxLength: number): string {
     return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+  }
+
+  private optionalText(value: unknown): string | undefined {
+    return typeof value === "string" && value.trim() ? value : undefined;
   }
 
   private supportSubject(value: string | undefined): string {

@@ -26,6 +26,9 @@ export interface TelnyxAssistantResponse {
   tools?: Array<{
     type?: string | null;
     webhook?: { url?: string | null } | null;
+    handoff?: {
+      ai_assistants?: Array<{ id?: string | null } | null> | null;
+    } | null;
   }> | null;
   telephony_settings?: {
     default_texml_app_id?: string | null;
@@ -174,6 +177,22 @@ function mapTool(tool: VoiceAgentTool): Record<string, unknown> {
           ...(tool.parameters ? { body_parameters: tool.parameters } : {}),
         },
       };
+    case "handoff":
+      // Telnyx's own handoff tool: the model decides when, and the provider
+      // switches assistants inside the same call and conversation. `unified`
+      // keeps the voice the person has been hearing; `distinct` lets the
+      // target speak with its own.
+      // https://developers.telnyx.com/docs/inference/ai-assistants/agent-handoff
+      return {
+        type: "handoff",
+        handoff: {
+          voice_mode: tool.voice === "shared" ? "unified" : "distinct",
+          ai_assistants: tool.targets.map((target) => ({
+            name: target.name,
+            id: target.assistantId,
+          })),
+        },
+      };
   }
 }
 
@@ -257,6 +276,14 @@ export function toVoiceAgentAssistant(
       const url = str(tool?.webhook?.url);
       return tool?.type === "webhook" && url ? [url] : [];
     }),
+    handoffAssistantIds: (raw.tools ?? []).flatMap((tool) =>
+      tool?.type === "handoff"
+        ? (tool.handoff?.ai_assistants ?? []).flatMap((target) => {
+            const id = str(target?.id);
+            return id ? [id] : [];
+          })
+        : [],
+    ),
   };
 }
 

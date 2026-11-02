@@ -65,6 +65,12 @@ calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
 - re-checks what it is calling about right before the dial (versions, calling
   window, DNC through `startCall`), because the row it planned from may be stale.
 
+A call can hold more than one agent (AGENT-021): the agent that placed it and
+one that took it over through a handoff. A voice-agent tool therefore never
+decides who may act on a call from `AiVoiceAgentCall.agentId` alone — it asks
+`VoiceAgentHandoffService.grantFor`, which refuses the agent that handed the
+call away and binds the one that took it to the meeting it was handed.
+
 ## Campaigns and outbound
 
 - Campaigns are organization-only: `ensureOrganization(ctx)` first.
