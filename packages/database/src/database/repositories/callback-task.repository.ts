@@ -500,8 +500,11 @@ export class CallbackTaskRepository {
       if (seed?.handoff?.automationId)
         await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentAutomation" WHERE "id" = ${seed.handoff.automationId}::uuid FOR UPDATE`;
       const objective = await lockFollowUp(tx, input.followUpId);
+      // Read after the lock: an objective that expired while this waited for
+      // it is not dispatched on the time the caller read before.
+      const lockedAt = new Date();
       // A database wait must not carry an expired calling-window decision to the provider.
-      if (Date.now() - input.now.getTime() > 30_000) return false;
+      if (lockedAt.getTime() - input.now.getTime() > 30_000) return false;
       if (
         !objective ||
         objective.revision !== input.expectedRevision ||
@@ -509,7 +512,7 @@ export class CallbackTaskRepository {
         !["scheduled", "in_progress", "waiting", "recovering"].includes(
           objective.state,
         ) ||
-        objective.expiresAt <= input.now ||
+        objective.expiresAt <= lockedAt ||
         objective.agentId !== input.agentId
       )
         return false;

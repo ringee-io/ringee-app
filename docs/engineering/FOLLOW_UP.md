@@ -144,7 +144,10 @@ Ship the additive migration
 `packages/database/prisma/migrations-pending/20261103120000_follow_up_objectives/migration.sql`
 through the same deployment workflow selected for Step 0, before deploying the
 new API/worker. It creates two child tables and three enums, adds nullable callback
-columns and their indexes, and adds lifecycle checks. It does not index or alter
+columns, and adds lifecycle checks. The callback index `CallbackTask_followUpId_idx`
+is built apart, by hand with psql and autocommit, from
+`packages/database/prisma/pending-migrations/20261103120100_follow_up_objectives_callback_indexes.sql`
+(`CREATE INDEX CONCURRENTLY`), before the pilot is enabled. It does not index or alter
 `Call`, backfill recommendations, or run production migrations. Regenerate Prisma
 and rebuild database/backend/orchestrator; deploy the small frontend projection
 alongside them. Keep the pilot allowlist restricted.

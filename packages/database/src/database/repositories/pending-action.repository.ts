@@ -73,6 +73,8 @@ export type PendingActionFilterKey =
 export interface PendingActionDisplay extends PendingAction {
   followUp?: {
     id: string;
+    /** What the objective is for (`reschedule_meeting`), for its label. */
+    objectiveType: string;
     state: FollowUpState;
     mode: "automatic" | "manual";
     nextAction: string | null;
@@ -271,6 +273,7 @@ export class PendingActionRepository {
       select: {
         id: true,
         pendingActionId: true,
+        objectiveType: true,
         state: true,
         mode: true,
         nextAction: true,

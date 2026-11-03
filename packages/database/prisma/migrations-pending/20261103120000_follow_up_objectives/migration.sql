@@ -1,3 +1,9 @@
+-- Additive: two new tables, three new enums, and nullable columns on
+-- CallbackTask. Nothing reads them until the new backend and orchestrator run.
+-- After this migration, run the companion pending-migrations/
+-- 20261103120100_follow_up_objectives_callback_indexes.sql manually with psql:
+-- a plain index build on the live CallbackTask table would block its writes.
+
 -- CreateEnum
 CREATE TYPE "FollowUpState" AS ENUM ('scheduled', 'in_progress', 'waiting', 'recovering', 'paused', 'blocked', 'resolved', 'closed');
 
@@ -92,9 +98,6 @@ CREATE INDEX "PendingActionFollowUpEvent_followUpId_occurredAt_idx" ON "PendingA
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PendingActionFollowUpEvent_followUpId_actionKey_key" ON "PendingActionFollowUpEvent"("followUpId", "actionKey");
-
--- CreateIndex
-CREATE INDEX "CallbackTask_followUpId_idx" ON "CallbackTask"("followUpId");
 
 -- AddForeignKey
 ALTER TABLE "CallbackTask" ADD CONSTRAINT "CallbackTask_followUpId_fkey" FOREIGN KEY ("followUpId") REFERENCES "PendingActionFollowUp"("id") ON DELETE SET NULL ON UPDATE CASCADE;

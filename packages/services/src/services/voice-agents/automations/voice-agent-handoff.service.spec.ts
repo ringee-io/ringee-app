@@ -17,6 +17,7 @@ import {
 } from "@ringee/database";
 import { VoiceAgentToolService } from "../voice-agent-tool.service";
 import { MeetingReminderCallService } from "./meeting-reminder-call.service";
+import { assertVoiceAgentAutomations } from "./automation-access";
 import { VoiceAgentHandoffService } from "./voice-agent-handoff.service";
 
 const config = apiConfiguration as unknown as Record<string, unknown>;
@@ -510,7 +511,12 @@ function world(
     { assistantHandoffMode: () => "assistant_tool" } as never,
     { previousInteractions: async () => "" } as never,
     {
-      prepareFollowUpObjective: async () => undefined,
+      // The real step is pilot-gated: it refuses an organization off the
+      // allowlist.
+      prepareFollowUpObjective: async (ctx: Row) => {
+        assertVoiceAgentAutomations(ctx as never);
+        return undefined;
+      },
       followUpForHandoff: async () => null,
     } as never,
   );
@@ -1284,6 +1290,30 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(t.supports[0]!.dedupeScope, destination!.id);
   });
 
+  it("tells the person help was requested even when recording it on the request fails", async () => {
+    const w = world();
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    const recorded: boolean[] = [];
+    w.handoffService.recordExceptionalIntervention = async (
+      _grant,
+      delivered,
+    ) => {
+      recorded.push(delivered);
+      if (recorded.length === 1) throw new Error("database unavailable");
+    };
+    const ask = () =>
+      t.service.requestHumanSupport("agent-sched", SCHED_SECRET, CC, {
+        subject: "Reschedule request",
+        message: "Wednesday 16:00",
+      });
+    assert.equal((await ask()).ok, true);
+    // Nothing was marked recorded: the repeated request records it.
+    assert.equal((await ask()).ok, true);
+    assert.deepEqual(recorded, [true, true]);
+  });
+
   it("re-validates the destination when it first acts, and refuses a participant once the call ended", async () => {
     // Deactivated after the request was prepared: the provider may still
     // hand the call over, but that authorizes nothing.
@@ -1488,6 +1518,36 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(handoff!.requestStatus, R.needs_attention);
     assert.equal(handoff!.destinationAgentId, null);
     // No participation was opened for anyone.
+    assert.equal(w.participants.length, 0);
+  });
+
+  it("still records the refused request for review when the pilot is off", async () => {
+    const w = world();
+    const t = tools(w);
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-2"];
+    try {
+      const prepared = await t.service.prepareRescheduleHandoff(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        { preferences: "el jueves" },
+      );
+      assert.equal(prepared.ok, false);
+      assert.equal(
+        (prepared as { fallback?: string }).fallback,
+        "human_support",
+      );
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1", "org-2"];
+    }
+    const [handoff] = [...w.handoffs.values()];
+    assert.equal(handoff!.status, H.failed);
+    assert.equal(handoff!.failureReason, "automations_disabled");
+    assert.equal(handoff!.requestStatus, R.needs_attention);
+    assert.equal(
+      handoff!.resolution,
+      "destination_unavailable:automations_disabled",
+    );
     assert.equal(w.participants.length, 0);
   });
 

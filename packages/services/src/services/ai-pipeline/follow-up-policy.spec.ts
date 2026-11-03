@@ -72,6 +72,27 @@ describe("persistent follow-up business results", () => {
     assert.equal(plan?.state, "closed");
     assert.equal(plan?.closureReason, "attempts_exhausted");
   });
+  it("a person who chose a later call is a decision for a person, never exhausted attempts", () => {
+    for (const counters of [{}, { attemptCount: 3, recoveryCount: 1 }]) {
+      const plan = planFollowUp(
+        {
+          ...objective,
+          ...counters,
+          handoff: {
+            ...objective.handoff!,
+            requestStatus: "needs_attention",
+            resolution: "person_prefers_callback",
+          },
+        } as unknown as FollowUpSnapshot,
+        meeting,
+        now,
+      );
+      assert.equal(plan?.state, "blocked");
+      assert.equal(plan?.reason, "person_prefers_callback");
+      assert.equal(plan?.nextAction, "exceptional_decision");
+      assert.equal(plan?.closureReason, undefined);
+    }
+  });
   it("expiration is distinct from refusal or exhausted attempts", () => {
     const plan = planFollowUp({ ...objective, expiresAt: now }, meeting, now);
     assert.equal(plan?.closureReason, "expired");

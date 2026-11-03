@@ -94,7 +94,13 @@ export function PendingActionsTable({
 
               <TableCell className='hidden md:table-cell'>
                 <div className='font-medium'>
-                  {a.followUp ? a.title : t(`actionTypes.${a.type}`)}
+                  {a.followUp
+                    ? t.has(
+                        `followUp.objectiveTypes.${a.followUp.objectiveType}`
+                      )
+                      ? t(`followUp.objectiveTypes.${a.followUp.objectiveType}`)
+                      : a.title
+                    : t(`actionTypes.${a.type}`)}
                 </div>
                 {a.reason && (
                   <div className='text-muted-foreground line-clamp-2 text-xs'>

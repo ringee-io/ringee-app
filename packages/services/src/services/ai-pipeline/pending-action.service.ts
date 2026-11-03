@@ -21,6 +21,7 @@ import {
   FollowUpClosureReason,
   FollowUpState,
   FollowUpPlan,
+  MeetingStatus,
   AiPipelineType,
   PendingAction,
   PendingActionFilterKey,
@@ -224,10 +225,9 @@ export class PendingActionService {
     now: Date,
   ): Promise<NewFollowUpObjective> {
     assertVoiceAgentAutomations(ctx);
-    if (
-      source.organizationId !== ctx.organizationId ||
-      source.userId !== ctx.userId
-    )
+    // `ctx` is the agent's workspace; the call may have been placed by any
+    // member (a manual "call now"), whose membership is checked below.
+    if (source.organizationId !== ctx.organizationId)
       throw new NotFoundException("Follow-up source not found");
     const responsibleUserId = source.responsibleUserId ?? source.userId;
     const [contact, meeting, member, configuredBy] = await Promise.all([
@@ -587,6 +587,16 @@ export class PendingActionService {
         if (!snapshot?.handoff || snapshot.handoff.offeredAt)
           throw new ConflictException(
             "The meeting change needs an exceptional decision",
+          );
+        // A meeting cancelled while the objective was paused or taken over
+        // resolves nothing, and no agent may move it: bringing it back is a
+        // person's decision, so nothing is scheduled for it.
+        const meeting = snapshot.meetingId
+          ? await this.meetings.findByIdForOwner(ctx, snapshot.meetingId)
+          : null;
+        if (!meeting || meeting.status === MeetingStatus.cancelled)
+          throw new ConflictException(
+            "The meeting was cancelled; it cannot return to automatic follow-up",
           );
         const contact = snapshot.action.contactId
           ? await this.contacts.findByIdForOwner(ctx, snapshot.action.contactId)

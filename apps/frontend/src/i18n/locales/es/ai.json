@@ -448,6 +448,9 @@
       "modes": {
         "automatic": "Seguimiento IA",
         "manual": "Control manual"
+      },
+      "objectiveTypes": {
+        "reschedule_meeting": "Reprogramar reunión"
       }
     }
   },

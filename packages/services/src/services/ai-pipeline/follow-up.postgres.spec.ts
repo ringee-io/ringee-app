@@ -173,7 +173,8 @@ describe(
       await prisma.$disconnect();
     });
 
-    async function seed() {
+    /** `placedBy`: the member who placed the reminder call (a "call now"). */
+    async function seed(placedBy = adminId) {
       const now = new Date();
       const contact = await prisma.contact.create({
         data: {
@@ -195,6 +196,7 @@ describe(
       const call = await prisma.call.create({
         data: {
           ...ctx,
+          userId: placedBy,
           contactId: contact.id,
           fromNumber: "+12025550100",
           toNumber: contact.phoneNumber,
@@ -207,6 +209,7 @@ describe(
       const agentCall = await prisma.aiVoiceAgentCall.create({
         data: {
           ...ctx,
+          userId: placedBy,
           agentId: sourceAgentId,
           callId: call.id,
           contactId: contact.id,
@@ -219,6 +222,7 @@ describe(
       await prisma.meetingReminderExecution.create({
         data: {
           ...ctx,
+          userId: placedBy,
           agentId: sourceAgentId,
           agentCallId: agentCall.id,
           meetingId: meeting.id,
@@ -380,6 +384,61 @@ describe(
         limit: 100,
       });
       assert.ok(!queue.some((row) => row.id === f.objective.pendingActionId));
+      await close(f.objective.id);
+    });
+
+    it("a reminder call another member placed still opens its objective, configured by that member", async () => {
+      const f = await seed(colleagueId);
+      assert.equal(f.handoff.userId, colleagueId);
+      assert.equal(f.objective.configuredByUserId, colleagueId);
+      assert.equal(f.objective.responsibleUserId, memberId);
+      await close(f.objective.id);
+    });
+
+    it("filling the contact's blanks while the callback is placed does not refuse its dispatch", async () => {
+      const f = await seed();
+      const callback = await schedule(f);
+      let dials = 0;
+      const worker = new CallbackService(
+        callbacks,
+        {} as never,
+        {} as never,
+        {} as never,
+        contacts,
+        { enqueue: async () => undefined } as never,
+        agentCalls,
+        {
+          startCall: async (
+            _ctx: unknown,
+            _agent: string,
+            _input: unknown,
+            guard: (p: {
+              agentCallId: string;
+              callId: string;
+            }) => Promise<void>,
+          ) => {
+            const current = (await callbacks.findById(callback.id))!;
+            const pending = await placement(current);
+            // VoiceAgentCallService fills blanks from the call's variables
+            // (here the last name split from `name`) before the guard runs.
+            await prisma.contact.update({
+              where: { id: f.contact.id },
+              data: { lastName: "Contact" },
+            });
+            await guard(pending.placement);
+            dials++;
+            return { id: pending.placement.agentCallId };
+          },
+        } as never,
+        calls,
+        handoffs,
+        service,
+      );
+      await worker.processDueCallbacks();
+      const stored = (await callbacks.findById(callback.id))!;
+      assert.equal(dials, 1, `Callback reason: ${stored.reason}`);
+      assert.notEqual(stored.dispatchCommittedAt, null);
+      assert.notEqual(stored.status, "cancelled");
       await close(f.objective.id);
     });
 
@@ -602,6 +661,34 @@ describe(
           });
         await close(f.objective.id);
       }
+    });
+
+    it("an objective that expired while the dispatch waited for its lock is not dispatched", async () => {
+      const f = await seed();
+      const step = await schedule(f);
+      const claimed = await claim(step.id);
+      const reserved = (await callbacks.beginAgentDial(
+        step.id,
+        claimed.claimToken!,
+        new Date(),
+        new Date(Date.now() + 300_000),
+      ))!;
+      const input = await placement(reserved);
+      // The worker decided before the wait; the objective expired during it.
+      const decidedAt = new Date(Date.now() - 5_000);
+      await prisma.pendingActionFollowUp.update({
+        where: { id: f.objective.id },
+        data: { expiresAt: new Date(Date.now() - 1_000) },
+      });
+      assert.equal(
+        await callbacks.commitFollowUpDispatch({ ...input, now: decidedAt }),
+        false,
+      );
+      assert.equal(
+        (await callbacks.findById(step.id))?.dispatchCommittedAt,
+        null,
+      );
+      await close(f.objective.id);
     });
 
     it("a dispatch waiting behind the pause transaction observes its committed state", async () => {
@@ -914,6 +1001,35 @@ describe(
         /explicitly/,
       );
       const now = new Date();
+      // A meeting cancelled during the takeover is not called about again.
+      await prisma.meeting.update({
+        where: { id: f.meeting.id },
+        data: { status: "cancelled" },
+      });
+      await assert.rejects(
+        service.controlFollowUp(
+          memberCtx,
+          row.pendingActionId,
+          { operation: "return_automatic", expectedRevision: row.revision },
+          now,
+        ),
+        /cancelled/,
+      );
+      assert.equal(
+        await prisma.callbackTask.count({
+          where: {
+            handoffId: f.handoff.id,
+            status: { in: ["scheduled", "due", "in_progress"] },
+          },
+        }),
+        0,
+      );
+      row = (await actions.followUpSnapshot(row.id))!;
+      assert.equal(row.mode, "manual");
+      await prisma.meeting.update({
+        where: { id: f.meeting.id },
+        data: { status: "scheduled" },
+      });
       await service.controlFollowUp(
         memberCtx,
         row.pendingActionId,

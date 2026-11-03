@@ -72,13 +72,10 @@ export function planFollowUp(
     handoff.resolution !== "placement_pending_reconciliation"
   ) {
     const reason = handoff.resolution ?? "exceptional_decision_required";
-    if (
-      [
-        "no_response",
-        "handoff_not_completed",
-        "person_prefers_callback",
-      ].includes(reason)
-    )
+    // A person who chose a later call has used no attempt up: what follows
+    // is a person's decision (the handoff settles it for review), never a
+    // closure as exhausted, whatever the counters say.
+    if (["no_response", "handoff_not_completed"].includes(reason))
       return end(reason, "attempts_exhausted");
     return blocked(reason);
   }

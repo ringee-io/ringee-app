@@ -199,7 +199,6 @@ export type HandoffCallbackDecision =
       binding: AiVoiceAgentParticipantBinding;
       handoff: AiVoiceAgentHandoff;
       followUpRevision?: number;
-      contactUpdatedAt?: Date;
     }
   | { action: "skip"; status: CallbackStatus; reason: string }
   | { action: "defer"; until: Date; reason: string };
@@ -575,17 +574,23 @@ export class VoiceAgentHandoffService {
 
     if (!destination.ok) {
       // Recorded even though nothing will happen live: the request exists,
-      // and a person must see why it could not be handed over.
-      const { handoff } = await this.createRequest(ctx, {
-        ...base,
-        destinationAgentId: null,
-        automationId: null,
-        status: H.failed,
-        failureReason: destination.reason,
-        requestStatus: R.needs_attention,
-        resolution: `destination_unavailable:${destination.reason}`,
-        reviewAt: now,
-      });
+      // and a person must see why it could not be handed over. Off the pilot
+      // allowlist there is no follow-up objective to open beside it — that
+      // step is pilot-gated — but the refusal is still stored for review.
+      const { handoff } = await this.createRequest(
+        ctx,
+        {
+          ...base,
+          destinationAgentId: null,
+          automationId: null,
+          status: H.failed,
+          failureReason: destination.reason,
+          requestStatus: R.needs_attention,
+          resolution: `destination_unavailable:${destination.reason}`,
+          reviewAt: now,
+        },
+        { followUp: voiceAgentAutomationsEnabled(ctx.organizationId) },
+      );
       return { ok: false, code: destination.reason, handoff };
     }
 
@@ -612,12 +617,15 @@ export class VoiceAgentHandoffService {
   private async createRequest(
     ctx: OrganizationOwnershipContext,
     input: AiVoiceAgentHandoffInput,
+    options: { followUp: boolean } = { followUp: true },
   ) {
-    const objective = await this.pendingActions.prepareFollowUpObjective(
-      ctx,
-      input,
-      new Date(),
-    );
+    const objective = options.followUp
+      ? await this.pendingActions.prepareFollowUpObjective(
+          ctx,
+          input,
+          new Date(),
+        )
+      : undefined;
     return this.handoffs.createOnce(input, objective);
   }
 
@@ -1504,7 +1512,6 @@ export class VoiceAgentHandoffService {
       },
       handoff,
       followUpRevision: objective?.revision,
-      contactUpdatedAt: contact.updatedAt,
     };
   }
 
@@ -1566,6 +1573,15 @@ export class VoiceAgentHandoffService {
         !isWithinCallingWindow(commitAt, window, timeZone)
       )
         throw new HandoffDialRefused(CallbackStatus.missed, "outside_window");
+      // Placing the call fills the contact's blanks from these variables
+      // (`findOrCreateByPhone`), which moves its version past the decision's.
+      // The number is what the decision depended on: re-read, still the same
+      // number, and the commit is fenced on that version.
+      const contact = handoff.contactId
+        ? await this.contacts.findByIdForOwner(decision.ctx, handoff.contactId)
+        : null;
+      if (!contact || normalizePhoneE164(contact.phoneNumber) !== decision.to)
+        throw new HandoffDialRefused(CallbackStatus.missed, "contact_changed");
       if (
         !(await this.callbacks.commitFollowUpDispatch({
           callbackId: callback.id,
@@ -1575,7 +1591,7 @@ export class VoiceAgentHandoffService {
           agentId: destination.agent.id,
           meetingId: meeting.id,
           meetingVersion: meeting.scheduleVersion,
-          contactUpdatedAt: decision.contactUpdatedAt,
+          contactUpdatedAt: contact.updatedAt,
           to: decision.to,
           placement,
           now: commitAt,

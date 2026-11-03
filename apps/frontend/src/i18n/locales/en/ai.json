@@ -448,6 +448,9 @@
       "modes": {
         "automatic": "AI follow-up",
         "manual": "Manual takeover"
+      },
+      "objectiveTypes": {
+        "reschedule_meeting": "Reschedule meeting"
       }
     }
   },

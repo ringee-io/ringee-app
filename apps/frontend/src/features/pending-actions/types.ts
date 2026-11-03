@@ -6,6 +6,7 @@ export interface PendingActionView {
   source: 'rule' | 'ai' | 'manual';
   followUp?: {
     id: string;
+    objectiveType: string;
     state:
       | 'scheduled'
       | 'in_progress'

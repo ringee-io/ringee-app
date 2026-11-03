@@ -1064,11 +1064,23 @@ export class VoiceAgentToolService {
       dedupeScope:
         grant.kind === "participant" ? grant.participant.id : undefined,
     });
-    if (grant.kind === "participant")
-      await this.handoffs.recordExceptionalIntervention(
-        grant,
-        delivery.delivered,
-      );
+    if (grant.kind === "participant") {
+      // The team was (or was not) told whatever this write does: its failure
+      // must not change what the person hears. Nothing is marked recorded —
+      // the write is one keyed transaction — so a repeated request records it.
+      try {
+        await this.handoffs.recordExceptionalIntervention(
+          grant,
+          delivery.delivered,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Could not record the human support request on handoff ${grant.handoff.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
     if (!delivery.delivered) {
       return {
         ok: false,
