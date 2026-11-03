@@ -66,7 +66,24 @@ export function planFollowUp(
     nextActionAt: null,
   });
   if (!handoff) return blocked("handoff_unavailable");
-  if (handoff.offeredAt) return blocked("reschedule_commit_pending");
+  const live = (
+    call: { status: string; endedAt: Date | null } | null | undefined,
+  ) => call && !call.endedAt && !["completed", "failed"].includes(call.status);
+  // Offered times wait for a person only once nobody is on the phone and no
+  // callback is still to come: while the call that offered them is live, the
+  // specialist may still move the meeting; a callback the person agreed to is
+  // the next step, as the handoff's own review has it. Blocking would settle
+  // the request under either, and withdraw a callback already promised.
+  if (
+    handoff.offeredAt &&
+    !live(handoff.agentCall.call) &&
+    !row.callbacks.some(
+      (step) =>
+        live(step.agentCall?.call) ||
+        ["scheduled", "due", "in_progress"].includes(step.status),
+    )
+  )
+    return blocked("reschedule_commit_pending");
   if (
     handoff.requestStatus === "needs_attention" &&
     handoff.resolution !== "placement_pending_reconciliation"
@@ -79,9 +96,6 @@ export function planFollowUp(
       return end(reason, "attempts_exhausted");
     return blocked(reason);
   }
-  const live = (
-    call: { status: string; endedAt: Date | null } | null | undefined,
-  ) => call && !call.endedAt && !["completed", "failed"].includes(call.status);
   const latest =
     row.callbacks.find(
       (step) =>

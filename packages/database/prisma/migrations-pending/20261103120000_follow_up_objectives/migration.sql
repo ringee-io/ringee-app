@@ -3,6 +3,8 @@
 -- After this migration, run the companion pending-migrations/
 -- 20261103120100_follow_up_objectives_callback_indexes.sql manually with psql:
 -- a plain index build on the live CallbackTask table would block its writes.
+-- The CallbackTask foreign key lands here NOT VALID: no table scan, only a
+-- brief lock, and it already applies to new rows. That file validates it.
 
 -- CreateEnum
 CREATE TYPE "FollowUpState" AS ENUM ('scheduled', 'in_progress', 'waiting', 'recovering', 'paused', 'blocked', 'resolved', 'closed');
@@ -100,7 +102,7 @@ CREATE INDEX "PendingActionFollowUpEvent_followUpId_occurredAt_idx" ON "PendingA
 CREATE UNIQUE INDEX "PendingActionFollowUpEvent_followUpId_actionKey_key" ON "PendingActionFollowUpEvent"("followUpId", "actionKey");
 
 -- AddForeignKey
-ALTER TABLE "CallbackTask" ADD CONSTRAINT "CallbackTask_followUpId_fkey" FOREIGN KEY ("followUpId") REFERENCES "PendingActionFollowUp"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "CallbackTask" ADD CONSTRAINT "CallbackTask_followUpId_fkey" FOREIGN KEY ("followUpId") REFERENCES "PendingActionFollowUp"("id") ON DELETE SET NULL ON UPDATE CASCADE NOT VALID;
 
 -- AddForeignKey
 ALTER TABLE "PendingActionFollowUp" ADD CONSTRAINT "PendingActionFollowUp_pendingActionId_fkey" FOREIGN KEY ("pendingActionId") REFERENCES "PendingAction"("id") ON DELETE CASCADE ON UPDATE CASCADE;

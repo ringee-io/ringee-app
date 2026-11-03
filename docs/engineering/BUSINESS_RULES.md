@@ -2134,8 +2134,11 @@ legacy handoffs are not enrolled.
 
 - A callback is a step, not success. Rescheduling resolves only from an authorized
   newer stored meeting at a different time, checked again under its row lock.
-  Availability blocks for the meeting decision; the original time passing and
-  meeting cancellation alone resolve nothing. Closure explicitly records refusal,
+  Availability blocks for the meeting decision once no call is live and no
+  callback is still to come — the specialist may still move the meeting on that
+  call, and a callback the person agreed to is kept; the original time passing
+  and meeting cancellation alone resolve nothing. A request whose objective
+  cannot be enrolled is still recorded, without one. Closure explicitly records refusal,
   objective cancellation, expiry or exhausted attempts.
 - Every active objective has a timed next action, an active execution or an
   explicit waiting/paused/blocked reason. Revisions fence stale writes and stable
@@ -2147,8 +2150,9 @@ legacy handoffs are not enrolled.
   Uncertain placement must reconcile the original execution, never redial.
 - Pause, takeover, close and resolve lock the same objective as final dispatch.
   They withdraw uncommitted steps; a committed call may finish and settle.
-  Resume revalidates the case and schedules at least an hour in the future;
-  manual takeover requires explicit `return_automatic`.
+  Resume revalidates the case, the meeting still scheduled or rescheduled, and
+  schedules at least an hour in the future; manual takeover requires explicit
+  `return_automatic`.
 - Configuring administrator, commercial owner and executing agent are distinct.
   Members can see their own objectives without gaining colleagues' call data.
   Existing call/AI debit keys settle each linked call once; transitions are free

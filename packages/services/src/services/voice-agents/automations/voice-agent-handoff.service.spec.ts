@@ -5,6 +5,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
+import { NotFoundException } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgentHandoffRequestStatus,
@@ -59,6 +60,8 @@ function world(
       windowEndMinute: number;
       windowDays: number[];
     };
+    /** What enrolling the follow-up objective does, after the pilot gate. */
+    enroll?: () => Promise<unknown>;
   } = {},
 ) {
   const agents = new Map<string, Row>();
@@ -515,7 +518,7 @@ function world(
       // allowlist.
       prepareFollowUpObjective: async (ctx: Row) => {
         assertVoiceAgentAutomations(ctx as never);
-        return undefined;
+        return over.enroll ? over.enroll() : undefined;
       },
       followUpForHandoff: async () => null,
     } as never,
@@ -1290,28 +1293,36 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(t.supports[0]!.dedupeScope, destination!.id);
   });
 
-  it("tells the person help was requested even when recording it on the request fails", async () => {
+  it("retries recording a request for help, and tells the person it was requested whatever the write does", async () => {
     const w = world();
     const t = tools(w);
     await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
     await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    let failures = 1;
     const recorded: boolean[] = [];
     w.handoffService.recordExceptionalIntervention = async (
       _grant,
       delivered,
     ) => {
       recorded.push(delivered);
-      if (recorded.length === 1) throw new Error("database unavailable");
+      if (failures-- > 0) throw new Error("database unavailable");
     };
     const ask = () =>
       t.service.requestHumanSupport("agent-sched", SCHED_SECRET, CC, {
         subject: "Reschedule request",
         message: "Wednesday 16:00",
       });
-    assert.equal((await ask()).ok, true);
-    // Nothing was marked recorded: the repeated request records it.
+    // A transient failure is retried within the same tool call.
     assert.equal((await ask()).ok, true);
     assert.deepEqual(recorded, [true, true]);
+    // A repeated request (a duplicate delivery) still records it.
+    assert.equal((await ask()).ok, true);
+    assert.equal(recorded.length, 3);
+    // A write that keeps failing is tried a bounded number of times.
+    failures = Infinity;
+    recorded.length = 0;
+    assert.equal((await ask()).ok, true);
+    assert.equal(recorded.length, 3);
   });
 
   it("re-validates the destination when it first acts, and refuses a participant once the call ended", async () => {
@@ -1519,6 +1530,41 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(handoff!.destinationAgentId, null);
     // No participation was opened for anyone.
     assert.equal(w.participants.length, 0);
+  });
+
+  it("records the request without an objective when enrollment is refused, and only then", async () => {
+    // A responsible member who left, a contact deleted since: refused.
+    const refused = world({
+      enroll: async () => {
+        throw new NotFoundException("Follow-up source not found");
+      },
+    });
+    const prepared = await tools(refused).service.prepareRescheduleHandoff(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      {},
+    );
+    assert.equal(prepared.ok, true);
+    const [handoff] = [...refused.handoffs.values()];
+    assert.equal(handoff!.status, H.prepared);
+    assert.equal(handoff!.requestStatus, R.pending);
+    // Any other failure is not swallowed.
+    const broken = world({
+      enroll: async () => {
+        throw new Error("database unavailable");
+      },
+    });
+    await assert.rejects(
+      tools(broken).service.prepareRescheduleHandoff(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        {},
+      ),
+      /database unavailable/,
+    );
+    assert.equal(broken.handoffs.size, 0);
   });
 
   it("still records the refused request for review when the pilot is off", async () => {

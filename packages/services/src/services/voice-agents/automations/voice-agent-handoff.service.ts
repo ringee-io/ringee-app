@@ -1,5 +1,11 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  type NewFollowUpObjective,
   AiVoiceAgent,
   AiVoiceAgentAutomationRepository,
   AiVoiceAgentCall,
@@ -619,13 +625,24 @@ export class VoiceAgentHandoffService {
     input: AiVoiceAgentHandoffInput,
     options: { followUp: boolean } = { followUp: true },
   ) {
-    const objective = options.followUp
-      ? await this.pendingActions.prepareFollowUpObjective(
+    let objective: NewFollowUpObjective | undefined;
+    if (options.followUp) {
+      try {
+        objective = await this.pendingActions.prepareFollowUpObjective(
           ctx,
           input,
           new Date(),
-        )
-      : undefined;
+        );
+      } catch (error) {
+        // Enrollment refused — a responsible member who left, a contact
+        // deleted since: the request is still recorded, without an objective,
+        // as before follow-up objectives existed. Anything else propagates.
+        if (!(error instanceof NotFoundException)) throw error;
+        this.logger.warn(
+          `Handoff ${input.idempotencyKey} recorded without a follow-up objective: ${error.message}`,
+        );
+      }
+    }
     return this.handoffs.createOnce(input, objective);
   }
 
@@ -1274,12 +1291,16 @@ export class VoiceAgentHandoffService {
    */
   async callbackStillWanted(
     handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId">,
+    now = new Date(),
   ): Promise<boolean> {
     const objective = await this.pendingActions.followUpForHandoff(handoff.id);
+    // An objective past its expiry is never claimed again, even before the
+    // reconciler closes it: no callback is promised for it.
     if (
       objective &&
       (objective.mode !== "automatic" ||
-        ["paused", "blocked", "resolved", "closed"].includes(objective.state))
+        ["paused", "blocked", "resolved", "closed"].includes(objective.state) ||
+        objective.expiresAt <= now)
     )
       return false;
     const current = await this.handoffs.findById(handoff.id);

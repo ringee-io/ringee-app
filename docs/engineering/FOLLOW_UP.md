@@ -56,9 +56,14 @@ placement, call completion, attendance decline or availability response resolves
 nothing. Passing the original meeting time or cancelling that meeting alone
 also resolves nothing.
 
-Offering slots blocks the objective with `reschedule_commit_pending`: the
-current tools cannot move the meeting. An explicit human-support request is
-recorded separately, including whether notification succeeded. A later meeting
+Offered slots block the objective with `reschedule_commit_pending` once no call
+is live and no callback is still to come: while the call that offered them is
+on, the specialist may still move the meeting with `move_meeting`, and a callback
+the person agreed to is the next step, as in the handoff's own review. Blocking
+would settle the request under either and withdraw a promised callback.
+An explicit human-support request is recorded separately, including whether
+notification succeeded; a failed write is retried a few times within the tool
+call, since until it lands the request's callbacks are not suspended. A later meeting
 change can resolve either exception. Closure distinguishes refusal, objective
 cancellation, expiration and exhausted contact attempts. No response is never
 success and does not create a routine call for the salesperson.
@@ -95,8 +100,8 @@ uncommitted step, including claimed steps in provider preparation. A committed
 call can finish, append results and settle consumption. Its callback remains
 recoverable even after the objective is paused or closed.
 
-Resume revalidates membership, contact/DNC, specialist, calendar and remaining
-policy. It restores at most one uncommitted step, at a valid window at least an
+Resume revalidates the meeting (still `scheduled` or `rescheduled`),
+membership, contact/DNC, specialist, calendar and remaining policy. It restores at most one uncommitted step, at a valid window at least an
 hour in the future; other old steps stay withdrawn. The new time is policy
 selected and represented as a recovery, never falsely described as agreed.
 Manual takeover remains manual until `return_automatic` is explicitly requested.
@@ -144,10 +149,12 @@ Ship the additive migration
 `packages/database/prisma/migrations-pending/20261103120000_follow_up_objectives/migration.sql`
 through the same deployment workflow selected for Step 0, before deploying the
 new API/worker. It creates two child tables and three enums, adds nullable callback
-columns, and adds lifecycle checks. The callback index `CallbackTask_followUpId_idx`
-is built apart, by hand with psql and autocommit, from
+columns, and adds lifecycle checks. Its callback foreign key lands `NOT VALID`. The
+callback index `CallbackTask_followUpId_idx` and that key's validation run apart, by
+hand with psql and autocommit, from
 `packages/database/prisma/pending-migrations/20261103120100_follow_up_objectives_callback_indexes.sql`
-(`CREATE INDEX CONCURRENTLY`), before the pilot is enabled. It does not index or alter
+(`CREATE INDEX CONCURRENTLY`, then `VALIDATE CONSTRAINT`), before the pilot is
+enabled. It does not index or alter
 `Call`, backfill recommendations, or run production migrations. Regenerate Prisma
 and rebuild database/backend/orchestrator; deploy the small frontend projection
 alongside them. Keep the pilot allowlist restricted.

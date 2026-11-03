@@ -1071,8 +1071,8 @@ el flag activado solo para esa organización:
 
 ### Pendiente para las siguientes entregas
 
-Mover la reunión existente por herramienta (hoy el especialista ofrece horarios
-y deriva la elección a `request_human_support`); cancelación autorizada; correos
+Mover la reunión existente por herramienta ya está hecho: `move_meeting`
+(AGENT-021), llegado desde main. Siguen pendientes: cancelación autorizada; correos
 finales que distingan reagendada / callback / no reagenda; cadencia completa de
 reintentos; bandeja de excepciones y notificación de `needs_attention`;
 idioma por contacto desde llamadas previas; vista de participantes en la UI y
@@ -1096,7 +1096,10 @@ son pasos vinculados. El tick existente concilia objetivos y ejecuta/reconcilia
 callbacks con lease, fencing y clave estable; no hay un segundo scheduler.
 
 La llamada completada o la disponibilidad ofrecida no resuelven el objetivo.
-Ofrecer horarios lo bloquea con `reschedule_commit_pending`; una reunión del
+Ofrecer horarios lo bloquea con `reschedule_commit_pending` cuando ya no hay
+llamada en curso ni callback pendiente: mientras la llamada sigue, el
+especialista aún puede mover la reunión, y un callback acordado es el siguiente
+paso. Una reunión del
 mismo contacto/workspace, con versión nueva y hora distinta, aporta la prueba
 para resolver y retirar pasos obsoletos. Pasar la hora original no cierra nada.
 El cierre distingue rechazo, cancelación del objetivo, expiración y agotamiento.
@@ -1136,8 +1139,10 @@ detallada y requisitos de rollout están en
 
 **Despliegue:** migración aditiva pendiente
 `20261103120000_follow_up_objectives` en `prisma/migrations-pending`, siguiendo el
-flujo seleccionado en Step 0; regenerar Prisma y desplegar API/worker después
-del esquema. No se ejecutaron migraciones de producción ni llamadas reales.
+flujo seleccionado en Step 0; después, a mano con psql y autocommit,
+`pending-migrations/20261103120100_follow_up_objectives_callback_indexes.sql`
+(índice `CONCURRENTLY` y validación de la clave foránea) antes de activar el
+piloto; regenerar Prisma y desplegar API/worker después del esquema. No se ejecutaron migraciones de producción ni llamadas reales.
 Mantener `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` restringido al piloto. Persisten las
 pruebas reales de §16 (proveedor, audio, callback y liquidación) con organización
 y contactos expresamente autorizados.
@@ -1145,4 +1150,5 @@ y contactos expresamente autorizados.
 **Stage 2:** ampliar la autorización de origen de
 `PendingActionService.prepareFollowUpObjective` para la disposición humana y su
 revisión; reutilizar este objetivo, historial y ejecutor. No hay alta automática
-desde «Interesado», compra de Organization ni herramienta para mover reuniones.
+desde «Interesado» ni compra de Organization. Mover la reunión ya lo hace
+`move_meeting` (AGENT-021), llegado desde main.

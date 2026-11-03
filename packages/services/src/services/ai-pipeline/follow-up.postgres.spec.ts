@@ -96,6 +96,9 @@ describe(
       AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS: string[];
     };
     const oldFlags = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    // One number per seeded contact: a repeated one would see an earlier
+    // fixture's live call as the person already being on the phone.
+    let phoneSeq = 1000;
 
     before(async () => {
       assert.ok(
@@ -173,15 +176,16 @@ describe(
       await prisma.$disconnect();
     });
 
-    /** `placedBy`: the member who placed the reminder call (a "call now"). */
-    async function seed(placedBy = adminId) {
+    /** `placedBy`: the member who placed the reminder call (a "call now");
+     * `responsibleUserId`: who the meeting is with. */
+    async function seed(placedBy = adminId, responsibleUserId = memberId) {
       const now = new Date();
       const contact = await prisma.contact.create({
         data: {
           ...ctx,
           firstName: "Test",
           name: "Test Contact",
-          phoneNumber: `+1202555${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`,
+          phoneNumber: `+1202555${String(++phoneSeq).padStart(4, "0")}`,
         },
       });
       const meeting = await prisma.meeting.create({
@@ -189,7 +193,7 @@ describe(
           ...ctx,
           contactId: contact.id,
           calendarId,
-          responsibleUserId: memberId,
+          responsibleUserId,
           scheduledAt: new Date(now.getTime() + 4 * 60 * 60_000),
         },
       });
@@ -937,7 +941,111 @@ describe(
       );
     });
 
-    it("offered availability blocks, a stored meeting change later resolves and withdraws callbacks", async () => {
+    it("a meeting whose responsible member left still records its request, without an objective", async () => {
+      // Leaving an organization ends the membership, not the user.
+      const formerMemberId = randomUUID();
+      await prisma.user.create({ data: { id: formerMemberId } });
+      try {
+        const f = await seed(adminId, formerMemberId);
+        assert.equal(f.handoff.status, "prepared");
+        assert.equal(f.handoff.requestStatus, "pending");
+        assert.equal(f.objective, null);
+        await prisma.call.update({
+          where: { id: f.call.id },
+          data: { endedAt: new Date(), status: "completed" },
+        });
+      } finally {
+        await prisma.user.delete({ where: { id: formerMemberId } });
+      }
+    });
+
+    it("a callback agreed after times were offered is kept once the call ends", async () => {
+      const f = await seed();
+      await handoffRepo.recordOffer(f.handoff.id, {
+        agentCallId: f.agentCall.id,
+        slots: [
+          {
+            start: new Date(Date.now() + 86_400_000).toISOString(),
+            label: "Tomorrow",
+          },
+        ],
+        now: new Date(),
+      });
+      // The person cannot choose yet and agrees to be called back.
+      const { callback } = await callbacks.createAgentCallbackOnce({
+        ...ctx,
+        contactId: f.contact.id,
+        callId: f.call.id,
+        handoffId: f.handoff.id,
+        agentId,
+        agentCallbackKind: "agreed",
+        agentCallbackKey: randomUUID(),
+        scheduledAt: new Date(Date.now() + 3 * 60 * 60_000),
+      });
+      await prisma.call.update({
+        where: { id: f.call.id },
+        data: { endedAt: new Date(), status: "completed" },
+      });
+      await service.reconcileFollowUp(f.objective.id);
+      const row = (await actions.followUpSnapshot(f.objective.id))!;
+      assert.equal(row.state, "scheduled");
+      assert.equal(
+        (await callbacks.findById(callback.id))?.status,
+        "scheduled",
+      );
+      assert.equal(
+        (await handoffRepo.findById(f.handoff.id))?.requestStatus,
+        "pending",
+      );
+      await close(f.objective.id);
+    });
+
+    it("availability offered on a live call leaves the request to the specialist until the call ends", async () => {
+      const f = await seed();
+      await handoffRepo.recordOffer(f.handoff.id, {
+        agentCallId: f.agentCall.id,
+        slots: [
+          {
+            start: new Date(Date.now() + 86_400_000).toISOString(),
+            label: "Tomorrow",
+          },
+        ],
+        now: new Date(),
+      });
+      // The specialist is still on the call that offered the times.
+      await service.reconcileFollowUp(f.objective.id);
+      let row = (await actions.followUpSnapshot(f.objective.id))!;
+      assert.notEqual(row.state, "blocked");
+      assert.equal(
+        (await handoffRepo.findById(f.handoff.id))?.requestStatus,
+        "pending",
+      );
+      // Over without a move: now a person decides.
+      await prisma.call.update({
+        where: { id: f.call.id },
+        data: { endedAt: new Date(), status: "completed" },
+      });
+      await service.reconcileFollowUp(f.objective.id);
+      row = (await actions.followUpSnapshot(f.objective.id))!;
+      assert.equal(row.state, "blocked");
+      assert.equal(row.reason, "reschedule_commit_pending");
+      assert.equal(await actions.badgeCount(memberCtx, memberId), 1);
+      await close(f.objective.id);
+    });
+
+    it("no callback is promised for an objective past its expiry, even before it is closed", async () => {
+      const f = await seed();
+      const handoff = { id: f.handoff.id, organizationId };
+      assert.equal(await handoffs.callbackStillWanted(handoff), true);
+      // Expiring at this very moment is expired.
+      assert.equal(
+        await handoffs.callbackStillWanted(handoff, f.objective.expiresAt),
+        false,
+      );
+      await close(f.objective.id);
+    });
+
+    it("offered availability keeps an agreed callback; a stored meeting change later resolves and withdraws it", async () => {
       const f = await seed();
       const callback = await schedule(f);
       await handoffRepo.recordOffer(f.handoff.id, {
@@ -952,13 +1060,12 @@ describe(
       });
       await service.reconcileFollowUp(f.objective.id);
       let row = (await actions.followUpSnapshot(f.objective.id))!;
-      assert.equal(row.state, "blocked");
-      assert.equal(row.reason, "reschedule_commit_pending");
+      // The callback the person agreed to is the next step, offer or not.
+      assert.equal(row.state, "scheduled");
       assert.equal(
         (await callbacks.findById(callback.id))?.status,
-        "cancelled",
+        "scheduled",
       );
-      assert.equal(await actions.badgeCount(memberCtx, memberId), 1);
       await prisma.meeting.update({
         where: { id: f.meeting.id },
         data: {
@@ -971,6 +1078,10 @@ describe(
       await service.reconcileFollowUp(f.objective.id);
       row = (await actions.followUpSnapshot(f.objective.id))!;
       assert.equal(row.state, "resolved");
+      assert.equal(
+        (await callbacks.findById(callback.id))?.status,
+        "cancelled",
+      );
       assert.equal(
         (await handoffRepo.findById(f.handoff.id))?.requestStatus,
         "resolved",
@@ -1001,29 +1112,33 @@ describe(
         /explicitly/,
       );
       const now = new Date();
-      // A meeting cancelled during the takeover is not called about again.
-      await prisma.meeting.update({
-        where: { id: f.meeting.id },
-        data: { status: "cancelled" },
-      });
-      await assert.rejects(
-        service.controlFollowUp(
-          memberCtx,
-          row.pendingActionId,
-          { operation: "return_automatic", expectedRevision: row.revision },
-          now,
-        ),
-        /cancelled/,
-      );
-      assert.equal(
-        await prisma.callbackTask.count({
-          where: {
-            handoffId: f.handoff.id,
-            status: { in: ["scheduled", "due", "in_progress"] },
-          },
-        }),
-        0,
-      );
+      // A meeting cancelled or held during the takeover is not called about again.
+      for (const status of ["cancelled", "completed"] as const) {
+        await prisma.meeting.update({
+          where: { id: f.meeting.id },
+          data: { status },
+        });
+        await assert.rejects(
+          service.controlFollowUp(
+            memberCtx,
+            row.pendingActionId,
+            { operation: "return_automatic", expectedRevision: row.revision },
+            now,
+          ),
+          /no longer scheduled/,
+          status,
+        );
+        assert.equal(
+          await prisma.callbackTask.count({
+            where: {
+              handoffId: f.handoff.id,
+              status: { in: ["scheduled", "due", "in_progress"] },
+            },
+          }),
+          0,
+          status,
+        );
+      }
       row = (await actions.followUpSnapshot(row.id))!;
       assert.equal(row.mode, "manual");
       await prisma.meeting.update({

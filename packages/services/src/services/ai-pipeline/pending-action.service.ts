@@ -588,15 +588,19 @@ export class PendingActionService {
           throw new ConflictException(
             "The meeting change needs an exceptional decision",
           );
-        // A meeting cancelled while the objective was paused or taken over
-        // resolves nothing, and no agent may move it: bringing it back is a
-        // person's decision, so nothing is scheduled for it.
+        // Only a meeting still on can be moved by an agent. One cancelled or
+        // held while the objective was paused or taken over resolves nothing:
+        // what follows is a person's decision, so nothing is scheduled for it.
         const meeting = snapshot.meetingId
           ? await this.meetings.findByIdForOwner(ctx, snapshot.meetingId)
           : null;
-        if (!meeting || meeting.status === MeetingStatus.cancelled)
+        if (
+          !meeting ||
+          (meeting.status !== MeetingStatus.scheduled &&
+            meeting.status !== MeetingStatus.rescheduled)
+        )
           throw new ConflictException(
-            "The meeting was cancelled; it cannot return to automatic follow-up",
+            "The meeting is no longer scheduled; it cannot return to automatic follow-up",
           );
         const contact = snapshot.action.contactId
           ? await this.contacts.findByIdForOwner(ctx, snapshot.action.contactId)
