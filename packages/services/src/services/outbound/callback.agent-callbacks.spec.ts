@@ -203,6 +203,30 @@ function build(
       store.get(id)!.status = status;
       return { ...store.get(id)! };
     },
+    // Compare-and-set on the status, like the Prisma `updateManyAndReturn`.
+    cancelUnlessBeingPlaced: async (id: string) => {
+      const row = store.get(id);
+      if (!row || row.status === "in_progress") return null;
+      row.status = CallbackStatus.cancelled;
+      return { ...row };
+    },
+    rescheduleAgentCallback: async (id: string, scheduledAt: Date) => {
+      const row = store.get(id);
+      if (!row?.agentCallbackKind || row.status === "in_progress") return null;
+      Object.assign(row, {
+        scheduledAt,
+        status: CallbackStatus.scheduled,
+        completedAt: null,
+        attemptCount: 0,
+        notBefore: null,
+        dialTries: 0,
+        dialReservedAt: null,
+        claimToken: null,
+        leaseExpiresAt: null,
+        reason: null,
+      });
+      return { ...row };
+    },
   };
 
   const enqueued: Row[] = [];
@@ -278,6 +302,7 @@ function build(
 
   return {
     service,
+    repo,
     store,
     dials,
     authorizations,
@@ -371,6 +396,87 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
       h.dials[0]!.input.idempotencyKey,
       `callback:cb-1:${SCHEDULED_AT.getTime()}:d2`,
     );
+  });
+
+  it("waits for a reclaimed try that never confirmed its leg, and links it once it does", async () => {
+    const key = `callback:cb-1:${SCHEDULED_AT.getTime()}:d1`;
+    // The worker died after writing the row, before learning whether the
+    // provider took the leg: no control id, and not provably unplaced.
+    const earlier: Row = {
+      id: "ac-old",
+      idempotencyKey: key,
+      status: "created",
+      providerCallControlId: null,
+      createdAt: new Date(Date.now() - 6 * 60_000),
+    };
+    const h = build({
+      callbacks: [
+        agentCallback({
+          status: "in_progress",
+          claimToken: "stale",
+          leaseExpiresAt: new Date(Date.now() - 1),
+          dialTries: 1,
+          dialReservedAt: new Date(Date.now() - 6 * 60_000),
+          attemptCount: 1,
+        }),
+      ],
+      earlier: [earlier],
+    });
+
+    // Neither completed on a guess nor dialed again: it waits, keeping the
+    // reservation so the same key is the one checked next time.
+    assert.equal(await h.service.processDueCallbacks(), 0);
+    assert.equal(h.dials.length, 0);
+    let row = h.store.get("cb-1")!;
+    assert.equal(row.status, CallbackStatus.scheduled);
+    assert.equal(row.reason, "placement_pending");
+    assert.equal(row.dialTries, 1);
+    assert.notEqual(row.dialReservedAt, null);
+    assert.ok(row.notBefore.getTime() > Date.now());
+    assert.equal(row.agentCallId, null);
+
+    // The status callback reports the leg: the next look links that call.
+    earlier.providerCallControlId = "v3:late";
+    row.notBefore = new Date(Date.now() - 1);
+    assert.equal(await h.service.processDueCallbacks(), 1);
+    assert.equal(h.dials.length, 0);
+    row = h.store.get("cb-1")!;
+    assert.equal(row.status, CallbackStatus.completed);
+    assert.equal(row.agentCallId, "ac-old");
+  });
+
+  it("records a reclaimed try still unconfirmed after the wait as unconfirmed, never redialing it", async () => {
+    const key = `callback:cb-1:${SCHEDULED_AT.getTime()}:d1`;
+    const h = build({
+      callbacks: [
+        agentCallback({
+          status: "in_progress",
+          claimToken: "stale",
+          leaseExpiresAt: new Date(Date.now() - 1),
+          dialTries: 1,
+          dialReservedAt: new Date(Date.now() - 61 * 60_000),
+          attemptCount: 3,
+        }),
+      ],
+      earlier: [
+        {
+          id: "ac-old",
+          idempotencyKey: key,
+          status: "initiating",
+          providerCallControlId: null,
+          createdAt: new Date(Date.now() - 61 * 60_000),
+        },
+      ],
+    });
+    assert.equal(await h.service.processDueCallbacks(), 0);
+    assert.equal(h.dials.length, 0);
+    const row = h.store.get("cb-1")!;
+    assert.equal(row.status, CallbackStatus.missed);
+    assert.equal(row.reason, "placement_unconfirmed");
+    // A leg may exist, so it is linked for a person to look at.
+    assert.equal(row.agentCallId, "ac-old");
+    assert.equal(await h.service.processDueCallbacks(), 0);
+    assert.equal(h.dials.length, 0);
   });
 
   it("links a placement whose outcome is unknown and never redials it", async () => {
@@ -481,5 +587,29 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
     assert.equal(row.dialTries, 0);
     assert.equal(row.notBefore, null);
     assert.equal(scheduled.reminders.length, 0);
+  });
+
+  it("does not overwrite a claim the worker took after the person's read", async () => {
+    for (const change of ["cancel", "reschedule"] as const) {
+      const h = build();
+      const read = h.repo.findById;
+      // The worker claims the row between the read and the write.
+      h.repo.findById = async (id: string) => {
+        const row = await read(id);
+        h.store.get(id)!.status = "in_progress";
+        h.store.get(id)!.claimToken = "worker";
+        return row;
+      };
+      await assert.rejects(
+        change === "cancel"
+          ? h.service.cancel("cb-1")
+          : h.service.reschedule("cb-1", new Date(Date.now() + 86_400_000)),
+        /placing this callback right now/,
+      );
+      const row = h.store.get("cb-1")!;
+      assert.equal(row.status, "in_progress");
+      assert.equal(row.claimToken, "worker");
+      assert.equal(row.scheduledAt, SCHEDULED_AT);
+    }
   });
 });

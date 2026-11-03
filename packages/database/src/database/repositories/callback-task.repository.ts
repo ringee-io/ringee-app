@@ -558,6 +558,52 @@ export class CallbackTaskRepository {
     return updated ?? null;
   }
 
+  /**
+   * Cancels a callback unless a worker is placing it right now. The status is
+   * compared in the write itself: a claim taken after the caller read the row
+   * is never overwritten, so a call already ringing cannot be followed by a
+   * second one. Null when the row was being placed.
+   */
+  async cancelUnlessBeingPlaced(id: string): Promise<CallbackTask | null> {
+    const [cancelled] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: { id, status: { not: CallbackStatus.in_progress } },
+      data: { status: CallbackStatus.cancelled },
+    });
+    return cancelled ?? null;
+  }
+
+  /**
+   * Moves an agent callback to a new time unless a worker is placing it right
+   * now — compare-and-set on the status, like `beginAgentDial`. A new time is
+   * a new dial: the dial and claim state start over, so the next try draws
+   * keys of its own. Null when the row was being placed.
+   */
+  async rescheduleAgentCallback(
+    id: string,
+    scheduledAt: Date,
+  ): Promise<CallbackTask | null> {
+    const [moved] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: {
+        id,
+        agentCallbackKind: { not: null },
+        status: { not: CallbackStatus.in_progress },
+      },
+      data: {
+        scheduledAt,
+        status: CallbackStatus.scheduled,
+        completedAt: null,
+        attemptCount: 0,
+        notBefore: null,
+        dialTries: 0,
+        dialReservedAt: null,
+        claimToken: null,
+        leaseExpiresAt: null,
+        reason: null,
+      },
+    });
+    return moved ?? null;
+  }
+
   async updateStatus(
     id: string,
     status: CallbackStatus,

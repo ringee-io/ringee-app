@@ -27,7 +27,10 @@ export interface TelnyxAssistantResponse {
     type?: string | null;
     webhook?: { url?: string | null } | null;
     handoff?: {
-      ai_assistants?: Array<{ id?: string | null } | null> | null;
+      ai_assistants?: Array<{
+        id?: string | null;
+        name?: string | null;
+      } | null> | null;
     } | null;
   }> | null;
   telephony_settings?: {
@@ -283,6 +286,17 @@ export function toVoiceAgentAssistant(
             return id ? [id] : [];
           })
         : [],
+    ),
+    handoffAssistantNames: Object.fromEntries(
+      (raw.tools ?? []).flatMap((tool) =>
+        tool?.type === "handoff"
+          ? (tool.handoff?.ai_assistants ?? []).flatMap((target) => {
+              const id = str(target?.id);
+              const name = str(target?.name);
+              return id && name ? [[id, name] as const] : [];
+            })
+          : [],
+      ),
     ),
   };
 }

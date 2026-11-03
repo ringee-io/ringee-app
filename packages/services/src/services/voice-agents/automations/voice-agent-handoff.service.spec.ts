@@ -617,6 +617,11 @@ function tools(w: ReturnType<typeof world>) {
         agentCallbacks.push(row);
         return row;
       },
+      reschedule: async (id: string, scheduledAt: Date) => {
+        const row = w.callbacks.get(id)!;
+        row.scheduledAt = scheduledAt;
+        return row;
+      },
     } as never,
     {
       applyKnownOutcome: async (call: Row, outcome: string) => {
@@ -938,6 +943,107 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(t.supports[0]!.dedupeScope, destination!.id);
   });
 
+  it("re-validates the destination when it first acts, and refuses a participant once the call ended", async () => {
+    // Deactivated after the request was prepared: the provider may still
+    // hand the call over, but that authorizes nothing.
+    const paused = world();
+    const p = tools(paused);
+    await p.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    paused.agents.get("agent-sched")!.status = "disabled";
+    const refused = await p.service.getHandoffContext(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+    );
+    assert.equal(refused.ok, false);
+    assert.match(
+      (refused as { error: string }).error,
+      /not available on this call/,
+    );
+    assert.equal([...paused.handoffs.values()][0]!.status, H.prepared);
+    assert.equal(
+      paused.participants.some((x) => x.agentId === "agent-sched"),
+      false,
+    );
+
+    // A late or replayed tool call of the agent that took the call, after
+    // the call ended, changes nothing.
+    const w = world();
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    w.endCall();
+    const slots = await t.service.getAvailableSlots(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { date: "2026-11-04" },
+    );
+    assert.equal(slots.ok, false);
+    assert.match((slots as { error: string }).error, /no longer active/);
+    const callback = await t.service.scheduleCallback(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { scheduled_at: "2026-11-05T10:00:00+01:00" },
+    );
+    assert.equal(callback.ok, false);
+    assert.equal(t.slotLookups.length, 0);
+    assert.equal(w.offers.length, 0);
+    assert.equal(t.agentCallbacks.length, 0);
+  });
+
+  it("lets the agent that took the call agree a callback only while the request still wants one", async () => {
+    const w = world();
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    const [handoff] = [...w.handoffs.values()];
+
+    const agreed = await t.service.scheduleCallback(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { scheduled_at: "2026-11-05T10:00:00+01:00" },
+    );
+    assert.equal(agreed.ok, true);
+    assert.equal(t.agentCallbacks.length, 1);
+    assert.equal(t.agentCallbacks[0]!.agentId, "agent-sched");
+    assert.equal(t.agentCallbacks[0]!.handoffId, handoff!.id);
+    assert.equal(t.agentCallbacks[0]!.kind, CallbackAgentKind.agreed);
+
+    // Settled meanwhile: nothing is promised that would be withdrawn when due.
+    w.handoffs.get(handoff!.id)!.requestStatus = R.needs_attention;
+    const settled = await t.service.scheduleCallback(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { scheduled_at: "2026-11-06T10:00:00+01:00" },
+    );
+    assert.equal(settled.ok, false);
+    assert.match(
+      (settled as { error: string }).error,
+      /nothing left to call back about/,
+    );
+
+    // Moved by someone during the call: the same.
+    const moved = world();
+    const m = tools(moved);
+    await m.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    await m.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    const meeting = moved.meetings.get("meeting-1")!;
+    meeting.scheduleVersion = 4;
+    meeting.scheduledAt = new Date("2026-11-06T10:00:00.000Z");
+    const late = await m.service.scheduleCallback(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { scheduled_at: "2026-11-05T10:00:00+01:00" },
+    );
+    assert.equal(late.ok, false);
+    assert.equal(m.agentCallbacks.length, 0);
+  });
+
   it("does not let an agent the workspace never authorized act on the call", async () => {
     const w = world();
     const t = tools(w);
@@ -1050,8 +1156,18 @@ describe("When the handoff fails, or its outcome is unknown", () => {
       { scheduled_at: "2026-11-04T18:00:00+01:00", why: "handoff_failed" },
     );
     assert.equal(replay.ok, true);
+    // The person changed the time on the same call: the one callback moves
+    // to it, and the time confirmed back is the one stored.
+    assert.equal(
+      replay.ok && replay.callback.scheduled_at,
+      "2026-11-04T17:00:00.000Z",
+    );
     // One callback, for the scheduling agent, bound to the request.
     assert.equal(t.agentCallbacks.length, 1);
+    assert.equal(
+      t.agentCallbacks[0]!.scheduledAt.toISOString(),
+      "2026-11-04T17:00:00.000Z",
+    );
     const [row] = t.agentCallbacks;
     const [handoff] = [...w.handoffs.values()];
     assert.equal(row!.agentId, "agent-sched");
@@ -1077,6 +1193,73 @@ describe("When the handoff fails, or its outcome is unknown", () => {
       w.participants.filter((p) => p.agentId === "agent-sched").length,
       0,
     );
+
+    // A callback no longer waiting is never revived by another time.
+    row!.status = CallbackStatus.cancelled;
+    const revived = await t.service.scheduleRescheduleCallback(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { scheduled_at: "2026-11-04T19:00:00+01:00", why: "handoff_failed" },
+    );
+    assert.equal(revived.ok, false);
+    assert.equal(row!.status, CallbackStatus.cancelled);
+    assert.equal(row!.scheduledAt.toISOString(), "2026-11-04T17:00:00.000Z");
+  });
+
+  it("promises no callback when the destination took the call in the meantime", async () => {
+    const w = world();
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    const [handoff] = [...w.handoffs.values()];
+    // The destination's first tool call lands between the source's read of
+    // the request and its write.
+    const repo = (w.handoffService as unknown as { handoffs: Row }).handoffs;
+    const failLive = repo.failLive;
+    repo.failLive = async (...args: unknown[]) => {
+      w.handoffs.get(handoff!.id)!.status = H.completed;
+      return failLive(...args);
+    };
+    const callback = await t.service.scheduleRescheduleCallback(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { scheduled_at: "2026-11-04T17:00:00+01:00", why: "handoff_failed" },
+    );
+    assert.equal(callback.ok, false);
+    assert.equal(t.agentCallbacks.length, 0);
+    assert.equal(w.handoffs.get(handoff!.id)!.status, H.completed);
+  });
+
+  it("does not recover a person who chose to be called back, but recovers a failed handoff", async () => {
+    for (const why of ["person_prefers_callback", "handoff_failed"] as const) {
+      const w = world();
+      const t = tools(w);
+      await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+      // The source took the callback path, but no callback was created.
+      const failed = await w.handoffService.failToCallback(
+        { userId: "admin-1", organizationId: "org-1" },
+        w.agents.get("agent-rem") as never,
+        w.agentCalls.get("ac-1") as never,
+        { why },
+      );
+      assert.equal(failed.ok, true);
+      w.endCall();
+      const [handoff] = [...w.handoffs.values()];
+      const later = new Date(NOW.getTime() + 10 * 60_000);
+      w.handoffs.get(handoff!.id)!.reviewAt = later;
+      const plans = await w.handoffService.reviewDue(later);
+      const settled = w.handoffs.get(handoff!.id)!;
+      if (why === "person_prefers_callback") {
+        // Never a call at a time they did not agree to: a person decides.
+        assert.deepEqual(plans, []);
+        assert.equal(settled.requestStatus, R.needs_attention);
+        assert.equal(settled.resolution, "person_prefers_callback");
+      } else {
+        assert.equal(plans.length, 1);
+        assert.equal(settled.requestStatus, R.pending);
+      }
+    }
   });
 
   it("reconciles an uncertain handoff only after the call ended, then plans one recovery", async () => {

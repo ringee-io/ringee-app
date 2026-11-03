@@ -143,7 +143,9 @@ export type HandoffGrant =
         | "handed_off"
         | "not_participant"
         | "handoff_failed"
-        | "call_ended";
+        | "call_ended"
+        /** The destination the request named is no longer authorized. */
+        | "destination_unavailable";
     };
 
 export interface PrepareRescheduleInput {
@@ -409,6 +411,11 @@ export class VoiceAgentHandoffService {
       if (!handoff || handoff.organizationId !== agentCall.organizationId) {
         return { kind: "refused", reason: "not_participant" };
       }
+      // Once the call is over the reconciler acts on the request first; a
+      // late or replayed tool call of the agent that took it changes nothing.
+      if (await this.callEnded(agentCall)) {
+        return { kind: "refused", reason: "call_ended" };
+      }
       return { kind: "participant", participant, handoff, activated: false };
     }
 
@@ -427,6 +434,16 @@ export class VoiceAgentHandoffService {
     // A late or replayed tool call after the call ended opens nothing.
     if (await this.callEnded(agentCall)) {
       return { kind: "refused", reason: "call_ended" };
+    }
+    // Re-validated at the step that hands it the call: an automation paused,
+    // an agent deactivated or a language that no longer matches since the
+    // request was prepared authorizes nothing.
+    const destination = await this.resolveDestination(
+      ownerOf(handoff),
+      handoff.language,
+    );
+    if (!destination.ok || destination.agent.id !== agent.id) {
+      return { kind: "refused", reason: "destination_unavailable" };
     }
     const activation = await this.handoffs.activate(handoff.id, {
       agentId: agent.id,
@@ -647,13 +664,26 @@ export class VoiceAgentHandoffService {
       };
     }
     if (handoff.status === H.prepared || handoff.status === H.uncertain) {
-      await this.handoffs.failLive(handoff.id, [H.prepared, H.uncertain], {
-        failureReason:
-          input.why === "person_prefers_callback"
-            ? "person_prefers_callback"
-            : "provider_handoff_failed",
-        now,
-      });
+      const failed = await this.handoffs.failLive(
+        handoff.id,
+        [H.prepared, H.uncertain],
+        {
+          failureReason:
+            input.why === "person_prefers_callback"
+              ? "person_prefers_callback"
+              : "provider_handoff_failed",
+          now,
+        },
+      );
+      if (!failed) {
+        // The destination's first tool call completed the handoff between
+        // the read above and this write: the call is its now, and no
+        // callback is promised beside it.
+        const latest = await this.handoffs.findById(handoff.id);
+        if (latest?.status === H.completed) {
+          return { ok: false, code: "handoff_already_failed" };
+        }
+      }
     }
     const destination = await this.resolveDestination(ctx, handoff.language);
     if (
@@ -996,6 +1026,22 @@ export class VoiceAgentHandoffService {
       return null;
     }
 
+    // The person chose to be called back rather than continue on the call.
+    // The callback they agreed to was the automated step; a recovery call at
+    // a time they never agreed to is not, so a person decides what is next.
+    if (
+      handoff.status === H.failed &&
+      handoff.failureReason === "person_prefers_callback"
+    ) {
+      await this.handoffs.settleRequest(
+        handoff.id,
+        R.needs_attention,
+        "person_prefers_callback",
+        now,
+      );
+      return null;
+    }
+
     // The specialist never got to talk to the person: the handoff did not
     // happen, or the callback was not answered. Recover once, by policy —
     // never as a callback the person agreed to.
@@ -1111,6 +1157,22 @@ export class VoiceAgentHandoffService {
   }
 
   // ── A callback for the request ─────────────────────────────────────
+
+  /**
+   * Whether a callback for this request may still be promised. These are the
+   * conditions `decideCallback` withdraws a due callback on — the request no
+   * longer pending, its meeting gone or already moved by someone — read
+   * before the person is told the call will happen.
+   */
+  async callbackStillWanted(handoff: AiVoiceAgentHandoff): Promise<boolean> {
+    if (handoff.requestStatus !== R.pending) return false;
+    const meeting = await this.meetings.findById(handoff.meetingId);
+    return Boolean(
+      meeting &&
+        meeting.organizationId === handoff.organizationId &&
+        !meetingMoved(handoff, meeting),
+    );
+  }
 
   /**
    * What to do with a due agent callback, decided from the request — never

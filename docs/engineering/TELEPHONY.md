@@ -1045,8 +1045,10 @@ on the handing assistant, decided by its model
 ([agent handoff](https://developers.telnyx.com/docs/inference/ai-assistants/agent-handoff)).
 Ringee configures that tool (`VoiceAgentTool` kind `handoff`, `voice: "shared"`
 → Telnyx `unified`) with the one destination the workspace authorizes, and
-re-syncs it at dial time when the provider holds another
-(`VoiceAgentAssistant.handoffAssistantIds`).
+re-syncs it at dial time when the provider holds another, or the same one under
+an old name (`VoiceAgentAssistant.handoffAssistantIds`, `handoffAssistantNames`).
+A destination whose own assistant cannot be verified at that moment is handed
+nothing: the reminders assistant is re-synced without the handoff for that dial.
 
 What the provider documents, and what Ringee therefore relies on — none of it
 yet observed on a real Ringee call:

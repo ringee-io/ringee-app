@@ -2017,19 +2017,27 @@ meeting is not in it yet.
   moving an existing meeting `book_appointment` refuses — a second meeting
   beside the first is exactly what must not happen.
 - **Failure and doubt.** The source still holding the call and scheduling a
-  callback is a confirmed failure. A call that ends with the handoff still
-  prepared is `uncertain` and reconciled first — completed if the
-  destination's participation exists, failed otherwise — and no callback is
-  dialed while the source call may still be live.
+  callback is a confirmed failure — unless the destination's first tool call
+  completed the handoff first, and then no callback is promised. A call that
+  ends with the handoff still prepared is `uncertain` and reconciled first —
+  completed if the destination's participation exists, failed otherwise — and
+  no callback is dialed while the source call may still be live. Once the call
+  has ended, no participant's tool call changes anything.
 - **Callbacks.** A callback agreed after a failure is assigned to the
-  scheduling agent (AGENT-014) and promised only once it exists. When it comes
-  due its context is rebuilt from the request, and it is withdrawn if someone
-  already moved the meeting; the original time passing, or the meeting being
-  cancelled, resolves nothing. When a call ends before the scheduling agent
-  ever spoke and nothing was agreed, the request is recovered once by policy —
-  at the next opening of the meeting calendar's reminder window, at least an
-  hour later — as a recovery call, never presented as agreed. Anything else
-  that leaves no automated step settles the request as `needs_attention`.
+  scheduling agent (AGENT-014) and promised only once it exists, and only
+  while the request is pending and its meeting not already moved. The same
+  call agreeing another time moves that callback; it never adds a second one.
+  When it comes due its context is rebuilt from the request, and it is
+  withdrawn if someone already moved the meeting; the original time passing,
+  or the meeting being cancelled, resolves nothing. A try whose call row never
+  confirmed its leg is waited on, then recorded as `placement_unconfirmed` —
+  never completed on a guess, never dialed again. When a call ends before the
+  scheduling agent ever spoke and nothing was agreed, the request is recovered
+  once by policy — at the next opening of the meeting calendar's reminder
+  window, at least an hour later — as a recovery call, never presented as
+  agreed. A person who chose to be called back instead of continuing on the
+  call is never recovered: their callback was the automated step. Anything
+  else that leaves no automated step settles the request as `needs_attention`.
 - **History and money.** One `Call` and one `AiVoiceAgentCall` root, with
   `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children; `agentId`
   keeps meaning the agent that placed the call. A participation is not a
@@ -2037,7 +2045,8 @@ meeting is not in it yet.
   under `ai-voice-agent-cost:<agentCallId>`. If the provider ever reports the
   agent that took over under a conversation of its own, that conversation's
   usage settles with the call, read only for it, and is not allocated per
-  participant.
+  participant. Each record counts once, and the AI half waits (bounded) while
+  that conversation's records cannot yet be read on their own.
 - **Language.** The reminders agent speaks its configured voice language — it
   does not pick the contact's language from earlier calls — and the handoff
   keeps that voice; the request carries the language, or the one the person

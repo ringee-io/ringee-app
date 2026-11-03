@@ -934,9 +934,10 @@ describe("VoiceAgentBillingService — a call another agent took over (AGENT-021
    * The provider's records for one handed-over call, answered by the query
    * actually asked. Telnyx documents a handoff as staying in one
    * conversation; this is the other case, where the agent that took over was
-   * reported under a conversation of its own.
+   * reported under a conversation of its own. `published.conv2` false: that
+   * conversation's records cannot be read by its own id yet.
    */
-  function handedOverProvider() {
+  function handedOverProvider(published = { conv2: true }) {
     const queries: Array<Record<string, unknown>> = [];
     const row = (
       kind: Kind,
@@ -966,6 +967,7 @@ describe("VoiceAgentBillingService — a call another agent took over (AGENT-021
           ];
         }
         if (query.conversationId === "conv-2") {
+          if (!published.conv2) return [];
           return [
             row("voice_agent", "conv-2", 0.04),
             row("inference", "conv-2", 0.03),
@@ -1031,6 +1033,109 @@ describe("VoiceAgentBillingService — a call another agent took over (AGENT-021
     // A replay finds both halves settled and charges nothing more.
     await service.settle("call-1");
     assert.equal(debits.length, 2);
+  });
+
+  // Before the conversation webhook, the first read is keyed by the leg alone
+  // and already carries every conversation's engine records: reading the
+  // other conversation again may add only what the leg did not report.
+  it("counts each engine record once on a handed-over call no conversation was bound to yet", async () => {
+    const provider = handedOverProvider();
+    const { debits, credits } = debitsRecorder();
+    const repo = repository({
+      ...AGENT_CALL,
+      callId: "telephony-1",
+      providerConversationId: null,
+    });
+    const { service } = build({
+      repo,
+      provider,
+      credits,
+      participants: [
+        { id: "p-1", role: "initial", agentId: "agent-rem" },
+        { id: "p-2", role: "handoff", agentId: "agent-sched" },
+      ],
+    });
+
+    const settlement = await service.settle("call-1");
+    assert.equal(repo.state.providerConversationId, "conv-1");
+    // conv-1 engine 0.05 + conv-2 engine 0.04 (from the leg) + conv-2
+    // tokens 0.03 — never conv-2's engine a second time (0.16).
+    assert.equal(settlement.providerCostUsd, 0.12);
+    const ai = debits.filter((debit) =>
+      debit.key.startsWith("ai-voice-agent-cost:"),
+    );
+    assert.deepEqual(ai, [
+      {
+        amount:
+          Math.round(
+            0.12 * apiConfiguration.AI_VOICE_AGENT_PROFIT_MARGIN * 1e6,
+          ) / 1e6,
+        key: "ai-voice-agent-cost:call-1",
+      },
+    ]);
+    assert.equal(repo.claims.length, 1);
+  });
+
+  it("keeps the AI half open while a conversation the leg reported cannot be read yet", async () => {
+    const published = { conv2: false };
+    const provider = handedOverProvider(published);
+    const { debits, credits } = debitsRecorder();
+    const repo = repository({
+      ...AGENT_CALL,
+      callId: "telephony-1",
+      createdAt: new Date(),
+    });
+    const { service } = build({
+      repo,
+      provider,
+      credits,
+      participants: [
+        { id: "p-1", role: "initial", agentId: "agent-rem" },
+        { id: "p-2", role: "handoff", agentId: "agent-sched" },
+      ],
+    });
+
+    const early = await service.settle("call-1");
+    // The voice leg settles; the AI claim is not written on partial usage.
+    assert.equal(early.settled, false);
+    assert.equal(early.telephonyCostUsd, 0.02);
+    assert.equal(repo.state.costSettledAt, null);
+    assert.deepEqual(
+      debits.map((debit) => debit.key),
+      ["call-cost:telephony-1"],
+    );
+
+    published.conv2 = true;
+    const later = await service.settle("call-1");
+    assert.equal(later.settled, true);
+    assert.equal(later.providerCostUsd, 0.13);
+    assert.equal(repo.claims.length, 1);
+    assert.deepEqual(debits.map((debit) => debit.key).sort(), [
+      "ai-voice-agent-cost:call-1",
+      "call-cost:telephony-1",
+    ]);
+  });
+
+  it("settles with what the leg reported once the wait for a conversation runs out", async () => {
+    const provider = handedOverProvider({ conv2: false });
+    const repo = repository({
+      ...AGENT_CALL,
+      callId: "telephony-1",
+      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+    });
+    const { service } = build({
+      repo,
+      provider,
+      credits: debitsRecorder().credits,
+      participants: [
+        { id: "p-1", role: "initial", agentId: "agent-rem" },
+        { id: "p-2", role: "handoff", agentId: "agent-sched" },
+      ],
+    });
+    const settlement = await service.settle("call-1");
+    assert.equal(settlement.settled, true);
+    // conv-1 engine and tokens, plus conv-2's engine record from the leg.
+    assert.equal(settlement.providerCostUsd, 0.1);
   });
 
   it("asks nothing more of the provider for a call nobody took over", async () => {

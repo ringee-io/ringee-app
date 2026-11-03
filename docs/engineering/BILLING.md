@@ -97,8 +97,13 @@ voice leg settles once under `call-cost:<callId>` and the AI half once under
 `ai-voice-agent-cost:<agentCallId>`. A participation is never a charge. If the
 provider reports the agent that took over under a conversation of its own, that
 conversation's AI records are added to the call's — read only for handed-over
-calls, and only from conversations other than the call's, so no record is
-counted twice — and nothing is allocated per participant.
+calls, and only from conversations other than the call's — and nothing is
+allocated per participant. A first read keyed by the leg alone (no conversation
+bound yet) already carries every conversation's engine records, so a kind of
+record already read for a conversation is never added again. The AI claim is
+written once and never re-read, so while such a conversation has no records
+readable by its own id the AI half stays open, for up to two hours from the
+dial; after that it settles with what the leg reported.
 
 ## Auto-reload and monthly funding
 

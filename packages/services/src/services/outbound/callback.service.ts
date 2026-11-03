@@ -41,6 +41,15 @@ const AGENT_CALLBACK_LEASE_MS = 5 * 60_000;
 const AGENT_CALLBACK_BATCH = 20;
 /** Dial tries inside one agent callback, only for failures before placement. */
 const MAX_AGENT_CALLBACK_DIAL_TRIES = 3;
+/**
+ * How long a reclaimed try that wrote its call row but never learned whether
+ * the provider took the leg is waited on. Longer than an agent call can last,
+ * so the status callback — which writes the control id when the leg exists —
+ * has had every chance to arrive.
+ */
+const PLACEMENT_CONFIRMATION_WINDOW_MS = 60 * 60_000;
+/** How often such a try is looked at again while it waits. */
+const PLACEMENT_RECHECK_MS = 5 * 60_000;
 const CALLBACK_NOTE_MAX = 2000;
 
 @Injectable()
@@ -355,10 +364,11 @@ export class CallbackService {
     if (!callback) throw new NotFoundException("Callback not found");
     this.assertNotBeingPlaced(callback);
 
-    const updated = await this.callbackRepo.updateStatus(
-      id,
-      CallbackStatus.cancelled,
-    );
+    // Conditional in the write itself: a worker may have claimed the row
+    // since the read above, and overwriting its claim would let a second
+    // call follow the one already ringing.
+    const updated = await this.callbackRepo.cancelUnlessBeingPlaced(id);
+    if (!updated) throw beingPlaced();
     await this.silentlyCancelReminders(id);
     return updated;
   }
@@ -368,25 +378,24 @@ export class CallbackService {
     if (!callback) throw new NotFoundException("Callback not found");
     this.assertNotBeingPlaced(callback);
 
+    if (callback.agentCallbackKind) {
+      // Conditional in the write, like the dial's reservation: the worker may
+      // have claimed the row since the read above. A new time is a new dial
+      // with keys of its own, and there is no reminder for a person to act on.
+      const moved = await this.callbackRepo.rescheduleAgentCallback(
+        id,
+        scheduledAt,
+      );
+      if (!moved) throw beingPlaced();
+      return moved;
+    }
+
     const updated = await this.callbackRepo.update(id, {
       scheduledAt,
       status: CallbackStatus.scheduled,
       completedAt: null,
       attemptCount: 0,
-      // A new time is a new dial: the next one gets keys of its own.
-      ...(callback.agentCallbackKind
-        ? {
-            notBefore: null,
-            dialTries: 0,
-            dialReservedAt: null,
-            claimToken: null,
-            leaseExpiresAt: null,
-            reason: null,
-          }
-        : {}),
     });
-    // An agent callback has no reminder for a person to act on.
-    if (callback.agentCallbackKind) return updated;
 
     try {
       await this.reminderService.rescheduleForSubject({
@@ -642,9 +651,33 @@ export class CallbackService {
       const earlier = await this.agentCalls.findByIdempotencyKey(
         agentDialKey(callback, callback.dialTries),
       );
-      if (earlier && !provablyUnplaced(earlier)) {
+      if (earlier?.providerCallControlId) {
         await finish(CallbackStatus.completed, { agentCallId: earlier.id });
         return true;
+      }
+      if (earlier && !provablyUnplaced(earlier)) {
+        // The try wrote its row but never learned whether the provider took
+        // the leg, so it is neither completed nor dialed again. Its status
+        // callback writes the control id if the leg exists: wait for that,
+        // keeping the dial reservation so this key stays the one checked —
+        // and only for a while. A leg never confirmed is recorded as such.
+        if (
+          Date.now() - earlier.createdAt.getTime() <
+          PLACEMENT_CONFIRMATION_WINDOW_MS
+        ) {
+          await this.callbackRepo.deferAgentCallback(
+            callback.id,
+            claimToken,
+            new Date(Date.now() + PLACEMENT_RECHECK_MS),
+            "placement_pending",
+          );
+          return false;
+        }
+        await finish(CallbackStatus.missed, {
+          reason: "placement_unconfirmed",
+          agentCallId: earlier.id,
+        });
+        return false;
       }
     }
 
@@ -782,9 +815,7 @@ export class CallbackService {
       callback.agentCallbackKind &&
       callback.status === CallbackStatus.in_progress
     ) {
-      throw new ConflictException(
-        "The AI voice agent is placing this callback right now.",
-      );
+      throw beingPlaced();
     }
   }
 
@@ -823,6 +854,13 @@ export class CallbackService {
  */
 function agentDialKey(callback: CallbackTask, tryNumber: number): string {
   return `callback:${callback.id}:${callback.scheduledAt.getTime()}:d${tryNumber}`;
+}
+
+/** What a person changing a callback a worker is placing is told. */
+function beingPlaced(): ConflictException {
+  return new ConflictException(
+    "The AI voice agent is placing this callback right now.",
+  );
 }
 
 /** Only a try that failed before the provider accepted it may be followed. */

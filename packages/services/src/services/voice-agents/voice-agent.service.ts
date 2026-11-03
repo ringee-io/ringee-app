@@ -923,7 +923,14 @@ export class VoiceAgentService {
   private async syncToProvider(
     ctx: OwnershipContext,
     agentId: string,
-    options?: { toolSecret?: string },
+    options?: {
+      toolSecret?: string;
+      /**
+       * Leave out the handoff (AGENT-021) even while a destination resolves:
+       * one whose continuation tool could not be verified is handed nothing.
+       */
+      withoutHandoff?: boolean;
+    },
   ): Promise<AiVoiceAgent> {
     const agent = await this.require(ctx, agentId);
     const blueprint = this.blueprints.require(agent.type);
@@ -972,7 +979,9 @@ export class VoiceAgentService {
         analysisSettings: analysisAfterSync,
       });
 
-      const config = await this.composeConfig(ctx, agent, insightGroupId);
+      const config = await this.composeConfig(ctx, agent, insightGroupId, {
+        withoutHandoff: options?.withoutHandoff,
+      });
 
       const assistant = agent.providerAssistantId
         ? await this.provider.updateAssistant(agent.providerAssistantId, config)
@@ -1086,18 +1095,20 @@ export class VoiceAgentService {
    *
    * Best-effort, like `ensureCallingApp` and `ensureInsightGroup` beside it: a
    * re-sync that fails is worth a call with stale tools, never worth refusing
-   * the call the user asked for.
+   * the call the user asked for. Resolves whether the assistant is known to be
+   * current — matched, or re-synced without error — which is what a handoff
+   * destination must be before a call is handed to it.
    */
   async ensureToolEndpoints(
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
-  ): Promise<void> {
-    if (!agent.providerAssistantId) return;
+  ): Promise<boolean> {
+    if (!agent.providerAssistantId) return false;
 
     const assistant = await this.provider.getAssistant(
       agent.providerAssistantId,
     );
-    if (!assistant) return;
+    if (!assistant) return false;
 
     const base = this.toolBaseUrl();
     const handoffTargets = await this.handoffs.handoffTargetsFor(ctx, agent);
@@ -1121,22 +1132,34 @@ export class VoiceAgentService {
       .map((target) => target.assistantId)
       .sort();
     const actualTargets = [...assistant.handoffAssistantIds].sort();
+    // So is the name each destination was synced with: the prompt and the
+    // handoff tool announce it, and a destination renamed since leaves them
+    // naming someone the workspace no longer has. A name the provider does
+    // not report is unknown, not stale.
+    const syncedNames = assistant.handoffAssistantNames ?? {};
+    const namesMatch = handoffTargets.every(
+      (target) =>
+        syncedNames[target.assistantId] === undefined ||
+        syncedNames[target.assistantId] === target.name,
+    );
     const matches =
       assistant.runtimeContextConfigured &&
       actual.length === expected.length &&
       actual.every((url, index) => url === expected[index]) &&
       actualTargets.length === expectedTargets.length &&
-      actualTargets.every((id, index) => id === expectedTargets[index]);
+      actualTargets.every((id, index) => id === expectedTargets[index]) &&
+      namesMatch;
     if (matches) {
       await this.ensureHandoffDestinations(ctx, agent, handoffTargets);
-      return;
+      return true;
     }
 
     this.logger.warn(
       `Agent ${agent.id} has stale tools or runtime context; re-syncing against its current blueprint`,
     );
-    await this.syncToProvider(ctx, agent.id);
+    const synced = await this.syncToProvider(ctx, agent.id);
     await this.ensureHandoffDestinations(ctx, agent, handoffTargets);
+    return synced.status !== AiVoiceAgentStatus.error;
   }
 
   /**
@@ -1144,6 +1167,11 @@ export class VoiceAgentService {
    * else would ever re-sync it: before a reminders agent dials, the
    * scheduling agent it may hand to is brought up to date too — its
    * continuation tool must exist before a call can be handed to it.
+   *
+   * A destination that cannot be verified is handed nothing: the source is
+   * re-synced without the handoff, so the reminders agent records the answer
+   * and the team follows up, as before handoffs. The next dial compares the
+   * source again and restores the handoff once the destination verifies.
    */
   private async ensureHandoffDestinations(
     ctx: OwnershipContext,
@@ -1156,15 +1184,23 @@ export class VoiceAgentService {
       agent.voiceLanguage,
     );
     if (!destination.ok || destination.agent.id === agent.id) return;
-    await this.ensureToolEndpoints(ctx, destination.agent).catch(
-      (error: unknown) => {
-        this.logger.warn(
-          `Could not verify the tools of handoff destination ${destination.agent.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      },
+    const verified = await this.ensureToolEndpoints(
+      ctx,
+      destination.agent,
+    ).catch((error: unknown) => {
+      this.logger.warn(
+        `Could not verify the tools of handoff destination ${destination.agent.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return false;
+    });
+    if (verified) return;
+
+    this.logger.warn(
+      `Handoff destination ${destination.agent.id} is unverified; agent ${agent.id} is re-synced without the handoff`,
     );
+    await this.syncToProvider(ctx, agent.id, { withoutHandoff: true });
   }
 
   /**
@@ -1241,11 +1277,13 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     agent: AiVoiceAgentWithSources,
     insightGroupId: string,
+    options?: { withoutHandoff?: boolean },
   ): Promise<VoiceAgentConfig> {
     const blueprint = this.blueprints.require(agent.type);
     const { company, promptContext, defaults } = await this.resolveConversation(
       ctx,
       agent,
+      options,
     );
     const language = promptContext.language;
     const conversation = readVoiceAgentConversationSettings(
@@ -1258,7 +1296,9 @@ export class VoiceAgentService {
       toolBaseUrl: this.toolBaseUrl(),
       toolSecretRef: this.toolSecretIdentifier(agent.id),
       knowledgeBucketIds: this.readyKnowledgeBuckets(agent),
-      handoffTargets: await this.handoffs.handoffTargetsFor(ctx, agent),
+      handoffTargets: options?.withoutHandoff
+        ? []
+        : await this.handoffs.handoffTargetsFor(ctx, agent),
       acceptsHandoffs: this.handoffs.acceptsHandoffs(agent),
     });
 
@@ -1293,6 +1333,7 @@ export class VoiceAgentService {
   private async resolveConversation(
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
+    options?: { withoutHandoff?: boolean },
   ): Promise<{
     company: { name: string; description: string; website: string };
     promptContext: VoiceAgentPromptContext;
@@ -1313,7 +1354,9 @@ export class VoiceAgentService {
       // The prompt says what the tools allow (AGENT-021): a reminders agent
       // offers to find another time only while a scheduling agent may take
       // the call, and a scheduling agent knows how to continue one.
-      handoffDestinationName: await this.handoffDestinationName(ctx, agent),
+      handoffDestinationName: options?.withoutHandoff
+        ? null
+        : await this.handoffDestinationName(ctx, agent),
       acceptsHandoffs: this.handoffs.acceptsHandoffs(agent),
     };
     return {

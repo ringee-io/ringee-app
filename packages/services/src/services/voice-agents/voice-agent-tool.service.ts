@@ -8,6 +8,7 @@ import {
 import {
   CallRepository,
   CallbackAgentKind,
+  CallbackStatus,
   InboundDestinationType,
   AiVoiceAgent,
   AiVoiceAgentCall,
@@ -719,6 +720,15 @@ export class VoiceAgentToolService {
     const grant = await this.handoffs.grantFor(agent, agentCall);
     if (grant.kind === "refused") return this.refuse(grant);
     if (grant.kind === "participant") {
+      // A request the worker would withdraw the callback for when it comes
+      // due — settled, or its meeting already moved — gets none promised.
+      if (!(await this.handoffs.callbackStillWanted(grant.handoff))) {
+        return {
+          ok: false,
+          error:
+            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back; tell the person the team will follow up.",
+        };
+      }
       // A specialist continuing a request calls back about that request — not
       // the agent that placed the call, and not with that call's variables.
       return this.scheduleRequestCallback(ctx, {
@@ -1297,7 +1307,7 @@ export class VoiceAgentToolService {
       };
     }
     try {
-      const callback = await this.callbacks.scheduleAgentCallback({
+      let callback = await this.callbacks.scheduleAgentCallback({
         handoffId: input.handoffId,
         agentId: input.destinationAgentId,
         kind: CallbackAgentKind.agreed,
@@ -1311,6 +1321,23 @@ export class VoiceAgentToolService {
           this.supportText(input.note, CALLBACK_NOTE_MAX) ||
           "Call back to find a new time for a meeting the contact could not attend.",
       });
+      if (callback.scheduledAt.getTime() !== input.scheduledAt.getTime()) {
+        // This call's callback already exists at another time: the person
+        // changed the time they agreed to. A callback still waiting moves to
+        // it; one already placed, being placed or withdrawn is never revived,
+        // and its old time is never confirmed as the new one.
+        if (callback.status !== CallbackStatus.scheduled) {
+          return {
+            ok: false,
+            error:
+              "The call back arranged on this call can no longer be changed. Do not promise another time; tell the person the team will follow up.",
+          };
+        }
+        callback = await this.callbacks.reschedule(
+          callback.id,
+          input.scheduledAt,
+        );
+      }
       await this.recordCallbackOutcome(input.agentCall);
       return {
         ok: true,
@@ -1400,6 +1427,12 @@ export class VoiceAgentToolService {
           ok: false,
           error:
             "This call was not handed to you. Say the team will follow up, and end the call politely.",
+        };
+      case "destination_unavailable":
+        return {
+          ok: false,
+          error:
+            "Finding a new time is not available on this call right now. Do not offer times; say the team will follow up, and end the call politely.",
         };
       case "not_participant":
         throw new UnauthorizedException("Call does not belong to this agent");

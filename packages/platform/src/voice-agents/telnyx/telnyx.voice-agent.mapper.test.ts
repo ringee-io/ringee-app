@@ -301,6 +301,7 @@ describe("toVoiceAgentAssistant", () => {
       runtimeContextConfigured: false,
       toolWebhookUrls: [],
       handoffAssistantIds: [],
+      handoffAssistantNames: {},
     });
   });
 
@@ -343,14 +344,27 @@ describe("toVoiceAgentAssistant", () => {
         {
           type: "handoff",
           handoff: {
-            ai_assistants: [{ id: "assistant-sched" }, { id: null }, null],
+            ai_assistants: [
+              { id: "assistant-sched", name: "Carmen — scheduling assistant" },
+              { id: "assistant-unnamed" },
+              { id: null, name: "Orphan" },
+              null,
+            ],
           },
         },
         { type: "handoff", handoff: null },
         { type: "webhook", webhook: { url: "https://api.ringee.io/x" } },
       ],
     });
-    expect(assistant.handoffAssistantIds).toEqual(["assistant-sched"]);
+    expect(assistant.handoffAssistantIds).toEqual([
+      "assistant-sched",
+      "assistant-unnamed",
+    ]);
+    // The name each was synced with, where Telnyx reports one: a destination
+    // renamed since is drift too. An unnamed target is unknown, not stale.
+    expect(assistant.handoffAssistantNames).toEqual({
+      "assistant-sched": "Carmen — scheduling assistant",
+    });
     expect(assistant.toolWebhookUrls).toEqual(["https://api.ringee.io/x"]);
   });
 

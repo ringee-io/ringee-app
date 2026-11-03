@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { BadRequestException } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentService } from "./voice-agent.service";
+import { handoffTargetName } from "./automations/voice-agent-handoff.service";
 
 const CTX = { userId: "user-1", organizationId: "org-1" };
 const AGENT = {
@@ -128,6 +129,157 @@ describe("VoiceAgentService tool delivery", () => {
     await service.ensureToolEndpoints(CTX, AGENT as never);
 
     assert.deepEqual(syncs, ["agent-1"]);
+  });
+});
+
+describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
+  const DESTINATION = {
+    id: "agent-sched",
+    name: "Carmen",
+    type: "appointment_booking",
+    providerAssistantId: "asst-sched",
+  };
+  const TARGET = {
+    assistantId: "asst-sched",
+    name: handoffTargetName({ name: "Carmen" }),
+  };
+  const toolUrl = (agentId: string) =>
+    `${apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "")}/api/ai-voice-agents/tools/${agentId}/request-human-support`;
+
+  /**
+   * A reminders agent whose assistant is current, handing to `DESTINATION`.
+   * `syncedName` is the name its handoff tool was saved with (undefined: the
+   * provider reports none); `destination` is what reading the destination's
+   * own assistant does.
+   */
+  function handoffBuild(options: {
+    syncedName?: string;
+    destination?: "current" | "missing" | "unreadable" | "sync_fails";
+  }) {
+    const syncs: Array<{ agentId: string; withoutHandoff: boolean }> = [];
+    const service = new VoiceAgentService(
+      {} as never,
+      {
+        require: () => ({
+          buildTools: (ctx: { agentId: string; toolBaseUrl: string }) => [
+            {
+              kind: "webhook",
+              name: "request_human_support",
+              description: "Notify an administrator.",
+              url: `${ctx.toolBaseUrl}/${ctx.agentId}/request-human-support`,
+              method: "POST",
+              headers: [],
+            },
+          ],
+        }),
+      } as never,
+      {} as never,
+      {
+        getAssistant: async (assistantId: string) => {
+          if (assistantId === "assistant-1") {
+            return {
+              assistantId,
+              callingAppId: "calling-app-1",
+              unauthenticatedWebCallsEnabled: false,
+              runtimeContextConfigured: true,
+              toolWebhookUrls: [toolUrl("agent-1")],
+              handoffAssistantIds: ["asst-sched"],
+              handoffAssistantNames:
+                options.syncedName === undefined
+                  ? {}
+                  : { "asst-sched": options.syncedName },
+            };
+          }
+          if (options.destination === "unreadable") {
+            throw new Error("provider unavailable");
+          }
+          if (options.destination === "missing") return null;
+          return {
+            assistantId,
+            callingAppId: "calling-app-2",
+            unauthenticatedWebCallsEnabled: false,
+            runtimeContextConfigured: true,
+            // Stale when its re-sync is the thing that fails.
+            toolWebhookUrls:
+              options.destination === "sync_fails"
+                ? []
+                : [toolUrl("agent-sched")],
+            handoffAssistantIds: [],
+          };
+        },
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { listByDestination: async () => [] } as never,
+      {
+        handoffTargetsFor: async (_ctx: unknown, agent: { type: string }) =>
+          agent.type === "reminders_notifications" ? [TARGET] : [],
+        acceptsHandoffs: () => false,
+        resolveDestination: async () => ({
+          ok: true,
+          agent: DESTINATION,
+          automationId: "auto-1",
+        }),
+      } as never,
+    );
+    (
+      service as unknown as {
+        syncToProvider: (
+          ctx: typeof CTX,
+          agentId: string,
+          options?: { withoutHandoff?: boolean },
+        ) => Promise<Record<string, unknown>>;
+      }
+    ).syncToProvider = async (_ctx, agentId, syncOptions) => {
+      syncs.push({
+        agentId,
+        withoutHandoff: syncOptions?.withoutHandoff === true,
+      });
+      return agentId === "agent-sched" && options.destination === "sync_fails"
+        ? { ...DESTINATION, status: "error" }
+        : { ...AGENT, status: "active" };
+    };
+    return { service, syncs };
+  }
+
+  it("re-syncs a reminders assistant still announcing its destination's old name", async () => {
+    const renamed = handoffBuild({
+      syncedName: handoffTargetName({ name: "Carla" }),
+      destination: "current",
+    });
+    await renamed.service.ensureToolEndpoints(CTX, AGENT as never);
+    assert.deepEqual(renamed.syncs, [
+      { agentId: "agent-1", withoutHandoff: false },
+    ]);
+
+    // The current name, or a name the provider does not report, is no drift.
+    for (const syncedName of [TARGET.name, undefined]) {
+      const current = handoffBuild({ syncedName, destination: "current" });
+      await current.service.ensureToolEndpoints(CTX, AGENT as never);
+      assert.deepEqual(current.syncs, []);
+    }
+  });
+
+  it("hands nothing to a destination whose own assistant cannot be verified", async () => {
+    for (const destination of [
+      "unreadable",
+      "missing",
+      "sync_fails",
+    ] as const) {
+      const { service, syncs } = handoffBuild({
+        syncedName: TARGET.name,
+        destination,
+      });
+      await service.ensureToolEndpoints(CTX, AGENT as never);
+      assert.deepEqual(
+        syncs.filter((sync) => sync.agentId === "agent-1"),
+        [{ agentId: "agent-1", withoutHandoff: true }],
+        destination,
+      );
+    }
   });
 });
 

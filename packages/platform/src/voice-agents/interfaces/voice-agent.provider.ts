@@ -172,6 +172,12 @@ export interface VoiceAgentAssistant {
    * the workspace authorizes now, for the same reason as `toolWebhookUrls`.
    */
   handoffAssistantIds: string[];
+  /**
+   * The name each of those assistants was given at the last save, by
+   * assistant id, where the provider reports one. The handing model announces
+   * the destination by it, so a destination renamed since is drift too.
+   */
+  handoffAssistantNames?: Record<string, string>;
 }
 
 export interface VoiceAgentCallRequest {
