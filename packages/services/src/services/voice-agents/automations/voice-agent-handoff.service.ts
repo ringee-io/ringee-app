@@ -400,6 +400,9 @@ export class VoiceAgentHandoffService {
       if (!handoff || handoff.organizationId !== agentCall.organizationId) {
         return { kind: "refused", reason: "not_participant" };
       }
+      if (await this.callEnded(agentCall)) {
+        return { kind: "refused", reason: "call_ended" };
+      }
       return { kind: "participant", participant, handoff, activated: false };
     }
 
@@ -638,6 +641,9 @@ export class VoiceAgentHandoffService {
     | { ok: true; handoff: AiVoiceAgentHandoff; destination: AiVoiceAgent }
     | { ok: false; code: PrepareRescheduleFailure }
   > {
+    if (await this.callEnded(agentCall)) {
+      return { ok: false, code: "call_ended" };
+    }
     let handoff = await this.handoffs.findByIdempotencyKey(
       handoffKey(agentCall.id),
     );
@@ -1164,14 +1170,25 @@ export class VoiceAgentHandoffService {
    * longer pending, its meeting gone or already moved by someone — read
    * before the person is told the call will happen.
    */
-  async callbackStillWanted(handoff: AiVoiceAgentHandoff): Promise<boolean> {
-    if (handoff.requestStatus !== R.pending) return false;
-    const meeting = await this.meetings.findById(handoff.meetingId);
-    return Boolean(
-      meeting &&
-        meeting.organizationId === handoff.organizationId &&
-        !meetingMoved(handoff, meeting),
-    );
+  async callbackStillWanted(
+    handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId">,
+  ): Promise<boolean> {
+    const current = await this.handoffs.findById(handoff.id);
+    if (!current || current.organizationId !== handoff.organizationId) {
+      return false;
+    }
+    const meeting = await this.meetings.findById(current.meetingId);
+    const reason =
+      current.requestStatus !== R.pending
+        ? `request_${current.requestStatus}`
+        : !meeting || meeting.organizationId !== current.organizationId
+          ? "objective_closed"
+          : meetingMoved(current, meeting)
+            ? "objective_resolved"
+            : null;
+    if (!reason) return true;
+    await this.callbacks.cancelOpenForHandoff(current.id, reason);
+    return false;
   }
 
   /**

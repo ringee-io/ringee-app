@@ -101,9 +101,11 @@ calls, and only from conversations other than the call's — and nothing is
 allocated per participant. A first read keyed by the leg alone (no conversation
 bound yet) already carries every conversation's engine records, so a kind of
 record already read for a conversation is never added again. The AI claim is
-written once and never re-read, so while such a conversation has no records
-readable by its own id the AI half stays open, for up to two hours from the
-dial; after that it settles with what the leg reported.
+written once and never re-read, so while such a conversation has no engine
+(`voice_agent`) records readable by its own id the AI half stays open, even if
+token records are available, for up to two hours from the dial. After that it
+settles with the leg's engine records and all reported conversation tokens,
+without counting records already read twice.
 
 ## Auto-reload and monthly funding
 

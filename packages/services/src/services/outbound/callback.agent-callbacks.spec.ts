@@ -4,7 +4,11 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CallbackAgentKind, CallbackStatus } from "@ringee/database";
+import {
+  CallbackAgentKind,
+  CallbackStatus,
+  CallbackTaskRepository,
+} from "@ringee/database";
 import { CallbackService } from "./callback.service";
 import {
   VoiceAgentCallStartError,
@@ -88,6 +92,28 @@ function build(
   const authorizations: Row[] = [];
   const recoveriesMarked: Row[] = [];
   let finishes = 0;
+
+  // Exercise the repository's actual write predicates against the current
+  // state, including a worker or cancellation changing it after the read.
+  const conditionalRepo = new CallbackTaskRepository({
+    callbackTask: {
+      updateManyAndReturn: async ({ where, data }: Row) => {
+        const row = store.get(where.id);
+        if (
+          !row ||
+          !Object.entries(where).every(([key, value]) =>
+            value && typeof value === "object" && "not" in value
+              ? row[key] !== value.not
+              : row[key] === value,
+          )
+        ) {
+          return [];
+        }
+        Object.assign(row, data);
+        return [{ ...row }];
+      },
+    },
+  } as never);
 
   const repo = {
     findDue: async () => [],
@@ -210,23 +236,10 @@ function build(
       row.status = CallbackStatus.cancelled;
       return { ...row };
     },
-    rescheduleAgentCallback: async (id: string, scheduledAt: Date) => {
-      const row = store.get(id);
-      if (!row?.agentCallbackKind || row.status === "in_progress") return null;
-      Object.assign(row, {
-        scheduledAt,
-        status: CallbackStatus.scheduled,
-        completedAt: null,
-        attemptCount: 0,
-        notBefore: null,
-        dialTries: 0,
-        dialReservedAt: null,
-        claimToken: null,
-        leaseExpiresAt: null,
-        reason: null,
-      });
-      return { ...row };
-    },
+    rescheduleAgentCallback:
+      conditionalRepo.rescheduleAgentCallback.bind(conditionalRepo),
+    completeUnlessBeingPlaced:
+      conditionalRepo.completeUnlessBeingPlaced.bind(conditionalRepo),
   };
 
   const enqueued: Row[] = [];
@@ -575,6 +588,10 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
       h.service.cancel("cb-1"),
       /placing this callback right now/,
     );
+    await assert.rejects(
+      h.service.markCompleted("cb-1"),
+      /placing this callback right now/,
+    );
 
     // Once it is back to scheduled, a new time is a new dial with new keys.
     const scheduled = build({
@@ -590,7 +607,7 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
   });
 
   it("does not overwrite a claim the worker took after the person's read", async () => {
-    for (const change of ["cancel", "reschedule"] as const) {
+    for (const change of ["cancel", "reschedule", "complete"] as const) {
       const h = build();
       const read = h.repo.findById;
       // The worker claims the row between the read and the write.
@@ -603,7 +620,9 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
       await assert.rejects(
         change === "cancel"
           ? h.service.cancel("cb-1")
-          : h.service.reschedule("cb-1", new Date(Date.now() + 86_400_000)),
+          : change === "complete"
+            ? h.service.markCompleted("cb-1")
+            : h.service.reschedule("cb-1", new Date(Date.now() + 86_400_000)),
         /placing this callback right now/,
       );
       const row = h.store.get("cb-1")!;
@@ -611,5 +630,28 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
       assert.equal(row.claimToken, "worker");
       assert.equal(row.scheduledAt, SCHEDULED_AT);
     }
+  });
+
+  it("does not revive an agent callback cancelled after the reschedule read", async () => {
+    const h = build();
+    const read = h.repo.findById;
+    h.repo.findById = async (id: string) => {
+      const row = await read(id);
+      h.store.get(id)!.status = CallbackStatus.cancelled;
+      return row;
+    };
+    await assert.rejects(
+      h.service.reschedule("cb-1", new Date(Date.now() + 86_400_000)),
+      /placing this callback right now/,
+    );
+    assert.equal(h.store.get("cb-1")!.status, CallbackStatus.cancelled);
+    assert.equal(h.store.get("cb-1")!.scheduledAt, SCHEDULED_AT);
+  });
+
+  it("completes a callback that is not being placed", async () => {
+    const h = build();
+    const completed = await h.service.markCompleted("cb-1");
+    assert.equal(completed.status, CallbackStatus.completed);
+    assert.ok(completed.completedAt instanceof Date);
   });
 });

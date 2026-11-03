@@ -573,20 +573,21 @@ export class CallbackTaskRepository {
   }
 
   /**
-   * Moves an agent callback to a new time unless a worker is placing it right
-   * now — compare-and-set on the status, like `beginAgentDial`. A new time is
-   * a new dial: the dial and claim state start over, so the next try draws
-   * keys of its own. Null when the row was being placed.
+   * Moves an agent callback only while its status still matches the read —
+   * compare-and-set, like `beginAgentDial`. A new time is a new dial:
+   * the dial and claim state start over, so the next try draws
+   * keys of its own. Null when the status changed in the meantime.
    */
   async rescheduleAgentCallback(
     id: string,
     scheduledAt: Date,
+    expectedStatus: CallbackStatus,
   ): Promise<CallbackTask | null> {
     const [moved] = await this.prisma.callbackTask.updateManyAndReturn({
       where: {
         id,
         agentCallbackKind: { not: null },
-        status: { not: CallbackStatus.in_progress },
+        status: expectedStatus,
       },
       data: {
         scheduledAt,
@@ -602,6 +603,14 @@ export class CallbackTaskRepository {
       },
     });
     return moved ?? null;
+  }
+
+  async completeUnlessBeingPlaced(id: string): Promise<CallbackTask | null> {
+    const [completed] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: { id, status: { not: CallbackStatus.in_progress } },
+      data: { status: CallbackStatus.completed, completedAt: new Date() },
+    });
+    return completed ?? null;
   }
 
   async updateStatus(

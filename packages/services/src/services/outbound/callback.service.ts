@@ -379,12 +379,13 @@ export class CallbackService {
     this.assertNotBeingPlaced(callback);
 
     if (callback.agentCallbackKind) {
-      // Conditional in the write, like the dial's reservation: the worker may
-      // have claimed the row since the read above. A new time is a new dial
-      // with keys of its own, and there is no reminder for a person to act on.
+      // Conditional in the write: the row may have been claimed or cancelled
+      // since the read above. A new time is a new dial with keys of its own,
+      // and there is no reminder for a person to act on.
       const moved = await this.callbackRepo.rescheduleAgentCallback(
         id,
         scheduledAt,
+        callback.status,
       );
       if (!moved) throw beingPlaced();
       return moved;
@@ -837,11 +838,8 @@ export class CallbackService {
   async markCompleted(id: string) {
     const callback = await this.callbackRepo.findById(id);
     if (callback) this.assertNotBeingPlaced(callback);
-    const updated = await this.callbackRepo.updateStatus(
-      id,
-      CallbackStatus.completed,
-      new Date(),
-    );
+    const updated = await this.callbackRepo.completeUnlessBeingPlaced(id);
+    if (!updated) throw beingPlaced();
     await this.silentlyCancelReminders(id);
     return updated;
   }

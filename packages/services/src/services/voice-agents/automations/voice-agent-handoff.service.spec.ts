@@ -1272,6 +1272,72 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(t.agentCallbacks.length, 0);
   });
 
+  it("refuses a callback participant's tools after its call ends", async () => {
+    const w = world();
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    const handoff = [...w.handoffs.values()][0]!;
+    const agentCall = {
+      ...w.agentCalls.get("ac-1")!,
+      id: "ac-callback",
+      agentId: "agent-sched",
+    };
+    w.participants.push({
+      id: "callback-participant",
+      agentCallId: agentCall.id,
+      agentId: agentCall.agentId,
+      handoffId: handoff.id,
+      role: AiVoiceAgentParticipantRole.callback,
+      status: AiVoiceAgentParticipantStatus.active,
+    });
+    const grant = () =>
+      w.handoffService.grantFor(
+        w.agents.get("agent-sched") as never,
+        agentCall as never,
+      );
+    assert.equal((await grant()).kind, "participant");
+    w.endCall();
+    assert.deepEqual(await grant(), { kind: "refused", reason: "call_ended" });
+  });
+
+  it("withdraws a callback when its request or meeting changes during creation", async () => {
+    for (const change of [R.resolved, R.closed, R.needs_attention, "moved"]) {
+      const w = world();
+      const t = tools(w);
+      await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+      await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+      const handoff = [...w.handoffs.values()][0]!;
+      const callbacks = (t.service as unknown as { callbacks: Row }).callbacks;
+      const schedule = callbacks.scheduleAgentCallback;
+      callbacks.scheduleAgentCallback = async (input: Row) => {
+        const callback = await schedule(input);
+        if (change === "moved") {
+          const meeting = w.meetings.get("meeting-1")!;
+          meeting.scheduleVersion += 1;
+          meeting.scheduledAt = new Date("2026-11-06T10:00:00.000Z");
+        } else {
+          handoff.requestStatus = change;
+        }
+        return callback;
+      };
+
+      const result = await t.service.scheduleCallback(
+        "agent-sched",
+        SCHED_SECRET,
+        CC,
+        { scheduled_at: "2026-11-05T10:00:00+01:00" },
+      );
+      assert.equal(result.ok, false);
+      assert.match(
+        (result as { error: string }).error,
+        /nothing left to call back about/,
+      );
+      assert.equal(t.agentCallbacks.length, 1);
+      assert.equal(t.agentCallbacks[0]!.status, CallbackStatus.cancelled);
+      assert.equal(t.outcomes.length, 0);
+    }
+  });
+
   it("lets the agent that took the call agree a callback only while the request still wants one", async () => {
     const w = world();
     const t = tools(w);
@@ -1511,6 +1577,91 @@ describe("A reminder call whose placement could not be recorded", () => {
 });
 
 describe("When the handoff fails, or its outcome is unknown", () => {
+  it("does not read or change a handoff or schedule a callback after hangup", async () => {
+    for (const status of [null, H.prepared, H.uncertain, H.failed]) {
+      const w = world();
+      const t = tools(w);
+      if (status) {
+        await t.service.prepareRescheduleHandoff(
+          "agent-rem",
+          REM_SECRET,
+          CC,
+          {},
+        );
+        [...w.handoffs.values()][0]!.status = status;
+      }
+      w.endCall();
+      const before = [...w.handoffs.values()].map((row) => ({ ...row }));
+      const repo = (w.handoffService as unknown as { handoffs: Row }).handoffs;
+      let reads = 0;
+      const read = repo.findByIdempotencyKey;
+      repo.findByIdempotencyKey = async (key: string) => {
+        reads += 1;
+        return read(key);
+      };
+      assert.deepEqual(
+        await w.handoffService.failToCallback(
+          { userId: "admin-1", organizationId: "org-1" },
+          w.agents.get("agent-rem") as never,
+          w.agentCalls.get("ac-1") as never,
+          { why: "handoff_failed" },
+        ),
+        { ok: false, code: "call_ended" },
+      );
+
+      const result = await t.service.scheduleRescheduleCallback(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        { scheduled_at: "2026-11-04T17:00:00+01:00", why: "handoff_failed" },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(reads, 0);
+      assert.deepEqual([...w.handoffs.values()], before);
+      assert.equal(t.agentCallbacks.length, 0);
+    }
+  });
+
+  it("refuses same-time replays of callbacks that are no longer scheduled", async () => {
+    for (const status of Object.values(CallbackStatus).filter(
+      (status) => status !== CallbackStatus.scheduled,
+    )) {
+      const w = world();
+      const t = tools(w);
+      const input = {
+        scheduled_at: "2026-11-04T17:00:00+01:00",
+        why: "handoff_failed" as const,
+      };
+      assert.equal(
+        (
+          await t.service.scheduleRescheduleCallback(
+            "agent-rem",
+            REM_SECRET,
+            CC,
+            input,
+          )
+        ).ok,
+        true,
+      );
+      const callback = t.agentCallbacks[0]!;
+      callback.status = status;
+      const result = await t.service.scheduleRescheduleCallback(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        input,
+      );
+      assert.equal(result.ok, false);
+      assert.match(
+        (result as { error: string }).error,
+        /can no longer be changed/,
+      );
+      assert.equal(callback.status, status);
+      assert.equal(t.agentCallbacks.length, 1);
+      assert.equal(t.outcomes.length, 1);
+    }
+  });
+
   it("records a confirmed failure and a callback assigned to the scheduling agent", async () => {
     const w = world();
     const t = tools(w);

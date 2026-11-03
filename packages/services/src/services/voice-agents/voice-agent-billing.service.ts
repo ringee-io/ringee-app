@@ -532,17 +532,19 @@ export class VoiceAgentBillingService {
       let rows = (
         await this.provider.fetchUsageRecords({ conversationId })
       ).filter((record) => record.kind !== "telephony");
-      if (rows.length === 0) {
-        // The leg named this conversation, so it has records: none readable
-        // by its own id means they are still being published, or the read
-        // failed — not that it was free. Its engine records from the leg are
-        // what is known meanwhile, and what settles if the wait runs out.
+      if (!rows.some((record) => record.kind === "voice_agent")) {
+        // Tokens alone do not establish that the engine usage is published.
+        // Keep them along with the leg's engine records while waiting for the
+        // conversation read, and settle both if the bounded wait runs out.
         pending = true;
-        rows = leg.filter(
-          (record) =>
-            record.kind === "voice_agent" &&
-            record.conversationId === conversationId,
-        );
+        rows = [
+          ...rows,
+          ...leg.filter(
+            (record) =>
+              record.kind === "voice_agent" &&
+              record.conversationId === conversationId,
+          ),
+        ];
       }
       extra.push(
         ...rows.filter(

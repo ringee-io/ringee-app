@@ -2,6 +2,9 @@
 -- and the callbacks the scheduling agent places for a handoff request.
 -- Additive: two new tables, six new enums, and nullable or defaulted columns on
 -- CallbackTask. Nothing reads them until the new backend and orchestrator run.
+-- After this migration, run the companion pending-migrations/
+-- 20261102120100_voice_agent_handoffs_callback_indexes.sql manually with psql,
+-- one statement at a time, before enabling the callback idempotency path.
 
 -- CreateEnum
 CREATE TYPE "CallbackAgentKind" AS ENUM ('agreed', 'recovery');
@@ -141,21 +144,6 @@ CREATE UNIQUE INDEX "AiVoiceAgentCallParticipant_agentCallId_sequence_key" ON "A
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AiVoiceAgentCallParticipant_agentCallId_agentId_key" ON "AiVoiceAgentCallParticipant"("agentCallId", "agentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "CallbackTask_agentCallbackKey_key" ON "CallbackTask"("agentCallbackKey");
-
--- CreateIndex
-CREATE UNIQUE INDEX "CallbackTask_agentCallId_key" ON "CallbackTask"("agentCallId");
-
--- CreateIndex
-CREATE INDEX "CallbackTask_agentCallbackKind_status_scheduledAt_idx" ON "CallbackTask"("agentCallbackKind", "status", "scheduledAt");
-
--- CreateIndex
-CREATE INDEX "CallbackTask_handoffId_idx" ON "CallbackTask"("handoffId");
-
--- CreateIndex
-CREATE INDEX "CallbackTask_agentId_idx" ON "CallbackTask"("agentId");
 
 -- AddForeignKey
 ALTER TABLE "CallbackTask" ADD CONSTRAINT "CallbackTask_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "AiVoiceAgent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
