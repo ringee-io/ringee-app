@@ -4,7 +4,7 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgentHandoffRequestStatus,
@@ -34,6 +34,11 @@ const hash = (value: string) =>
 /** 2026-11-03 10:00 Madrid: inside the default calling window. */
 const NOW = new Date("2026-11-03T09:00:00.000Z");
 const MEETING_AT = new Date("2026-11-03T15:00:00.000Z");
+
+// Every fixture is dated around NOW, and the tools read the clock: a test
+// must not start failing on the day its fixtures fall in the past.
+beforeEach(() => mock.timers.enable({ apis: ["Date"], now: NOW }));
+afterEach(() => mock.timers.reset());
 
 type Row = Record<string, any>;
 
@@ -535,8 +540,15 @@ function tools(w: ReturnType<typeof world>) {
   const legacyCallbacks: Row[] = [];
   const attendance: Row[] = [];
   const moves: Row[] = [];
-  /** What `MeetingService.moveForAgent` answers; a successful move by default. */
-  const move: { outcome: Row | null } = { outcome: null };
+  const repeats: Row[] = [];
+  /**
+   * What `MeetingService.moveForAgent` answers — a successful move by
+   * default — and what `completeRepeatedMove` finds: no earlier move.
+   */
+  const move: { outcome: Row | null; repeat: Row | null } = {
+    outcome: null,
+    repeat: null,
+  };
 
   const service = new VoiceAgentToolService(
     {
@@ -606,6 +618,10 @@ function tools(w: ReturnType<typeof world>) {
           previousScheduledAt: meeting.scheduledAt,
           repeated: false,
         };
+      },
+      completeRepeatedMove: async (_ctx: Row, input: Row) => {
+        repeats.push(input);
+        return move.repeat;
       },
     } as never,
     {
@@ -679,6 +695,7 @@ function tools(w: ReturnType<typeof world>) {
     legacyCallbacks,
     attendance,
     moves,
+    repeats,
     move,
   };
 }
@@ -1662,6 +1679,86 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
     );
     assert.equal(result.ok, false);
     assert.deepEqual(t.moves, []);
+  });
+
+  it("finishes a move a retry finds already made, without moving it again", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    const start = later();
+    const meeting = w.meetings.get("meeting-1")!;
+    // The first attempt committed; the version gate would now refuse it.
+    t.move.repeat = {
+      result: "moved",
+      meeting: { ...meeting, scheduledAt: start, scheduleVersion: 4 },
+      previousScheduledAt: null,
+      repeated: true,
+    };
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: start.toISOString() },
+    );
+    assert.equal(result.ok, true);
+    assert.deepEqual(t.repeats, [
+      {
+        meetingId: "meeting-1",
+        expectedScheduleVersion: 3,
+        scheduledAt: start,
+      },
+    ]);
+    assert.deepEqual(t.moves, []);
+    assert.equal([...w.handoffs.values()][0]!.requestStatus, R.resolved);
+  });
+
+  it("moves nothing on a request the team is already handling", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    [...w.handoffs.values()][0]!.requestStatus = R.needs_attention;
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? "" : result.error, /already settled/);
+    assert.match(
+      result.ok ? "" : result.error,
+      /only after it succeeds say the time is noted/,
+    );
+    assert.deepEqual(t.moves, []);
+  });
+
+  it("promises nothing when the chosen time is the one the meeting has", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    t.move.outcome = { result: "unchanged" };
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? "" : result.error, /no email was sent/);
+    assert.equal([...w.handoffs.values()][0]!.requestStatus, R.pending);
+  });
+
+  it("refuses a start that is not a time with an offset, without asking anything", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    for (const start of [1_800_000_000 as never, "", "2026-11-05T10:00:00"]) {
+      const result = await t.service.moveMeeting(
+        "agent-sched",
+        SCHED_SECRET,
+        CC,
+        { start },
+      );
+      assert.equal(result.ok, false);
+      assert.match(result.ok ? "" : result.error, /timezone offset/);
+    }
+    assert.deepEqual([...t.moves, ...t.repeats], []);
   });
 
   it("sends book_appointment on a handed call to move_meeting instead", async () => {

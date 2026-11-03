@@ -302,8 +302,8 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  speech_instruction. Never call `book_appointment` for this meeting:",
       "  a second meeting beside it is exactly what must not happen.",
       "- If `move_meeting` fails, follow what it says: offer other times, or",
-      "  say the time is noted and that the team will confirm it, and call",
-      "  `request_human_support` with the chosen time.",
+      "  call `request_human_support` with the chosen time and, only after it",
+      "  succeeds, say the time is noted and that the team will confirm it.",
       "- If none of the times suit them and they want to be called again,",
       "  agree an exact time and call `schedule_callback`.",
     ].join("\n");

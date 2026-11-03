@@ -781,16 +781,11 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     assert.deepEqual(events, ["slots:2099-01-06:meeting-1"]);
   });
 
-  it("changes nothing else for a repeat of the same move, or a refused one", async () => {
+  it("changes nothing else for a move that was refused or left the time as it was", async () => {
     for (const outcome of [
-      {
-        result: "moved",
-        meeting: { ...STORED_MEETING, scheduledAt: NEW_TIME },
-        previousScheduledAt: null,
-        repeated: true,
-      },
       { result: "stale" },
       { result: "unavailable" },
+      { result: "unchanged" },
     ]) {
       const { service, events } = moveBuild({ outcome });
       await service.moveForAgent(ctx, agentMove);
@@ -799,6 +794,67 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
         ["slots:2099-01-06:meeting-1", "ringee:move"],
         String(outcome.result),
       );
+    }
+  });
+
+  // A repeat writes nothing, but finishes what the first attempt may have
+  // left: every step after a move is safe to run again.
+  it("finishes what follows a move on a repeat of it", async () => {
+    const { service, events } = moveBuild({
+      outcome: {
+        result: "moved",
+        meeting: { ...STORED_MEETING, scheduledAt: NEW_TIME },
+        previousScheduledAt: null,
+        repeated: true,
+      },
+    });
+    await service.moveForAgent(ctx, agentMove);
+    assert.deepEqual(events, [
+      "slots:2099-01-06:meeting-1",
+      "ringee:move",
+      "reminder-calls:replan",
+      "reminder:reschedule",
+      `external:${NEW_TIME.toISOString()}`,
+    ]);
+  });
+
+  it("recognizes a move a retry finds already made, past the version it was handed", async () => {
+    const done = moveBuild({
+      stored: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
+    });
+    const outcome = await done.service.completeRepeatedMove(ctx, {
+      meetingId: "meeting-1",
+      expectedScheduleVersion: 3,
+      scheduledAt: NEW_TIME,
+    });
+    assert.equal(outcome?.repeated, true);
+    assert.deepEqual(done.events, [
+      "reminder-calls:replan",
+      "reminder:reschedule",
+      `external:${NEW_TIME.toISOString()}`,
+    ]);
+
+    // Another version, another time, or a cancelled meeting is not that move.
+    for (const stored of [
+      { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 5 },
+      { ...STORED_MEETING, scheduleVersion: 4 },
+      {
+        ...STORED_MEETING,
+        scheduledAt: NEW_TIME,
+        scheduleVersion: 4,
+        status: "cancelled",
+      },
+    ]) {
+      const other = moveBuild({ stored });
+      assert.equal(
+        await other.service.completeRepeatedMove(ctx, {
+          meetingId: "meeting-1",
+          expectedScheduleVersion: 3,
+          scheduledAt: NEW_TIME,
+        }),
+        null,
+      );
+      assert.deepEqual(other.events, []);
     }
   });
 
@@ -816,18 +872,22 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     ]);
   });
 
-  it("retries a failed move of the external event as a move, never as a second event", async () => {
-    const { service, events } = moveBuild({
-      stored: {
-        ...STORED_MEETING,
-        externalEventId: "google-event-1",
-        externalSyncStatus: "failed",
-      },
-    });
-    await service.retryExternalSync(ctx, "meeting-1");
-    assert.deepEqual(events, [
-      `external:${STORED_MEETING.scheduledAt.toISOString()}`,
-    ]);
+  it("retries a move of the external event that failed or never ran as a move, never as a second event", async () => {
+    for (const externalSyncStatus of ["failed", "pending"]) {
+      const { service, events } = moveBuild({
+        stored: {
+          ...STORED_MEETING,
+          externalEventId: "google-event-1",
+          externalSyncStatus,
+        },
+      });
+      await service.retryExternalSync(ctx, "meeting-1");
+      assert.deepEqual(
+        events,
+        [`external:${STORED_MEETING.scheduledAt.toISOString()}`],
+        externalSyncStatus,
+      );
+    }
 
     // An event that is in sync has nothing to retry.
     const synced = moveBuild({

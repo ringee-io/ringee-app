@@ -8,6 +8,7 @@ import {
 import {
   CallRepository,
   CallbackAgentKind,
+  AiVoiceAgentHandoffRequestStatus,
   type MeetingMoveOutcome,
   CallbackStatus,
   InboundDestinationType,
@@ -130,9 +131,12 @@ export interface MoveMeetingResult {
   speech_instruction: string;
 }
 
-/** When the meeting could not be moved, the team finishes the change. */
+/**
+ * When the meeting could not be moved, the team finishes the change — and
+ * the person hears so only once the team was actually told.
+ */
 const MOVE_FALLS_TO_TEAM =
-  "Say the time they chose is noted and that the team will confirm it, and call request_human_support with the chosen time.";
+  "Call request_human_support with the chosen time, and only after it succeeds say the time is noted and that the team will confirm it.";
 
 /**
  * The server side of the agent's tools.
@@ -1261,11 +1265,12 @@ export class VoiceAgentToolService {
     if (!ctx.organizationId) {
       throw new UnauthorizedException("Unknown agent");
     }
-    const start = this.parseStart(input.start);
+    const start = this.parseOffsetDate(input.start);
     if (!start) {
       return {
         ok: false,
-        error: "The start time was not a valid date and time.",
+        error:
+          "The start time must be a valid ISO 8601 date and time with a timezone offset, exactly as get_available_slots returned it.",
       };
     }
     if (start.getTime() <= Date.now()) {
@@ -1292,29 +1297,56 @@ export class VoiceAgentToolService {
       userId: ctx.userId,
       organizationId: ctx.organizationId,
     };
-    const scope = await this.handoffs.availabilityFor(orgCtx, grant);
-    if (!scope.ok) return { ok: false, error: scope.error };
-    if (!scope.excludeMeetingId) {
-      // Only a callback reaches a cancelled meeting: bringing it back is a
-      // person's decision.
-      return {
-        ok: false,
-        error: `This meeting was cancelled, so it cannot be moved on this call. ${MOVE_FALLS_TO_TEAM}`,
-      };
-    }
+    const meetingId = grant.participant.meetingId ?? grant.handoff.meetingId;
+    const expectedScheduleVersion =
+      grant.participant.meetingScheduleVersion ??
+      grant.handoff.meetingScheduleVersion;
 
     let outcome: MeetingMoveOutcome;
+    let timeZone: string | null = null;
     try {
-      outcome = await this.meetings.moveForAgent(orgCtx, {
-        meetingId: scope.excludeMeetingId,
-        expectedScheduleVersion:
-          grant.participant.meetingScheduleVersion ??
-          grant.handoff.meetingScheduleVersion,
+      // A retry of a move already made finds the meeting one version on, at
+      // the time it asks for — past the version gate below. That move stands;
+      // only what follows it may be left to finish.
+      const repeat = await this.meetings.completeRepeatedMove(orgCtx, {
+        meetingId,
+        expectedScheduleVersion,
         scheduledAt: start,
-        resolvedCalendar: scope.resolved,
-        durationMinutes: scope.durationMinutes,
-        agentCallId: agentCall.id,
       });
+      if (repeat) {
+        outcome = repeat;
+      } else {
+        // A request the team is handling, or one already settled, is not
+        // this agent's to finish.
+        if (
+          grant.handoff.requestStatus !==
+          AiVoiceAgentHandoffRequestStatus.pending
+        ) {
+          return {
+            ok: false,
+            error: `This request was already settled — the meeting was moved, or the team is handling it — so nothing was moved. ${MOVE_FALLS_TO_TEAM}`,
+          };
+        }
+        const scope = await this.handoffs.availabilityFor(orgCtx, grant);
+        if (!scope.ok) return { ok: false, error: scope.error };
+        if (!scope.excludeMeetingId) {
+          // Only a callback reaches a cancelled meeting: bringing it back is
+          // a person's decision.
+          return {
+            ok: false,
+            error: `This meeting was cancelled, so it cannot be moved on this call. ${MOVE_FALLS_TO_TEAM}`,
+          };
+        }
+        timeZone = scope.resolved.timezone;
+        outcome = await this.meetings.moveForAgent(orgCtx, {
+          meetingId: scope.excludeMeetingId,
+          expectedScheduleVersion,
+          scheduledAt: start,
+          resolvedCalendar: scope.resolved,
+          durationMinutes: scope.durationMinutes,
+          agentCallId: agentCall.id,
+        });
+      }
     } catch (error) {
       this.logger.error(
         `Moving the meeting of handoff ${grant.handoff.id} failed: ${
@@ -1332,6 +1364,13 @@ export class VoiceAgentToolService {
         ok: false,
         error:
           "That time is no longer available. Call get_available_slots again and offer other times.",
+      };
+    }
+    if (outcome.result === "unchanged") {
+      return {
+        ok: false,
+        error:
+          "The meeting is already at that time, so nothing was moved and no email was sent. If they can make that time after all, call request_human_support saying so, and only after it succeeds tell them the team will note it; otherwise offer other times.",
       };
     }
     if (outcome.result !== "moved") {
@@ -1354,6 +1393,14 @@ export class VoiceAgentToolService {
     const meeting = outcome.meeting;
     const moved = new Date(meeting.scheduledAt);
     const hasEmail = Boolean(meeting.leadEmail || meeting.contact?.email);
+    // A repeat never read availability: its zone is its calendar's.
+    timeZone ??= await this.calendars
+      .resolveCalendar(orgCtx, {
+        calendarId: meeting.calendarId,
+        allowArchived: true,
+      })
+      .then((resolved) => resolved.timezone)
+      .catch(() => "UTC");
     return {
       ok: true,
       meeting: {
@@ -1361,7 +1408,7 @@ export class VoiceAgentToolService {
         end: new Date(
           moved.getTime() + meeting.duration * 60_000,
         ).toISOString(),
-        time_zone: scope.resolved.timezone,
+        time_zone: timeZone,
       },
       email: hasEmail ? "will_be_sent" : "no_email_on_file",
       speech_instruction: `Tell the person the meeting is moved to the day and time they chose, said in words as you offered it. ${
@@ -1667,14 +1714,16 @@ export class VoiceAgentToolService {
     return value;
   }
 
-  private parseStart(start: string | undefined): Date | null {
-    if (!start?.trim()) return null;
+  /** A model can send anything: only a non-blank string is a time. */
+  private parseStart(start: unknown): Date | null {
+    if (typeof start !== "string" || !start.trim()) return null;
     const parsed = new Date(start.trim());
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
-  private parseOffsetDate(value: string | undefined): Date | null {
-    const trimmed = value?.trim() ?? "";
+  private parseOffsetDate(value: unknown): Date | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
     if (!/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/i.test(trimmed)) {
       return null;
     }

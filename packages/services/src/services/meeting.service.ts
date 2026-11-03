@@ -415,8 +415,9 @@ export class MeetingService {
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, meetingId);
     if (meeting.externalEventId) {
-      // The event exists: what failed was moving it to the meeting's time.
-      if (meeting.externalSyncStatus === MeetingExternalSyncStatus.failed) {
+      // The event exists: what is left is moving it to the meeting's time —
+      // a move that failed, or that never got to run (CAL-002).
+      if (meeting.externalSyncStatus !== MeetingExternalSyncStatus.synced) {
         await this.calendarService.moveExternalEvent(ctx, meeting);
         return this.getMeetingById(ctx, meetingId);
       }
@@ -553,17 +554,53 @@ export class MeetingService {
       input.resolvedCalendar.scope,
       slot.availabilityRuleId,
     );
-    if (outcome.result === "moved" && !outcome.repeated) {
-      await this.afterMove(ctx, outcome.meeting);
-    }
+    // A repeat finishes what the first attempt may not have: every step is
+    // safe to run again, and the external event moves only if it still lags.
+    if (outcome.result === "moved") await this.afterMove(ctx, outcome.meeting);
     return outcome;
+  }
+
+  /**
+   * A move already made, found again by a retry — the provider retrying, the
+   * model asking twice — after the version the agent was handed has moved on:
+   * the meeting is one version on, at the time asked for. Nothing is written
+   * again; what follows a move is completed, in case the first attempt
+   * stopped before it. Null when it is not that move.
+   */
+  async completeRepeatedMove(
+    ctx: OwnershipContext,
+    input: {
+      meetingId: string;
+      expectedScheduleVersion: number;
+      scheduledAt: Date;
+    },
+  ): Promise<Extract<MeetingMoveOutcome, { result: "moved" }> | null> {
+    const meeting = (await this.getMeetingById(ctx, input.meetingId).catch(
+      () => null,
+    )) as Extract<MeetingMoveOutcome, { result: "moved" }>["meeting"] | null;
+    if (
+      !meeting ||
+      (meeting.status !== MeetingStatus.scheduled &&
+        meeting.status !== MeetingStatus.rescheduled) ||
+      meeting.scheduleVersion !== input.expectedScheduleVersion + 1 ||
+      new Date(meeting.scheduledAt).getTime() !== input.scheduledAt.getTime()
+    ) {
+      return null;
+    }
+    await this.afterMove(ctx, meeting);
+    return {
+      result: "moved",
+      meeting,
+      previousScheduledAt: null,
+      repeated: true,
+    };
   }
 
   /**
    * What follows any move, from the dashboard or by an agent: reminder calls
    * planned for the old time are replanned (CAL-003), the meeting's own
    * reminder follows it, and its external event moves with it (CAL-002).
-   * Each is best-effort — the move already stands.
+   * Each is best-effort — the move already stands — and safe to repeat.
    */
   private async afterMove(
     ctx: OwnershipContext,

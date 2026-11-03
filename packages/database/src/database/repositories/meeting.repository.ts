@@ -72,7 +72,11 @@ export type MeetingMoveOutcome =
       /** This exact move had already been made — nothing was written. */
       repeated: boolean;
     }
-  | { result: "not_found" | "cancelled" | "stale" | "unavailable" };
+  | {
+      result: "not_found" | "cancelled" | "stale" | "unavailable";
+    }
+  /** The time it already has: nothing moved, nothing is owed. */
+  | { result: "unchanged" };
 
 /** A moved meeting's answer was for another time (CAL-003). */
 const ATTENDANCE_RESET = {
@@ -81,6 +85,15 @@ const ATTENDANCE_RESET = {
   attendanceAgentCallId: null,
   attendanceScheduleVersion: null,
   attendanceNote: null,
+} satisfies Prisma.MeetingUpdateInput;
+
+/**
+ * A moved meeting's external event still shows the old time until it is
+ * moved too: never `synced` meanwhile, so a move that fails — or never runs —
+ * stays visible and retryable (CAL-002).
+ */
+const EXTERNAL_EVENT_STALE = {
+  externalSyncStatus: MeetingExternalSyncStatus.pending,
 } satisfies Prisma.MeetingUpdateInput;
 
 /** Emails that have not gone out, withdrawn when their meeting moves. */
@@ -325,9 +338,12 @@ export class MeetingRepository {
    * change to the meeting by its row lock. The version must still be the one
    * the agent was handed (`stale` otherwise) — except for a repeat of this
    * same move, which finds the meeting already there one version on and
-   * writes nothing. The move is a new schedule version (CAL-003); every email
-   * still waiting about the old time is withdrawn, and the email the move
-   * owes is created with it, under its own key.
+   * writes nothing. The time it already has is no move at all, and a start
+   * that passed while the locks were awaited is no longer offered. The move
+   * is a new schedule version (CAL-003); every email still waiting about the
+   * old time is withdrawn, the email the move owes is created with it, under
+   * its own key, and an external event is marked as not yet following it
+   * (CAL-002) until it is moved too.
    */
   async rescheduleIfAvailable(
     ctx: OwnershipContext,
@@ -344,9 +360,11 @@ export class MeetingRepository {
           scheduledAt: Date;
           scheduleVersion: number;
           duration: number;
+          externalEventId: string | null;
         }>
       >`
-        SELECT "status", "scheduledAt", "scheduleVersion", "duration"
+        SELECT "status", "scheduledAt", "scheduleVersion", "duration",
+               "externalEventId"
         FROM "Meeting"
         WHERE "id" = ${input.meetingId}::uuid
           ${userFilter}
@@ -377,6 +395,13 @@ export class MeetingRepository {
         };
       }
 
+      if (previousScheduledAt.getTime() === input.scheduledAt.getTime()) {
+        return { result: "unchanged" as const };
+      }
+      if (input.scheduledAt.getTime() <= Date.now()) {
+        return { result: "unavailable" as const };
+      }
+
       const end = new Date(input.scheduledAt.getTime() + row.duration * 60_000);
       if (
         !(await this.hasRoom(tx, ctx, scope, availabilityRuleId, {
@@ -394,6 +419,7 @@ export class MeetingRepository {
           scheduledAt: input.scheduledAt,
           scheduleVersion: { increment: 1 },
           ...ATTENDANCE_RESET,
+          ...(row.externalEventId ? EXTERNAL_EVENT_STALE : {}),
         },
         include: { contact: true },
       });
@@ -574,7 +600,8 @@ export class MeetingRepository {
   /**
    * Moves a meeting. A new time is a new schedule version: every reminder
    * planned for the old one goes stale, and an attendance answer given for
-   * the old time no longer stands (CAL-003).
+   * the old time no longer stands (CAL-003). Its external event is marked as
+   * not yet following it, in the same transaction (CAL-002).
    */
   async reschedule(
     id: string,
@@ -586,14 +613,22 @@ export class MeetingRepository {
       notes?: string;
     },
   ): Promise<Meeting> {
-    return this.prisma.meeting.update({
-      where: { id },
-      data: {
-        ...data,
-        scheduleVersion: { increment: 1 },
-        ...ATTENDANCE_RESET,
-      },
-      include: { contact: true },
+    return this.prisma.$transaction(async (tx) => {
+      const moved = await tx.meeting.update({
+        where: { id },
+        data: {
+          ...data,
+          scheduleVersion: { increment: 1 },
+          ...ATTENDANCE_RESET,
+        },
+        include: { contact: true },
+      });
+      if (!moved.externalEventId) return moved;
+      return tx.meeting.update({
+        where: { id },
+        data: EXTERNAL_EVENT_STALE,
+        include: { contact: true },
+      });
     });
   }
 
@@ -725,6 +760,41 @@ export class MeetingRepository {
               externalSyncAttempts: { increment: 1 },
             },
     });
+  }
+
+  /**
+   * Records an external event moved to the meeting's time — only while the
+   * meeting is still at the time that was applied. A move that lands after a
+   * newer one never marks the newer schedule as synced (CAL-002). Returns
+   * whether it was recorded.
+   */
+  async recordExternalMove(
+    id: string,
+    applied: {
+      scheduledAt: Date;
+      duration: number;
+      externalEventId: string;
+      integrationId: string;
+      targetCalendarId: string;
+    },
+  ): Promise<boolean> {
+    const { count } = await this.prisma.meeting.updateMany({
+      where: {
+        id,
+        scheduledAt: applied.scheduledAt,
+        duration: applied.duration,
+        externalEventId: applied.externalEventId,
+      },
+      data: {
+        externalCalendarIntegrationId: applied.integrationId,
+        externalCalendarTargetId: applied.targetCalendarId,
+        externalSyncStatus: MeetingExternalSyncStatus.synced,
+        externalSyncError: null,
+        externalSyncedAt: new Date(),
+        externalSyncAttempts: { increment: 1 },
+      },
+    });
+    return count === 1;
   }
 
   /**

@@ -40,6 +40,10 @@ function build(
     sendResult?: Row;
     previous?: Row | null;
     bookingCall?: Row | null;
+    /** The agent call a delivery names, and the handoff on it, if any. */
+    agentCall?: Row | null;
+    takenOver?: Row | null;
+    agents?: Record<string, Row>;
   } = {},
 ) {
   apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1"];
@@ -125,14 +129,17 @@ function build(
     } as never,
     {
       findByMeetingId: async () => over.bookingCall ?? null,
-      findById: async () => null,
+      findById: async () => over.agentCall ?? null,
     } as never,
-    {} as never,
+    {
+      findByIdForOwner: async (_ctx: Row, id: string) =>
+        over.agents?.[id] ?? null,
+    } as never,
     {
       findByIdForOwner: async () => ({ timezone: "America/New_York" }),
       findDefault: async () => null,
     } as never,
-    {} as never,
+    { resolveForAgent: async () => ({ name: "Acme" }) } as never,
     {
       idempotencyWindowMs: 24 * 60 * 60_000,
       send: async (message: Row) => {
@@ -141,6 +148,7 @@ function build(
       },
       getMessageId: async () => "<msg-1@resend.test>",
     } as never,
+    { findForAgentCall: async () => over.takenOver ?? null } as never,
   );
   (service as unknown as { now: () => Date }).now = () =>
     new Date("2026-10-13T19:00:00Z");
@@ -291,6 +299,33 @@ describe("The email an agent's move owes (AGENT-021)", () => {
     await service.drain();
     assert.deepEqual(sends[0]!.to, ["carlos@acme.test", "ana@acme.test"]);
     assert.deepEqual(released, []);
+  });
+
+  // AGENT-021: on a call another agent took over, only that agent can have
+  // moved the meeting — its voice is the email's, not the caller's.
+  it("speaks with the voice of the agent that moved it, not the one that placed the call", async () => {
+    const agents = {
+      "agent-rem": { id: "agent-rem", voiceLanguage: "es" },
+      "agent-sched": { id: "agent-sched", voiceLanguage: "en" },
+    };
+    const handedOver = moved({
+      agentCall: { id: "ac-1", agentId: "agent-rem" },
+      takenOver: { status: "completed", destinationAgentId: "agent-sched" },
+      agents,
+    });
+    handedOver.delivery.agentCallId = "ac-1";
+    await handedOver.service.drain();
+    assert.match(handedOver.sends[0]!.subject, /^New time: /);
+
+    // Its own call — a callback — speaks with its own voice.
+    const ownCall = moved({
+      agentCall: { id: "ac-2", agentId: "agent-rem" },
+      takenOver: null,
+      agents,
+    });
+    ownCall.delivery.agentCallId = "ac-2";
+    await ownCall.service.drain();
+    assert.match(ownCall.sends[0]!.subject, /^Nuevo horario: /);
   });
 
   it("is withdrawn when the meeting moved again before it went out", async () => {

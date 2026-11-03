@@ -1467,8 +1467,15 @@ A meeting that moves — from the dashboard or by an agent — moves its event
 (`CalendarService.moveExternalEvent`): a `PATCH` of the event's start and end
 to the meeting's time, which the provider announces to its attendees (Google
 with `sendUpdates=all`). It is best-effort in the same way: the move in Ringee
-stands, a failure is recorded on the meeting, and `retryExternalSync` retries a
-failed move as a move — setting an absolute time is safe to repeat.
+stands. The move itself marks `externalSyncStatus` `pending` in its own
+transaction, so the meeting never reads `synced` while its event shows the old
+time — not when the `PATCH` fails, and not when recording the failure does.
+`synced` is recorded only while the meeting is still at the time that was
+applied (`MeetingRepository.recordExternalMove`); a meeting moved again
+meanwhile gets the latest time applied instead. `retryExternalSync` retries a
+move that failed or never ran as a move — setting an absolute time is safe to
+repeat. A retried push that finds Google's event (`409`) at a time the meeting
+has since moved from moves it before recording it.
 
 The destination is stored **on the meeting**, not read back from the calendar, so
 re-pointing a calendar at a different Google account never rewrites where an
@@ -1476,7 +1483,8 @@ event that already exists lives. Disconnecting an account leaves each calendar's
 pointer in place, so reconnecting restores every calendar that used it at once.
 
 - **Source of truth:** `CalendarService.syncMeetingToExternalCalendar` /
-  `moveExternalEvent`, `MeetingRepository.recordExternalSync`
+  `moveExternalEvent`, `MeetingRepository.recordExternalSync` /
+  `recordExternalMove`
 - **Risk if violated:** duplicate events on a customer's real calendar, or a
   booking silently lost because an external API was down
 
@@ -1963,8 +1971,9 @@ creator with the admins, never to the lead. A meeting an agent moved
 (`AGENT-021`) owes one too: the lead, when there is an address, the member and
 the creator in To, the admins in CC — without the lead's address it still tells
 the team rather than waiting. It names the new time and the one before, speaks
-the language of the call that moved it, and starts its own thread, because the
-lead was never on the "can't attend" one before it.
+with the voice of the agent that moved it — on a call another agent took over,
+that agent's, not the caller's — and starts its own thread, because the lead
+was never on the "can't attend" one before it.
 
 Recipients are resolved at send time from the meeting and the organization as
 they are then: a member who left is never written to (`needs_member`), and a
@@ -2047,15 +2056,19 @@ it is not in it yet.
   `book_appointment` refuses on such a call — a second meeting beside the first
   is exactly what must not happen.
 - **Moving the meeting.** Once the person says yes to a time, `move_meeting`
-  moves that meeting — the model supplies only the time — to one its calendar
-  offers at that moment, under the workspace lock and capacity check a booking
-  uses (`MeetingRepository.rescheduleIfAvailable`) and only while its version
-  is still the one handed; a repeat of the same move changes nothing. The move
-  is a new schedule version (`CAL-003`) and does everything a move from the
-  dashboard does: reminder calls are replanned and the external event follows
-  it (`CAL-002`). It resolves the request, withdraws its callbacks, and owes one
+  moves that meeting — the model supplies only the time, with its offset — to
+  one its calendar offers at that moment, under the workspace lock and capacity
+  check a booking uses (`MeetingRepository.rescheduleIfAvailable`), only while
+  its version is still the one handed and only while the request is pending.
+  The time it already has is no move: nothing is written and no email is
+  owed. A repeat of the same move — even after the version moved on — writes
+  nothing, and finishes what the first attempt may not have. The move is a new
+  schedule version (`CAL-003`) and does everything a move from the dashboard
+  does: reminder calls are replanned and the external event follows it
+  (`CAL-002`). It resolves the request, withdraws its callbacks, and owes one
   email to the lead and the team (`AGENT-020`). A cancelled meeting, reachable
-  only on a callback, is not moved: the team is asked instead.
+  only on a callback, is not moved: the team is asked instead, and the person
+  is told so only once that request went out.
 - **Failure and doubt.** The source still holding the call and scheduling a
   callback is a confirmed failure — unless the destination's first tool call
   completed the handoff first, and then no callback is promised. A call that

@@ -282,6 +282,9 @@ function formatInZone(instant: Date, timeZone: string): string {
   }).format(instant);
 }
 
+/** How many times a move re-applies a newer time before leaving it pending. */
+const MAX_EXTERNAL_MOVE_ATTEMPTS = 3;
+
 const DEFAULT_CALENDAR_NAME = "Global calendar";
 const MAX_CALENDAR_NAME_LENGTH = 80;
 
@@ -1342,9 +1345,12 @@ export class CalendarService {
    * Moves a meeting's external event to the meeting's current time (CAL-002):
    * the event is a copy, so a meeting moved in Ringee moves it too, and the
    * provider tells its attendees. Best-effort like the first push — the move
-   * in Ringee stands whatever happens here, and the outcome is recorded on
-   * the meeting. Setting an absolute time is safe to repeat. A meeting
-   * without an event has nothing to move.
+   * in Ringee stands whatever happens here. A move marks the meeting `pending`
+   * in its own transaction, so `synced` is only ever recorded here, for the
+   * time that was applied: when the meeting moved again meanwhile, the latest
+   * time is applied instead. A meeting without an event, or whose event
+   * already follows it, has nothing to move; setting an absolute time is safe
+   * to repeat.
    */
   async moveExternalEvent(
     ctx: OwnershipContext,
@@ -1353,6 +1359,10 @@ export class CalendarService {
     if (!meeting.externalEventId || !meeting.externalCalendarIntegrationId) {
       return { status: MeetingExternalSyncStatus.not_required };
     }
+    if (meeting.externalSyncStatus === MeetingExternalSyncStatus.synced) {
+      return { status: MeetingExternalSyncStatus.synced };
+    }
+    const eventId = meeting.externalEventId;
     // The account the event was created in, as recorded on the meeting.
     const integration = await this.calendarRepo.findByIdForOwner(
       ctx,
@@ -1360,57 +1370,72 @@ export class CalendarService {
     );
     const targetCalendarId =
       meeting.externalCalendarTargetId ?? integration?.calendarId ?? "primary";
+    // If even this write fails the meeting stays `pending`, never `synced`.
+    const recordFailure = (integrationId: string, error: string) =>
+      this.meetingRepo
+        .recordExternalSync(meeting.id, {
+          status: "failed",
+          integrationId,
+          targetCalendarId,
+          error,
+        })
+        .catch((err: unknown) => {
+          this.logger.warn(
+            `Could not record the failed move of meeting ${meeting.id}'s external event: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
     if (!integration) {
       // The pointer stays: reconnecting the account makes a retry possible.
       const error =
         "The calendar account this event was created in is no longer connected.";
-      await this.meetingRepo.recordExternalSync(meeting.id, {
-        status: "failed",
-        integrationId: meeting.externalCalendarIntegrationId,
-        targetCalendarId,
-        error,
-      });
+      await recordFailure(meeting.externalCalendarIntegrationId, error);
       return { status: MeetingExternalSyncStatus.failed, error };
     }
 
     try {
       const accessToken = await this.ensureValidToken(integration);
-      const end = new Date(
-        meeting.scheduledAt.getTime() + meeting.duration * 60_000,
-      );
-      if (integration.provider === "google") {
-        await this.googleMoveEvent(
-          accessToken,
-          targetCalendarId,
-          meeting.externalEventId,
-          meeting.scheduledAt,
-          end,
-        );
-      } else {
-        await this.microsoftMoveEvent(
-          accessToken,
-          meeting.externalEventId,
-          meeting.scheduledAt,
-          end,
-        );
+      let current: Meeting = meeting;
+      for (let attempt = 1; ; attempt += 1) {
+        const start = current.scheduledAt;
+        const end = new Date(start.getTime() + current.duration * 60_000);
+        if (integration.provider === "google") {
+          await this.googleMoveEvent(
+            accessToken,
+            targetCalendarId,
+            eventId,
+            start,
+            end,
+          );
+        } else {
+          await this.microsoftMoveEvent(accessToken, eventId, start, end);
+        }
+        if (
+          await this.meetingRepo.recordExternalMove(meeting.id, {
+            scheduledAt: start,
+            duration: current.duration,
+            externalEventId: eventId,
+            integrationId: integration.id,
+            targetCalendarId,
+          })
+        ) {
+          return { status: MeetingExternalSyncStatus.synced };
+        }
+        // It moved again while this time was being applied.
+        const latest = await this.meetingRepo.findById(meeting.id);
+        if (
+          !latest ||
+          latest.externalEventId !== eventId ||
+          attempt >= MAX_EXTERNAL_MOVE_ATTEMPTS
+        ) {
+          return { status: MeetingExternalSyncStatus.pending };
+        }
+        current = latest;
       }
-      await this.meetingRepo.recordExternalSync(meeting.id, {
-        status: "synced",
-        externalEventId: meeting.externalEventId,
-        integrationId: integration.id,
-        targetCalendarId,
-      });
-      return { status: MeetingExternalSyncStatus.synced };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.meetingRepo
-        .recordExternalSync(meeting.id, {
-          status: "failed",
-          integrationId: integration.id,
-          targetCalendarId,
-          error: message,
-        })
-        .catch(() => undefined);
+      await recordFailure(integration.id, message);
       this.logger.warn(
         `Moving the external event of meeting ${meeting.id} failed: ${message}`,
       );
@@ -1540,14 +1565,31 @@ export class CalendarService {
 
     // 409 means this exact event id already exists — an earlier attempt did
     // reach Google even though Ringee never saw the answer. Read it back
-    // instead of failing, so a retry converges rather than duplicating.
+    // instead of failing, so a retry converges rather than duplicating; an
+    // event created for a time the meeting has since moved from is moved to
+    // the time asked for now, never recorded as synced at the old one.
     if (res.status === 409 && dto.idempotencyId) {
       const existing = await this.googleGetEvent(
         accessToken,
         calendarId,
         dto.idempotencyId,
       );
-      if (existing) return existing;
+      if (existing) {
+        if (
+          existing.start.getTime() !== dto.start.getTime() ||
+          existing.end.getTime() !== end.getTime()
+        ) {
+          await this.googleMoveEvent(
+            accessToken,
+            calendarId,
+            existing.id,
+            dto.start,
+            end,
+          );
+          return { ...existing, start: dto.start, end };
+        }
+        return existing;
+      }
     }
 
     if (!res.ok)

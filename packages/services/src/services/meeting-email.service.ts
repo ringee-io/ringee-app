@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   AiVoiceAgentCallRepository,
+  AiVoiceAgentHandoffRepository,
+  AiVoiceAgentHandoffStatus,
   AiVoiceAgentRepository,
   CalendarRepository,
   Contact,
@@ -85,6 +87,7 @@ export class MeetingEmailService {
     private readonly calendars: CalendarRepository,
     private readonly companyProfiles: CompanyProfileService,
     @Inject(EMAIL_PROVIDER) private readonly email: EmailInterface,
+    private readonly handoffs: AiVoiceAgentHandoffRepository,
   ) {}
 
   /** Worker entry point, on the reminder schedule's tick. */
@@ -397,8 +400,11 @@ export class MeetingEmailService {
 
   /**
    * The language the lead was spoken to in, and the company the agent speaks
-   * for — the same voice the call had: the call that owed the email, or the
-   * one that recorded the answer.
+   * for — the voice of the agent that owed the email: the one that recorded
+   * the answer, or the one that moved the meeting. On a call another agent
+   * took over (AGENT-021), only that agent can have moved it, and it speaks
+   * with its own voice and company — not those of the agent that placed the
+   * call.
    */
   private async voiceOf(
     ctx: OrganizationOwnershipContext,
@@ -407,8 +413,17 @@ export class MeetingEmailService {
   ): Promise<{ language: string; company: string | null }> {
     const callId = agentCallId ?? meeting.attendanceAgentCallId;
     const call = callId ? await this.agentCalls.findById(callId) : null;
-    const agent = call
-      ? await this.agents.findByIdForOwner(ctx, call.agentId)
+    const takenOver =
+      agentCallId && call
+        ? await this.handoffs.findForAgentCall(call.id)
+        : null;
+    const agentId =
+      takenOver?.status === AiVoiceAgentHandoffStatus.completed &&
+      takenOver.destinationAgentId
+        ? takenOver.destinationAgentId
+        : call?.agentId;
+    const agent = agentId
+      ? await this.agents.findByIdForOwner(ctx, agentId)
       : null;
     if (!agent) {
       const organization = await this.organizations.findById(
