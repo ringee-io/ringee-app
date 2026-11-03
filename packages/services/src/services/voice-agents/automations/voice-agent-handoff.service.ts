@@ -37,6 +37,7 @@ import {
   MeetingReminderPolicyRepository,
   MeetingRepository,
   MeetingStatus,
+  OrganizationRepository,
   UserRepository,
   type AiVoiceAgentParticipantBinding,
 } from "@ringee/database";
@@ -292,6 +293,7 @@ export class VoiceAgentHandoffService {
     private readonly provider: VoiceAgentProviderService,
     private readonly context: VoiceAgentConversationContextService,
     private readonly pendingActions: PendingActionService,
+    private readonly organizations: OrganizationRepository,
   ) {}
 
   // ── The destination ────────────────────────────────────────────────
@@ -1322,6 +1324,16 @@ export class VoiceAgentHandoffService {
   }
 
   /**
+   * Whether the request's follow-up objective is still open at `at`. A
+   * callback due at or after its expiry is never claimed, so it must not be
+   * promised. A request without an objective has no such bound.
+   */
+  async objectiveOpenAt(handoffId: string, at: Date): Promise<boolean> {
+    const objective = await this.pendingActions.followUpForHandoff(handoffId);
+    return !objective || objective.expiresAt > at;
+  }
+
+  /**
    * What to do with a due agent callback, decided from the request — never
    * from what the callback was created with alone. Rebuilds the context, and
    * checks the request is still open: a meeting someone already moved resolves
@@ -1424,6 +1436,22 @@ export class VoiceAgentHandoffService {
         action: "skip",
         status: CallbackStatus.cancelled,
         reason: "objective_resolved",
+      };
+    }
+
+    // A callback or recovery is placed on behalf of the request's owner, the
+    // member whose call it continues. One who has left the organization
+    // places nothing: a person decides what follows.
+    if (
+      !(await this.organizations.isMember(
+        handoff.userId,
+        handoff.organizationId,
+      ))
+    ) {
+      return {
+        action: "skip",
+        status: CallbackStatus.missed,
+        reason: "owner_not_member",
       };
     }
 

@@ -297,15 +297,24 @@ export class PendingActionService {
     for (const { id } of due) {
       try {
         await this.reconcileFollowUp(id, now);
-      } catch {
-        this.logger.warn(`Follow-up ${id} reconciliation deferred`);
-        const row = await this.repo.followUpSnapshot(id);
-        if (row)
-          await this.repo.deferFollowUpReview(
-            id,
-            row.revision,
-            new Date(now.getTime() + 60_000),
+      } catch (error) {
+        this.logger.warn(
+          `Follow-up ${id} reconciliation deferred: ${describeError(error)}`,
+        );
+        // A deferral that fails as well must not stop the rest of the batch.
+        try {
+          const row = await this.repo.followUpSnapshot(id);
+          if (row)
+            await this.repo.deferFollowUpReview(
+              id,
+              row.revision,
+              new Date(now.getTime() + 60_000),
+            );
+        } catch (deferError) {
+          this.logger.error(
+            `Follow-up ${id} could not be deferred: ${describeError(deferError)}`,
           );
+        }
       }
     }
   }
@@ -760,6 +769,10 @@ export class PendingActionService {
       );
     }
   }
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function samePlan(row: FollowUpSnapshot, plan: FollowUpPlan): boolean {

@@ -2081,11 +2081,15 @@ it is not in it yet.
   has ended, no participant's tool call changes anything.
 - **Callbacks.** A callback agreed after a failure is assigned to the
   scheduling agent (AGENT-014) and promised only once it exists, and only
-  while the request is pending and its meeting not already moved. The same
-  call agreeing another time moves that callback; it never adds a second one.
-  When it comes due its context is rebuilt from the request, and it is
-  withdrawn if someone already moved the meeting; the original time passing,
-  or the meeting being cancelled, resolves nothing. A try whose call row never
+  while the request is pending and its meeting not already moved — and, for
+  an objective-backed request, only for a time before its objective expires.
+  The same call agreeing another time moves that callback; it never adds a
+  second one. When it comes due its context is rebuilt from the request, and
+  it is withdrawn if someone already moved the meeting; the original time
+  passing, or the meeting being cancelled, resolves nothing. A callback or
+  recovery is placed on behalf of the request's owner, and never once that
+  member has left the organization: it is skipped as `owner_not_member` and a
+  person decides. A try whose call row never
   confirmed its leg is waited on, then recorded as `placement_unconfirmed` —
   never completed on a guess, never dialed again. When a call ends before the
   scheduling agent ever spoke and nothing was agreed, the request is recovered

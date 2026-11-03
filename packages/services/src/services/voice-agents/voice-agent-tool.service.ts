@@ -1536,6 +1536,20 @@ export class VoiceAgentToolService {
       };
     }
     try {
+      // A callback due after the request's objective expires would never be
+      // placed: none is created or moved there, and none is promised.
+      if (
+        !(await this.handoffs.objectiveOpenAt(
+          input.handoffId,
+          input.scheduledAt,
+        ))
+      ) {
+        return {
+          ok: false,
+          error:
+            "The callback could not be scheduled. Do not promise that the call will happen.",
+        };
+      }
       let callback = await this.callbacks.scheduleAgentCallback({
         handoffId: input.handoffId,
         agentId: input.destinationAgentId,

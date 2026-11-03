@@ -29,11 +29,11 @@ stored meeting change can resolve a case that previously needed attention.
 Reviews are bounded and ordered by `reviewAt` so old blocked cases do not starve
 new work.
 
-Stage 2 extends the source authorization of
-`PendingActionService.prepareFollowUpObjective` and uses the same transaction
-helpers, objective, event history and callback execution. It must deliberately
-wire eligible human dispositions and their revisions; no such caller exists in
-Stage 1. Recommendations retain their own activation and execution mode.
+Only a Step 0 reschedule handoff enrolls an objective: no caller enrolls human
+dispositions, and recommendations retain their own activation and execution
+mode. The next stage is planned in
+[PLAN_ORGANIZATION_AI_FOLLOWUP.md](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md)
+§17.
 
 ## Lifecycle and evidence
 

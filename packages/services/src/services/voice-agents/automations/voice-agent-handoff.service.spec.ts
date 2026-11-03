@@ -62,6 +62,10 @@ function world(
     };
     /** What enrolling the follow-up objective does, after the pilot gate. */
     enroll?: () => Promise<unknown>;
+    /** The request's follow-up objective, when it has one. */
+    objective?: Row;
+    /** Whether the request's owner is still a member of the organization. */
+    ownerIsMember?: boolean;
   } = {},
 ) {
   const agents = new Map<string, Row>();
@@ -520,8 +524,9 @@ function world(
         assertVoiceAgentAutomations(ctx as never);
         return over.enroll ? over.enroll() : undefined;
       },
-      followUpForHandoff: async () => null,
+      followUpForHandoff: async () => over.objective ?? null,
     } as never,
+    { isMember: async () => over.ownerIsMember ?? true } as never,
   );
 
   return {
@@ -2292,6 +2297,58 @@ describe("A callback for the request", () => {
     w.endCall();
     return { w, t, callback: t.agentCallbacks[0]! };
   }
+
+  it("places nothing on behalf of an owner who left the organization", async () => {
+    const { w, callback } = await failedWithCallback({ ownerIsMember: false });
+    const at = new Date("2026-11-04T16:00:00.000Z");
+    const decision = await w.handoffService.decideCallback(
+      { ...callback, scheduledAt: at } as never,
+      new Date(at.getTime() + 60_000),
+    );
+    assert.deepEqual(decision, {
+      action: "skip",
+      status: CallbackStatus.missed,
+      reason: "owner_not_member",
+    });
+  });
+
+  it("promises no callback due after the request's objective expires", async () => {
+    const expiresAt = new Date(NOW.getTime() + 2 * 86_400_000);
+    const w = world({
+      objective: {
+        id: "objective-1",
+        mode: "automatic",
+        state: "in_progress",
+        revision: 1,
+        expiresAt,
+      },
+    });
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    // At the expiry itself is too late: the objective is over by then.
+    for (const at of [expiresAt, new Date(expiresAt.getTime() + 86_400_000)]) {
+      const late = await t.service.scheduleRescheduleCallback(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        { scheduled_at: at.toISOString() },
+      );
+      assert.equal(late.ok, false);
+      assert.match(
+        (late as { error: string }).error,
+        /could not be scheduled.*Do not promise/,
+      );
+    }
+    assert.equal(t.agentCallbacks.length, 0);
+    const inTime = await t.service.scheduleRescheduleCallback(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { scheduled_at: "2026-11-04T17:00:00+01:00" },
+    );
+    assert.equal(inTime.ok, true);
+    assert.equal(t.agentCallbacks.length, 1);
+  });
 
   it("still calls after the original meeting time, with the context rebuilt", async () => {
     const { w, callback } = await failedWithCallback();

@@ -82,6 +82,7 @@ describe(
       { assistantHandoffMode: () => "assistant_tool" } as never,
       { previousInteractions: async () => "" } as never,
       service,
+      organizations,
     );
     const organizationId = randomUUID();
     const adminId = randomUUID();
@@ -1042,6 +1043,52 @@ describe(
         await handoffs.callbackStillWanted(handoff, f.objective.expiresAt),
         false,
       );
+      // Nor is a callback promised for a time at or after the expiry.
+      assert.equal(
+        await handoffs.objectiveOpenAt(f.handoff.id, f.objective.expiresAt),
+        false,
+      );
+      assert.equal(
+        await handoffs.objectiveOpenAt(
+          f.handoff.id,
+          new Date(f.objective.expiresAt.getTime() - 1),
+        ),
+        true,
+      );
+      await close(f.objective.id);
+    });
+
+    it("a callback owned by a member who left the organization is not placed", async () => {
+      const f = await seed(colleagueId);
+      await prisma.call.update({
+        where: { id: f.call.id },
+        data: { endedAt: new Date(), status: "completed" },
+      });
+      const { callback } = await callbacks.createAgentCallbackOnce({
+        userId: colleagueId,
+        organizationId,
+        contactId: f.contact.id,
+        callId: f.call.id,
+        handoffId: f.handoff.id,
+        agentId,
+        agentCallbackKind: "agreed",
+        agentCallbackKey: randomUUID(),
+        scheduledAt: new Date(Date.now() - 1000),
+      });
+      await prisma.organizationMembership.deleteMany({
+        where: { organizationId, userId: colleagueId },
+      });
+      try {
+        assert.deepEqual(await handoffs.decideCallback(callback), {
+          action: "skip",
+          status: "missed",
+          reason: "owner_not_member",
+        });
+      } finally {
+        await prisma.organizationMembership.create({
+          data: { organizationId, userId: colleagueId, role: "org:member" },
+        });
+      }
       await close(f.objective.id);
     });
 
