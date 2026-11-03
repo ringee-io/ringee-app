@@ -5012,6 +5012,9 @@ enum MeetingEmailKind {
   attendance_confirmed
   /// The lead cannot attend: the member and admins hear about it.
   attendance_declined
+  /// An agent moved the meeting on a call (AGENT-021): the lead, when there is
+  /// an address, and the member in To, admins in CC.
+  rescheduled
 }
 
 enum MeetingEmailDeliveryStatus {
@@ -5030,36 +5033,42 @@ enum MeetingEmailDeliveryStatus {
 /// a repeated confirmation a no-op instead of a second email; the provider's
 /// own idempotency only lasts a day, so this row is what is checked first.
 model MeetingEmailDelivery {
-  id              String                     @id @default(uuid()) @db.Uuid
-  userId          String                     @db.Uuid
-  organizationId  String                     @db.Uuid
-  meetingId       String                     @db.Uuid
-  kind            MeetingEmailKind
-  scheduleVersion Int                        @default(1)
-  claimToken      String?                    @db.Uuid
+  id                  String                     @id @default(uuid()) @db.Uuid
+  userId              String                     @db.Uuid
+  organizationId      String                     @db.Uuid
+  meetingId           String                     @db.Uuid
+  kind                MeetingEmailKind
+  scheduleVersion     Int                        @default(1)
+  /// The agent call whose tool owed this email when it is not the attendance
+  /// answer's — the call that moved the meeting. Its agent's language and
+  /// company are the email's.
+  agentCallId         String?                    @db.Uuid
+  /// `rescheduled` only: the time the meeting moved from.
+  previousScheduledAt DateTime?
+  claimToken          String?                    @db.Uuid
   /// The immutable provider request and the start of its deduplication window.
-  sendPayload     Json?
-  firstAttemptAt  DateTime?
+  sendPayload         Json?
+  firstAttemptAt      DateTime?
   /// meeting + schedule version + kind.
-  idempotencyKey  String                     @unique
-  status          MeetingEmailDeliveryStatus @default(pending)
+  idempotencyKey      String                     @unique
+  status              MeetingEmailDeliveryStatus @default(pending)
   /// Recipients as actually sent; resolved at send time, never stored as
   /// authorization from a client.
-  toAddresses     String[]                   @default([])
-  ccAddresses     String[]                   @default([])
-  replyTo         String?
-  subject         String?
+  toAddresses         String[]                   @default([])
+  ccAddresses         String[]                   @default([])
+  replyTo             String?
+  subject             String?
   /// The provider's id for the send, and the RFC 5322 Message-ID it reported,
   /// which the next email about the same meeting threads under.
-  providerEmailId String?
-  messageId       String?
-  inReplyTo       String?
-  attempts        Int                        @default(0)
-  lastError       String?                    @db.Text
-  leaseExpiresAt  DateTime?
-  sentAt          DateTime?
-  createdAt       DateTime                   @default(now())
-  updatedAt       DateTime                   @updatedAt
+  providerEmailId     String?
+  messageId           String?
+  inReplyTo           String?
+  attempts            Int                        @default(0)
+  lastError           String?                    @db.Text
+  leaseExpiresAt      DateTime?
+  sentAt              DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

@@ -534,6 +534,9 @@ function tools(w: ReturnType<typeof world>) {
   const agentCallbacks: Row[] = [];
   const legacyCallbacks: Row[] = [];
   const attendance: Row[] = [];
+  const moves: Row[] = [];
+  /** What `MeetingService.moveForAgent` answers; a successful move by default. */
+  const move: { outcome: Row | null } = { outcome: null };
 
   const service = new VoiceAgentToolService(
     {
@@ -589,6 +592,21 @@ function tools(w: ReturnType<typeof world>) {
         return { id: "new-meeting" };
       },
       getMeetingById: async () => ({}),
+      moveForAgent: async (_ctx: Row, input: Row) => {
+        moves.push(input);
+        if (move.outcome) return move.outcome;
+        const meeting = w.meetings.get(input.meetingId)!;
+        return {
+          result: "moved",
+          meeting: {
+            ...meeting,
+            scheduledAt: input.scheduledAt,
+            scheduleVersion: input.expectedScheduleVersion + 1,
+          },
+          previousScheduledAt: meeting.scheduledAt,
+          repeated: false,
+        };
+      },
     } as never,
     {
       findContactByIdForOwner: async () => null,
@@ -660,6 +678,8 @@ function tools(w: ReturnType<typeof world>) {
     agentCallbacks,
     legacyCallbacks,
     attendance,
+    moves,
+    move,
   };
 }
 
@@ -1496,6 +1516,166 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(handoff!.language, "en");
     assert.equal(handoff!.languageSource, "person_request");
     assert.equal(handoff!.failureReason, "language_mismatch");
+  });
+});
+
+describe("Moving the handed meeting on the call (AGENT-021)", () => {
+  /** A future time on the hour, so the "already past" guard never trips. */
+  const later = () =>
+    new Date(Math.ceil((Date.now() + 2 * 86_400_000) / 3_600_000) * 3_600_000);
+
+  async function handedOver(w: ReturnType<typeof world>) {
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {
+      person_said: "Hoy no puedo",
+      preferences: "mañana",
+    });
+    // The scheduling agent's first tool call completes the handoff.
+    const context = await t.service.getHandoffContext(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+    );
+    assert.equal(context.ok, true);
+    return t;
+  }
+
+  it("moves the meeting it was handed, at the version it was handed, and closes the request", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    const start = later();
+
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: start.toISOString() },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(t.moves.length, 1);
+    const [input] = t.moves;
+    // Everything but the time comes from the request, never the model.
+    assert.equal(input!.meetingId, "meeting-1");
+    assert.equal(input!.expectedScheduleVersion, 3);
+    assert.equal(input!.scheduledAt.getTime(), start.getTime());
+    assert.equal(input!.durationMinutes, 45);
+    assert.equal(input!.agentCallId, "ac-1");
+    assert.equal(input!.resolvedCalendar.calendar.id, "cal-meeting");
+    // Moved, not booked: no second meeting beside it.
+    assert.deepEqual(t.created, []);
+
+    if (!result.ok) return;
+    assert.equal(result.meeting.start, start.toISOString());
+    assert.equal(result.email, "will_be_sent");
+    assert.match(result.speech_instruction, /email with the new time/);
+    assert.match(
+      result.speech_instruction,
+      /do not say it has already been sent/,
+    );
+
+    const [handoff] = [...w.handoffs.values()];
+    assert.equal(handoff!.requestStatus, R.resolved);
+    assert.equal(handoff!.resolution, "meeting_moved_by_agent");
+  });
+
+  it("promises no email to a person with no address on file", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    const meeting = w.meetings.get("meeting-1")!;
+    t.move.outcome = {
+      result: "moved",
+      meeting: { ...meeting, leadEmail: null, contact: { email: null } },
+      previousScheduledAt: meeting.scheduledAt,
+      repeated: false,
+    };
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.email, "no_email_on_file");
+    assert.match(result.speech_instruction, /do not promise them an email/);
+  });
+
+  it("moves nothing for an agent nothing was handed to, or that handed the call away", async () => {
+    const w = world();
+    const t = tools(w);
+    const root = await t.service.moveMeeting("agent-rem", REM_SECRET, CC, {
+      start: later().toISOString(),
+    });
+    assert.equal(root.ok, false);
+    assert.match(root.ok ? "" : root.error, /no meeting to move on this call/);
+
+    const handed = await handedOver(w);
+    const source = await handed.service.moveMeeting(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(source.ok, false);
+    assert.match(source.ok ? "" : source.error, /handed to another assistant/);
+    assert.deepEqual([...t.moves, ...handed.moves], []);
+  });
+
+  it("offers other times when the one chosen was just taken, and keeps the request open", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    t.move.outcome = { result: "unavailable" };
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? "" : result.error, /get_available_slots again/);
+    assert.equal([...w.handoffs.values()][0]!.requestStatus, R.pending);
+  });
+
+  it("does not move a meeting that changed during the call", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    t.move.outcome = { result: "stale" };
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? "" : result.error, /was not moved/);
+    assert.equal([...w.handoffs.values()][0]!.requestStatus, R.pending);
+  });
+
+  it("refuses a time in the past before asking anything", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    const result = await t.service.moveMeeting(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: new Date(Date.now() - 60_000).toISOString() },
+    );
+    assert.equal(result.ok, false);
+    assert.deepEqual(t.moves, []);
+  });
+
+  it("sends book_appointment on a handed call to move_meeting instead", async () => {
+    const w = world();
+    const t = await handedOver(w);
+    const booked = await t.service.bookAppointment(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+      { start: later().toISOString() },
+    );
+    assert.equal(booked.ok, false);
+    assert.match(booked.ok ? "" : booked.error, /call move_meeting/);
+    assert.deepEqual(t.created, []);
   });
 });
 

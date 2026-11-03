@@ -818,7 +818,7 @@ export class VoiceAgentHandoffService {
             }.`,
         `Speak ${languageName(language)} for the rest of the call unless they ask to switch.`,
         "Then call get_available_slots for a day that suits them and offer at most three times from its result.",
-        "Moving the meeting cannot be completed on this call: when they choose a time, say it is noted and that the team will confirm the change — never say the meeting is moved — and call request_human_support with the chosen time. Never call book_appointment for this meeting.",
+        "When they choose one, repeat the day and time back, get an explicit yes and call move_meeting with that time; say the meeting is moved only after it returns success. Never call book_appointment for this meeting.",
       ].join(" "),
     };
   }
@@ -1164,6 +1164,17 @@ export class VoiceAgentHandoffService {
       return null;
     }
     return at;
+  }
+
+  /**
+   * The agent that took the request moved the meeting on the call: the
+   * request is done, and a callback still planned for it is withdrawn.
+   */
+  async resolveMoved(
+    handoff: AiVoiceAgentHandoff,
+    now = new Date(),
+  ): Promise<void> {
+    await this.closeRequest(handoff, R.resolved, "meeting_moved_by_agent", now);
   }
 
   private async closeRequest(

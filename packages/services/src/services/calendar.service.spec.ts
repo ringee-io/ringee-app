@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import {
   CalendarService,
   MAX_MEETING_DURATION_MINUTES,
@@ -565,5 +565,131 @@ describe("CalendarService multiple calendars", () => {
 
     assert.equal(resolved.destination, null);
     assert.equal(resolved.timezone, "UTC");
+  });
+});
+
+describe("CalendarService.moveExternalEvent (CAL-002)", () => {
+  const ctx = { userId: "user-1", organizationId: "org-1" };
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const MEETING = {
+    id: "meeting-1",
+    scheduledAt: new Date("2099-01-06T16:00:00.000Z"),
+    duration: 30,
+    externalEventId: "event-1",
+    externalCalendarIntegrationId: "integration-1",
+    externalCalendarTargetId: "team@group.calendar.google.com",
+  };
+
+  function moveBuild(
+    integration: Record<string, unknown> | null,
+    response: { ok: boolean; status: number } = { ok: true, status: 200 },
+  ) {
+    const requests: Array<{ url: string; init: RequestInit }> = [];
+    const recorded: Array<Record<string, unknown>> = [];
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      requests.push({ url, init });
+      return { ...response, json: async () => ({}) };
+    }) as unknown as typeof fetch;
+    const service = new CalendarService(
+      { findByIdForOwner: async () => integration } as never,
+      {
+        recordExternalSync: async (
+          _id: string,
+          result: Record<string, unknown>,
+        ) => {
+          recorded.push(result);
+          return {};
+        },
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    return { service, requests, recorded };
+  }
+
+  const google = {
+    id: "integration-1",
+    provider: "google",
+    accessToken: "token",
+    expiresAt: null,
+    calendarId: null,
+  };
+
+  it("moves a Google event to the meeting's time and tells its attendees", async () => {
+    const { service, requests, recorded } = moveBuild(google);
+
+    const result = await service.moveExternalEvent(ctx, MEETING as never);
+
+    assert.equal(result.status, "synced");
+    assert.equal(requests.length, 1);
+    assert.equal(
+      requests[0]!.url,
+      "https://www.googleapis.com/calendar/v3/calendars/team%40group.calendar.google.com/events/event-1?sendUpdates=all",
+    );
+    assert.equal(requests[0]!.init.method, "PATCH");
+    assert.deepEqual(JSON.parse(String(requests[0]!.init.body)), {
+      start: { dateTime: "2099-01-06T16:00:00.000Z" },
+      end: { dateTime: "2099-01-06T16:30:00.000Z" },
+    });
+    // The event, account and calendar it lives in stay as recorded.
+    assert.deepEqual(recorded, [
+      {
+        status: "synced",
+        externalEventId: "event-1",
+        integrationId: "integration-1",
+        targetCalendarId: "team@group.calendar.google.com",
+      },
+    ]);
+  });
+
+  it("moves a Microsoft event by its id", async () => {
+    const { service, requests } = moveBuild({
+      ...google,
+      provider: "microsoft",
+    });
+    await service.moveExternalEvent(ctx, MEETING as never);
+    assert.equal(
+      requests[0]!.url,
+      "https://graph.microsoft.com/v1.0/me/events/event-1",
+    );
+    assert.equal(requests[0]!.init.method, "PATCH");
+    assert.deepEqual(JSON.parse(String(requests[0]!.init.body)), {
+      start: { dateTime: "2099-01-06T16:00:00.000Z", timeZone: "UTC" },
+      end: { dateTime: "2099-01-06T16:30:00.000Z", timeZone: "UTC" },
+    });
+  });
+
+  it("has nothing to move for a meeting without an event", async () => {
+    const { service, requests, recorded } = moveBuild(google);
+    const result = await service.moveExternalEvent(ctx, {
+      ...MEETING,
+      externalEventId: null,
+    } as never);
+    assert.equal(result.status, "not_required");
+    assert.deepEqual(requests, []);
+    assert.deepEqual(recorded, []);
+  });
+
+  it("records a failure on the meeting, and keeps the account it was created in", async () => {
+    const refused = moveBuild(google, { ok: false, status: 404 });
+    const result = await refused.service.moveExternalEvent(
+      ctx,
+      MEETING as never,
+    );
+    assert.equal(result.status, "failed");
+    assert.equal(refused.recorded[0]!.status, "failed");
+    assert.equal(refused.recorded[0]!.integrationId, "integration-1");
+
+    // Disconnected since: nothing is sent, and reconnecting can retry it.
+    const disconnected = moveBuild(null);
+    await disconnected.service.moveExternalEvent(ctx, MEETING as never);
+    assert.deepEqual(disconnected.requests, []);
+    assert.equal(disconnected.recorded[0]!.status, "failed");
+    assert.equal(disconnected.recorded[0]!.integrationId, "integration-1");
   });
 });

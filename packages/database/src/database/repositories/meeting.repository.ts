@@ -2,8 +2,10 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import {
   Prisma,
+  Contact,
   Meeting,
   MeetingAttendanceStatus,
+  MeetingEmailDeliveryStatus,
   MeetingEmailKind,
   MeetingExternalSyncStatus,
   MeetingReminderExecutionStatus,
@@ -50,6 +52,44 @@ export interface MeetingAttendanceInput {
 export type MeetingAttendanceOutcome =
   | { result: "recorded"; meeting: Meeting; repeated: boolean }
   | { result: "not_found" | "cancelled" | "stale" | "past" };
+
+/** A move an agent makes for the person on a call (AGENT-021). */
+export interface MeetingMoveInput {
+  meetingId: string;
+  /** The schedule version the agent was handed. */
+  expectedScheduleVersion: number;
+  scheduledAt: Date;
+  /** The email the move owes, created in the same transaction. */
+  email: { idempotencyKey: string; agentCallId: string } | null;
+}
+
+export type MeetingMoveOutcome =
+  | {
+      result: "moved";
+      meeting: Meeting & { contact: Contact | null };
+      /** The time it moved from; unknown on a repeat of the same move. */
+      previousScheduledAt: Date | null;
+      /** This exact move had already been made — nothing was written. */
+      repeated: boolean;
+    }
+  | { result: "not_found" | "cancelled" | "stale" | "unavailable" };
+
+/** A moved meeting's answer was for another time (CAL-003). */
+const ATTENDANCE_RESET = {
+  attendanceStatus: MeetingAttendanceStatus.pending,
+  attendanceUpdatedAt: null,
+  attendanceAgentCallId: null,
+  attendanceScheduleVersion: null,
+  attendanceNote: null,
+} satisfies Prisma.MeetingUpdateInput;
+
+/** Emails that have not gone out, withdrawn when their meeting moves. */
+const UNSENT_EMAIL_STATUSES: MeetingEmailDeliveryStatus[] = [
+  MeetingEmailDeliveryStatus.pending,
+  MeetingEmailDeliveryStatus.needs_email,
+  MeetingEmailDeliveryStatus.needs_member,
+  MeetingEmailDeliveryStatus.failed,
+];
 
 const ACTIVE_MEETING_STATUSES: MeetingStatus[] = [
   MeetingStatus.scheduled,
@@ -169,8 +209,6 @@ export class MeetingRepository {
     const duration = data.duration ?? 30;
     const end = new Date(data.scheduledAt.getTime() + duration * 60_000);
     const { userFilter, organizationFilter } = ownershipSql(ctx);
-    const ownershipFilter = buildOwnershipFilter(ctx);
-    const calendarFilter = calendarSql(scope.calendarId, scope.isDefault);
 
     return this.prisma.$transaction(async (tx) => {
       await lockWorkspace(tx, ctx);
@@ -192,45 +230,14 @@ export class MeetingRepository {
         if (agentCalls.length !== 1 || agentCalls[0]!.meetingId) return null;
       }
 
-      let capacity: number | null;
-      if (availabilityRuleId) {
-        const currentRule = await tx.calendarAvailabilityRule.findFirst({
-          where: {
-            id: availabilityRuleId,
-            calendarId: scope.calendarId,
-            ...ownershipFilter,
-          },
-          select: { capacity: true },
-        });
-        // Availability settings are replaced, not mutated. A missing id means
-        // the slot snapshot was based on a schedule version that is now stale —
-        // or belonged to a different calendar than the one being booked.
-        if (!currentRule) return null;
-        capacity = currentRule.capacity;
-      } else {
-        // A null marker means getBookableSlots used the default capacity-one
-        // schedule. It stays valid only while this calendar has no configured
-        // rules.
-        const configuredRuleCount = await tx.calendarAvailabilityRule.count({
-          where: { calendarId: scope.calendarId, ...ownershipFilter },
-        });
-        if (configuredRuleCount !== 0) return null;
-        capacity = 1;
+      if (
+        !(await this.hasRoom(tx, ctx, scope, availabilityRuleId, {
+          start: data.scheduledAt,
+          end,
+        }))
+      ) {
+        return null;
       }
-
-      // Only this calendar's bookings consume this calendar's capacity, so two
-      // calendars stay independent and two agents that share one do not.
-      const [{ count = 0 } = {}] = await tx.$queryRaw<Array<{ count: number }>>`
-        SELECT COUNT(*)::int AS "count"
-        FROM "Meeting"
-        WHERE "status" IN ('scheduled', 'rescheduled')
-          AND "scheduledAt" < (${end}::timestamptz AT TIME ZONE 'UTC')
-          AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > (${data.scheduledAt}::timestamptz AT TIME ZONE 'UTC')
-          ${userFilter}
-          ${organizationFilter}
-          ${calendarFilter}
-      `;
-      if (capacity !== null && count >= capacity) return null;
 
       const meeting = await tx.meeting.create({
         data: this.createData(ctx, { ...data, duration }),
@@ -243,6 +250,187 @@ export class MeetingRepository {
         });
       }
       return meeting;
+    });
+  }
+
+  /**
+   * Whether a calendar still has room for a meeting at `window`, read inside
+   * the caller's transaction while it holds the workspace lock — the check a
+   * booking and a move share, so they can never both take the last place.
+   * `excludeMeetingId` is a meeting being moved, which must not count against
+   * its own new time.
+   */
+  private async hasRoom(
+    tx: Prisma.TransactionClient,
+    ctx: OwnershipContext,
+    scope: MeetingCalendarScope,
+    availabilityRuleId: string | null,
+    window: { start: Date; end: Date; excludeMeetingId?: string },
+  ): Promise<boolean> {
+    const { userFilter, organizationFilter } = ownershipSql(ctx);
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    const calendarFilter = calendarSql(scope.calendarId, scope.isDefault);
+
+    let capacity: number | null;
+    if (availabilityRuleId) {
+      const currentRule = await tx.calendarAvailabilityRule.findFirst({
+        where: {
+          id: availabilityRuleId,
+          calendarId: scope.calendarId,
+          ...ownershipFilter,
+        },
+        select: { capacity: true },
+      });
+      // Availability settings are replaced, not mutated. A missing id means
+      // the slot snapshot was based on a schedule version that is now stale —
+      // or belonged to a different calendar than the one being booked.
+      if (!currentRule) return false;
+      capacity = currentRule.capacity;
+    } else {
+      // A null marker means getBookableSlots used the default capacity-one
+      // schedule. It stays valid only while this calendar has no configured
+      // rules.
+      const configuredRuleCount = await tx.calendarAvailabilityRule.count({
+        where: { calendarId: scope.calendarId, ...ownershipFilter },
+      });
+      if (configuredRuleCount !== 0) return false;
+      capacity = 1;
+    }
+
+    // Only this calendar's bookings consume this calendar's capacity, so two
+    // calendars stay independent and two agents that share one do not.
+    const [{ count = 0 } = {}] = await tx.$queryRaw<Array<{ count: number }>>`
+      SELECT COUNT(*)::int AS "count"
+      FROM "Meeting"
+      WHERE "status" IN ('scheduled', 'rescheduled')
+        AND "scheduledAt" < (${window.end}::timestamptz AT TIME ZONE 'UTC')
+        AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > (${window.start}::timestamptz AT TIME ZONE 'UTC')
+        ${
+          window.excludeMeetingId
+            ? Prisma.sql`AND "id" <> ${window.excludeMeetingId}::uuid`
+            : Prisma.empty
+        }
+        ${userFilter}
+        ${organizationFilter}
+        ${calendarFilter}
+    `;
+    return capacity === null || count < capacity;
+  }
+
+  /**
+   * Moves a meeting to a time its calendar still has room for, as one guarded
+   * operation — the move an agent makes for the person on a call (AGENT-021).
+   *
+   * Serialized with bookings by the workspace lock, and with every other
+   * change to the meeting by its row lock. The version must still be the one
+   * the agent was handed (`stale` otherwise) — except for a repeat of this
+   * same move, which finds the meeting already there one version on and
+   * writes nothing. The move is a new schedule version (CAL-003); every email
+   * still waiting about the old time is withdrawn, and the email the move
+   * owes is created with it, under its own key.
+   */
+  async rescheduleIfAvailable(
+    ctx: OwnershipContext,
+    input: MeetingMoveInput,
+    scope: MeetingCalendarScope,
+    availabilityRuleId: string | null,
+  ): Promise<MeetingMoveOutcome> {
+    const { userFilter, organizationFilter } = ownershipSql(ctx);
+    return this.prisma.$transaction(async (tx) => {
+      await lockWorkspace(tx, ctx);
+      const [row] = await tx.$queryRaw<
+        Array<{
+          status: MeetingStatus;
+          scheduledAt: Date;
+          scheduleVersion: number;
+          duration: number;
+        }>
+      >`
+        SELECT "status", "scheduledAt", "scheduleVersion", "duration"
+        FROM "Meeting"
+        WHERE "id" = ${input.meetingId}::uuid
+          ${userFilter}
+          ${organizationFilter}
+        FOR UPDATE
+      `;
+      if (!row) return { result: "not_found" as const };
+      if (!ACTIVE_MEETING_STATUSES.includes(row.status)) {
+        return { result: "cancelled" as const };
+      }
+      const previousScheduledAt = new Date(row.scheduledAt);
+      if (row.scheduleVersion !== input.expectedScheduleVersion) {
+        // A provider retry, or the model asking twice: the move it asks for
+        // is the one already made.
+        const repeated =
+          row.scheduleVersion === input.expectedScheduleVersion + 1 &&
+          previousScheduledAt.getTime() === input.scheduledAt.getTime();
+        if (!repeated) return { result: "stale" as const };
+        const meeting = await tx.meeting.findUniqueOrThrow({
+          where: { id: input.meetingId },
+          include: { contact: true },
+        });
+        return {
+          result: "moved" as const,
+          meeting,
+          previousScheduledAt: null,
+          repeated: true,
+        };
+      }
+
+      const end = new Date(input.scheduledAt.getTime() + row.duration * 60_000);
+      if (
+        !(await this.hasRoom(tx, ctx, scope, availabilityRuleId, {
+          start: input.scheduledAt,
+          end,
+          excludeMeetingId: input.meetingId,
+        }))
+      ) {
+        return { result: "unavailable" as const };
+      }
+
+      const meeting = await tx.meeting.update({
+        where: { id: input.meetingId },
+        data: {
+          scheduledAt: input.scheduledAt,
+          scheduleVersion: { increment: 1 },
+          ...ATTENDANCE_RESET,
+        },
+        include: { contact: true },
+      });
+      // What was waiting to go out was about the old time.
+      await tx.meetingEmailDelivery.updateMany({
+        where: {
+          meetingId: input.meetingId,
+          status: { in: UNSENT_EMAIL_STATUSES },
+        },
+        data: {
+          status: MeetingEmailDeliveryStatus.cancelled,
+          leaseExpiresAt: null,
+        },
+      });
+      if (input.email && meeting.organizationId) {
+        await tx.meetingEmailDelivery.createMany({
+          data: [
+            {
+              userId: meeting.userId,
+              organizationId: meeting.organizationId,
+              meetingId: meeting.id,
+              kind: MeetingEmailKind.rescheduled,
+              scheduleVersion: meeting.scheduleVersion,
+              idempotencyKey: input.email.idempotencyKey,
+              agentCallId: input.email.agentCallId,
+              previousScheduledAt,
+            },
+          ],
+          skipDuplicates: true,
+        });
+      }
+      return {
+        result: "moved" as const,
+        meeting,
+        previousScheduledAt,
+        repeated: false,
+      };
     });
   }
 
@@ -403,11 +591,7 @@ export class MeetingRepository {
       data: {
         ...data,
         scheduleVersion: { increment: 1 },
-        attendanceStatus: MeetingAttendanceStatus.pending,
-        attendanceUpdatedAt: null,
-        attendanceAgentCallId: null,
-        attendanceScheduleVersion: null,
-        attendanceNote: null,
+        ...ATTENDANCE_RESET,
       },
       include: { contact: true },
     });

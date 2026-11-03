@@ -52,7 +52,8 @@ export interface MeetingEmailPeople {
 }
 
 /**
- * Delivers the meeting emails an attendance answer owes (AGENT-020).
+ * Delivers the meeting emails an attendance answer owes (AGENT-020), and the
+ * one an agent's move of the meeting owes (AGENT-021).
  *
  * One email per answer, not one per person: the lead and the member are in
  * To, the organization's admins in CC — de-duplicated across the two — and
@@ -199,16 +200,25 @@ export class MeetingEmailService {
       return false;
     }
 
-    const expectedAttendance =
-      delivery.kind === MeetingEmailKind.attendance_confirmed
-        ? "confirmed"
-        : "declined";
-    if (
-      meeting.attendanceScheduleVersion !== delivery.scheduleVersion ||
-      meeting.attendanceStatus !== expectedAttendance
-    ) {
-      await release(D.cancelled, "attendance_changed");
-      return false;
+    const rescheduled = delivery.kind === MeetingEmailKind.rescheduled;
+    if (rescheduled) {
+      // About one move: a meeting moved again since owes its own email.
+      if (meeting.scheduleVersion !== delivery.scheduleVersion) {
+        await release(D.cancelled, "meeting_moved_again");
+        return false;
+      }
+    } else {
+      const expectedAttendance =
+        delivery.kind === MeetingEmailKind.attendance_confirmed
+          ? "confirmed"
+          : "declined";
+      if (
+        meeting.attendanceScheduleVersion !== delivery.scheduleVersion ||
+        meeting.attendanceStatus !== expectedAttendance
+      ) {
+        await release(D.cancelled, "attendance_changed");
+        return false;
+      }
     }
     const people = await this.people(meeting);
     const memberEmail = primaryEmail(people.responsible);
@@ -239,8 +249,10 @@ export class MeetingEmailService {
       return false;
     }
 
+    // A move goes to the lead too, when there is an address — without one it
+    // still tells the team rather than waiting.
     const to = unique([
-      ...(confirmation && leadEmail ? [leadEmail] : []),
+      ...((confirmation || rescheduled) && leadEmail ? [leadEmail] : []),
       memberEmail,
       ...(people.creator ? [primaryEmail(people.creator)] : []),
     ]);
@@ -252,13 +264,18 @@ export class MeetingEmailService {
       userId: meeting.userId,
       organizationId: meeting.organizationId!,
     };
-    const { language, company } = await this.voiceOf(ctx, meeting);
+    const { language, company } = await this.voiceOf(
+      ctx,
+      meeting,
+      delivery.agentCallId,
+    );
     const timeZone = await this.timeZoneOf(ctx, meeting);
     const content = composeMeetingEmail({
       kind: delivery.kind,
       language,
       company,
       meeting,
+      previousScheduledAt: delivery.previousScheduledAt,
       leadName: contactName(meeting.contact),
       leadPhone: meeting.contact?.phoneNumber ?? null,
       leadEmail,
@@ -266,11 +283,12 @@ export class MeetingEmailService {
       timeZone,
     });
 
-    // The next email about a meeting threads under the last one sent.
-    const previous = await this.deliveries.findLatestSentForMeeting(
-      meeting.id,
-      delivery.id,
-    );
+    // The next email about a meeting threads under the last one sent — but a
+    // move starts its own thread: the lead it goes to was never on the
+    // "can't attend" one before it.
+    const previous = rescheduled
+      ? null
+      : await this.deliveries.findLatestSentForMeeting(meeting.id, delivery.id);
     const inReplyTo = previous?.messageId ?? null;
     const subject = previous?.subject
       ? `Re: ${previous.subject.replace(/^(Re:\s*)+/i, "")}`
@@ -379,15 +397,16 @@ export class MeetingEmailService {
 
   /**
    * The language the lead was spoken to in, and the company the agent speaks
-   * for — the same voice the call had.
+   * for — the same voice the call had: the call that owed the email, or the
+   * one that recorded the answer.
    */
   private async voiceOf(
     ctx: OrganizationOwnershipContext,
     meeting: Meeting,
+    agentCallId: string | null,
   ): Promise<{ language: string; company: string | null }> {
-    const call = meeting.attendanceAgentCallId
-      ? await this.agentCalls.findById(meeting.attendanceAgentCallId)
-      : null;
+    const callId = agentCallId ?? meeting.attendanceAgentCallId;
+    const call = callId ? await this.agentCalls.findById(callId) : null;
     const agent = call
       ? await this.agents.findByIdForOwner(ctx, call.agentId)
       : null;
@@ -437,9 +456,13 @@ interface EmailRow {
 interface Copy {
   confirmedSubject: (title: string, when: string) => string;
   declinedSubject: (title: string, when: string) => string;
+  rescheduledSubject: (title: string, when: string) => string;
   confirmed: (lead: string) => string;
   declined: (lead: string) => string;
+  rescheduled: (lead: string) => string;
   when: string;
+  /** The time a moved meeting had before. */
+  before: string;
   with: string;
   where: string;
   note: string;
@@ -454,9 +477,12 @@ const COPY: Record<string, Copy> = {
   en: {
     confirmedSubject: (title, when) => `Confirmed: ${title} — ${when}`,
     declinedSubject: (title, when) => `Can't attend: ${title} — ${when}`,
+    rescheduledSubject: (title, when) => `New time: ${title} — ${when}`,
     confirmed: (lead) => `${lead} confirmed they will attend.`,
     declined: (lead) => `${lead} said they can't attend.`,
+    rescheduled: (lead) => `${lead} moved the meeting to a new time.`,
     when: "When",
+    before: "Was",
     with: "With",
     where: "Where",
     note: "What they said",
@@ -469,9 +495,12 @@ const COPY: Record<string, Copy> = {
   es: {
     confirmedSubject: (title, when) => `Confirmada: ${title} — ${when}`,
     declinedSubject: (title, when) => `No podrá asistir: ${title} — ${when}`,
+    rescheduledSubject: (title, when) => `Nuevo horario: ${title} — ${when}`,
     confirmed: (lead) => `${lead} confirmó su asistencia.`,
     declined: (lead) => `${lead} dijo que no podrá asistir.`,
+    rescheduled: (lead) => `${lead} cambió la reunión a un nuevo horario.`,
     when: "Cuándo",
+    before: "Antes",
     with: "Con",
     where: "Dónde",
     note: "Lo que dijo",
@@ -485,9 +514,12 @@ const COPY: Record<string, Copy> = {
     confirmedSubject: (title, when) => `Confirmada: ${title} — ${when}`,
     declinedSubject: (title, when) =>
       `Não poderá comparecer: ${title} — ${when}`,
+    rescheduledSubject: (title, when) => `Novo horário: ${title} — ${when}`,
     confirmed: (lead) => `${lead} confirmou presença.`,
     declined: (lead) => `${lead} disse que não poderá comparecer.`,
+    rescheduled: (lead) => `${lead} remarcou a reunião para um novo horário.`,
     when: "Quando",
+    before: "Antes",
     with: "Com",
     where: "Onde",
     note: "O que disse",
@@ -500,9 +532,13 @@ const COPY: Record<string, Copy> = {
   fr: {
     confirmedSubject: (title, when) => `Confirmé : ${title} — ${when}`,
     declinedSubject: (title, when) => `Absence : ${title} — ${when}`,
+    rescheduledSubject: (title, when) => `Nouvel horaire : ${title} — ${when}`,
     confirmed: (lead) => `${lead} a confirmé sa présence.`,
     declined: (lead) => `${lead} a indiqué ne pas pouvoir venir.`,
+    rescheduled: (lead) =>
+      `${lead} a déplacé le rendez-vous à un nouvel horaire.`,
     when: "Quand",
+    before: "Avant",
     with: "Avec",
     where: "Où",
     note: "Ce qui a été dit",
@@ -515,9 +551,13 @@ const COPY: Record<string, Copy> = {
   de: {
     confirmedSubject: (title, when) => `Bestätigt: ${title} — ${when}`,
     declinedSubject: (title, when) => `Absage: ${title} — ${when}`,
+    rescheduledSubject: (title, when) => `Neue Zeit: ${title} — ${when}`,
     confirmed: (lead) => `${lead} hat die Teilnahme bestätigt.`,
     declined: (lead) => `${lead} kann nicht teilnehmen.`,
+    rescheduled: (lead) =>
+      `${lead} hat den Termin auf eine neue Zeit verschoben.`,
     when: "Wann",
+    before: "Vorher",
     with: "Mit",
     where: "Wo",
     note: "Was gesagt wurde",
@@ -532,9 +572,13 @@ const COPY: Record<string, Copy> = {
     confirmedSubject: (title, when) => `Confermato: ${title} — ${when}`,
     declinedSubject: (title, when) =>
       `Non potrà partecipare: ${title} — ${when}`,
+    rescheduledSubject: (title, when) => `Nuovo orario: ${title} — ${when}`,
     confirmed: (lead) => `${lead} ha confermato la partecipazione.`,
     declined: (lead) => `${lead} ha detto che non potrà partecipare.`,
+    rescheduled: (lead) =>
+      `${lead} ha spostato l'appuntamento a un nuovo orario.`,
     when: "Quando",
+    before: "Prima",
     with: "Con",
     where: "Dove",
     note: "Cosa ha detto",
@@ -547,8 +591,9 @@ const COPY: Record<string, Copy> = {
 };
 
 /**
- * The email itself: what was answered, when, with whom and where — nothing
- * from the recording, the transcript or any internal summary.
+ * The email itself: what was answered — or where the meeting moved — when,
+ * with whom and where; nothing from the recording, the transcript or any
+ * internal summary.
  */
 export function composeMeetingEmail(input: {
   kind: MeetingEmailKind;
@@ -558,6 +603,8 @@ export function composeMeetingEmail(input: {
     Meeting,
     "title" | "scheduledAt" | "location" | "attendanceNote"
   >;
+  /** `rescheduled` only: the time it moved from. */
+  previousScheduledAt?: Date | null;
   leadName: string | null;
   leadPhone: string | null;
   leadEmail: string | null;
@@ -567,7 +614,7 @@ export function composeMeetingEmail(input: {
   const base = input.language.split("-")[0]!.toLowerCase();
   const copy = COPY[base] ?? COPY.en!;
   const locale = LOCALES[base] ?? "en-US";
-  const when = new Intl.DateTimeFormat(locale, {
+  const longFormat = new Intl.DateTimeFormat(locale, {
     timeZone: input.timeZone,
     weekday: "long",
     day: "numeric",
@@ -576,7 +623,8 @@ export function composeMeetingEmail(input: {
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
-  }).format(input.meeting.scheduledAt);
+  });
+  const when = longFormat.format(input.meeting.scheduledAt);
   const shortWhen = new Intl.DateTimeFormat(locale, {
     timeZone: input.timeZone,
     day: "numeric",
@@ -587,13 +635,18 @@ export function composeMeetingEmail(input: {
   const title = input.meeting.title?.trim() || copy.meeting;
   const lead = input.leadName?.trim() || copy.someone;
   const confirmed = input.kind === MeetingEmailKind.attendance_confirmed;
+  const rescheduled = input.kind === MeetingEmailKind.rescheduled;
   const location = input.meeting.location?.trim() || null;
   const isLink = location ? /^https?:\/\//i.test(location) : false;
 
-  const rows: EmailRow[] = [
-    { label: copy.when, value: when },
-    { label: copy.with, value: input.memberName },
-  ];
+  const rows: EmailRow[] = [{ label: copy.when, value: when }];
+  if (rescheduled && input.previousScheduledAt) {
+    rows.push({
+      label: copy.before,
+      value: longFormat.format(input.previousScheduledAt),
+    });
+  }
+  rows.push({ label: copy.with, value: input.memberName });
   if (location) {
     rows.push({
       label: copy.where,
@@ -601,7 +654,7 @@ export function composeMeetingEmail(input: {
       link: isLink ? location : undefined,
     });
   }
-  if (!confirmed) {
+  if (!confirmed && !rescheduled) {
     const note = input.meeting.attendanceNote?.trim();
     if (note) rows.push({ label: copy.note, value: note });
     const reach = [input.leadPhone, input.leadEmail]
@@ -610,10 +663,16 @@ export function composeMeetingEmail(input: {
     if (reach) rows.push({ label: copy.contact, value: reach });
   }
 
-  const headline = confirmed ? copy.confirmed(lead) : copy.declined(lead);
+  const headline = confirmed
+    ? copy.confirmed(lead)
+    : rescheduled
+      ? copy.rescheduled(lead)
+      : copy.declined(lead);
   const subject = confirmed
     ? copy.confirmedSubject(title, shortWhen)
-    : copy.declinedSubject(title, shortWhen);
+    : rescheduled
+      ? copy.rescheduledSubject(title, shortWhen)
+      : copy.declinedSubject(title, shortWhen);
   const footer = [
     copy.reply(input.memberName),
     input.company ? copy.footer(input.company) : null,

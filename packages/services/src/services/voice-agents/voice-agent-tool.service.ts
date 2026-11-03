@@ -8,6 +8,7 @@ import {
 import {
   CallRepository,
   CallbackAgentKind,
+  type MeetingMoveOutcome,
   CallbackStatus,
   InboundDestinationType,
   AiVoiceAgent,
@@ -62,16 +63,14 @@ const CALLBACK_NOTE_MAX = 2000;
 const ATTENDANCE_NOTE_MAX = 1000;
 
 /**
- * Moving the existing meeting is the next delivery's tool. Until it exists, a
- * participant finding a new time for a handed-over meeting offers real
- * availability and passes the choice to the team — it never books a second
- * meeting beside the first.
+ * A participant moving a handed-over meeting gives it the person's new time
+ * with `move_meeting` — never a second meeting beside the first.
  */
 const RESCHEDULE_COMMIT_UNAVAILABLE =
-  "Moving this meeting cannot be completed on this call, and a new meeting must not be booked beside it. Tell the person the time they chose is noted and that the team will confirm the change — never say the meeting is moved — and call request_human_support with the chosen time.";
+  "A new meeting must not be booked beside the one you are moving. To give it the time the person agreed, call move_meeting with that time instead.";
 
 const RESCHEDULE_SLOT_SPEECH_INSTRUCTION =
-  "These are times the meeting could move to, on its own calendar. Offer them in one natural sentence in the conversation's language, at most three. When the person chooses one, do not say it is booked or moved: say it is noted and that the team will confirm the change, and call request_human_support with the chosen time.";
+  "These are times the meeting can move to, on its own calendar. Offer them in one natural sentence in the conversation's language, at most three. When the person chooses one, repeat it back, get an explicit yes, and call move_meeting with that slot's start. Say the meeting is moved only after it returns success.";
 
 /** Result shapes the model reads back. Failures are data, not exceptions. */
 export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
@@ -123,6 +122,17 @@ export interface RescheduleHandoffResult {
 }
 
 export type HandoffContextResult = HandoffContextView;
+
+export interface MoveMeetingResult {
+  meeting: { start: string; end: string; time_zone: string };
+  /** Whether the lead is on the email the move sends. */
+  email: "will_be_sent" | "no_email_on_file";
+  speech_instruction: string;
+}
+
+/** When the meeting could not be moved, the team finishes the change. */
+const MOVE_FALLS_TO_TEAM =
+  "Say the time they chose is noted and that the team will confirm it, and call request_human_support with the chosen time.";
 
 /**
  * The server side of the agent's tools.
@@ -1232,6 +1242,134 @@ export class VoiceAgentToolService {
       };
     }
     return { ok: true, ...view };
+  }
+
+  /**
+   * The scheduling agent moves the meeting it was handed to the time the
+   * person agreed (AGENT-021). Only a participant bound to a request may: the
+   * meeting, the version it was handed and its calendar come from the
+   * request, never from the model, and the time must be one that calendar
+   * offers now. The email that says so is created with the move.
+   */
+  async moveMeeting(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: { start?: string },
+  ): Promise<ToolResult<MoveMeetingResult>> {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    if (!ctx.organizationId) {
+      throw new UnauthorizedException("Unknown agent");
+    }
+    const start = this.parseStart(input.start);
+    if (!start) {
+      return {
+        ok: false,
+        error: "The start time was not a valid date and time.",
+      };
+    }
+    if (start.getTime() <= Date.now()) {
+      return { ok: false, error: "That time is already in the past." };
+    }
+    if (!callControlId) {
+      return { ok: false, error: "The current call could not be identified." };
+    }
+    const agentCall = await this.agentCalls.findByCallControlId(callControlId);
+    if (!agentCall) {
+      return { ok: false, error: "The current call could not be found." };
+    }
+    const grant = await this.handoffs.grantFor(agent, agentCall);
+    if (grant.kind === "root") {
+      return {
+        ok: false,
+        error:
+          "There is no meeting to move on this call. Do not say a meeting was moved.",
+      };
+    }
+    if (grant.kind === "refused") return this.refuse(grant);
+
+    const orgCtx: OrganizationOwnershipContext = {
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
+    };
+    const scope = await this.handoffs.availabilityFor(orgCtx, grant);
+    if (!scope.ok) return { ok: false, error: scope.error };
+    if (!scope.excludeMeetingId) {
+      // Only a callback reaches a cancelled meeting: bringing it back is a
+      // person's decision.
+      return {
+        ok: false,
+        error: `This meeting was cancelled, so it cannot be moved on this call. ${MOVE_FALLS_TO_TEAM}`,
+      };
+    }
+
+    let outcome: MeetingMoveOutcome;
+    try {
+      outcome = await this.meetings.moveForAgent(orgCtx, {
+        meetingId: scope.excludeMeetingId,
+        expectedScheduleVersion:
+          grant.participant.meetingScheduleVersion ??
+          grant.handoff.meetingScheduleVersion,
+        scheduledAt: start,
+        resolvedCalendar: scope.resolved,
+        durationMinutes: scope.durationMinutes,
+        agentCallId: agentCall.id,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Moving the meeting of handoff ${grant.handoff.id} failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return {
+        ok: false,
+        error: `The meeting could not be moved right now. ${MOVE_FALLS_TO_TEAM}`,
+      };
+    }
+
+    if (outcome.result === "unavailable") {
+      return {
+        ok: false,
+        error:
+          "That time is no longer available. Call get_available_slots again and offer other times.",
+      };
+    }
+    if (outcome.result !== "moved") {
+      return {
+        ok: false,
+        error:
+          "This meeting was changed or cancelled during the call, so it was not moved. Do not offer times; tell the person the team will contact them with the current details.",
+      };
+    }
+
+    // The request is done. A failure here leaves it for the reconciler,
+    // which resolves a request whose meeting moved: the move stands.
+    await this.handoffs.resolveMoved(grant.handoff).catch((error: unknown) => {
+      this.logger.warn(
+        `Could not resolve handoff ${grant.handoff.id} after the move: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
+    const meeting = outcome.meeting;
+    const moved = new Date(meeting.scheduledAt);
+    const hasEmail = Boolean(meeting.leadEmail || meeting.contact?.email);
+    return {
+      ok: true,
+      meeting: {
+        start: moved.toISOString(),
+        end: new Date(
+          moved.getTime() + meeting.duration * 60_000,
+        ).toISOString(),
+        time_zone: scope.resolved.timezone,
+      },
+      email: hasEmail ? "will_be_sent" : "no_email_on_file",
+      speech_instruction: `Tell the person the meeting is moved to the day and time they chose, said in words as you offered it. ${
+        hasEmail
+          ? "Say an email with the new time is on its way to everyone in the meeting; do not say it has already been sent."
+          : "There is no email address on file for them, so do not promise them an email."
+      } Then thank them, say goodbye and end the call.`,
+    };
   }
 
   /** Availability for the meeting a participant was handed (AGENT-021). */

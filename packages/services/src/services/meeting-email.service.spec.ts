@@ -233,6 +233,107 @@ describe("MeetingEmailService.drain", () => {
   });
 });
 
+describe("The email an agent's move owes (AGENT-021)", () => {
+  const WAS = new Date("2026-10-13T21:00:00Z");
+
+  /** A meeting an agent moved to version 2, and the email that move owes. */
+  function moved(over: Parameters<typeof build>[0] = {}) {
+    const built = build({
+      ...over,
+      meeting: {
+        scheduleVersion: 2,
+        // A move resets the answer: it was for another time (CAL-003).
+        attendanceStatus: "pending",
+        attendanceScheduleVersion: null,
+        ...over.meeting,
+      },
+    });
+    Object.assign(built.delivery, {
+      kind: "rescheduled",
+      scheduleVersion: 2,
+      agentCallId: null,
+      previousScheduledAt: WAS,
+    });
+    return built;
+  }
+
+  it("goes to the lead and the member with the admins in CC, and says where it moved from", async () => {
+    const { service, sends } = moved();
+    assert.equal(await service.drain(), 1);
+    assert.deepEqual(sends[0]!.to, [
+      "elena@lead.test",
+      "carlos@acme.test",
+      "ana@acme.test",
+    ]);
+    assert.deepEqual(sends[0]!.cc, ["boss@acme.test"]);
+    assert.equal(sends[0]!.replyTo, "carlos@acme.test");
+    assert.match(sends[0]!.subject, /^New time: Demo — /);
+    assert.match(sends[0]!.text, /moved the meeting to a new time/);
+    assert.match(sends[0]!.text, /^Was: /m);
+  });
+
+  it("starts its own thread: the lead was never on the one before it", async () => {
+    const { service, sends } = moved({
+      previous: {
+        messageId: "<declined@resend.test>",
+        subject: "Can't attend: Demo — Oct 14, 3:00 PM",
+      },
+    });
+    await service.drain();
+    assert.equal(sends[0]!.headers, undefined);
+    assert.match(sends[0]!.subject, /^New time: /);
+  });
+
+  it("still tells the team when there is no address for the lead", async () => {
+    const { service, sends, released } = moved({
+      meeting: { leadEmail: null },
+    });
+    await service.drain();
+    assert.deepEqual(sends[0]!.to, ["carlos@acme.test", "ana@acme.test"]);
+    assert.deepEqual(released, []);
+  });
+
+  it("is withdrawn when the meeting moved again before it went out", async () => {
+    const { service, sends, released } = moved({
+      meeting: { scheduleVersion: 3 },
+    });
+    await service.drain();
+    assert.equal(sends.length, 0);
+    assert.deepEqual(released, [
+      { status: "cancelled", error: "meeting_moved_again" },
+    ]);
+  });
+
+  it("speaks the language of the call, with the time it had before", () => {
+    const email = composeMeetingEmail({
+      kind: "rescheduled" as never,
+      language: "es",
+      company: "Acme",
+      meeting: {
+        title: "Demo",
+        scheduledAt: MEETING_AT,
+        location: null,
+        attendanceNote: "No puede el martes",
+      },
+      previousScheduledAt: WAS,
+      leadName: "Elena Ruiz",
+      leadPhone: "+13055550123",
+      leadEmail: "elena@lead.test",
+      memberName: "Carlos",
+      timeZone: "America/New_York",
+    });
+    assert.match(email.subject, /^Nuevo horario: Demo — /);
+    assert.match(
+      email.text,
+      /Elena Ruiz cambió la reunión a un nuevo horario\./,
+    );
+    assert.match(email.text, /^Cuándo: .*14 de octubre/m);
+    assert.match(email.text, /^Antes: .*13 de octubre/m);
+    // The lead is in To: their own note and number are not repeated back.
+    assert.doesNotMatch(email.text, /No puede el martes|\+13055550123/);
+  });
+});
+
 describe("composeMeetingEmail", () => {
   it("says what was answered, in the language of the call, and nothing internal", () => {
     const email = composeMeetingEmail({

@@ -18,6 +18,7 @@ import {
   MeetingEmailDeliveryStatus,
   MeetingEmailKind,
   MeetingExternalSyncStatus,
+  MeetingMoveOutcome,
   MeetingStatus,
   CallOutcome,
   Call,
@@ -33,6 +34,7 @@ import {
 import { CrmCallLogService } from "./crm/crm-call-log.service";
 import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 import { ReminderService } from "./reminders/reminder.service";
+import { zonedClock } from "./reminders/reminder-call-schedule";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
 import { buildMeetingEventData } from "./custom-integrations/custom-integration-event-builders";
@@ -412,7 +414,14 @@ export class MeetingService {
     meetingId: string,
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, meetingId);
-    if (meeting.externalEventId) return meeting;
+    if (meeting.externalEventId) {
+      // The event exists: what failed was moving it to the meeting's time.
+      if (meeting.externalSyncStatus === MeetingExternalSyncStatus.failed) {
+        await this.calendarService.moveExternalEvent(ctx, meeting);
+        return this.getMeetingById(ctx, meetingId);
+      }
+      return meeting;
+    }
 
     // A failed attempt records where it was sent. Re-pointing the calendar at
     // another account since then must not move this retry: `syncMeeting...`
@@ -481,32 +490,119 @@ export class MeetingService {
 
     if (moves) {
       await this.withdrawUnsentEmails(meeting.id);
-      try {
-        await this.reminderService.replanMeetingCalls(updated);
-      } catch (err) {
-        this.logger.warn(
-          `Could not replan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
-        );
-      }
-    }
-
-    if (dto.scheduledAt) {
-      try {
-        await this.reminderService.rescheduleForSubject({
-          subjectType: ReminderSubjectType.meeting,
-          subjectId: meeting.id,
-          userId: meeting.userId,
-          organizationId: meeting.organizationId,
-          fireAt: new Date(dto.scheduledAt),
-        });
-      } catch (err) {
-        this.logger.debug(
-          `Skipped reminder reschedule for meeting ${meeting.id}: ${(err as Error).message}`,
-        );
-      }
+      await this.afterMove(ctx, updated);
+    } else if (dto.scheduledAt) {
+      await this.rescheduleSubjectReminders(updated, new Date(dto.scheduledAt));
     }
 
     return updated;
+  }
+
+  /**
+   * Moves a meeting for an agent that was handed it (AGENT-021): to a time
+   * its own calendar offers now, at the version the agent was handed, with
+   * the email that says so — then what any move does after it. The caller
+   * authorized the agent and derived the meeting, its version and its
+   * calendar from the handoff; the model supplied only the time.
+   */
+  async moveForAgent(
+    ctx: OwnershipContext,
+    input: {
+      meetingId: string;
+      expectedScheduleVersion: number;
+      scheduledAt: Date;
+      /** The meeting's own calendar, the one its times were offered from. */
+      resolvedCalendar: ResolvedCalendar;
+      durationMinutes: number;
+      /** The agent call that moves it: the email speaks with its voice. */
+      agentCallId: string;
+    },
+  ): Promise<MeetingMoveOutcome> {
+    // The same re-check a booking makes: the time must be one the calendar
+    // offers now, the meeting's own place not counting against it.
+    const slots = await this.calendarService.getBookableSlotsForCalendar(
+      ctx,
+      input.resolvedCalendar,
+      {
+        date: zonedClock(input.scheduledAt, input.resolvedCalendar.timezone)
+          .date,
+        durationMinutes: input.durationMinutes,
+        excludeMeetingId: input.meetingId,
+      },
+    );
+    const slot = slots.find(
+      (candidate) =>
+        new Date(candidate.start).getTime() === input.scheduledAt.getTime(),
+    );
+    if (!slot) return { result: "unavailable" };
+
+    const outcome = await this.meetingRepo.rescheduleIfAvailable(
+      ctx,
+      {
+        meetingId: input.meetingId,
+        expectedScheduleVersion: input.expectedScheduleVersion,
+        scheduledAt: input.scheduledAt,
+        email: {
+          // One email per move: a repeat of the same move is the same email.
+          idempotencyKey: `meeting:${input.meetingId}:v${
+            input.expectedScheduleVersion + 1
+          }:${MeetingEmailKind.rescheduled}`,
+          agentCallId: input.agentCallId,
+        },
+      },
+      input.resolvedCalendar.scope,
+      slot.availabilityRuleId,
+    );
+    if (outcome.result === "moved" && !outcome.repeated) {
+      await this.afterMove(ctx, outcome.meeting);
+    }
+    return outcome;
+  }
+
+  /**
+   * What follows any move, from the dashboard or by an agent: reminder calls
+   * planned for the old time are replanned (CAL-003), the meeting's own
+   * reminder follows it, and its external event moves with it (CAL-002).
+   * Each is best-effort — the move already stands.
+   */
+  private async afterMove(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+  ): Promise<void> {
+    try {
+      await this.reminderService.replanMeetingCalls(meeting);
+    } catch (err) {
+      this.logger.warn(
+        `Could not replan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+    await this.rescheduleSubjectReminders(meeting, meeting.scheduledAt);
+    await this.calendarService
+      .moveExternalEvent(ctx, meeting)
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `Could not move the external event of meeting ${meeting.id}: ${(err as Error).message}`,
+        );
+      });
+  }
+
+  private async rescheduleSubjectReminders(
+    meeting: Meeting,
+    fireAt: Date,
+  ): Promise<void> {
+    try {
+      await this.reminderService.rescheduleForSubject({
+        subjectType: ReminderSubjectType.meeting,
+        subjectId: meeting.id,
+        userId: meeting.userId,
+        organizationId: meeting.organizationId,
+        fireAt,
+      });
+    } catch (err) {
+      this.logger.debug(
+        `Skipped reminder reschedule for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
   }
 
   async cancelMeeting(ctx: OwnershipContext, id: string): Promise<Meeting> {
