@@ -519,6 +519,24 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
     );
     assert.ok(context && context.kind === "webhook");
     assert.deepEqual(Object.keys(context.parameters?.properties ?? {}), []);
+    // It moves the meeting it was handed: the model gives only the time —
+    // the meeting, its version and calendar come from the call's request.
+    const move = tools.find(
+      (tool) => tool.kind === "webhook" && tool.name === "move_meeting",
+    );
+    assert.ok(move && move.kind === "webhook");
+    assert.deepEqual(Object.keys(move.parameters?.properties ?? {}), ["start"]);
+    assert.ok(
+      move.headers?.some((header) => header.value === "{{call_control_id}}"),
+    );
+    assert.equal(
+      scheduling
+        .buildTools(toolContext)
+        .some(
+          (tool) => tool.kind === "webhook" && tool.name === "move_meeting",
+        ),
+      false,
+    );
     // It never hands calls on itself.
     assert.equal(
       tools.some((tool) => tool.kind === "handoff"),
@@ -544,6 +562,11 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
     assert.match(leading, /You are Carmen/);
     assert.match(leading, /never say you are passing the call to\s+anyone/);
     assert.match(leading, /Never call `book_appointment` for this meeting/);
+    assert.match(leading, /then call `move_meeting` with that time/);
+    assert.match(
+      leading,
+      /Only after it\s+returns success say the meeting is moved/,
+    );
     assert.equal(
       scheduling.buildLeadingInstructions({
         agentName: "Carmen",

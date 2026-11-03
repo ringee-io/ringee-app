@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import {
   MeetingEmailDelivery,
   MeetingEmailDeliveryStatus,
+  MeetingEmailKind,
   Prisma,
 } from "@prisma/client";
 import type { OrganizationOwnershipContext } from "@ringee/platform";
@@ -28,8 +29,8 @@ export type MeetingEmailDeliveryWithMeeting = MeetingEmailDelivery & {
 
 /**
  * Durable meeting emails (AGENT-020). Created inside the transaction that
- * records the attendance, so an answer and its email exist together or not at
- * all; delivered by the worker under a lease.
+ * records the attendance — or moves the meeting — so the change and its email
+ * exist together or not at all; delivered by the worker under a lease.
  */
 @Injectable()
 export class MeetingEmailDeliveryRepository {
@@ -68,7 +69,11 @@ export class MeetingEmailDeliveryRepository {
     `;
   }
 
-  /** Freeze the first provider request while holding the current meeting version. */
+  /**
+   * Freeze the first provider request while holding the current meeting
+   * version. An attendance email still needs the answer it is about; a
+   * `rescheduled` one, the version the meeting moved to.
+   */
   async prepareSend(
     delivery: MeetingEmailDelivery,
     expectedMeetingVersion: number,
@@ -76,6 +81,10 @@ export class MeetingEmailDeliveryRepository {
     payload: Prisma.InputJsonObject,
   ): Promise<MeetingEmailDelivery | null> {
     if (!delivery.claimToken) return null;
+    const rescheduled = delivery.kind === MeetingEmailKind.rescheduled;
+    if (rescheduled && expectedMeetingVersion !== delivery.scheduleVersion) {
+      return null;
+    }
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Meeting"
         WHERE "id" = ${delivery.meetingId}::uuid
@@ -88,9 +97,15 @@ export class MeetingEmailDeliveryRepository {
         meeting: {
           organizationId: delivery.organizationId,
           scheduleVersion: expectedMeetingVersion,
-          attendanceScheduleVersion: delivery.scheduleVersion,
-          attendanceStatus:
-            delivery.kind === "attendance_confirmed" ? "confirmed" : "declined",
+          ...(rescheduled
+            ? {}
+            : {
+                attendanceScheduleVersion: delivery.scheduleVersion,
+                attendanceStatus:
+                  delivery.kind === MeetingEmailKind.attendance_confirmed
+                    ? "confirmed"
+                    : "declined",
+              }),
           status: { in: ["scheduled", "rescheduled"] },
         },
       };

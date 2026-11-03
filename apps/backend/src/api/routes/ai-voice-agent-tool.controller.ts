@@ -202,4 +202,25 @@ export class AiVoiceAgentToolController {
   ) {
     return this.tools.getHandoffContext(agentId, secret, callControlId ?? null);
   }
+
+  /**
+   * The scheduling agent moves the meeting it was handed. The meeting, its
+   * version and its calendar are derived from the request the header's call
+   * carries; the body is only the time the person agreed.
+   */
+  @Public()
+  @Post(":agentId/move-meeting")
+  moveMeeting(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { start?: string },
+  ) {
+    return this.tools.moveMeeting(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
 }

@@ -121,6 +121,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | The workspace's global calendar       | `CalendarService.ensureGlobalCalendar`                                                |
 | Recurring booking hours and capacity  | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository`       |
 | Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)                 |
+| Moving a meeting's external event     | `CalendarService.moveExternalEvent` — from `MeetingService.afterMove` (CAL-002)       |
 | Fetching a user-supplied web page     | `requirePublicUrl` (+ `htmlToText`) — `services/voice-agents/public-url.ts`           |
 | Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                         |
 | The rail's quick actions (AGENT-018)  | `VoiceAgentAutomationService` — `services/voice-agents/automations/`                  |
@@ -131,6 +132,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | What an agent knows of past calls     | `VoiceAgentConversationContextService.previousInteractions`                           |
 | Recording attendance (AGENT-017)      | `VoiceAgentToolService.confirmMeetingAttendance` → `MeetingService.recordAttendance`  |
 | Attendance email delivery (AGENT-020) | `MeetingEmailService` — `services/meeting-email.service.ts`                           |
+| An agent moving a handed meeting      | `VoiceAgentToolService.moveMeeting` → `MeetingService.moveForAgent` (AGENT-021)       |
 | Handing a receptionist's numbers back | `InboundRouteService.releaseReceptionist` (compare-and-set on `InboundRoute.version`) |
 | The rail in the dashboard             | `VoiceAgentsRail` — `features/ai-voice-agents/automations/`                           |
 | Agent → agent handoff (AGENT-021)     | `VoiceAgentHandoffService` — `voice-agents/automations`                               |

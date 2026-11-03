@@ -40,6 +40,10 @@ function build(
     sendResult?: Row;
     previous?: Row | null;
     bookingCall?: Row | null;
+    /** The agent call a delivery names, and the handoff on it, if any. */
+    agentCall?: Row | null;
+    takenOver?: Row | null;
+    agents?: Record<string, Row>;
   } = {},
 ) {
   apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1"];
@@ -125,14 +129,17 @@ function build(
     } as never,
     {
       findByMeetingId: async () => over.bookingCall ?? null,
-      findById: async () => null,
+      findById: async () => over.agentCall ?? null,
     } as never,
-    {} as never,
+    {
+      findByIdForOwner: async (_ctx: Row, id: string) =>
+        over.agents?.[id] ?? null,
+    } as never,
     {
       findByIdForOwner: async () => ({ timezone: "America/New_York" }),
       findDefault: async () => null,
     } as never,
-    {} as never,
+    { resolveForAgent: async () => ({ name: "Acme" }) } as never,
     {
       idempotencyWindowMs: 24 * 60 * 60_000,
       send: async (message: Row) => {
@@ -141,6 +148,7 @@ function build(
       },
       getMessageId: async () => "<msg-1@resend.test>",
     } as never,
+    { findForAgentCall: async () => over.takenOver ?? null } as never,
   );
   (service as unknown as { now: () => Date }).now = () =>
     new Date("2026-10-13T19:00:00Z");
@@ -230,6 +238,134 @@ describe("MeetingEmailService.drain", () => {
       ];
     await service.drain();
     assert.deepEqual(sends[0]!.to, ["carlos@acme.test", "ana@acme.test"]);
+  });
+});
+
+describe("The email an agent's move owes (AGENT-021)", () => {
+  const WAS = new Date("2026-10-13T21:00:00Z");
+
+  /** A meeting an agent moved to version 2, and the email that move owes. */
+  function moved(over: Parameters<typeof build>[0] = {}) {
+    const built = build({
+      ...over,
+      meeting: {
+        scheduleVersion: 2,
+        // A move resets the answer: it was for another time (CAL-003).
+        attendanceStatus: "pending",
+        attendanceScheduleVersion: null,
+        ...over.meeting,
+      },
+    });
+    Object.assign(built.delivery, {
+      kind: "rescheduled",
+      scheduleVersion: 2,
+      agentCallId: null,
+      previousScheduledAt: WAS,
+    });
+    return built;
+  }
+
+  it("goes to the lead and the member with the admins in CC, and says where it moved from", async () => {
+    const { service, sends } = moved();
+    assert.equal(await service.drain(), 1);
+    assert.deepEqual(sends[0]!.to, [
+      "elena@lead.test",
+      "carlos@acme.test",
+      "ana@acme.test",
+    ]);
+    assert.deepEqual(sends[0]!.cc, ["boss@acme.test"]);
+    assert.equal(sends[0]!.replyTo, "carlos@acme.test");
+    assert.match(sends[0]!.subject, /^New time: Demo — /);
+    assert.match(sends[0]!.text, /moved the meeting to a new time/);
+    assert.match(sends[0]!.text, /^Was: /m);
+  });
+
+  it("starts its own thread: the lead was never on the one before it", async () => {
+    const { service, sends } = moved({
+      previous: {
+        messageId: "<declined@resend.test>",
+        subject: "Can't attend: Demo — Oct 14, 3:00 PM",
+      },
+    });
+    await service.drain();
+    assert.equal(sends[0]!.headers, undefined);
+    assert.match(sends[0]!.subject, /^New time: /);
+  });
+
+  it("still tells the team when there is no address for the lead", async () => {
+    const { service, sends, released } = moved({
+      meeting: { leadEmail: null },
+    });
+    await service.drain();
+    assert.deepEqual(sends[0]!.to, ["carlos@acme.test", "ana@acme.test"]);
+    assert.deepEqual(released, []);
+  });
+
+  // AGENT-021: on a call another agent took over, only that agent can have
+  // moved the meeting — its voice is the email's, not the caller's.
+  it("speaks with the voice of the agent that moved it, not the one that placed the call", async () => {
+    const agents = {
+      "agent-rem": { id: "agent-rem", voiceLanguage: "es" },
+      "agent-sched": { id: "agent-sched", voiceLanguage: "en" },
+    };
+    const handedOver = moved({
+      agentCall: { id: "ac-1", agentId: "agent-rem" },
+      takenOver: { status: "completed", destinationAgentId: "agent-sched" },
+      agents,
+    });
+    handedOver.delivery.agentCallId = "ac-1";
+    await handedOver.service.drain();
+    assert.match(handedOver.sends[0]!.subject, /^New time: /);
+
+    // Its own call — a callback — speaks with its own voice.
+    const ownCall = moved({
+      agentCall: { id: "ac-2", agentId: "agent-rem" },
+      takenOver: null,
+      agents,
+    });
+    ownCall.delivery.agentCallId = "ac-2";
+    await ownCall.service.drain();
+    assert.match(ownCall.sends[0]!.subject, /^Nuevo horario: /);
+  });
+
+  it("is withdrawn when the meeting moved again before it went out", async () => {
+    const { service, sends, released } = moved({
+      meeting: { scheduleVersion: 3 },
+    });
+    await service.drain();
+    assert.equal(sends.length, 0);
+    assert.deepEqual(released, [
+      { status: "cancelled", error: "meeting_moved_again" },
+    ]);
+  });
+
+  it("speaks the language of the call, with the time it had before", () => {
+    const email = composeMeetingEmail({
+      kind: "rescheduled" as never,
+      language: "es",
+      company: "Acme",
+      meeting: {
+        title: "Demo",
+        scheduledAt: MEETING_AT,
+        location: null,
+        attendanceNote: "No puede el martes",
+      },
+      previousScheduledAt: WAS,
+      leadName: "Elena Ruiz",
+      leadPhone: "+13055550123",
+      leadEmail: "elena@lead.test",
+      memberName: "Carlos",
+      timeZone: "America/New_York",
+    });
+    assert.match(email.subject, /^Nuevo horario: Demo — /);
+    assert.match(
+      email.text,
+      /Elena Ruiz cambió la reunión a un nuevo horario\./,
+    );
+    assert.match(email.text, /^Cuándo: .*14 de octubre/m);
+    assert.match(email.text, /^Antes: .*13 de octubre/m);
+    // The lead is in To: their own note and number are not repeated back.
+    assert.doesNotMatch(email.text, /No puede el martes|\+13055550123/);
   });
 });
 

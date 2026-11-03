@@ -15,7 +15,7 @@ import {
   buildHumanSupportTool,
   voiceAgentWebhookHeaders,
 } from "./human-support.tool";
-import { buildHandoffContextTool } from "./handoff.tools";
+import { buildHandoffContextTool, buildMoveMeetingTool } from "./handoff.tools";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -238,7 +238,8 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
             "  repeat a check it says was done.",
             "- While moving an existing meeting, offer only times",
             "  `get_available_slots` returned for it, never call",
-            "  `book_appointment`, and never say the meeting is moved.",
+            "  `book_appointment`, and say the meeting is moved only after",
+            "  `move_meeting` returns success.",
           ]
         : []),
     ].join("\n");
@@ -295,10 +296,14 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "- Its calendar, length and the member it is with stay as they are, and",
       "  `get_available_slots` reads that calendar for you. Times are in the",
       "  time zone its result names.",
-      "- You cannot move the meeting on this call. When they choose a time, say",
-      "  it is noted and that the team will confirm the change — never say it",
-      "  is moved — and call `request_human_support` with the chosen time.",
-      "  Never call `book_appointment` for this meeting.",
+      "- When they choose a time, repeat the day and time back and get an",
+      "  explicit yes, then call `move_meeting` with that time. Only after it",
+      "  returns success say the meeting is moved, and follow its",
+      "  speech_instruction. Never call `book_appointment` for this meeting:",
+      "  a second meeting beside it is exactly what must not happen.",
+      "- If `move_meeting` fails, follow what it says: offer other times, or",
+      "  call `request_human_support` with the chosen time and, only after it",
+      "  succeeds, say the time is noted and that the team will confirm it.",
       "- If none of the times suit them and they want to be called again,",
       "  agree an exact time and call `schedule_callback`.",
     ].join("\n");
@@ -370,8 +375,11 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       },
     ];
     // A scheduling agent the reminders agent may hand calls to (AGENT-021):
-    // it reads what it continues instead of opening a new call's script.
-    if (ctx.acceptsHandoffs) tools.push(buildHandoffContextTool(ctx));
+    // it reads what it continues instead of opening a new call's script, and
+    // moves the meeting it was handed instead of booking a second one.
+    if (ctx.acceptsHandoffs) {
+      tools.push(buildHandoffContextTool(ctx), buildMoveMeetingTool(ctx));
+    }
 
     if (ctx.knowledgeBucketIds.length) {
       tools.push({ kind: "retrieval", bucketIds: ctx.knowledgeBucketIds });
