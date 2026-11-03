@@ -3,7 +3,9 @@ import {
   AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
   AiVoiceAgentCallStatus,
+  AiVoiceAgentHandoffRepository,
   AiVoiceAgentOutcome,
+  AiVoiceAgentParticipantRole,
   AiVoiceAgentRepository,
   Call,
   CallOutcome,
@@ -90,6 +92,7 @@ export class VoiceAgentResultService {
     private readonly transcriptions: TranscriptionService,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly reminderExecutions: MeetingReminderExecutionRepository,
+    private readonly handoffs: AiVoiceAgentHandoffRepository,
   ) {}
 
   /**
@@ -123,13 +126,32 @@ export class VoiceAgentResultService {
     if (!delivery?.conversationId) return true;
 
     const agentCall = await this.locateByConversation(delivery.conversationId);
-    // The token proves which agent asked for the analysis; the row has to
-    // agree. A conversation belonging to another agent is not this agent's to
-    // write to, however valid the token is.
-    if (!agentCall || agentCall.agentId !== agentId) {
+    if (!agentCall) {
       this.logger.debug(
         `Ignoring analysis for conversation ${delivery.conversationId}: no call of agent ${agentId}`,
       );
+      return true;
+    }
+    // The token proves which agent asked for the analysis; the row has to
+    // agree. A conversation belonging to another agent is not this agent's to
+    // write to, however valid the token is — unless this agent took the call
+    // over (AGENT-021). Its analysis then describes the same conversation, but
+    // the outcome stays the call's own: it never rewrites what the tools of
+    // either agent recorded.
+    if (agentCall.agentId !== agentId) {
+      const participant = await this.handoffs
+        .findParticipant(agentCall.id, agentId)
+        .catch(() => null);
+      if (participant?.role !== AiVoiceAgentParticipantRole.handoff) {
+        this.logger.debug(
+          `Ignoring analysis for conversation ${delivery.conversationId}: no call of agent ${agentId}`,
+        );
+        return true;
+      }
+      await this.applyInsights(agentCall, delivery.insights, {
+        analysisAgentId: agentId,
+        outcome: false,
+      });
       return true;
     }
 
@@ -277,12 +299,18 @@ export class VoiceAgentResultService {
   private async applyInsights(
     agentCall: AiVoiceAgentCall,
     results: VoiceAgentInsightResult[],
+    options: {
+      /** Whose analysis it is: the call's agent unless another took over. */
+      analysisAgentId?: string;
+      /** Whether the delivery may set the outcome at all. */
+      outcome?: boolean;
+    } = {},
   ): Promise<void> {
     if (results.length === 0) return;
 
     const agent = await this.agents.findByIdForOwner(
       { userId: agentCall.userId, organizationId: agentCall.organizationId },
-      agentCall.agentId,
+      options.analysisAgentId ?? agentCall.agentId,
     );
     if (!agent) return;
 
@@ -312,6 +340,7 @@ export class VoiceAgentResultService {
           );
           break;
         case "outcome": {
+          if (options.outcome === false) break;
           // Tool-backed results are ground truth: only those tools know that a
           // meeting/callback row actually exists. Analysis may never overwrite
           // one or manufacture one from conversational intent alone.

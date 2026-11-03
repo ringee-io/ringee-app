@@ -1072,6 +1072,11 @@ export class CalendarService {
       durationMinutes: number;
       dayStartHour?: number;
       dayEndHour?: number;
+      /**
+       * A meeting being moved: its current slot must not block its own new
+       * time. Only ever the meeting the caller already authorized.
+       */
+      excludeMeetingId?: string | null;
     },
   ): Promise<BookableSlot[]> {
     const timeZone = opts.timeZone ?? resolved.timezone;
@@ -1158,6 +1163,7 @@ export class CalendarService {
       resolved.scope,
       dayStart,
       dayEnd,
+      opts.excludeMeetingId ?? undefined,
     );
 
     const slots: BookableSlot[] = [];

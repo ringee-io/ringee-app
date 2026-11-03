@@ -44,6 +44,37 @@ export interface VoiceAgentToolParameters {
 }
 
 /**
+ * An assistant another one may hand a live conversation to. Ringee resolves
+ * it on the server from the workspace's own configuration; a model never
+ * supplies it.
+ */
+export interface VoiceAgentHandoffTarget {
+  /** The provider assistant that takes over. */
+  assistantId: string;
+  /** What the model is told the target is for, e.g. "Scheduling assistant". */
+  name: string;
+}
+
+/**
+ * Whether the assistant that takes the conversation over keeps speaking with
+ * the voice the call already has (`shared`) or with its own (`own`). `shared`
+ * keeps the language and voice the person has been hearing.
+ */
+export type VoiceAgentHandoffVoice = "shared" | "own";
+
+/**
+ * How a provider lets one assistant hand a live conversation to another.
+ *
+ * `assistant_tool`: the handing assistant carries a handoff tool naming the
+ * assistants it may hand to; its model decides when, and the provider switches
+ * assistants inside the same call and conversation. Ringee cannot trigger it
+ * itself, so everything Ringee must decide — whether the handoff is allowed,
+ * what the next assistant may do — is decided in the tools both assistants
+ * call. `none`: the provider has no such capability.
+ */
+export type VoiceAgentHandoffMode = "assistant_tool" | "none";
+
+/**
  * The tools an agent may use. Deliberately a small closed set: V1 ships
  * pre-built agents, so a tool exists because a blueprint needs it.
  */
@@ -65,6 +96,16 @@ export type VoiceAgentTool =
       kind: "retrieval";
       /** Knowledge stores the agent may search. */
       bucketIds: string[];
+    }
+  | {
+      /**
+       * Hands the live conversation to another assistant on the same call
+       * (`VoiceAgentHandoffMode` `assistant_tool`). The call, its recording
+       * and its conversation stay the same; only the assistant changes.
+       */
+      kind: "handoff";
+      voice: VoiceAgentHandoffVoice;
+      targets: VoiceAgentHandoffTarget[];
     };
 
 /**
@@ -125,6 +166,18 @@ export interface VoiceAgentAssistant {
    * re-sync before the call instead of after the complaint.
    */
   toolWebhookUrls: string[];
+  /**
+   * The assistants this one may currently hand a conversation to, as stored
+   * provider-side at the last save. The dial path compares them with what
+   * the workspace authorizes now, for the same reason as `toolWebhookUrls`.
+   */
+  handoffAssistantIds: string[];
+  /**
+   * The name each of those assistants was given at the last save, by
+   * assistant id, where the provider reports one. The handing model announces
+   * the destination by it, so a destination renamed since is drift too.
+   */
+  handoffAssistantNames?: Record<string, string>;
 }
 
 export interface VoiceAgentCallRequest {
@@ -409,6 +462,9 @@ export interface VoiceClone {
  * is the dispatcher that picks between them.
  */
 export interface VoiceAgentProvider {
+  /** How this provider hands a conversation between assistants, if at all. */
+  assistantHandoffMode(): VoiceAgentHandoffMode;
+
   createAssistant(config: VoiceAgentConfig): Promise<VoiceAgentAssistant>;
   updateAssistant(
     assistantId: string,

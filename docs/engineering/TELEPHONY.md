@@ -1035,6 +1035,38 @@ Consequences worth keeping:
   artifact sweep emits `recording.ready` after the recovered recording is
   durably stored. Each path uses the outbound outbox's replay-safe dedupe key.
 
+### One agent continuing another's call (AGENT-021)
+
+A reminders agent whose contact cannot attend can hand **the same call** to the
+organization's scheduling agent. No second call is placed, and no Call Control
+command is issued on the TeXML call: Telnyx documents that commands on a call an
+assistant runs conflict with it, and its AI-to-AI mechanism is a `handoff` tool
+on the handing assistant, decided by its model
+([agent handoff](https://developers.telnyx.com/docs/inference/ai-assistants/agent-handoff)).
+Ringee configures that tool (`VoiceAgentTool` kind `handoff`, `voice: "shared"`
+→ Telnyx `unified`) with the one destination the workspace authorizes, and
+re-syncs it at dial time when the provider holds another, or the same one under
+an old name (`VoiceAgentAssistant.handoffAssistantIds`, `handoffAssistantNames`).
+A destination whose own assistant cannot be verified at that moment is handed
+nothing: the reminders assistant is re-synced without the handoff for that dial.
+
+What the provider documents, and what Ringee therefore relies on — none of it
+yet observed on a real Ringee call:
+
+| Fact after a handoff | Documented                                                                | What Ringee does with it                                                                 |
+| -------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| The call             | Same phone call; the conversation "changes hands"                         | One `Call`, one `AiVoiceAgentCall` root, participants as children                        |
+| The conversation     | One conversation per phone call; the event socket stays on the original   | Usage, transcript and insights keyed on the root's conversation                          |
+| Tools                | Each assistant has its own tools                                          | The destination's tools carry its own secret and `{{call_control_id}}` — **to verify**   |
+| Who holds the call   | `telnyx.assistant.handoff` on the WebSocket event stream (not subscribed) | The destination's first authenticated tool call is the proof (`grantFor`)                |
+| Cost                 | Not documented per participant                                            | Settled at the root, once; extra conversations on the leg are added, never allocated     |
+| Insights             | Not documented                                                            | The root's accepted; a participant's applies summary/sentiment/extraction, never outcome |
+
+Language: the handoff keeps the voice the call already has; the destination
+must be configured for the conversation's language, because its prompt and
+transcription are its own. The reminders agent still speaks its configured voice
+language — it does not choose the contact's language from earlier calls.
+
 ### Voice delivery and turn-taking
 
 `telnyx.voice-agent.mapper.ts` owns these provider settings for both assistant

@@ -94,6 +94,7 @@ import {
   MeetingReminderCallService,
   VoiceAgentAutomationService,
   VoiceAgentConversationContextService,
+  VoiceAgentHandoffService,
 } from "./voice-agents";
 import { CalendarService } from "./calendar.service";
 import {
@@ -414,6 +415,7 @@ const servicesProviders = [
   CompanyProfileService,
   // AI Voice Agent automations (the "Ringee IA Voice Agents" rail)
   VoiceAgentConversationContextService,
+  VoiceAgentHandoffService,
   MeetingReminderCallService,
   VoiceAgentAutomationService,
   MeetingEmailService,

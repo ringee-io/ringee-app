@@ -68,8 +68,16 @@ export class VoiceAgentHumanSupportService {
     contact: VoiceAgentSupportContact;
     subject: string;
     message: string;
+    /**
+     * Narrows the one-per-conversation dedupe to one participation, so an
+     * agent that took a call over can ask for help even when the agent before
+     * it already did (AGENT-021). Unset keeps the per-call key.
+     */
+    dedupeScope?: string;
   }): Promise<VoiceAgentSupportDelivery> {
-    const key = `voice-agent:human-support:${params.call.id}`;
+    const key = params.dedupeScope
+      ? `voice-agent:human-support:${params.call.id}:${params.dedupeScope}`
+      : `voice-agent:human-support:${params.call.id}`;
 
     try {
       if (!(await this.claim(key))) {

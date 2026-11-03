@@ -9,7 +9,11 @@ import {
 import {
   CallbackTaskRepository,
   CallRepository,
+  AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
+  AiVoiceAgentCallStatus,
+  CallbackAgentKind,
+  CallbackTask,
   CampaignLeadRepository,
   CampaignRepository,
   CallbackStatus,
@@ -26,8 +30,27 @@ import {
   VoiceAgentCallStartError,
   VoiceAgentCallStartOutcome,
 } from "../voice-agents/voice-agent-call.service";
+import {
+  HandoffDialRefused,
+  VoiceAgentHandoffService,
+} from "../voice-agents/automations/voice-agent-handoff.service";
 
 const MAX_AUTOMATED_CALLBACK_ATTEMPTS = 3;
+/** How long a worker owns a claimed agent callback before another may take it. */
+const AGENT_CALLBACK_LEASE_MS = 5 * 60_000;
+const AGENT_CALLBACK_BATCH = 20;
+/** Dial tries inside one agent callback, only for failures before placement. */
+const MAX_AGENT_CALLBACK_DIAL_TRIES = 3;
+/**
+ * How long a reclaimed try that wrote its call row but never learned whether
+ * the provider took the leg is waited on. Longer than an agent call can last,
+ * so the status callback — which writes the control id when the leg exists —
+ * has had every chance to arrive.
+ */
+const PLACEMENT_CONFIRMATION_WINDOW_MS = 60 * 60_000;
+/** How often such a try is looked at again while it waits. */
+const PLACEMENT_RECHECK_MS = 5 * 60_000;
+const CALLBACK_NOTE_MAX = 2000;
 
 @Injectable()
 export class CallbackService {
@@ -44,6 +67,7 @@ export class CallbackService {
     private readonly agentCalls: AiVoiceAgentCallRepository,
     private readonly voiceAgentCalls: VoiceAgentCallService,
     private readonly callRepo: CallRepository,
+    private readonly handoffs: VoiceAgentHandoffService,
   ) {}
 
   private async enqueueCallbackCreated(callback: {
@@ -250,6 +274,58 @@ export class CallbackService {
     return callback;
   }
 
+  /**
+   * A callback an AI voice agent places itself to continue a handoff request
+   * (AGENT-021): the scheduling agent calling back about a meeting the person
+   * could not attend. Created under a key, so a provider replaying the tool
+   * call — or a reconciler tick running twice — returns the same callback.
+   *
+   * It is shown in the workspace's callback list like any other, but never
+   * owed by a person: "My day" leaves it out (CALL-013), and no "callback due"
+   * reminder goes to a person, who would otherwise call the contact as well.
+   */
+  async scheduleAgentCallback(data: {
+    handoffId: string;
+    agentId: string;
+    kind: CallbackAgentKind;
+    key: string;
+    userId: string;
+    organizationId: string;
+    contactId: string;
+    callId: string | null;
+    scheduledAt: Date;
+    note?: string;
+  }): Promise<CallbackTask> {
+    const { callback, created } =
+      await this.callbackRepo.createAgentCallbackOnce({
+        userId: data.userId,
+        organizationId: data.organizationId,
+        contactId: data.contactId,
+        callId: data.callId,
+        scheduledAt: data.scheduledAt,
+        note: data.note?.slice(0, CALLBACK_NOTE_MAX),
+        agentCallbackKind: data.kind,
+        agentId: data.agentId,
+        handoffId: data.handoffId,
+        agentCallbackKey: data.key,
+      });
+    // The key belongs to this request and agent, or it is not this write.
+    if (
+      callback.handoffId !== data.handoffId ||
+      callback.agentId !== data.agentId ||
+      callback.organizationId !== data.organizationId
+    ) {
+      throw new ConflictException("Callback key is already in use");
+    }
+    if (created) {
+      await this.enqueueCallbackCreated(callback);
+      this.logger.log(
+        `AI voice-agent ${data.kind} callback ${callback.id} for handoff ${data.handoffId} scheduled at ${data.scheduledAt.toISOString()}`,
+      );
+    }
+    return callback;
+  }
+
   async listForOwner(
     owner: { userId: string; organizationId?: string | null },
     options?: {
@@ -286,11 +362,13 @@ export class CallbackService {
   async cancel(id: string) {
     const callback = await this.callbackRepo.findById(id);
     if (!callback) throw new NotFoundException("Callback not found");
+    this.assertNotBeingPlaced(callback);
 
-    const updated = await this.callbackRepo.updateStatus(
-      id,
-      CallbackStatus.cancelled,
-    );
+    // Conditional in the write itself: a worker may have claimed the row
+    // since the read above, and overwriting its claim would let a second
+    // call follow the one already ringing.
+    const updated = await this.callbackRepo.cancelUnlessBeingPlaced(id);
+    if (!updated) throw beingPlaced();
     await this.silentlyCancelReminders(id);
     return updated;
   }
@@ -298,6 +376,20 @@ export class CallbackService {
   async reschedule(id: string, scheduledAt: Date) {
     const callback = await this.callbackRepo.findById(id);
     if (!callback) throw new NotFoundException("Callback not found");
+    this.assertNotBeingPlaced(callback);
+
+    if (callback.agentCallbackKind) {
+      // Conditional in the write: the row may have been claimed or cancelled
+      // since the read above. A new time is a new dial with keys of its own,
+      // and there is no reminder for a person to act on.
+      const moved = await this.callbackRepo.rescheduleAgentCallback(
+        id,
+        scheduledAt,
+        callback.status,
+      );
+      if (!moved) throw beingPlaced();
+      return moved;
+    }
 
     const updated = await this.callbackRepo.update(id, {
       scheduledAt,
@@ -443,7 +535,289 @@ export class CallbackService {
       this.logger.debug(`Callback ${callback.id} is now due`);
     }
 
+    // Handoff requests (AGENT-021): settle what finished calls left, plan the
+    // recovery calls policy allows, then place the agent callbacks that are
+    // due. Isolated, so a failure here never holds up the callbacks above.
+    try {
+      count += await this.planHandoffRecoveries(new Date());
+    } catch (error) {
+      this.logger.error(
+        `Handoff recovery planning failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    try {
+      count += await this.processAgentCallbacks();
+    } catch (error) {
+      this.logger.error(
+        `Agent callbacks failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
     return count;
+  }
+
+  /**
+   * Plans the recovery calls the handoff reconciler asks for: the scheduling
+   * agent calls once, at the next allowed moment, when a call ended before a
+   * new time was found and nothing was agreed. A recovery is never presented
+   * as a callback the person agreed to.
+   */
+  private async planHandoffRecoveries(now: Date): Promise<number> {
+    const plans = await this.handoffs.reviewDue(now);
+    let planned = 0;
+    for (const plan of plans) {
+      try {
+        await this.scheduleAgentCallback({
+          handoffId: plan.handoff.id,
+          agentId: plan.agentId,
+          kind: CallbackAgentKind.recovery,
+          key: `handoff:${plan.handoff.id}:recovery:${plan.attempt}`,
+          userId: plan.handoff.userId,
+          organizationId: plan.handoff.organizationId,
+          contactId: plan.contactId,
+          callId: plan.handoff.callId,
+          scheduledAt: plan.at,
+          note: "Recovery call planned by Ringee: the earlier call ended before a new meeting time was found. Not a time the contact agreed to.",
+        });
+        if (await this.handoffs.markRecoveryPlanned(plan)) planned++;
+      } catch (error) {
+        this.logger.error(
+          `Could not plan the recovery of handoff ${plan.handoff.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+    return planned;
+  }
+
+  /**
+   * Places the agent callbacks that are due, under a lease (AGENT-021).
+   *
+   * Every callback is claimed atomically, re-decided from its request right
+   * before the dial — still pending, meeting not already moved, destination
+   * still authorized, nobody on the phone with the person — and dialed
+   * through `VoiceAgentCallService.startCall` under a key persisted before the
+   * leg exists. A worker that crashed after dialing is recovered by that key:
+   * the call is linked, never placed twice. Unlike the legacy agent
+   * callbacks, a claim whose worker died is taken over when its lease runs out.
+   */
+  private async processAgentCallbacks(): Promise<number> {
+    const claimAt = new Date();
+    const claimed = await this.callbackRepo.claimDueAgentCallbacks(
+      claimAt,
+      new Date(claimAt.getTime() + AGENT_CALLBACK_LEASE_MS),
+      AGENT_CALLBACK_BATCH,
+    );
+    let placed = 0;
+    for (const callback of claimed) {
+      try {
+        if (await this.runAgentCallback(callback)) placed++;
+      } catch (error) {
+        // Left claimed on purpose: the lease runs out and the next tick
+        // reconciles by the dial key before it would ever dial again.
+        this.logger.error(
+          `Agent callback ${callback.id} failed unexpectedly: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+    return placed;
+  }
+
+  private async runAgentCallback(callback: CallbackTask): Promise<boolean> {
+    const claimToken = callback.claimToken;
+    if (!claimToken) return false;
+    const finish = (
+      status: CallbackStatus,
+      data: {
+        reason?: string;
+        lastError?: string;
+        agentCallId?: string;
+      } = {},
+    ) =>
+      this.callbackRepo.finishAgentCallback(callback.id, claimToken, status, {
+        ...data,
+        now: new Date(),
+      });
+
+    // Reclaimed after a worker died: if its last try may have placed a leg,
+    // that call is the one — it is linked, never dialed a second time.
+    if (callback.dialTries > 0) {
+      const earlier = await this.agentCalls.findByIdempotencyKey(
+        agentDialKey(callback, callback.dialTries),
+      );
+      if (earlier?.providerCallControlId) {
+        await finish(CallbackStatus.completed, { agentCallId: earlier.id });
+        return true;
+      }
+      if (earlier && !provablyUnplaced(earlier)) {
+        // The try wrote its row but never learned whether the provider took
+        // the leg, so it is neither completed nor dialed again. Its status
+        // callback writes the control id if the leg exists: wait for that,
+        // keeping the dial reservation so this key stays the one checked —
+        // and only for a while. A leg never confirmed is recorded as such.
+        if (
+          Date.now() - earlier.createdAt.getTime() <
+          PLACEMENT_CONFIRMATION_WINDOW_MS
+        ) {
+          await this.callbackRepo.deferAgentCallback(
+            callback.id,
+            claimToken,
+            new Date(Date.now() + PLACEMENT_RECHECK_MS),
+            "placement_pending",
+          );
+          return false;
+        }
+        await finish(CallbackStatus.missed, {
+          reason: "placement_unconfirmed",
+          agentCallId: earlier.id,
+        });
+        return false;
+      }
+    }
+
+    const decision = await this.handoffs.decideCallback(callback, new Date());
+    if (decision.action === "skip") {
+      await finish(decision.status, { reason: decision.reason });
+      return false;
+    }
+    if (decision.action === "defer") {
+      await this.callbackRepo.deferAgentCallback(
+        callback.id,
+        claimToken,
+        decision.until,
+        decision.reason,
+      );
+      return false;
+    }
+
+    const reservedAt = new Date();
+    const dialing = await this.callbackRepo.beginAgentDial(
+      callback.id,
+      claimToken,
+      reservedAt,
+      new Date(reservedAt.getTime() + AGENT_CALLBACK_LEASE_MS),
+    );
+    if (!dialing) return false;
+
+    let started: { id: string };
+    try {
+      started = await this.voiceAgentCalls.startCall(
+        decision.ctx,
+        decision.agentId,
+        {
+          to: decision.to,
+          variables: decision.variables,
+          metadata: {},
+          idempotencyKey: agentDialKey(dialing, dialing.dialTries),
+          responsibleUserId: decision.responsibleUserId ?? undefined,
+        },
+        async (placement) => {
+          // The commit point: re-checked after all provider preparation,
+          // immediately before the leg. It also binds the new call's tools to
+          // the request before the agent says a word.
+          await this.handoffs.authorizeCallbackDial(
+            dialing,
+            decision,
+            placement,
+          );
+          if (
+            !(await this.callbackRepo.holdsAgentClaim(
+              callback.id,
+              claimToken,
+              new Date(),
+            ))
+          ) {
+            throw new HandoffDialRefused(
+              CallbackStatus.cancelled,
+              "claim_lost",
+            );
+          }
+        },
+      );
+    } catch (error) {
+      const outcome =
+        error instanceof VoiceAgentCallStartError
+          ? error.outcome
+          : VoiceAgentCallStartOutcome.terminal_rejection;
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (
+        outcome === VoiceAgentCallStartOutcome.placed_pending_reconciliation
+      ) {
+        // A leg may exist. Link it when the row is known; otherwise the call
+        // is recorded as unconfirmed — never dialed again blindly.
+        const agentCallId =
+          error instanceof VoiceAgentCallStartError ? error.agentCallId : null;
+        if (agentCallId) {
+          await finish(CallbackStatus.completed, { agentCallId });
+          return true;
+        }
+        await finish(CallbackStatus.missed, {
+          reason: "placement_unconfirmed",
+          lastError: message,
+        });
+        return false;
+      }
+
+      const refusal = dialRefusalOf(error);
+      if (refusal) {
+        await finish(refusal.callbackStatus, { reason: refusal.reason });
+        return false;
+      }
+
+      if (
+        outcome === VoiceAgentCallStartOutcome.retryable_before_placement &&
+        dialing.dialTries < MAX_AGENT_CALLBACK_DIAL_TRIES
+      ) {
+        await this.callbackRepo.deferAgentCallback(
+          callback.id,
+          claimToken,
+          new Date(Date.now() + 2 ** dialing.dialTries * 60_000),
+          "retry_before_placement",
+          true,
+        );
+        return false;
+      }
+
+      await finish(CallbackStatus.missed, {
+        reason:
+          outcome === VoiceAgentCallStartOutcome.terminal_rejection
+            ? "rejected"
+            : "not_placed",
+        lastError: message,
+      });
+      return false;
+    }
+
+    // Outside the dial's own error handling on purpose: the leg exists, so a
+    // failure to write that down must not read as a failed dial. It leaves
+    // the claim to expire, and the next tick links the call by its key.
+    await finish(CallbackStatus.completed, { agentCallId: started.id });
+    this.logger.log(
+      `AI voice-agent callback ${callback.id} placed (agent call ${started.id})`,
+    );
+    return true;
+  }
+
+  /**
+   * A person may not move, cancel or complete an agent callback while the
+   * worker is placing it: the call may already be ringing, and changing the
+   * row under the claim would let a second call follow the first.
+   */
+  private assertNotBeingPlaced(callback: CallbackTask): void {
+    if (
+      callback.agentCallbackKind &&
+      callback.status === CallbackStatus.in_progress
+    ) {
+      throw beingPlaced();
+    }
   }
 
   private stringRecord(value: unknown): Record<string, string> {
@@ -462,12 +836,42 @@ export class CallbackService {
   }
 
   async markCompleted(id: string) {
-    const updated = await this.callbackRepo.updateStatus(
-      id,
-      CallbackStatus.completed,
-      new Date(),
-    );
+    const callback = await this.callbackRepo.findById(id);
+    if (callback) this.assertNotBeingPlaced(callback);
+    const updated = await this.callbackRepo.completeUnlessBeingPlaced(id);
+    if (!updated) throw beingPlaced();
     await this.silentlyCancelReminders(id);
     return updated;
   }
+}
+
+/**
+ * One key per dial try of an agent callback: `callback:<id>:<time>:d<try>`.
+ * The scheduled time is part of it, so a callback a person moves gets new
+ * keys instead of finding the call its old time already placed.
+ */
+function agentDialKey(callback: CallbackTask, tryNumber: number): string {
+  return `callback:${callback.id}:${callback.scheduledAt.getTime()}:d${tryNumber}`;
+}
+
+/** What a person changing a callback a worker is placing is told. */
+function beingPlaced(): ConflictException {
+  return new ConflictException(
+    "The AI voice agent is placing this callback right now.",
+  );
+}
+
+/** Only a try that failed before the provider accepted it may be followed. */
+function provablyUnplaced(agentCall: AiVoiceAgentCall): boolean {
+  return (
+    agentCall.status === AiVoiceAgentCallStatus.failed &&
+    !agentCall.providerCallControlId
+  );
+}
+
+/** The commit point's refusal, however `startCall` wrapped it. */
+function dialRefusalOf(error: unknown): HandoffDialRefused | null {
+  if (error instanceof HandoffDialRefused) return error;
+  const cause = (error as { cause?: unknown } | null)?.cause;
+  return cause instanceof HandoffDialRefused ? cause : null;
 }

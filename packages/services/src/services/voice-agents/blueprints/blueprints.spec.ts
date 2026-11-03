@@ -408,6 +408,142 @@ describe("RemindersNotificationsBlueprint", () => {
   });
 });
 
+describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
+  const reminders = new RemindersNotificationsBlueprint();
+  const scheduling = new AppointmentBookingBlueprint();
+  const target = { assistantId: "asst-sched", name: "Carmen" };
+
+  it("adds the handoff only while the workspace authorizes a destination", () => {
+    const without = reminders.buildTools(toolContext);
+    assert.equal(
+      without.some((tool) => tool.kind === "handoff"),
+      false,
+    );
+    const withTarget = reminders.buildTools({
+      ...toolContext,
+      handoffTargets: [target],
+    });
+    assert.deepEqual(
+      withTarget.flatMap((tool) =>
+        tool.kind === "webhook" ? [tool.name] : [tool.kind],
+      ),
+      [
+        "confirm_meeting_attendance",
+        "schedule_callback",
+        "request_human_support",
+        "hangup",
+        "prepare_reschedule_handoff",
+        "schedule_reschedule_callback",
+        "handoff",
+      ],
+    );
+    const handoff = withTarget.find((tool) => tool.kind === "handoff");
+    assert.deepEqual(handoff, {
+      kind: "handoff",
+      // The person keeps hearing the voice the call already has.
+      voice: "shared",
+      targets: [target],
+    });
+  });
+
+  it("names nothing the model could use to pick the meeting or the destination", () => {
+    const tools = reminders.buildTools({
+      ...toolContext,
+      handoffTargets: [target],
+    });
+    for (const name of [
+      "prepare_reschedule_handoff",
+      "schedule_reschedule_callback",
+    ]) {
+      const tool = tools.find(
+        (candidate) => candidate.kind === "webhook" && candidate.name === name,
+      );
+      assert.ok(tool && tool.kind === "webhook");
+      const properties = Object.keys(tool.parameters?.properties ?? {});
+      for (const forbidden of ["meeting_id", "agent_id", "calendar_id"]) {
+        assert.equal(properties.includes(forbidden), false);
+      }
+      assert.ok(
+        tool.headers?.some((header) => header.value === "{{call_control_id}}"),
+      );
+    }
+  });
+
+  it("offers another time only when a scheduling agent may take the call", () => {
+    const plain = reminders.buildInstructions(promptContext);
+    assert.doesNotMatch(plain, /prepare_reschedule_handoff/);
+    assert.match(plain, /the team will follow up/);
+    const withDestination = reminders.buildInstructions({
+      ...promptContext,
+      handoffDestinationName: "Carmen",
+    });
+    assert.match(withDestination, /## Finding another time/);
+    assert.match(
+      withDestination,
+      /Never hand the call over before it returns success/,
+    );
+    assert.match(withDestination, /Announce the handoff once/);
+    assert.match(
+      reminders.buildSafetyInstructions({
+        ...promptContext,
+        handoffDestinationName: "Carmen",
+      }),
+      /`prepare_reschedule_handoff` returned success on this call/,
+    );
+    assert.doesNotMatch(
+      reminders.buildSafetyInstructions(promptContext),
+      /prepare_reschedule_handoff/,
+    );
+  });
+
+  it("gives a scheduling agent that accepts handoffs its continuation, and nothing else", () => {
+    assert.equal(
+      scheduling
+        .buildTools(toolContext)
+        .some(
+          (tool) =>
+            tool.kind === "webhook" && tool.name === "get_handoff_context",
+        ),
+      false,
+    );
+    const tools = scheduling.buildTools({
+      ...toolContext,
+      acceptsHandoffs: true,
+    });
+    const context = tools.find(
+      (tool) => tool.kind === "webhook" && tool.name === "get_handoff_context",
+    );
+    assert.ok(context && context.kind === "webhook");
+    assert.deepEqual(Object.keys(context.parameters?.properties ?? {}), []);
+    // It never hands calls on itself.
+    assert.equal(
+      tools.some((tool) => tool.kind === "handoff"),
+      false,
+    );
+    const instructions = scheduling.buildInstructions({
+      ...promptContext,
+      acceptsHandoffs: true,
+    });
+    assert.match(instructions, /## Continuing a conversation/);
+    assert.match(instructions, /do not greet the person again/);
+    assert.match(
+      instructions,
+      /Never call `book_appointment` for this meeting/,
+    );
+    assert.match(
+      scheduling.buildSafetyInstructions({
+        ...promptContext,
+        acceptsHandoffs: true,
+      }),
+      /call `get_handoff_context` before you speak/,
+    );
+    assert.doesNotMatch(
+      scheduling.buildInstructions(promptContext),
+      /get_handoff_context/,
+    );
+  });
+});
+
 describe("ReceptionistBlueprint", () => {
   const blueprint = new ReceptionistBlueprint();
 

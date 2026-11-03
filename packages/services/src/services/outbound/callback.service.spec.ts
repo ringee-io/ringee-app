@@ -57,6 +57,7 @@ function build(
         statuses.push({ id, ...data });
         return { ...DUE_CALLBACK, ...data };
       },
+      claimDueAgentCallbacks: async () => [],
     } as never,
     { updateStatus: async () => null } as never,
     { findById: async () => null, updateStatus: async () => null } as never,
@@ -86,6 +87,7 @@ function build(
       },
     } as never,
     {} as never,
+    { reviewDue: async () => [] } as never,
   );
 
   return { service, dials, statuses, dueTransitions };

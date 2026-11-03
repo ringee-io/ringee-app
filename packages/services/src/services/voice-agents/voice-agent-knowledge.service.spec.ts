@@ -148,6 +148,7 @@ describe("VoiceAgentKnowledgeService", () => {
           callingAppId: null,
           unauthenticatedWebCallsEnabled: false,
           toolWebhookUrls: [],
+          handoffAssistantIds: [],
         }),
       } as never,
       {} as never,
@@ -165,6 +166,14 @@ describe("VoiceAgentKnowledgeService", () => {
       {} as never,
       {} as never,
       { listByDestination: async () => [] } as never,
+      {
+        handoffTargetsFor: async () => [],
+        acceptsHandoffs: () => false,
+        resolveDestination: async () => ({
+          ok: false,
+          reason: "automations_disabled",
+        }),
+      } as never,
     );
 
     await service.resync(CTX as never, agent.id);

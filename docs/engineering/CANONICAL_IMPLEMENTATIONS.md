@@ -133,6 +133,11 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Attendance email delivery (AGENT-020) | `MeetingEmailService` — `services/meeting-email.service.ts`                           |
 | Handing a receptionist's numbers back | `InboundRouteService.releaseReceptionist` (compare-and-set on `InboundRoute.version`) |
 | The rail in the dashboard             | `VoiceAgentsRail` — `features/ai-voice-agents/automations/`                           |
+| Agent → agent handoff (AGENT-021)     | `VoiceAgentHandoffService` — `voice-agents/automations`                               |
+| Who may act on an agent call          | `VoiceAgentHandoffService.grantFor` — never `agentId` alone                           |
+| Handoff requests and participations   | `AiVoiceAgentHandoffRepository` (activation row-locked)                               |
+| Provider handoff capability           | `VoiceAgentTool` `handoff`, `assistantHandoffMode()`                                  |
+| Agent callbacks for a request         | `CallbackService.scheduleAgentCallback` (lease, dial key)                             |
 
 ## Contacts and lists
 

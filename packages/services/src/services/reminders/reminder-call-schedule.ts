@@ -153,3 +153,43 @@ export function readCallingWindow(policy: {
   }
   return { startMinute: start, endMinute: end, days };
 }
+
+/**
+ * The first moment at or after `after` when a call may ring: `after` itself
+ * when it is inside the window, else the next opening — but never in the last
+ * half hour before a close, so a late tick or a deferral still lands inside.
+ * Null when the window offers nothing within a week.
+ */
+export function nextCallingWindowMoment(
+  after: Date,
+  window: CallingWindow,
+  timeZone: string,
+): Date | null {
+  if (window.endMinute <= window.startMinute || window.days.length === 0) {
+    return null;
+  }
+  const lastStart = Math.max(
+    window.startMinute,
+    window.endMinute - CLOSING_SLACK_MINUTES,
+  );
+  const { date, weekday, minute } = zonedClock(after, timeZone);
+  if (
+    window.days.includes(weekday) &&
+    minute >= window.startMinute &&
+    minute < lastStart
+  ) {
+    return after;
+  }
+  for (let ahead = 0; ahead <= MAX_PULL_EARLIER_DAYS; ahead++) {
+    const day = shiftDate(date, ahead);
+    if (!window.days.includes(weekdayOf(day))) continue;
+    const opening = zonedTimeToUtc(
+      day,
+      Math.floor(window.startMinute / 60),
+      window.startMinute % 60,
+      timeZone,
+    );
+    if (opening.getTime() > after.getTime()) return opening;
+  }
+  return null;
+}

@@ -20,6 +20,7 @@ import type {
   VoiceAgentUsageQuery,
   VoiceAgentUsageRecord,
   VoiceAgentVoice,
+  VoiceAgentHandoffMode,
 } from "./interfaces/voice-agent.provider";
 import { TelnyxVoiceAgentService } from "./telnyx/telnyx.voice-agent.service";
 
@@ -37,6 +38,10 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
       default:
         return this.telnyx;
     }
+  }
+
+  assistantHandoffMode(): VoiceAgentHandoffMode {
+    return this.getServiceProvider().assistantHandoffMode();
   }
 
   createAssistant(config: VoiceAgentConfig): Promise<VoiceAgentAssistant> {

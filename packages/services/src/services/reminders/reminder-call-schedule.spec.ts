@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import {
   DEFAULT_CALLING_WINDOW,
   isWithinCallingWindow,
+  nextCallingWindowMoment,
   planReminderCallAt,
   readCallingWindow,
 } from "./reminder-call-schedule";
@@ -173,6 +174,79 @@ describe("readCallingWindow", () => {
         windowDays: [],
       }),
       DEFAULT_CALLING_WINDOW,
+    );
+  });
+});
+
+/**
+ * When a recovery call for a handoff request may ring (AGENT-021): never at
+ * night, and never in the last half hour before the window closes.
+ */
+describe("nextCallingWindowMoment", () => {
+  it("is the moment itself when that is inside the window", () => {
+    // Tue 2026-11-03 12:00 Madrid (CET, UTC+1).
+    const at = new Date("2026-11-03T11:00:00Z");
+    assert.equal(
+      nextCallingWindowMoment(
+        at,
+        DEFAULT_CALLING_WINDOW,
+        MADRID,
+      )?.toISOString(),
+      at.toISOString(),
+    );
+  });
+
+  it("waits for the next opening after hours", () => {
+    // 22:30 Madrid → 09:00 the next morning.
+    assert.equal(
+      nextCallingWindowMoment(
+        new Date("2026-11-03T21:30:00Z"),
+        DEFAULT_CALLING_WINDOW,
+        MADRID,
+      )?.toISOString(),
+      "2026-11-04T08:00:00.000Z",
+    );
+    // 07:00 Madrid → 09:00 the same day.
+    assert.equal(
+      nextCallingWindowMoment(
+        new Date("2026-11-04T06:00:00Z"),
+        DEFAULT_CALLING_WINDOW,
+        MADRID,
+      )?.toISOString(),
+      "2026-11-04T08:00:00.000Z",
+    );
+  });
+
+  it("does not start in the last half hour before the close", () => {
+    // 19:45 Madrid is inside 09:00–20:00, but too close to its end.
+    assert.equal(
+      nextCallingWindowMoment(
+        new Date("2026-11-03T18:45:00Z"),
+        DEFAULT_CALLING_WINDOW,
+        MADRID,
+      )?.toISOString(),
+      "2026-11-04T08:00:00.000Z",
+    );
+  });
+
+  it("skips the days the window leaves out, and gives up on an empty window", () => {
+    const weekdays = { ...DEFAULT_CALLING_WINDOW, days: [1, 2, 3, 4, 5] };
+    // Sat 2026-11-07 10:00 New York → Mon 2026-11-09 09:00.
+    assert.equal(
+      nextCallingWindowMoment(
+        new Date("2026-11-07T15:00:00Z"),
+        weekdays,
+        NY,
+      )?.toISOString(),
+      "2026-11-09T14:00:00.000Z",
+    );
+    assert.equal(
+      nextCallingWindowMoment(
+        new Date("2026-11-07T15:00:00Z"),
+        { ...DEFAULT_CALLING_WINDOW, days: [] },
+        NY,
+      ),
+      null,
     );
   });
 });

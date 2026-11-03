@@ -145,6 +145,15 @@ enum CallbackStatus {
   cancelled
 }
 
+/// Why an AI voice agent places a callback (AGENT-021).
+enum CallbackAgentKind {
+  /// A time the person agreed to on the call.
+  agreed
+  /// Planned by policy after a call ended before a time was agreed. Never
+  /// promised to the person, and never presented as an agreed callback.
+  recovery
+}
+
 // ── Call Session Enums ──
 
 enum CallSessionStatus {
@@ -485,6 +494,7 @@ model User {
   meetingReminderPolicies MeetingReminderPolicy[]
   meetingReminderCalls    MeetingReminderExecution[]
   meetingEmailDeliveries  MeetingEmailDelivery[]
+  aiVoiceAgentHandoffs    AiVoiceAgentHandoff[]
 
   @@index([clerkId])
 }
@@ -617,6 +627,8 @@ model Organization {
   meetingReminderPolicies MeetingReminderPolicy[]
   meetingReminderCalls    MeetingReminderExecution[]
   meetingEmailDeliveries  MeetingEmailDelivery[]
+  aiVoiceAgentHandoffs    AiVoiceAgentHandoff[]
+  voiceAgentParticipants  AiVoiceAgentCallParticipant[]
 
   @@index([clerkId])
 }
@@ -1366,6 +1378,7 @@ model Contact {
   callSessionItems       CallSessionItem[]
   aiVoiceAgentCalls      AiVoiceAgentCall[]
   listEntries            ContactListEntry[]
+  aiVoiceAgentHandoffs   AiVoiceAgentHandoff[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -2033,6 +2046,7 @@ model Meeting {
   aiVoiceAgentCalls   AiVoiceAgentCall[]
   reminderCalls       MeetingReminderExecution[]
   emailDeliveries     MeetingEmailDelivery[]
+  handoffs            AiVoiceAgentHandoff[]
 
   @@index([userId])
   @@index([organizationId])
@@ -2317,14 +2331,43 @@ model CallbackTask {
   completedAt    DateTime?
   attemptCount   Int            @default(0)
 
+  /// An AI voice agent callback the callback worker places itself (AGENT-014,
+  /// AGENT-021): set together with `agentId` and `handoffId`. Null for a
+  /// person's callback — and for the legacy agent callbacks, which reuse their
+  /// source call's id and redial that call's own agent.
+  agentCallbackKind CallbackAgentKind?
+  /// The agent that places it: the specialist the request was handed to.
+  agentId           String?            @db.Uuid
+  /// The handoff request it continues; the call rebuilds its context from it.
+  handoffId         String?            @db.Uuid
+  /// Replay-safe creation key: a repeated tool call returns the same row.
+  agentCallbackKey  String?            @unique
+  /// A deferral: never claimed before this, whatever `scheduledAt` says.
+  notBefore         DateTime?
+  /// Fences workers after a lease has been reclaimed.
+  claimToken        String?            @db.Uuid
+  leaseExpiresAt    DateTime?
+  /// Dial tries; each has its own agent-call key. Retained across claims, so
+  /// a reclaimed callback reconciles the earlier try instead of redialing.
+  dialTries         Int                @default(0)
+  dialReservedAt    DateTime?
+  /// The agent call this callback placed.
+  agentCallId       String?            @unique @db.Uuid
+  /// Machine-readable reason it was missed or withdrawn.
+  reason            String?
+  lastError         String?            @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
-  campaignLead CampaignLead? @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact      Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  call         Call?                @relation(fields: [callId], references: [id], onDelete: SetNull)
+  campaignLead CampaignLead?        @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  agent        AiVoiceAgent?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  handoff      AiVoiceAgentHandoff? @relation(fields: [handoffId], references: [id], onDelete: SetNull)
+  agentCall    AiVoiceAgentCall?    @relation("callbackPlacedAgentCall", fields: [agentCallId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([organizationId])
@@ -2332,6 +2375,9 @@ model CallbackTask {
   @@index([callId])
   @@index([status, scheduledAt])
   @@index([campaignLeadId])
+  @@index([agentCallbackKind, status, scheduledAt])
+  @@index([handoffId])
+  @@index([agentId])
 }
 
 model DNCEntry {
@@ -4636,6 +4682,10 @@ model AiVoiceAgent {
   automations         AiVoiceAgentAutomation[]
   reminderPolicies    MeetingReminderPolicy[]
   reminderCalls       MeetingReminderExecution[]
+  handoffsFrom        AiVoiceAgentHandoff[]         @relation("handoffSource")
+  handoffsTo          AiVoiceAgentHandoff[]         @relation("handoffDestination")
+  participations      AiVoiceAgentCallParticipant[]
+  callbacks           CallbackTask[]
 
   @@index([userId])
   @@index([organizationId])
@@ -4753,8 +4803,14 @@ model AiVoiceAgentCall {
   meeting      Meeting?      @relation(fields: [meetingId], references: [id], onDelete: SetNull)
   calendar     Calendar?     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
 
-  responsibleUser   User?                     @relation("aiVoiceAgentCallResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  responsibleUser   User?                         @relation("aiVoiceAgentCallResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   reminderExecution MeetingReminderExecution?
+  /// The agents that took part, when more than one did (AGENT-021). A call
+  /// with none was held by `agentId` alone — every call before handoffs.
+  participants      AiVoiceAgentCallParticipant[]
+  handoffs          AiVoiceAgentHandoff[]
+  /// The callback that placed this call, when one did.
+  placedByCallback  CallbackTask?                 @relation("callbackPlacedAgentCall")
 
   @@index([agentId])
   @@index([userId])
@@ -5013,6 +5069,189 @@ model MeetingEmailDelivery {
   @@index([meetingId])
   @@index([organizationId, updatedAt])
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI voice agent handoffs — one agent continuing another's conversation
+//
+// A reminders agent that learns the person cannot attend hands the same call to
+// the scheduling agent (AGENT-021). The call stays one `Call` and one
+// `AiVoiceAgentCall`: participants and handoffs are children of that root, so
+// `AiVoiceAgentCall.agentId` keeps meaning "the agent that placed the call".
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// What the handoff hands over. A closed set — new members are additive.
+enum AiVoiceAgentHandoffPurpose {
+  /// Find a new time for a meeting the person cannot attend.
+  reschedule_meeting
+}
+
+/// Where the live, same-call handoff stands. The provider switches assistants
+/// inside the conversation, so Ringee learns the outcome from who calls its
+/// tools next, never from the model's word.
+enum AiVoiceAgentHandoffStatus {
+  /// Intent, context and destination stored and authorized; the provider
+  /// handoff may follow.
+  prepared
+  /// The destination proved itself on the call: its own authenticated tool call.
+  completed
+  /// It did not happen: refused before the provider was involved, reported by
+  /// the source while it still held the call, or reconciled after the call.
+  failed
+  /// The call ended with no proof either way. Reconciled before anything else
+  /// acts on the request.
+  uncertain
+}
+
+/// The request a handoff carries. It outlives the call it was raised on.
+enum AiVoiceAgentHandoffRequestStatus {
+  /// Ringee still has an automated next step: the live handoff, an agreed
+  /// callback or a recovery call.
+  pending
+  /// No automated step is left; `resolution` says what a person must decide.
+  needs_attention
+  /// The objective was met — the meeting was moved.
+  resolved
+  /// No longer wanted or no longer possible (meeting deleted, contact on DNC).
+  closed
+}
+
+/// How an agent takes part in an agent call.
+enum AiVoiceAgentParticipantRole {
+  /// The agent that placed the call.
+  initial
+  /// Took the conversation over on the same call through a handoff.
+  handoff
+  /// Placed a later call to continue a handoff request.
+  callback
+}
+
+enum AiVoiceAgentParticipantStatus {
+  /// May act on the call through its tools.
+  active
+  /// Handed the conversation over; its tools may not change anything any more.
+  handed_off
+  /// Its part of the call is over.
+  ended
+}
+
+/// One request to continue a call's objective with a specialist agent: the
+/// live handoff attempt on the source call, and the request itself, which a
+/// callback can still fulfil after that call ended. Every field the
+/// specialist acts on is derived on the server from the call, its reminder
+/// execution and the workspace's scheduling automation — never from the model.
+model AiVoiceAgentHandoff {
+  id                     String                           @id @default(uuid()) @db.Uuid
+  /// The workspace the source call belongs to: its agent call's owner.
+  userId                 String                           @db.Uuid
+  organizationId         String                           @db.Uuid
+  purpose                AiVoiceAgentHandoffPurpose
+  /// The source call: the agent call the request was raised on, and its
+  /// telephony row (unenforced, like every other new pointer at `Call`).
+  agentCallId            String                           @db.Uuid
+  callId                 String?                          @db.Uuid
+  contactId              String?                          @db.Uuid
+  sourceAgentId          String                           @db.Uuid
+  /// Resolved from the scheduling automation; null when none was usable.
+  destinationAgentId     String?                          @db.Uuid
+  automationId           String?                          @db.Uuid
+  /// The meeting, the version the person answered about and its time then.
+  meetingId              String                           @db.Uuid
+  meetingScheduleVersion Int
+  meetingScheduledAt     DateTime
+  reminderExecutionId    String?                          @db.Uuid
+  calendarId             String?                          @db.Uuid
+  responsibleUserId      String?                          @db.Uuid
+  /// Normalized reason (`cannot_attend`), and what the person said: data for
+  /// the specialist, never instructions.
+  reason                 String
+  reasonNote             String?                          @db.Text
+  preferences            String?                          @db.Text
+  /// The conversation's effective language and where it came from: the
+  /// source agent's configured voice, or the person asking to switch.
+  language               String
+  languageSource         String
+  /// What was already confirmed and done on the call, so nobody asks again.
+  context                Json?
+  status                 AiVoiceAgentHandoffStatus        @default(prepared)
+  failureReason          String?
+  lastError              String?                          @db.Text
+  requestStatus          AiVoiceAgentHandoffRequestStatus @default(pending)
+  resolution             String?
+  /// Evidence: the times the specialist last offered, and on which call.
+  offeredSlots           Json?
+  offeredAt              DateTime?
+  offeredAgentCallId     String?                          @db.Uuid
+  /// Recovery calls planned by policy after a call ended before a time was
+  /// agreed. Bounded; never presented as an agreed callback.
+  recoveryAttempts       Int                              @default(0)
+  /// When the reconciler looks at a pending request next.
+  reviewAt               DateTime                         @default(now())
+  /// source agent call + purpose: one handoff per attempt.
+  idempotencyKey         String                           @unique
+  preparedAt             DateTime                         @default(now())
+  completedAt            DateTime?
+  failedAt               DateTime?
+  reconciledAt           DateTime?
+  resolvedAt             DateTime?
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+
+  user             User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization     Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agentCall        AiVoiceAgentCall              @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
+  sourceAgent      AiVoiceAgent                  @relation("handoffSource", fields: [sourceAgentId], references: [id], onDelete: Cascade)
+  destinationAgent AiVoiceAgent?                 @relation("handoffDestination", fields: [destinationAgentId], references: [id], onDelete: SetNull)
+  meeting          Meeting                       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  contact          Contact?                      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  participants     AiVoiceAgentCallParticipant[]
+  callbacks        CallbackTask[]
+
+  @@index([requestStatus, reviewAt])
+  @@index([agentCallId])
+  @@index([meetingId])
+  @@index([contactId])
+  @@index([organizationId, createdAt])
+  @@index([sourceAgentId])
+  @@index([destinationAgentId])
+  @@index([userId])
+}
+
+/// One agent's part in one agent call. Its tools are bound to what is stored
+/// here — the call, the handoff request, the meeting and its schedule version
+/// — so a participant can act only on the meeting it was handed, and only
+/// while it is the one holding the call.
+model AiVoiceAgentCallParticipant {
+  id                     String                        @id @default(uuid()) @db.Uuid
+  organizationId         String                        @db.Uuid
+  /// The call this participation is part of (its root).
+  agentCallId            String                        @db.Uuid
+  agentId                String                        @db.Uuid
+  handoffId              String                        @db.Uuid
+  role                   AiVoiceAgentParticipantRole
+  status                 AiVoiceAgentParticipantStatus @default(active)
+  /// 1 for the agent that placed the call, 2 for the one that took it over.
+  sequence               Int
+  meetingId              String?                       @db.Uuid
+  meetingScheduleVersion Int?
+  /// The meeting's own calendar, which availability is read from.
+  calendarId             String?                       @db.Uuid
+  /// The provider conversation it was reported under, when not the call's.
+  providerConversationId String?
+  startedAt              DateTime                      @default(now())
+  endedAt                DateTime?
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agentCall    AiVoiceAgentCall    @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
+  agent        AiVoiceAgent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  handoff      AiVoiceAgentHandoff @relation(fields: [handoffId], references: [id], onDelete: Cascade)
+
+  @@unique([agentCallId, sequence])
+  @@unique([agentCallId, agentId])
+  @@index([handoffId])
+  @@index([agentId])
 }
 
 /// Organization-owned PBX/carrier. Never used by purchased-number billing.

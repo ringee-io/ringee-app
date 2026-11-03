@@ -13,6 +13,11 @@ import { buildSharedInsights } from "./insights";
 import { buildConfirmAttendanceTool } from "./attendance.tool";
 import { buildScheduleCallbackTool } from "./callback.tool";
 import { buildHumanSupportTool } from "./human-support.tool";
+import {
+  buildHandoffTool,
+  buildPrepareRescheduleHandoffTool,
+  buildRescheduleCallbackTool,
+} from "./handoff.tools";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -155,14 +160,50 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "- If the context says there is no email on file and the person wants the",
       "  confirmation by email, ask for the address, read it back, and only",
       "  after they confirm it pass it as `email`.",
-      "- You cannot move or cancel the meeting. If they want another time,",
-      '  record "declined" with that in the note; the team will follow up.',
+      ...this.moveMeetingInstructions(ctx.handoffDestinationName ?? null),
       "",
       "## Ending the call",
       "",
       "Confirm in one sentence what you understood their answer to be, thank",
       "them, say goodbye, and call `hangup`. Do not linger.",
     ].join("\n");
+  }
+
+  /**
+   * What the agent does when the person cannot make the meeting. With a
+   * scheduling agent the workspace authorizes (AGENT-021), it offers to find
+   * another time on this call and hands the call over; without one it records
+   * the answer and the team follows up, as before handoffs existed.
+   */
+  private moveMeetingInstructions(destination: string | null): string[] {
+    if (!destination) {
+      return [
+        "- You cannot move or cancel the meeting. If they want another time,",
+        '  record "declined" with that in the note; the team will follow up.',
+      ];
+    }
+    return [
+      "- You cannot move or cancel the meeting yourself. When they cannot",
+      '  attend, record "declined" first, then follow that tool\'s',
+      `  speech_instruction: it tells you whether ${destination}, the`,
+      "  scheduling assistant, can find another time with them on this call.",
+      "",
+      "## Finding another time",
+      "",
+      "When the person agrees to look for another time now:",
+      "",
+      "- If they have not said what would suit them, ask once, briefly.",
+      "- Call `prepare_reschedule_handoff` with what they said, their",
+      "  preferences and whether you already confirmed who you are speaking",
+      "  with. Never hand the call over before it returns success.",
+      "- Then say only the one short sentence its speech_instruction gives",
+      `  you, and use the handoff tool to pass the call to ${destination}.`,
+      "  Announce the handoff once, and do not keep talking after it.",
+      "- If preparing or handing over fails, or they would rather be called",
+      "  later, agree an exact time and call `schedule_reschedule_callback`.",
+      "  Only promise the call after it succeeds.",
+      "- If they do not want another time, respect it and end the call.",
+    ];
   }
 
   /** Said verbatim as the call's first turn, so it carries the language. */
@@ -179,7 +220,7 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
     return inLanguage(this.greetings, ctx.language);
   }
 
-  buildSafetyInstructions(_ctx: VoiceAgentPromptContext): string {
+  buildSafetyInstructions(ctx: VoiceAgentPromptContext): string {
     return [
       "## Ringee safety rules",
       "",
@@ -203,6 +244,16 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  never say a confirmation email was already sent.",
       "- Never share a meeting's details with anyone other than the person the",
       "  call is for.",
+      ...(ctx.handoffDestinationName
+        ? [
+            "- Hand the call to another assistant only after",
+            "  `prepare_reschedule_handoff` returned success on this call, and only",
+            "  to find a new time for the scheduled meeting. Announce it once, in",
+            "  one short sentence.",
+            "- Only promise that the scheduling assistant will call back after",
+            "  `schedule_reschedule_callback` returns success.",
+          ]
+        : []),
     ].join("\n");
   }
 
@@ -217,6 +268,17 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
           "End the call once the person has responded to the notification, or has asked not to be contacted.",
       },
     ];
+    // Only while the workspace authorizes a scheduling agent to take the call
+    // (AGENT-021): the handoff tool names it, and the two Ringee tools around
+    // it store the request first and offer a callback when it fails.
+    const handoff = buildHandoffTool(ctx);
+    if (handoff) {
+      tools.push(
+        buildPrepareRescheduleHandoffTool(ctx),
+        buildRescheduleCallbackTool(ctx),
+        handoff,
+      );
+    }
     if (ctx.knowledgeBucketIds.length) {
       tools.push({ kind: "retrieval", bucketIds: ctx.knowledgeBucketIds });
     }

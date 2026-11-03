@@ -4,6 +4,8 @@ import {
   AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
   AiVoiceAgentCallStatus,
+  AiVoiceAgentHandoffRepository,
+  AiVoiceAgentParticipantRole,
   CallRepository,
   CallStatus,
   RecordingRepository,
@@ -39,6 +41,14 @@ const ARTIFACT_SETTLE_DELAY_MS = 2 * 60 * 1000;
  * provider will never publish anything about stops being carried forever.
  */
 const STALLED_CALL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How long, from the dial, a handed-over call's AI half waits for a
+ * conversation the leg reported to become readable on its own (AGENT-021).
+ * Long past the end of any agent call, so a record that is only late is not
+ * given away.
+ */
+const HANDED_OVER_USAGE_WAIT_MS = 2 * 60 * 60 * 1000;
 
 export interface VoiceAgentSettlement {
   settled: boolean;
@@ -89,6 +99,7 @@ export class VoiceAgentBillingService {
     private readonly credits: CreditService,
     private readonly recordingProcessing: RecordingProcessingService,
     private readonly results: VoiceAgentResultService,
+    private readonly handoffs: AiVoiceAgentHandoffRepository,
   ) {}
 
   /**
@@ -136,7 +147,28 @@ export class VoiceAgentBillingService {
     // whose status callback never arrived from reading as "pending" forever.
     current = await this.settleCallLifecycle(current, records);
 
-    const ai = await this.settleAiUsage(current, records);
+    // A call another agent took over is still one call with one AI charge:
+    // the participation adds no debit of its own. If the provider reported
+    // the agent that took over under a conversation of its own, its usage is
+    // part of this call's — read it so it is neither lost nor charged apart.
+    let aiRecords = records;
+    let aiPending = false;
+    if (!current.costSettledAt) {
+      const handedOver = await this.handedOverUsage(current, records);
+      aiRecords = [...records, ...handedOver.records];
+      // The claim, once written, is never re-read: while a conversation the
+      // leg reported cannot be read on its own yet, the AI half stays open —
+      // for a bounded time, so a conversation the provider never indexes
+      // does not keep the call unsettled, at the front of the sweep, for ever.
+      aiPending =
+        handedOver.pending &&
+        Date.now() - current.createdAt.getTime() < HANDED_OVER_USAGE_WAIT_MS;
+    }
+    const ai = aiPending
+      ? this.notSettled(
+          "A conversation this call was handed over in has not published its usage yet.",
+        )
+      : await this.settleAiUsage(current, aiRecords);
     const telephonyCostUsd = await this.settleTelephonyLeg(current, records);
     await this.recoverArtifacts(current);
 
@@ -431,6 +463,99 @@ export class VoiceAgentBillingService {
       throw error;
     }
     await this.agentCalls.markAiCostDebited(agentCall.id);
+  }
+
+  /**
+   * The AI usage of conversations a handed-over call produced besides its
+   * own (AGENT-021), and whether any of it is still to be published.
+   *
+   * The provider documents a handoff as happening inside one conversation, so
+   * this normally finds nothing. It is read only for calls another agent took
+   * over, and only from conversations other than the call's. The voice leg is
+   * never re-read — it is one leg, charged once. The provider does not split
+   * cost by participant, so none is allocated.
+   *
+   * A first read keyed by the leg alone (no conversation bound yet) already
+   * carries the engine records of every conversation the leg served, so a
+   * kind of record `alreadyRead` holds for a conversation is not added again.
+   */
+  private async handedOverUsage(
+    agentCall: AiVoiceAgentCall,
+    alreadyRead: VoiceAgentUsageRecord[],
+  ): Promise<{ records: VoiceAgentUsageRecord[]; pending: boolean }> {
+    const none = { records: [], pending: false };
+    if (!agentCall.providerConversationId || !agentCall.providerCallControlId) {
+      return none;
+    }
+    const participants = await this.handoffs.listParticipants(agentCall.id);
+    const destination = participants.find(
+      (participant) => participant.role === AiVoiceAgentParticipantRole.handoff,
+    );
+    if (!destination) return none;
+
+    const leg = await this.provider.fetchUsageRecords({
+      callControlId: agentCall.providerCallControlId,
+    });
+    const others = [
+      ...new Set(
+        [...alreadyRead, ...leg].flatMap((record) =>
+          record.kind === "voice_agent" &&
+          record.conversationId &&
+          record.conversationId !== agentCall.providerConversationId
+            ? [record.conversationId]
+            : [],
+        ),
+      ),
+    ];
+    if (others.length === 0) return none;
+
+    this.logger.warn(
+      `Agent call ${agentCall.id} was handed over and reported under ${others.length} more conversation(s); their AI usage settles with the call`,
+    );
+    if (others.length === 1) {
+      await this.handoffs
+        .setParticipantConversation(destination.id, others[0]!)
+        .catch(() => undefined);
+    }
+    // Every record of a kind already counted for a conversation is skipped —
+    // not only the first: one conversation can carry several token records.
+    const counted = new Set(
+      alreadyRead.flatMap((record) =>
+        record.conversationId
+          ? [`${record.kind}:${record.conversationId}`]
+          : [],
+      ),
+    );
+    const extra: VoiceAgentUsageRecord[] = [];
+    let pending = false;
+    for (const conversationId of others) {
+      let rows = (
+        await this.provider.fetchUsageRecords({ conversationId })
+      ).filter((record) => record.kind !== "telephony");
+      if (!rows.some((record) => record.kind === "voice_agent")) {
+        // Tokens alone do not establish that the engine usage is published.
+        // Keep them along with the leg's engine records while waiting for the
+        // conversation read, and settle both if the bounded wait runs out.
+        pending = true;
+        rows = [
+          ...rows,
+          ...leg.filter(
+            (record) =>
+              record.kind === "voice_agent" &&
+              record.conversationId === conversationId,
+          ),
+        ];
+      }
+      extra.push(
+        ...rows.filter(
+          (record) =>
+            !counted.has(
+              `${record.kind}:${record.conversationId ?? conversationId}`,
+            ),
+        ),
+      );
+    }
+    return { records: extra, pending };
   }
 
   // ── The voice leg ────────────────────────────────────────────

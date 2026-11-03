@@ -489,6 +489,35 @@ describe("MeetingReminderCallService.callNow", () => {
     assert.deepEqual(claimedIds, ["exec-manual"]);
     assert.deepEqual(planned, []);
   });
+
+  it("reports a call it placed as placed when linking it to the execution fails", async () => {
+    // The worker's side (the link restored by the dial key, no second call,
+    // the tools finding the meeting) is driven end to end in
+    // voice-agent-handoff.service.spec.ts.
+    const { service, starts, events } = build();
+    const internals = service as unknown as {
+      policies: Row;
+      executions: Row;
+    };
+    internals.policies.findForCalendar = async () => ({ agentId: "agent-1" });
+    internals.executions.markPlaced = async () => {
+      throw new Error("Connection terminated unexpectedly");
+    };
+
+    const result = await service.callNow(
+      { userId: "member-1", organizationId: "org-1" },
+      "meeting-1",
+    );
+
+    assert.equal(starts.length, 1);
+    assert.equal(result.status, "placed");
+    assert.equal(result.reason, null);
+    // Nothing closed it as rejected or unplaced.
+    assert.equal(
+      events.some((event) => "finish" in event),
+      false,
+    );
+  });
 });
 
 describe("reminder placement revalidation", () => {

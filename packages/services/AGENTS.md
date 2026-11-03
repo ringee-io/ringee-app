@@ -62,8 +62,17 @@ calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
 - reads `VoiceAgentCallStartError.outcome`: only `retryable_before_placement`
   may be retried; `placed_pending_reconciliation` means a leg may exist and is
   linked, never redialed;
+- keeps the write that records a placed call outside the dial's own error
+  handling: once `startCall` has returned, a failed write is not a failed dial.
+  The claim is left to expire and the next tick links the call by its key;
 - re-checks what it is calling about right before the dial (versions, calling
   window, DNC through `startCall`), because the row it planned from may be stale.
+
+A call can hold more than one agent (AGENT-021): the agent that placed it and
+one that took it over through a handoff. A voice-agent tool therefore never
+decides who may act on a call from `AiVoiceAgentCall.agentId` alone — it asks
+`VoiceAgentHandoffService.grantFor`, which refuses the agent that handed the
+call away and binds the one that took it to the meeting it was handed.
 
 ## Campaigns and outbound
 

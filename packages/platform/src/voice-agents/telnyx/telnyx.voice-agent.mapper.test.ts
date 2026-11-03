@@ -136,6 +136,49 @@ describe("toAssistantPayload", () => {
     ]);
   });
 
+  // The handoff is Telnyx's own tool: the model decides when, the provider
+  // switches assistants inside the same call. Ringee only ever names targets
+  // the workspace authorized, and `shared` keeps the caller's current voice.
+  it("maps a handoff onto Telnyx's handoff tool, keeping the shared voice", () => {
+    const payload = toAssistantPayload(
+      config({
+        tools: [
+          {
+            kind: "handoff",
+            voice: "shared",
+            targets: [
+              { assistantId: "assistant-sched", name: "Scheduling assistant" },
+            ],
+          },
+          {
+            kind: "handoff",
+            voice: "own",
+            targets: [{ assistantId: "assistant-x", name: "Other" }],
+          },
+        ],
+      }),
+      { unauthenticatedWebCalls: false },
+    );
+    expect(payload.tools).toEqual([
+      {
+        type: "handoff",
+        handoff: {
+          voice_mode: "unified",
+          ai_assistants: [
+            { name: "Scheduling assistant", id: "assistant-sched" },
+          ],
+        },
+      },
+      {
+        type: "handoff",
+        handoff: {
+          voice_mode: "distinct",
+          ai_assistants: [{ name: "Other", id: "assistant-x" }],
+        },
+      },
+    ]);
+  });
+
   it.each(["en", "es", "pt", "fr", "de", "it", "hi", "ru", "ja", "nl"])(
     "tunes Flux turn-taking while transcribing the agent's language: %s",
     (language) => {
@@ -257,6 +300,8 @@ describe("toVoiceAgentAssistant", () => {
       unauthenticatedWebCallsEnabled: true,
       runtimeContextConfigured: false,
       toolWebhookUrls: [],
+      handoffAssistantIds: [],
+      handoffAssistantNames: {},
     });
   });
 
@@ -287,6 +332,40 @@ describe("toVoiceAgentAssistant", () => {
     expect(assistant.toolWebhookUrls).toEqual([
       "https://api.ringee.io/api/x/available-slots",
     ]);
+    expect(assistant.handoffAssistantIds).toEqual([]);
+  });
+
+  // Read back so the dial path can tell an assistant still pointing at a
+  // destination the workspace no longer authorizes.
+  it("reports the assistants a handoff tool currently names", () => {
+    const assistant = toVoiceAgentAssistant({
+      id: "assistant-5",
+      tools: [
+        {
+          type: "handoff",
+          handoff: {
+            ai_assistants: [
+              { id: "assistant-sched", name: "Carmen — scheduling assistant" },
+              { id: "assistant-unnamed" },
+              { id: null, name: "Orphan" },
+              null,
+            ],
+          },
+        },
+        { type: "handoff", handoff: null },
+        { type: "webhook", webhook: { url: "https://api.ringee.io/x" } },
+      ],
+    });
+    expect(assistant.handoffAssistantIds).toEqual([
+      "assistant-sched",
+      "assistant-unnamed",
+    ]);
+    // The name each was synced with, where Telnyx reports one: a destination
+    // renamed since is drift too. An unnamed target is unknown, not stale.
+    expect(assistant.handoffAssistantNames).toEqual({
+      "assistant-sched": "Carmen — scheduling assistant",
+    });
+    expect(assistant.toolWebhookUrls).toEqual(["https://api.ringee.io/x"]);
   });
 
   it("recognizes prompts that consume Ringee's call-time clock", () => {

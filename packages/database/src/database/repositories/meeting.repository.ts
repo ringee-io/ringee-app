@@ -116,9 +116,14 @@ export class MeetingRepository {
     scope: MeetingCalendarScope,
     start: Date,
     end: Date,
+    /** A meeting being moved, which does not occupy its own new time. */
+    excludeMeetingId?: string,
   ): Promise<Array<{ start: Date; end: Date }>> {
     const { userFilter, organizationFilter } = ownershipSql(ctx);
     const calendarFilter = calendarSql(scope.calendarId, scope.isDefault);
+    const excludeFilter = excludeMeetingId
+      ? Prisma.sql`AND "id" <> ${excludeMeetingId}::uuid`
+      : Prisma.empty;
 
     return this.prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
       SELECT
@@ -131,6 +136,7 @@ export class MeetingRepository {
         ${userFilter}
         ${organizationFilter}
         ${calendarFilter}
+        ${excludeFilter}
     `;
   }
 

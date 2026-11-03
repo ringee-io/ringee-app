@@ -247,6 +247,21 @@ function build(
       findByAgentCallId: async () =>
         over.execution === undefined ? null : over.execution,
     } as never,
+    // No handoff on these calls: the agent that placed a call is the only
+    // one that may act on it, exactly as before AGENT-021.
+    {
+      grantFor: async (
+        agent: { id: string },
+        agentCall: { agentId: string },
+      ) =>
+        agent.id === agentCall.agentId
+          ? { kind: "root" }
+          : { kind: "refused", reason: "not_participant" },
+      resolveDestination: async () => ({
+        ok: false,
+        reason: "automations_disabled",
+      }),
+    } as never,
   );
 
   return {

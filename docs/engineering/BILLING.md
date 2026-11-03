@@ -92,6 +92,21 @@ trail for any billing dispute.
 Settlement is guarded twice: a non-null `Call.totalCost` short-circuits a
 duplicate webhook, and the ledger key catches anything that slips past.
 
+A call one AI voice agent handed to another (AGENT-021) is still one call: the
+voice leg settles once under `call-cost:<callId>` and the AI half once under
+`ai-voice-agent-cost:<agentCallId>`. A participation is never a charge. If the
+provider reports the agent that took over under a conversation of its own, that
+conversation's AI records are added to the call's — read only for handed-over
+calls, and only from conversations other than the call's — and nothing is
+allocated per participant. A first read keyed by the leg alone (no conversation
+bound yet) already carries every conversation's engine records, so a kind of
+record already read for a conversation is never added again. The AI claim is
+written once and never re-read, so while such a conversation has no engine
+(`voice_agent`) records readable by its own id the AI half stays open, even if
+token records are available, for up to two hours from the dial. After that it
+settles with the leg's engine records and all reported conversation tokens,
+without counting records already read twice.
+
 ## Auto-reload and monthly funding
 
 Two distinct products:

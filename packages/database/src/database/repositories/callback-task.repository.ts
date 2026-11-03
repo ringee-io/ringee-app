@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma.service";
-import { CallbackTask, CallbackStatus, Prisma } from "@prisma/client";
+import {
+  CallbackAgentKind,
+  CallbackTask,
+  CallbackStatus,
+  Prisma,
+} from "@prisma/client";
 
 export interface CallbackTaskWithContext extends CallbackTask {
   contact: {
@@ -53,6 +59,23 @@ export interface CreateCallbackTaskInput {
   note?: string;
 }
 
+/** A callback an AI voice agent places itself, for a handoff request. */
+export interface CreateAgentCallbackInput extends CreateCallbackTaskInput {
+  organizationId: string;
+  agentCallbackKind: CallbackAgentKind;
+  agentId: string;
+  handoffId: string;
+  /** Replay-safe creation key: the same key returns the same row. */
+  agentCallbackKey: string;
+}
+
+/** Open, as far as the callback worker is concerned. */
+const OPEN_CALLBACK_STATUSES: CallbackStatus[] = [
+  CallbackStatus.scheduled,
+  CallbackStatus.due,
+  CallbackStatus.in_progress,
+];
+
 @Injectable()
 export class CallbackTaskRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -94,6 +117,49 @@ export class CallbackTaskRepository {
       if (!duplicateId) throw error;
 
       const existing = await this.findById(data.id);
+      if (!existing) throw error;
+      return { callback: existing, created: false };
+    }
+  }
+
+  /**
+   * Creates an agent callback under its creation key, and returns the row a
+   * replayed tool call already created instead of a second callback.
+   */
+  async createAgentCallbackOnce(
+    data: CreateAgentCallbackInput,
+  ): Promise<{ callback: CallbackTask; created: boolean }> {
+    try {
+      const callback = await this.prisma.callbackTask.create({
+        data: {
+          userId: data.userId,
+          organizationId: data.organizationId,
+          contactId: data.contactId,
+          callId: data.callId ?? null,
+          scheduledAt: data.scheduledAt,
+          note: data.note,
+          agentCallbackKind: data.agentCallbackKind,
+          agentId: data.agentId,
+          handoffId: data.handoffId,
+          agentCallbackKey: data.agentCallbackKey,
+        },
+      });
+      return { callback, created: true };
+    } catch (error) {
+      const target =
+        error instanceof Prisma.PrismaClientKnownRequestError
+          ? error.meta?.target
+          : null;
+      const duplicateKey =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        (Array.isArray(target)
+          ? target.includes("agentCallbackKey")
+          : String(target ?? "").includes("agentCallbackKey"));
+      if (!duplicateKey) throw error;
+      const existing = await this.prisma.callbackTask.findUnique({
+        where: { agentCallbackKey: data.agentCallbackKey },
+      });
       if (!existing) throw error;
       return { callback: existing, created: false };
     }
@@ -153,6 +219,8 @@ export class CallbackTaskRepository {
     const total = await this.prisma.callbackTask.count({ where });
     const data = await this.prisma.callbackTask.findMany({
       where,
+      // The worker's fencing token is not something a client may see.
+      omit: { claimToken: true },
       include: {
         contact: {
           select: {
@@ -205,6 +273,9 @@ export class CallbackTaskRepository {
         organizationId: owner.organizationId ?? null,
         status: { in: [CallbackStatus.scheduled, CallbackStatus.due] },
         campaignLeadId: null,
+        // A callback assigned to an AI voice agent is placed by the agent: a
+        // person calling as well would reach the contact twice (CALL-013).
+        agentCallbackKind: null,
         scheduledAt: { lte: options.scheduledTo },
       },
       select: {
@@ -256,14 +327,188 @@ export class CallbackTaskRepository {
     return new Set(rows.map((row) => row.contactId));
   }
 
+  /**
+   * Person and legacy agent callbacks that are due. Agent callbacks for a
+   * handoff request are claimed apart, under a lease (`claimDueAgentCallbacks`).
+   */
   async findDue(): Promise<CallbackTask[]> {
     return this.prisma.callbackTask.findMany({
       where: {
         status: CallbackStatus.scheduled,
         scheduledAt: { lte: new Date() },
+        agentCallbackKind: null,
       },
       orderBy: { scheduledAt: "asc" },
     });
+  }
+
+  /**
+   * Claims the agent callbacks that are due, plus any whose worker died
+   * holding the lease (AGENT-021).
+   *
+   * One statement with `FOR UPDATE SKIP LOCKED`, so concurrent ticks split
+   * the work. A reclaimed row keeps its `dialTries`: the service reconciles an
+   * earlier try by its key before it would ever dial again.
+   */
+  claimDueAgentCallbacks(
+    now: Date,
+    leaseUntil: Date,
+    limit: number,
+  ): Promise<CallbackTask[]> {
+    return this.prisma.$queryRaw<CallbackTask[]>`
+      UPDATE "CallbackTask"
+      SET "status" = 'in_progress'::"CallbackStatus",
+          "claimToken" = ${randomUUID()}::uuid,
+          "leaseExpiresAt" = (${leaseUntil}::timestamptz AT TIME ZONE 'UTC'),
+          "attemptCount" = "attemptCount" + 1,
+          "updatedAt" = (now() AT TIME ZONE 'UTC')
+      WHERE "id" IN (
+        SELECT "id"
+        FROM "CallbackTask"
+        WHERE "agentCallbackKind" IS NOT NULL
+          AND (
+            ("status" IN ('scheduled', 'due')
+              AND "scheduledAt" <= (${now}::timestamptz AT TIME ZONE 'UTC')
+              AND ("notBefore" IS NULL
+                OR "notBefore" <= (${now}::timestamptz AT TIME ZONE 'UTC')))
+            OR ("status" = 'in_progress'
+              AND "leaseExpiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC'))
+          )
+        ORDER BY "scheduledAt" ASC
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
+    `;
+  }
+
+  /**
+   * Reserves the next dial key of a claimed agent callback. A reclaimed
+   * reservation keeps the same try number, so its key stays the same.
+   */
+  async beginAgentDial(
+    id: string,
+    claimToken: string,
+    now: Date,
+    leaseUntil: Date,
+  ): Promise<CallbackTask | null> {
+    const where = {
+      id,
+      status: CallbackStatus.in_progress,
+      claimToken,
+      leaseExpiresAt: { gt: now },
+    };
+    const [row] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: { ...where, dialReservedAt: null },
+      data: {
+        dialTries: { increment: 1 },
+        dialReservedAt: now,
+        leaseExpiresAt: leaseUntil,
+      },
+    });
+    return row ?? this.prisma.callbackTask.findFirst({ where });
+  }
+
+  /** The dial's commit point: still this worker's, still in its lease. */
+  async holdsAgentClaim(
+    id: string,
+    claimToken: string,
+    now: Date,
+  ): Promise<boolean> {
+    const count = await this.prisma.callbackTask.count({
+      where: {
+        id,
+        status: CallbackStatus.in_progress,
+        claimToken,
+        leaseExpiresAt: { gt: now },
+      },
+    });
+    return count === 1;
+  }
+
+  /** Ends a claimed agent callback, only while the claim is still this one. */
+  async finishAgentCallback(
+    id: string,
+    claimToken: string,
+    status: CallbackStatus,
+    data: {
+      reason?: string | null;
+      lastError?: string | null;
+      agentCallId?: string | null;
+      now: Date;
+    },
+  ): Promise<boolean> {
+    const { count } = await this.prisma.callbackTask.updateMany({
+      where: { id, status: CallbackStatus.in_progress, claimToken },
+      data: {
+        status,
+        claimToken: null,
+        leaseExpiresAt: null,
+        ...(status === CallbackStatus.completed
+          ? { completedAt: data.now }
+          : {}),
+        ...(data.reason ? { reason: data.reason } : {}),
+        ...(data.lastError ? { lastError: data.lastError.slice(0, 2000) } : {}),
+        ...(data.agentCallId ? { agentCallId: data.agentCallId } : {}),
+      },
+    });
+    return count === 1;
+  }
+
+  /** Hands a claimed agent callback back for later — a deferral. */
+  async deferAgentCallback(
+    id: string,
+    claimToken: string,
+    notBefore: Date,
+    reason: string,
+    unplaced = false,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.callbackTask.updateMany({
+      where: { id, status: CallbackStatus.in_progress, claimToken },
+      data: {
+        status: CallbackStatus.scheduled,
+        claimToken: null,
+        leaseExpiresAt: null,
+        notBefore,
+        reason,
+        ...(unplaced ? { dialReservedAt: null } : {}),
+      },
+    });
+    return count === 1;
+  }
+
+  /** The agent callbacks of one handoff request, newest first. */
+  listForHandoff(handoffId: string): Promise<CallbackTask[]> {
+    return this.prisma.callbackTask.findMany({
+      where: { handoffId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /**
+   * Withdraws what a request still has scheduled, once the request no longer
+   * needs it. A callback a worker is placing right now is left to its claim.
+   */
+  async cancelOpenForHandoff(
+    handoffId: string,
+    reason: string,
+  ): Promise<number> {
+    const { count } = await this.prisma.callbackTask.updateMany({
+      where: {
+        handoffId,
+        status: { in: [CallbackStatus.scheduled, CallbackStatus.due] },
+      },
+      data: { status: CallbackStatus.cancelled, reason },
+    });
+    return count;
+  }
+
+  /** Whether the request has a callback still to be placed or being placed. */
+  async hasOpenForHandoff(handoffId: string): Promise<boolean> {
+    const count = await this.prisma.callbackTask.count({
+      where: { handoffId, status: { in: OPEN_CALLBACK_STATUSES } },
+    });
+    return count > 0;
   }
 
   /**
@@ -313,6 +558,61 @@ export class CallbackTaskRepository {
     return updated ?? null;
   }
 
+  /**
+   * Cancels a callback unless a worker is placing it right now. The status is
+   * compared in the write itself: a claim taken after the caller read the row
+   * is never overwritten, so a call already ringing cannot be followed by a
+   * second one. Null when the row was being placed.
+   */
+  async cancelUnlessBeingPlaced(id: string): Promise<CallbackTask | null> {
+    const [cancelled] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: { id, status: { not: CallbackStatus.in_progress } },
+      data: { status: CallbackStatus.cancelled },
+    });
+    return cancelled ?? null;
+  }
+
+  /**
+   * Moves an agent callback only while its status still matches the read —
+   * compare-and-set, like `beginAgentDial`. A new time is a new dial:
+   * the dial and claim state start over, so the next try draws
+   * keys of its own. Null when the status changed in the meantime.
+   */
+  async rescheduleAgentCallback(
+    id: string,
+    scheduledAt: Date,
+    expectedStatus: CallbackStatus,
+  ): Promise<CallbackTask | null> {
+    const [moved] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: {
+        id,
+        agentCallbackKind: { not: null },
+        status: expectedStatus,
+      },
+      data: {
+        scheduledAt,
+        status: CallbackStatus.scheduled,
+        completedAt: null,
+        attemptCount: 0,
+        notBefore: null,
+        dialTries: 0,
+        dialReservedAt: null,
+        claimToken: null,
+        leaseExpiresAt: null,
+        reason: null,
+      },
+    });
+    return moved ?? null;
+  }
+
+  async completeUnlessBeingPlaced(id: string): Promise<CallbackTask | null> {
+    const [completed] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: { id, status: { not: CallbackStatus.in_progress } },
+      data: { status: CallbackStatus.completed, completedAt: new Date() },
+    });
+    return completed ?? null;
+  }
+
   async updateStatus(
     id: string,
     status: CallbackStatus,
@@ -329,7 +629,17 @@ export class CallbackTaskRepository {
     data: Partial<
       Pick<
         CallbackTask,
-        "scheduledAt" | "note" | "status" | "completedAt" | "attemptCount"
+        | "scheduledAt"
+        | "note"
+        | "status"
+        | "completedAt"
+        | "attemptCount"
+        | "notBefore"
+        | "dialTries"
+        | "dialReservedAt"
+        | "claimToken"
+        | "leaseExpiresAt"
+        | "reason"
       >
     >,
   ): Promise<CallbackTask> {
