@@ -81,6 +81,30 @@ describe("voice agent conversation settings", () => {
     assert.match(instructions, /Never invent availability/);
   });
 
+  // A scheduling agent's continuation (AGENT-021) must outrank the prompt,
+  // whose own opening is for a new call — default or customized alike.
+  it("leads with the blueprint's leading section, edited prompt or not", () => {
+    const lead = "## When a call is handed to you\n\nCall get_handoff_context.";
+    for (const settings of [
+      defaults,
+      { ...defaults, instructions: "## Rol\n\nComienza diciendo quién eres." },
+    ]) {
+      const instructions = composeVoiceAgentInstructions(
+        settings,
+        defaults,
+        "safety",
+        `${lead}\n`,
+      );
+      assert.ok(instructions.startsWith(`${lead}\n\n${settings.instructions}`));
+      assert.equal(instructions.split(lead).length, 2);
+    }
+    // None: exactly as before.
+    assert.equal(
+      composeVoiceAgentInstructions(defaults, defaults, "safety", null),
+      composeVoiceAgentInstructions(defaults, defaults, "safety"),
+    );
+  });
+
   it("adds post-conversation instructions only when enabled", () => {
     const enabled = composeVoiceAgentInstructions(
       {

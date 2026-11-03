@@ -1090,7 +1090,27 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(context.meeting.with, "Carlos Ruiz");
     assert.equal(context.meeting.time_zone, "Europe/Madrid");
     assert.equal(context.preferences, "mañana por la tarde");
-    assert.match(context.speech_instruction, /Do not greet the person again/);
+    // Told who it is and who spoke before: the provider gives it the earlier
+    // turns as if they were its own.
+    assert.equal(context.you_are, "Carmen");
+    assert.equal(context.handed_over_by, "Sofía");
+    assert.match(
+      context.speech_instruction,
+      /^You are Carmen, and you are continuing this call: Sofía spoke with the person before you/,
+    );
+    assert.match(
+      context.speech_instruction,
+      /never repeat it or speak as Sofía/,
+    );
+    assert.match(context.speech_instruction, /introduce yourself as Carmen/);
+    assert.match(
+      context.speech_instruction,
+      /Do not greet them as if you had just called/,
+    );
+    assert.match(
+      context.speech_instruction,
+      /do not check again who you are speaking with/,
+    );
     assert.match(context.speech_instruction, /Speak Spanish/);
     assert.equal(w.handoffs.get(handoff!.id)!.status, H.completed);
 

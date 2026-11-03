@@ -1043,29 +1043,39 @@ command is issued on the TeXML call: Telnyx documents that commands on a call an
 assistant runs conflict with it, and its AI-to-AI mechanism is a `handoff` tool
 on the handing assistant, decided by its model
 ([agent handoff](https://developers.telnyx.com/docs/inference/ai-assistants/agent-handoff)).
-Ringee configures that tool (`VoiceAgentTool` kind `handoff`, `voice: "shared"`
-→ Telnyx `unified`) with the one destination the workspace authorizes, and
-re-syncs it at dial time when the provider holds another, or the same one under
-an old name (`VoiceAgentAssistant.handoffAssistantIds`, `handoffAssistantNames`).
-A destination whose own assistant cannot be verified at that moment is handed
-nothing: the reminders assistant is re-synced without the handoff for that dial.
+Ringee configures that tool (`VoiceAgentTool` kind `handoff`, `voice: "own"`
+→ Telnyx `distinct`) with the one destination the workspace authorizes, and
+re-syncs it at dial time when the provider holds another, the same one under
+an old name, or another voice (`VoiceAgentAssistant.handoffAssistantIds`,
+`handoffAssistantNames`, `handoffVoice`). The same dial re-syncs the
+destination when its instructions lack its blueprint's leading section
+(`VoiceAgentAssistant.instructions`, `buildLeadingInstructions`): a
+destination dials nothing itself, so nothing else would. A destination whose
+own assistant cannot be verified at that moment is handed nothing: the
+reminders assistant is re-synced without the handoff for that dial.
 
-What the provider documents, and what Ringee therefore relies on — none of it
-yet observed on a real Ringee call:
+What the provider documents, what the first real Ringee calls showed
+(2026-11-03, three test calls in `unified` mode), and what Ringee does with it:
 
-| Fact after a handoff | Documented                                                                | What Ringee does with it                                                                 |
-| -------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| The call             | Same phone call; the conversation "changes hands"                         | One `Call`, one `AiVoiceAgentCall` root, participants as children                        |
-| The conversation     | One conversation per phone call; the event socket stays on the original   | Usage, transcript and insights keyed on the root's conversation                          |
-| Tools                | Each assistant has its own tools                                          | The destination's tools carry its own secret and `{{call_control_id}}` — **to verify**   |
-| Who holds the call   | `telnyx.assistant.handoff` on the WebSocket event stream (not subscribed) | The destination's first authenticated tool call is the proof (`grantFor`)                |
-| Cost                 | Not documented per participant                                            | Settled at the root, once; extra conversations on the leg are added, never allocated     |
-| Insights             | Not documented                                                            | The root's accepted; a participant's applies summary/sentiment/extraction, never outcome |
+| Fact after a handoff     | Documented / observed                                                                                                                                                                           | What Ringee does with it                                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| The call                 | Same phone call; the conversation "changes hands". Observed: one conversation, whose `metadata.assistant_id` becomes the list of both assistants                                                | One `Call`, one `AiVoiceAgentCall` root, participants as children                                                                       |
+| The conversation         | One conversation per phone call; the event socket stays on the original                                                                                                                         | Usage, transcript and insights keyed on the root's conversation                                                                         |
+| Tools                    | Each assistant has its own tools. Observed: the destination's tool calls carry `{{call_control_id}}`; its first one bound the handed meeting                                                    | The destination's tools carry its own secret and the call header                                                                        |
+| Who holds the call       | `telnyx.assistant.handoff` on the WebSocket event stream (not subscribed)                                                                                                                       | The destination's first authenticated tool call is the proof (`grantFor`)                                                               |
+| What the destination saw | Documented: "full conversation history". Observed: it takes the source's turns as its own, and the source call's dynamic variables render into its prompt (the reminder's `additional_context`) | Its leading section says whose turns those were and that the call's context is not its task; its first action is `get_handoff_context`  |
+| How it opened            | `unified`: it "continues without announcing the transition"; observed, it spoke as the source (re-ran the reminder, repeated "I'm passing you to …") and its greeting was not replayed          | `distinct`, documented to open "Hi, this is Sarah from billing"; the leading section and the context name it. Unverified on a real call |
+| Cost                     | Not documented per participant                                                                                                                                                                  | Settled at the root, once; extra conversations on the leg are added, never allocated                                                    |
+| Insights                 | Not documented                                                                                                                                                                                  | The root's accepted; a participant's applies summary/sentiment/extraction, never outcome                                                |
 
-Language: the handoff keeps the voice the call already has; the destination
-must be configured for the conversation's language, because its prompt and
-transcription are its own. The reminders agent still speaks its configured voice
-language — it does not choose the contact's language from earlier calls.
+One more observation: a source model that ended its turn after announcing the
+handoff left the person in silence until they spoke, so the speech instruction
+asks for the sentence and the handoff tool in one reply.
+
+Language: the agent that takes over speaks with its own configured voice, so
+it must be configured for the conversation's language — its voice, prompt and
+transcription are its own. The reminders agent still speaks its configured
+voice language — it does not choose the contact's language from earlier calls.
 
 ### Voice delivery and turn-taking
 

@@ -146,22 +146,33 @@ describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
   const toolUrl = (agentId: string) =>
     `${apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "")}/api/ai-voice-agents/tools/${agentId}/request-human-support`;
 
+  /** What the blueprint stub leads a scheduling agent's prompt with. */
+  const leadingFor = (agentName: string) =>
+    `## When a call is handed to you\n\nYou are ${agentName}.`;
+
   /**
    * A reminders agent whose assistant is current, handing to `DESTINATION`.
    * `syncedName` is the name its handoff tool was saved with (undefined: the
    * provider reports none); `destination` is what reading the destination's
-   * own assistant does.
+   * own assistant does. `sourceVoice` and `destinationInstructions` are what
+   * the provider reports for each (undefined: it reports nothing).
    */
   function handoffBuild(options: {
     syncedName?: string;
     destination?: "current" | "missing" | "unreadable" | "sync_fails";
+    sourceVoice?: "shared" | "own";
+    destinationInstructions?: string | null;
   }) {
     const syncs: Array<{ agentId: string; withoutHandoff: boolean }> = [];
     const service = new VoiceAgentService(
       {} as never,
       {
         require: () => ({
-          buildTools: (ctx: { agentId: string; toolBaseUrl: string }) => [
+          buildTools: (ctx: {
+            agentId: string;
+            toolBaseUrl: string;
+            handoffTargets?: unknown[];
+          }) => [
             {
               kind: "webhook",
               name: "request_human_support",
@@ -170,7 +181,14 @@ describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
               method: "POST",
               headers: [],
             },
+            ...(ctx.handoffTargets?.length
+              ? [{ kind: "handoff", voice: "own", targets: ctx.handoffTargets }]
+              : []),
           ],
+          buildLeadingInstructions: (ctx: {
+            agentName: string;
+            acceptsHandoffs?: boolean;
+          }) => (ctx.acceptsHandoffs ? leadingFor(ctx.agentName) : null),
         }),
       } as never,
       {} as never,
@@ -188,6 +206,9 @@ describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
                 options.syncedName === undefined
                   ? {}
                   : { "asst-sched": options.syncedName },
+              ...(options.sourceVoice
+                ? { handoffVoice: options.sourceVoice }
+                : {}),
             };
           }
           if (options.destination === "unreadable") {
@@ -205,6 +226,9 @@ describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
                 ? []
                 : [toolUrl("agent-sched")],
             handoffAssistantIds: [],
+            ...(options.destinationInstructions !== undefined
+              ? { instructions: options.destinationInstructions }
+              : {}),
           };
         },
       } as never,
@@ -217,7 +241,8 @@ describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
       {
         handoffTargetsFor: async (_ctx: unknown, agent: { type: string }) =>
           agent.type === "reminders_notifications" ? [TARGET] : [],
-        acceptsHandoffs: () => false,
+        acceptsHandoffs: (agent: { type: string }) =>
+          agent.type === "appointment_booking",
         resolveDestination: async () => ({
           ok: true,
           agent: DESTINATION,
@@ -258,6 +283,66 @@ describe("VoiceAgentService handoff destinations (AGENT-021)", () => {
     // The current name, or a name the provider does not report, is no drift.
     for (const syncedName of [TARGET.name, undefined]) {
       const current = handoffBuild({ syncedName, destination: "current" });
+      await current.service.ensureToolEndpoints(CTX, AGENT as never);
+      assert.deepEqual(current.syncs, []);
+    }
+  });
+
+  it("re-syncs a reminders assistant whose handoff keeps the caller's voice", async () => {
+    const stale = handoffBuild({
+      syncedName: TARGET.name,
+      destination: "current",
+      sourceVoice: "shared",
+    });
+    await stale.service.ensureToolEndpoints(CTX, AGENT as never);
+    assert.deepEqual(stale.syncs, [
+      { agentId: "agent-1", withoutHandoff: false },
+    ]);
+
+    // The voice it hands over with now, or one the provider does not
+    // report, is no drift.
+    for (const sourceVoice of ["own", undefined] as const) {
+      const current = handoffBuild({
+        syncedName: TARGET.name,
+        destination: "current",
+        sourceVoice,
+      });
+      await current.service.ensureToolEndpoints(CTX, AGENT as never);
+      assert.deepEqual(current.syncs, []);
+    }
+  });
+
+  // The destination dials nothing itself, so the reminders agent's dial is
+  // the only thing that brings its prompt up to date.
+  it("re-syncs a destination whose prompt does not lead with its continuation", async () => {
+    for (const destinationInstructions of [
+      "## Rol\n\nEres {{agent_name}}.",
+      // The section names the agent: one saved under an old name is stale.
+      `${leadingFor("Carla")}\n\n## Rol`,
+      null,
+    ]) {
+      const stale = handoffBuild({
+        syncedName: TARGET.name,
+        destination: "current",
+        destinationInstructions,
+      });
+      await stale.service.ensureToolEndpoints(CTX, AGENT as never);
+      assert.deepEqual(
+        stale.syncs,
+        [{ agentId: "agent-sched", withoutHandoff: false }],
+        String(destinationInstructions),
+      );
+    }
+
+    for (const destinationInstructions of [
+      `${leadingFor("Carmen")}\n\n## Rol\n\nEres {{agent_name}}.`,
+      undefined,
+    ]) {
+      const current = handoffBuild({
+        syncedName: TARGET.name,
+        destination: "current",
+        destinationInstructions,
+      });
       await current.service.ensureToolEndpoints(CTX, AGENT as never);
       assert.deepEqual(current.syncs, []);
     }

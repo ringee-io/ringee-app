@@ -119,12 +119,17 @@ export function buildHandoffContextTool(
 
 /**
  * The provider's handoff, to the destinations the workspace authorizes now.
- * `shared` keeps the voice the person has been hearing.
+ *
+ * `own`: the agent that takes over speaks with its own configured voice. The
+ * person was just told they are being passed to it by name, so hearing a
+ * different voice is what makes that true. With the voice kept (`shared`),
+ * the provider continues "without announcing the transition", and on real
+ * calls the destination then spoke as the agent it replaced (2026-11-03).
  */
 export function buildHandoffTool(
   ctx: VoiceAgentToolContext,
 ): VoiceAgentTool | null {
   const targets = ctx.handoffTargets ?? [];
   if (targets.length === 0) return null;
-  return { kind: "handoff", voice: "shared", targets };
+  return { kind: "handoff", voice: "own", targets };
 }

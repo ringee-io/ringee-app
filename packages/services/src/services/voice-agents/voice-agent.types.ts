@@ -143,6 +143,16 @@ export interface VoiceAgentBlueprint {
   buildGreeting(ctx: VoiceAgentPromptContext): string;
   /** Rules appended when a user replaces the default prompt. */
   buildSafetyInstructions(ctx: VoiceAgentPromptContext): string;
+  /**
+   * Ringee-owned instructions placed ahead of the agent's own prompt, edited
+   * or not, or null. For rules that must outrank it from the first line —
+   * a scheduling agent handed a call mid-conversation must not follow its
+   * prompt's opening (AGENT-021). The dial path checks the provider still
+   * holds them, so they take only what is cheap to know there.
+   */
+  buildLeadingInstructions?(
+    ctx: Pick<VoiceAgentPromptContext, "agentName" | "acceptsHandoffs">,
+  ): string | null;
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[];
   buildInsights(ctx: VoiceAgentInsightContext): VoiceAgentBlueprintInsights;
 }

@@ -2009,6 +2009,16 @@ meeting is not in it yet.
   one transaction. The model may hand over only after it succeeds. A
   destination that cannot take the call leaves the request recorded as
   `needs_attention`, with why.
+- **Taking over.** The scheduling agent speaks with its own configured voice,
+  after the reminders agent tells the person, by name, who they are being
+  passed to — in the same reply as the handoff. The provider hands it the
+  earlier turns as if they were its own, and the earlier call's variables, so
+  its blueprint leads its prompt — the default or the owner's — with how to
+  continue: those turns and that context are the other agent's, its first
+  action is `get_handoff_context` (which names it and the agent it took over
+  from), and it introduces itself by name. The dial path re-syncs a
+  destination without that section and a source handing over with another
+  voice.
 - **Proof.** The destination's first authenticated tool call on the live call
   (its own secret, the provider-filled call header) completes the handoff,
   under the request's row lock: the source's participation becomes
@@ -2053,15 +2063,17 @@ meeting is not in it yet.
   participant. Each record counts once, and the AI half waits (bounded) while
   that conversation's records cannot yet be read on their own.
 - **Language.** The reminders agent speaks its configured voice language — it
-  does not pick the contact's language from earlier calls — and the handoff
-  keeps that voice; the request carries the language, or the one the person
-  asked to switch to. A callback speaks the scheduling agent's configured
-  language.
+  does not pick the contact's language from earlier calls; the request
+  carries the language, or the one the person asked to switch to. The
+  scheduling agent takes the call over only when its own voice speaks that
+  language. A callback speaks the scheduling agent's configured language.
 
 - **Source of truth:** `VoiceAgentHandoffService`,
   `AiVoiceAgentHandoffRepository`, `VoiceAgentToolService`
   (`prepareRescheduleHandoff`, `scheduleRescheduleCallback`,
-  `getHandoffContext`), `CallbackService.processDueCallbacks`
+  `getHandoffContext`), `CallbackService.processDueCallbacks`,
+  `AppointmentBookingBlueprint.buildLeadingInstructions`,
+  `VoiceAgentService.ensureToolEndpoints`
 - **Risk if violated:** a model hands a call to an agent nobody authorized,
   two agents act on one meeting, a person is called twice, or a request is
   dropped because the meeting's time passed

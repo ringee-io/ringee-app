@@ -1121,7 +1121,9 @@ export class VoiceAgentToolService {
     return {
       ok: true,
       handoff: { status: "ready", to: name },
-      speech_instruction: `In one short sentence, tell the person you are passing them to ${name}, who will find a new time for the meeting${preference}. Then immediately use the handoff tool to hand the call to ${name}, and say nothing more. If the handoff does not go through, offer that ${name} calls them back: agree an exact time and call schedule_reschedule_callback.`,
+      // One reply: a model that ends its turn after the sentence leaves the
+      // person in silence until they speak (seen on a real call, 2026-11-03).
+      speech_instruction: `In one short sentence, tell the person you are passing them to ${name}, who will find a new time for the meeting${preference}, and ask them to stay on the line. In that same reply, use the handoff tool to hand the call to ${name}: do not wait for them to answer, and say nothing more. If the handoff does not go through, offer that ${name} calls them back: agree an exact time and call schedule_reschedule_callback.`,
     };
   }
 

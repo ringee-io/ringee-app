@@ -440,8 +440,9 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
     const handoff = withTarget.find((tool) => tool.kind === "handoff");
     assert.deepEqual(handoff, {
       kind: "handoff",
-      // The person keeps hearing the voice the call already has.
-      voice: "shared",
+      // The agent that takes over speaks with its own voice: the person was
+      // just told they are being passed to it by name.
+      voice: "own",
       targets: [target],
     });
   });
@@ -482,7 +483,10 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
       withDestination,
       /Never hand the call over before it returns success/,
     );
-    assert.match(withDestination, /Announce the handoff once/);
+    // In one reply: an agent that stops after its sentence leaves the person
+    // in silence until they speak.
+    assert.match(withDestination, /in that same reply/);
+    assert.match(withDestination, /Do not wait for an answer first/);
     assert.match(
       reminders.buildSafetyInstructions({
         ...promptContext,
@@ -520,15 +524,37 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
       tools.some((tool) => tool.kind === "handoff"),
       false,
     );
-    const instructions = scheduling.buildInstructions({
-      ...promptContext,
+    // The continuation leads the prompt, edited or not: the prompt itself
+    // opens a new call, and the agent must not follow that on a handed call.
+    const leading = scheduling.buildLeadingInstructions({
+      agentName: "Carmen",
       acceptsHandoffs: true,
     });
-    assert.match(instructions, /## Continuing a conversation/);
-    assert.match(instructions, /do not greet the person again/);
+    assert.ok(leading);
+    assert.match(leading, /^## When a call is handed to you/);
     assert.match(
-      instructions,
-      /Never call `book_appointment` for this meeting/,
+      leading,
+      /before you say a single word, is to call\s+`get_handoff_context`/,
+    );
+    // The turns before the handoff, and the call's variables, are the other
+    // assistant's — on real calls the agent spoke as it otherwise.
+    assert.match(leading, /spoken by\s+the other assistant, not by you/);
+    assert.match(leading, /describe that\s+assistant's call/);
+    assert.match(leading, /telling the person it is passing them to you/);
+    assert.match(leading, /You are Carmen/);
+    assert.match(leading, /never say you are passing the call to\s+anyone/);
+    assert.match(leading, /Never call `book_appointment` for this meeting/);
+    assert.equal(
+      scheduling.buildLeadingInstructions({
+        agentName: "Carmen",
+        acceptsHandoffs: false,
+      }),
+      null,
+    );
+    // Said once: the default prompt no longer repeats it.
+    assert.doesNotMatch(
+      scheduling.buildInstructions({ ...promptContext, acceptsHandoffs: true }),
+      /get_handoff_context/,
     );
     assert.match(
       scheduling.buildSafetyInstructions({
