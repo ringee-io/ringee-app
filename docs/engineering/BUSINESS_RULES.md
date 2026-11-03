@@ -1917,9 +1917,14 @@ dials through `VoiceAgentCallService.startCall`, every AGENT-004 gate included,
 under a key persisted on `AiVoiceAgentCall.idempotencyKey` before the leg
 exists. A reclaimed execution whose last try may have placed a leg is linked to
 that leg and never dialed again; only a failure before placement is retried, a
-bounded number of times, inside the window. A dial counts as unplaced only when
-the provider refused it (`VoiceAgentCallRefusedError`); a timeout, a dropped
-connection or a 5xx may have rung the lead and is reconciled, never redialed.
+bounded number of times, inside the window. Recording the link once `startCall`
+has returned is not part of the dial: if that write fails, the execution is not
+closed as rejected or unplaced but stays claimed under its dial key, and the
+worker that reclaims it when the lease runs out links the call. Until then the
+call's attendance and handoff tools find no meeting for it. A dial counts as
+unplaced only when the provider refused it (`VoiceAgentCallRefusedError`); a
+timeout, a dropped connection or a 5xx may have rung the lead and is
+reconciled, never redialed.
 Moving or cancelling the meeting, or pausing or changing the policy, withdraws
 what was planned.
 

@@ -16,6 +16,7 @@ import {
   MeetingStatus,
 } from "@ringee/database";
 import { VoiceAgentToolService } from "../voice-agent-tool.service";
+import { MeetingReminderCallService } from "./meeting-reminder-call.service";
 import { VoiceAgentHandoffService } from "./voice-agent-handoff.service";
 
 const config = apiConfiguration as unknown as Record<string, unknown>;
@@ -179,6 +180,26 @@ function world(
   const offers: Row[] = [];
 
   const clone = <T>(row: T): T => (row ? { ...row } : row);
+
+  // The reminder executions that placed calls. One store for every service
+  // that reads them, so a link written late is seen by all of them.
+  const executions = new Map<string, Row>();
+  executions.set("exec-1", {
+    id: "exec-1",
+    agentCallId: "ac-1",
+    organizationId: "org-1",
+    meetingId: "meeting-1",
+    scheduleVersion: 3,
+    status: "placed",
+  });
+  const executionRepo = {
+    findByAgentCallId: async (agentCallId: string) =>
+      clone(
+        [...executions.values()].find(
+          (row) => row.agentCallId === agentCallId,
+        ) ?? null,
+      ),
+  };
 
   const handoffRepo = {
     findById: async (id: string) => clone(handoffs.get(id) ?? null),
@@ -438,18 +459,7 @@ function world(
     {
       findById: async (id: string) => clone(meetings.get(id) ?? null),
     } as never,
-    {
-      findByAgentCallId: async (agentCallId: string) =>
-        agentCallId === "ac-1"
-          ? {
-              id: "exec-1",
-              agentCallId: "ac-1",
-              organizationId: "org-1",
-              meetingId: "meeting-1",
-              scheduleVersion: 3,
-            }
-          : null,
-    } as never,
+    executionRepo as never,
     {
       findForCalendar: async () =>
         over.policyWindow ? over.policyWindow : null,
@@ -500,6 +510,8 @@ function world(
     meetings,
     calls,
     agentCalls,
+    executions,
+    executionRepo,
     handoffs,
     participants,
     callbacks,
@@ -635,18 +647,7 @@ function tools(w: ReturnType<typeof world>) {
     {} as never,
     {} as never,
     {} as never,
-    {
-      findByAgentCallId: async (agentCallId: string) =>
-        agentCallId === "ac-1"
-          ? {
-              id: "exec-1",
-              agentCallId: "ac-1",
-              organizationId: "org-1",
-              meetingId: "meeting-1",
-              scheduleVersion: 3,
-            }
-          : null,
-    } as never,
+    w.executionRepo as never,
     w.handoffService,
   );
 
@@ -663,6 +664,284 @@ function tools(w: ReturnType<typeof world>) {
 }
 
 const CC = "v3:cc-1";
+
+/**
+ * The reminder worker (AGENT-019) over the same world: its executions are the
+ * world's, with the repository's compare-and-set transitions, and its dial
+ * places the reminder call the tools above are driven on (`ac-1` on `call-1`,
+ * reached by `CC`). `failPlacementWrites` makes that many `markPlaced` writes
+ * fail the way a dropped database connection does.
+ */
+function reminderWorker(
+  w: ReturnType<typeof world>,
+  opts: { failPlacementWrites?: number } = {},
+) {
+  let clock = NOW;
+  let failingWrites = opts.failPlacementWrites ?? 0;
+  const startCalls: Row[] = [];
+  const providerDials: Row[] = [];
+  const policy = {
+    id: "policy-1",
+    enabled: true,
+    version: 1,
+    agentId: "agent-rem",
+    windowStartMinute: 9 * 60,
+    windowEndMinute: 20 * 60,
+    windowDays: [0, 1, 2, 3, 4, 5, 6],
+  };
+  const copy = (row: Row | undefined) => (row ? { ...row } : null);
+  const holds = (row: Row | undefined, token: unknown, now: Date) =>
+    row?.status === "claimed" &&
+    row.claimToken === token &&
+    row.leaseExpiresAt.getTime() > now.getTime();
+
+  const executionRepo = {
+    claimDue: async (now: Date, leaseUntil: Date, limit: number) =>
+      [...w.executions.values()]
+        .filter(
+          (row) =>
+            (row.status === "scheduled" &&
+              row.fireAt.getTime() <= now.getTime()) ||
+            (row.status === "claimed" &&
+              row.leaseExpiresAt.getTime() < now.getTime()),
+        )
+        .slice(0, limit)
+        .map((row) => {
+          Object.assign(row, {
+            status: "claimed",
+            claimToken: randomUUID(),
+            leaseExpiresAt: leaseUntil,
+            updatedAt: now,
+          });
+          return { ...row };
+        }),
+    beginDial: async (
+      id: string,
+      claimToken: string,
+      now: Date,
+      leaseUntil: Date,
+    ) => {
+      const row = w.executions.get(id);
+      if (!holds(row, claimToken, now)) return null;
+      if (row!.dialReservedAt === null) {
+        Object.assign(row!, {
+          dialTries: row!.dialTries + 1,
+          dialReservedAt: now,
+          leaseExpiresAt: leaseUntil,
+        });
+      }
+      return { ...row! };
+    },
+    authorizeDial: async (
+      execution: Row,
+      now: Date,
+      earliestMeetingAt: Date,
+      leaseUntil: Date,
+    ) => {
+      const row = w.executions.get(execution.id);
+      const meeting = w.meetings.get(execution.meetingId);
+      if (
+        !holds(row, execution.claimToken, now) ||
+        !meeting ||
+        meeting.scheduleVersion !== execution.scheduleVersion ||
+        ![MeetingStatus.scheduled, MeetingStatus.rescheduled].includes(
+          meeting.status,
+        ) ||
+        meeting.attendanceStatus !== "pending" ||
+        meeting.scheduledAt.getTime() < earliestMeetingAt.getTime()
+      ) {
+        return false;
+      }
+      row!.leaseExpiresAt = leaseUntil;
+      return true;
+    },
+    markPlaced: async (id: string, agentCallId: string, claimToken: string) => {
+      if (failingWrites > 0) {
+        failingWrites--;
+        throw new Error("Connection terminated unexpectedly");
+      }
+      const row = w.executions.get(id);
+      if (row?.status !== "claimed" || row.claimToken !== claimToken) {
+        return false;
+      }
+      Object.assign(row, {
+        status: "placed",
+        agentCallId,
+        leaseExpiresAt: null,
+        claimToken: null,
+        updatedAt: clock,
+      });
+      return true;
+    },
+    finish: async (
+      id: string,
+      status: string,
+      from: string[],
+      data?: Row,
+      claimToken?: string,
+    ) => {
+      const row = w.executions.get(id);
+      if (
+        !row ||
+        !from.includes(row.status) ||
+        (from.includes("claimed") && row.claimToken !== claimToken)
+      ) {
+        return false;
+      }
+      Object.assign(row, {
+        status,
+        finishedAt: clock,
+        leaseExpiresAt: null,
+        ...(data?.reason ? { reason: data.reason } : {}),
+        ...(data?.lastError ? { lastError: data.lastError } : {}),
+      });
+      return true;
+    },
+    defer: async (
+      id: string,
+      fireAt: Date,
+      reason: string,
+      claimToken: string,
+      unplaced = false,
+    ) => {
+      const row = w.executions.get(id);
+      if (row?.status !== "claimed" || row.claimToken !== claimToken) {
+        return false;
+      }
+      Object.assign(row, {
+        status: "scheduled",
+        fireAt,
+        leaseExpiresAt: null,
+        claimToken: null,
+        reason,
+        ...(unplaced ? { dialReservedAt: null } : {}),
+      });
+      return true;
+    },
+    finishByAgentCall: async (
+      agentCallId: string,
+      status: string,
+      from: string[],
+    ) => {
+      const row = [...w.executions.values()].find(
+        (e) => e.agentCallId === agentCallId,
+      );
+      if (!row || !from.includes(row.status)) return false;
+      Object.assign(row, { status, finishedAt: clock, leaseExpiresAt: null });
+      return true;
+    },
+    listPlacedBefore: async (before: Date) =>
+      [...w.executions.values()]
+        .filter(
+          (row) =>
+            row.status === "placed" &&
+            row.updatedAt.getTime() < before.getTime(),
+        )
+        .map((row) => ({ ...row })),
+    hasActiveForMeeting: async (
+      meetingId: string,
+      excludeId: string | null,
+      activeSince: Date,
+    ) =>
+      [...w.executions.values()].some(
+        (row) =>
+          row.meetingId === meetingId &&
+          row.id !== excludeId &&
+          ["claimed", "placed"].includes(row.status) &&
+          row.updatedAt.getTime() >= activeSince.getTime(),
+      ),
+    findById: async (id: string) => copy(w.executions.get(id)),
+  };
+
+  const service = new MeetingReminderCallService(
+    executionRepo as never,
+    {
+      findById: async (id: string) => (id === policy.id ? { ...policy } : null),
+      findForCalendar: async () => ({ ...policy }),
+    } as never,
+    { findById: async (id: string) => copy(w.meetings.get(id)) } as never,
+    {
+      findByIdForOwner: async (_ctx: Row, id: string) =>
+        id === "cal-meeting" ? { id, timezone: "Europe/Madrid" } : null,
+      findDefault: async () => ({ id: "cal-global", timezone: "UTC" }),
+    } as never,
+    {
+      findByIdForOwner: async (ctx: Row, id: string) => {
+        const agent = w.agents.get(id);
+        return agent?.organizationId === ctx.organizationId
+          ? { ...agent }
+          : null;
+      },
+    } as never,
+    {
+      findByIdempotencyKey: async (key: string) =>
+        copy(
+          [...w.agentCalls.values()].find(
+            (call) => call.idempotencyKey === key,
+          ),
+        ),
+      hasLiveCallToNumber: async () => false,
+      findById: async (id: string) => copy(w.agentCalls.get(id)),
+    } as never,
+    { findForOwner: async () => null } as never,
+    {
+      findById: async () => ({ firstName: "Carlos", lastName: "Ruiz" }),
+    } as never,
+    {
+      // VoiceAgentCallService.startCall's contract: the agent call is written
+      // under the dial key before the commit point, then the leg is placed.
+      startCall: async (
+        ctx: Row,
+        agentId: string,
+        input: Row,
+        beforePlacement?: (call: {
+          agentCallId: string;
+          callId: string;
+        }) => Promise<void>,
+      ) => {
+        startCalls.push({ ctx, agentId, ...input });
+        const agentCall: Row = {
+          id: "ac-1",
+          agentId,
+          userId: ctx.userId,
+          organizationId: ctx.organizationId,
+          callId: "call-1",
+          contactId: "contact-1",
+          toNumber: input.to,
+          providerCallControlId: null,
+          status: "created",
+          idempotencyKey: input.idempotencyKey,
+          variables: input.variables,
+        };
+        w.agentCalls.set(agentCall.id, agentCall);
+        await beforePlacement?.({
+          agentCallId: agentCall.id,
+          callId: agentCall.callId,
+        });
+        providerDials.push({ to: input.to, key: input.idempotencyKey });
+        Object.assign(agentCall, {
+          providerCallControlId: CC,
+          status: "initiating",
+        });
+        return { id: agentCall.id, status: agentCall.status };
+      },
+    } as never,
+    { previousInteractions: async () => "" } as never,
+    { hasActiveWithNumber: async () => false } as never,
+  );
+  (service as unknown as { now: () => Date }).now = () => clock;
+
+  return {
+    service,
+    startCalls,
+    providerDials,
+    /** One worker tick at `at`. */
+    tick(at: Date) {
+      clock = at;
+      return service.processDue(at);
+    },
+  };
+}
 
 describe("VoiceAgentHandoffService — the destination", () => {
   it("is the workspace's own enabled, active scheduling agent", async () => {
@@ -1131,6 +1410,103 @@ describe("Reminders → scheduling handoff on the same call", () => {
     assert.equal(handoff!.language, "en");
     assert.equal(handoff!.languageSource, "person_request");
     assert.equal(handoff!.failureReason, "language_mismatch");
+  });
+});
+
+describe("A reminder call whose placement could not be recorded", () => {
+  it("is recovered by its dial key, never dialed again, and its tools still find the meeting", async () => {
+    const w = world({
+      meeting: { attendanceStatus: "pending", attendanceAgentCallId: null },
+    });
+    // Nothing is dialed yet: the worker places the reminder call itself.
+    w.agentCalls.delete("ac-1");
+    w.executions.clear();
+    const key = "meeting:meeting-1:v3:policy:policy-1:p1:T-240m:a1";
+    w.executions.set("exec-r", {
+      id: "exec-r",
+      userId: "admin-1",
+      organizationId: "org-1",
+      meetingId: "meeting-1",
+      agentId: "agent-rem",
+      trigger: "policy",
+      policyId: "policy-1",
+      policyVersion: 1,
+      scheduleVersion: 3,
+      offsetMinutes: 240,
+      attempt: 1,
+      idempotencyKey: key,
+      fireAt: NOW,
+      status: "scheduled",
+      dialTries: 0,
+      dialReservedAt: null,
+      claimToken: null,
+      leaseExpiresAt: null,
+      agentCallId: null,
+      reason: null,
+      lastError: null,
+      updatedAt: NOW,
+    });
+    const worker = reminderWorker(w, { failPlacementWrites: 1 });
+
+    // The call is placed, then the write that links it to the execution fails.
+    await worker.tick(NOW);
+    assert.equal(worker.providerDials.length, 1);
+    assert.equal(worker.providerDials[0]!.key, `${key}:d1`);
+    let execution = w.executions.get("exec-r")!;
+    // Neither rejected nor unplaced: still claimed with its try reserved, and
+    // the agent call carries the dial key that leads back to it.
+    assert.equal(execution.status, "claimed");
+    assert.equal(execution.reason, null);
+    assert.equal(execution.finishedAt, undefined);
+    assert.equal(execution.dialTries, 1);
+    assert.equal(execution.agentCallId, null);
+    assert.equal(w.agentCalls.get("ac-1")!.idempotencyKey, `${key}:d1`);
+
+    // While the lease holds, no tick takes it over.
+    await worker.tick(new Date(NOW.getTime() + 60_000));
+    assert.equal(worker.startCalls.length, 1);
+    assert.equal(w.executions.get("exec-r")!.status, "claimed");
+
+    // Once it runs out, the next tick restores the link by the dial key.
+    await worker.tick(new Date(NOW.getTime() + 6 * 60_000));
+    execution = w.executions.get("exec-r")!;
+    assert.equal(execution.status, "placed");
+    assert.equal(execution.agentCallId, "ac-1");
+    assert.equal(execution.claimToken, null);
+
+    // One start and one provider call, then and after.
+    await worker.tick(new Date(NOW.getTime() + 12 * 60_000));
+    assert.equal(worker.startCalls.length, 1);
+    assert.equal(worker.providerDials.length, 1);
+
+    // The call's tools resolve the meeting it was placed about.
+    const t = tools(w);
+    const answered = await t.service.confirmMeetingAttendance(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { attendance: "declined", note: "Hoy no puedo" },
+    );
+    assert.equal(answered.ok, true);
+    assert.equal(t.attendance.length, 1);
+    assert.equal(t.attendance[0]!.meetingId, "meeting-1");
+    assert.equal(t.attendance[0]!.expectedScheduleVersion, 3);
+    assert.equal(t.attendance[0]!.executionId, "exec-r");
+    assert.equal(t.attendance[0]!.agentCallId, "ac-1");
+
+    const prepared = await t.service.prepareRescheduleHandoff(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { person_said: "Hoy no puedo", identity_confirmed: true },
+    );
+    assert.equal(prepared.ok, true);
+    const [handoff] = [...w.handoffs.values()];
+    assert.equal(handoff!.status, H.prepared);
+    assert.equal(handoff!.agentCallId, "ac-1");
+    assert.equal(handoff!.meetingId, "meeting-1");
+    assert.equal(handoff!.meetingScheduleVersion, 3);
+    assert.equal(handoff!.reminderExecutionId, "exec-r");
   });
 });
 

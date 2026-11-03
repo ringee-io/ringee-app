@@ -42,6 +42,7 @@ import {
   VoiceAgentCallService,
   VoiceAgentCallStartError,
   VoiceAgentCallStartOutcome,
+  type StartVoiceAgentCallResult,
 } from "../voice-agent-call.service";
 import {
   assertVoiceAgentAutomations,
@@ -103,8 +104,9 @@ export interface ReminderCallNowResult {
  * right before the dial — still on, same version, still unanswered, inside the
  * calling window, nobody already on the phone with the lead — and dialed
  * through `VoiceAgentCallService.startCall` under a key persisted before the
- * leg exists. A worker that crashed after dialing is recovered by that key: the
- * call is reconciled, never placed twice.
+ * leg exists. A worker that crashed after dialing, or could not record the
+ * call it placed, is recovered by that key: the call is reconciled, never
+ * placed twice.
  */
 @Injectable()
 export class MeetingReminderCallService {
@@ -253,13 +255,17 @@ export class MeetingReminderCallService {
       );
     }
 
-    await this.run(claimed, now);
-    const finished = (await this.executions.findById(claimed.id)) ?? claimed;
+    const outcome = await this.run(claimed, now);
+    const finished =
+      (await this.executions.findById(claimed.id).catch(() => null)) ?? claimed;
+    // Placed, but the link was not saved (see linkPlacedCall): the row reads
+    // claimed until a worker restores it. It is still the call that was made.
+    const unlinked = outcome === S.placed && finished.status === S.claimed;
     return {
       executionId: finished.id,
-      status: finished.status,
+      status: unlinked ? S.placed : finished.status,
       agentCallId: finished.agentCallId,
-      reason: finished.reason ?? finished.lastError ?? null,
+      reason: unlinked ? null : (finished.reason ?? finished.lastError ?? null),
     };
   }
 
@@ -307,7 +313,13 @@ export class MeetingReminderCallService {
         dialKey(execution, execution.dialTries),
       );
       if (earlier && !provablyUnplaced(earlier)) {
-        await this.executions.markPlaced(execution.id, earlier.id, claimToken);
+        if (
+          await this.executions.markPlaced(execution.id, earlier.id, claimToken)
+        ) {
+          this.logger.log(
+            `Reminder call ${execution.id} linked to agent call ${earlier.id} by its dial key, not dialed again`,
+          );
+        }
         await this.recordCallEnded(earlier);
         return S.placed;
       }
@@ -424,8 +436,9 @@ export class MeetingReminderCallService {
     );
     if (!dialing) return S.cancelled;
 
+    let started: StartVoiceAgentCallResult;
     try {
-      const started = await this.calls.startCall(
+      started = await this.calls.startCall(
         { userId: execution.userId, organizationId: execution.organizationId },
         agent.id,
         {
@@ -521,8 +534,6 @@ export class MeetingReminderCallService {
           }
         },
       );
-      await this.executions.markPlaced(execution.id, started.id, claimToken);
-      return S.placed;
     } catch (error) {
       const outcome =
         error instanceof VoiceAgentCallStartError
@@ -539,11 +550,7 @@ export class MeetingReminderCallService {
         const agentCallId =
           error instanceof VoiceAgentCallStartError ? error.agentCallId : null;
         if (agentCallId) {
-          await this.executions.markPlaced(
-            execution.id,
-            agentCallId,
-            claimToken,
-          );
+          await this.linkPlacedCall(execution, agentCallId, claimToken);
           return S.placed;
         }
         return end(S.failed, "placement_unconfirmed", message);
@@ -574,6 +581,44 @@ export class MeetingReminderCallService {
       return outcome === VoiceAgentCallStartOutcome.terminal_rejection
         ? end(S.skipped, "rejected", message)
         : end(S.failed, "not_placed", message);
+    }
+
+    // Outside the dial's own error handling on purpose: the leg exists, so a
+    // failure to write that down must not read as a rejected or unplaced dial.
+    await this.linkPlacedCall(execution, started.id, claimToken);
+    return S.placed;
+  }
+
+  /**
+   * Links an execution to the call it placed. Only reached once a leg exists
+   * or may exist, so a failed write is neither a rejection nor a reason to
+   * dial again: the row stays claimed under the dial key the agent call
+   * carries, and the worker that reclaims it when the lease runs out links
+   * that call (the top of `run`). Until then the call's attendance and
+   * handoff tools find no meeting for it.
+   */
+  private async linkPlacedCall(
+    execution: MeetingReminderExecution,
+    agentCallId: string,
+    claimToken: string,
+  ): Promise<void> {
+    try {
+      if (
+        await this.executions.markPlaced(execution.id, agentCallId, claimToken)
+      ) {
+        return;
+      }
+      // The lease ran out mid-dial and another worker holds the claim: it
+      // finds this same call under the dial key and links it.
+      this.logger.warn(
+        `Reminder call ${execution.id} lost its claim after placing agent call ${agentCallId}; the worker holding it links the call`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Reminder call ${execution.id} placed agent call ${agentCallId} but could not record it; left claimed for the next worker to link by its dial key, never redialed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
