@@ -257,6 +257,10 @@ export class MeetingController {
       outcome?: string;
       outcomeNote?: string;
       dispositionId?: string;
+      followUpPurpose?: "booking" | "information";
+      callbackScheduledAt?: string;
+      callbackTimezone?: string;
+      stopRequested?: boolean;
     },
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -288,6 +292,10 @@ export class MeetingController {
       outcome: dto.outcome,
       outcomeNote: dto.outcomeNote,
       dispositionId: dto.dispositionId,
+      followUpPurpose: dto.followUpPurpose,
+      callbackScheduledAt: dto.callbackScheduledAt,
+      callbackTimezone: dto.callbackTimezone,
+      stopRequested: dto.stopRequested,
     });
   }
 }

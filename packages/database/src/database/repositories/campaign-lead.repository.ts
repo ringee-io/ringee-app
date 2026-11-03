@@ -372,6 +372,11 @@ export class CampaignLeadRepository {
           AND cl2."status" = 'queued'::"CampaignLeadStatus"
           AND cl2."lockedBy" IS NULL
           AND dnc.id IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM "PendingActionFollowUp" f JOIN "PendingAction" a ON a.id = f."pendingActionId"
+            WHERE a."organizationId" = ${organizationId}::uuid AND a."contactId" = c.id
+              AND f.state NOT IN ('resolved', 'closed')
+          )
           AND (cl2."nextCallAt" IS NULL OR cl2."nextCallAt" <= NOW())
           AND cl2."attempts" < ${maxAttempts}
         ORDER BY cl2."priority" DESC, cl2."nextCallAt" ASC NULLS FIRST, cl2."createdAt" ASC

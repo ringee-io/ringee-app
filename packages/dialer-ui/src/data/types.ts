@@ -13,6 +13,17 @@ import type { CallOutcome } from "@ringee/dialer-core";
  *
  * This is the seam that lets a single modal serve both surfaces.
  */
+export interface OutcomeAcceptance {
+  followUp?: {
+    state: string;
+    objective: string;
+    nextAction: string | null;
+    nextActionAt: string | null;
+    timingBasis: string;
+    reason: string | null;
+  };
+}
+
 export interface DialerDataClient {
   /**
    * Persist the disposition + note for a finished call. `outcome` is optional:
@@ -27,7 +38,7 @@ export interface DialerDataClient {
     outcome?: CallOutcome;
     outcomeNote?: string;
     dispositionId?: string | null;
-  }): Promise<void>;
+  }): Promise<void | OutcomeAcceptance>;
   /**
    * The workspace's default dispositions, in order. A host without them (or a
    * workspace whose list comes back empty) gets the built-in outcome buttons.
@@ -110,11 +121,24 @@ export interface DialerSlots {
 
 /** A few strings the web app localizes; English defaults keep the modal usable. */
 export interface DialerLabels {
+  followUpPreparing: string;
+  followUpAccepted: string;
+  followUpBlocked: string;
+  followUpStopped: string;
+  followUpPolicyTime: string;
+  followUpAgreedTime: string;
   callbackBadge: string;
   callbackDisposition: string;
 }
 
 export const DEFAULT_DIALER_LABELS: DialerLabels = {
+  followUpPreparing: "Saving outcome and preparing follow-up…",
+  followUpAccepted: "AI will handle the follow-up",
+  followUpBlocked: "Follow-up blocked",
+  followUpStopped: "Follow-up is paused or closed",
+  followUpPolicyTime: "Policy-selected call",
+  followUpAgreedTime: "Agreed callback",
+
   callbackBadge: "Callback requested",
   callbackDisposition: "Callback",
 };

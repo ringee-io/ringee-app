@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { Injectable, Logger } from "@nestjs/common";
 import {
   Prisma,
@@ -8,6 +9,10 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import {
+  acceptHumanOutcome,
+  type HumanOutcomeAssignment,
+} from "./pending-action-follow-up.persistence";
 import { TRANSCRIPT_SEGMENT_ORDER } from "./call.transcription.repository";
 
 /**
@@ -1014,64 +1019,57 @@ export class CallRepository {
     outcome: CallOutcome,
     outcomeNote?: string,
     disposition?: RecordedDisposition,
-  ): Promise<{ call: Call; changed: boolean }> {
-    const note = outcomeNote !== undefined ? { outcomeNote } : {};
-    const noteDiffers: Prisma.CallWhereInput[] =
-      outcomeNote !== undefined
-        ? [{ outcomeNote: null }, { outcomeNote: { not: outcomeNote } }]
-        : [];
-    const outcomeDiffers: Prisma.CallWhereInput[] = [
-      { outcome: null },
-      { outcome: { not: outcome } },
-    ];
-
-    let changed: boolean;
-    if (disposition) {
-      const { count } = await this.prisma.call.updateMany({
-        where: {
-          id: callId,
-          OR: [
-            ...outcomeDiffers,
-            { dispositionId: null },
-            { dispositionId: { not: disposition.id } },
-            { dispositionName: null },
-            { dispositionName: { not: disposition.name } },
-            ...noteDiffers,
-          ],
-        },
-        data: {
-          outcome,
-          dispositionId: disposition.id,
-          dispositionName: disposition.name,
-          ...note,
-          updatedAt: new Date(),
-        },
+    assignment?: HumanOutcomeAssignment,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const seed = await tx.call.findUniqueOrThrow({ where: { id: callId } });
+      // Shared contact/source order with automatic dispatch. Source revisions
+      // and objective acceptance commit together, including simultaneous saves.
+      if (seed.contactId)
+        await tx.$queryRaw`SELECT "id" FROM "Contact" WHERE "id" = ${seed.contactId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${callId}::uuid FOR UPDATE`;
+      const current = await tx.call.findUniqueOrThrow({
+        where: { id: callId },
       });
-      changed = count === 1;
-    } else {
-      const moved = await this.prisma.call.updateMany({
-        where: { id: callId, OR: outcomeDiffers },
-        data: {
-          outcome,
-          dispositionId: null,
-          dispositionName: null,
-          ...note,
-          updatedAt: new Date(),
-        },
-      });
-      changed = moved.count === 1;
-      if (!changed && noteDiffers.length > 0) {
-        const noted = await this.prisma.call.updateMany({
-          where: { id: callId, outcome, OR: noteDiffers },
-          data: { ...note, updatedAt: new Date() },
-        });
-        changed = noted.count === 1;
-      }
-    }
-    const call = await this.prisma.call.findUniqueOrThrow({
-      where: { id: callId },
+      const commitment =
+        assignment?.commitment ??
+        (current.outcome === outcome ? current.outcomeCommitment : null);
+      const semanticChange =
+        current.outcome !== outcome ||
+        (outcomeNote !== undefined && current.outcomeNote !== outcomeNote) ||
+        !isDeepStrictEqual(current.outcomeCommitment, commitment);
+      const changed =
+        semanticChange ||
+        Boolean(
+          disposition &&
+            (current.dispositionId !== disposition.id ||
+              current.dispositionName !== disposition.name),
+        );
+      const call = changed
+        ? await tx.call.update({
+            where: { id: callId },
+            data: {
+              outcome,
+              ...(outcomeNote !== undefined ? { outcomeNote } : {}),
+              ...(disposition
+                ? {
+                    dispositionId: disposition.id,
+                    dispositionName: disposition.name,
+                  }
+                : current.outcome !== outcome
+                  ? { dispositionId: null, dispositionName: null }
+                  : {}),
+              outcomeCommitment:
+                commitment === null ? Prisma.DbNull : commitment,
+              ...(semanticChange ? { outcomeRevision: { increment: 1 } } : {}),
+            },
+          })
+        : current;
+      const followUp = assignment
+        ? await acceptHumanOutcome(tx, call, semanticChange, assignment)
+        : null;
+      return { call, changed, followUp };
     });
-    return { call, changed };
   }
 
   /**
@@ -1091,7 +1089,12 @@ export class CallRepository {
         answeredByUserId: null,
         OR: [{ outcome: null }, { outcome: { not: outcome } }],
       },
-      data: { outcome, dispositionId: null, dispositionName: null },
+      data: {
+        outcome,
+        dispositionId: null,
+        dispositionName: null,
+        outcomeRevision: { increment: 1 },
+      },
     });
     if (moved.count === 1) return this.findById(callId);
     const { count } = await this.prisma.call.updateMany({

@@ -242,6 +242,7 @@ function setup() {
   const service = new DispositionService(
     fake.repo as never,
     fakeCampaigns(fake.campaigns) as never,
+    { findForOwner: async () => null } as never,
   );
   fake.campaigns.set("campaign-1", {
     id: "campaign-1",

@@ -59,6 +59,7 @@ describe(
       calendars,
       policies,
       new ComplianceService(new DNCEntryRepository(db), {} as never),
+      callbacks,
     );
     const handoffs = new VoiceAgentHandoffService(
       handoffRepo,

@@ -173,6 +173,7 @@ export interface AutomationCard {
     }>;
   };
   scheduling?: {
+    humanFollowUpEnabled?: boolean;
     calendar: AutomationCalendarRef | null;
     callerNumber: string | null;
   };
@@ -536,7 +537,12 @@ export class VoiceAgentAutomationService {
    */
   async setupScheduling(
     ctx: OwnershipContext,
-    input: QuickAgentInput & { callerNumberId?: string; calendarId?: string },
+    input: QuickAgentInput & {
+      callerNumberId?: string;
+      calendarId?: string;
+      humanFollowUpEnabled?: boolean;
+      interestedObjective?: "booking" | "information";
+    },
   ): Promise<AutomationCard> {
     assertVoiceAgentAutomations(ctx);
     if (input.calendarId) {
@@ -554,9 +560,40 @@ export class VoiceAgentAutomationService {
       callerNumberId: input.callerNumberId,
       calendarId: input.calendarId,
     });
+    const previous = await this.automations.findForOwner(
+      ctx,
+      AGENT_TYPE.scheduling,
+    );
+    if (
+      input.humanFollowUpEnabled !== undefined &&
+      !(
+        await this.organizations.listAdminUserIds(ctx.organizationId, [
+          ctx.userId,
+        ])
+      ).includes(ctx.userId)
+    )
+      throw new BadRequestException(
+        "Only an administrator can authorize automatic follow-up",
+      );
+    const settings = (previous?.settings ?? {}) as Record<string, any>;
     await this.automations.upsertForOwner(ctx, AGENT_TYPE.scheduling, {
       agentId: agent.id,
       enabled: true,
+      ...(input.humanFollowUpEnabled !== undefined
+        ? {
+            settings: {
+              ...settings,
+              humanFollowUp: {
+                enabled: input.humanFollowUpEnabled,
+                interestedObjective:
+                  input.interestedObjective ??
+                  settings.humanFollowUp?.interestedObjective ??
+                  "booking",
+                authorizedByUserId: ctx.userId,
+              },
+            },
+          }
+        : {}),
     });
     return this.card(ctx, "scheduling");
   }
@@ -1207,6 +1244,12 @@ export class VoiceAgentAutomationService {
       state: paused ? "paused" : issue ? "needs_attention" : "active",
       nextStep: paused ? null : issue,
       scheduling: {
+        humanFollowUpEnabled:
+          (
+            automation?.settings as {
+              humanFollowUp?: { enabled?: boolean };
+            } | null
+          )?.humanFollowUp?.enabled === true,
         calendar,
         callerNumber: callerNumberOf(agent, env.numbers),
       },

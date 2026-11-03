@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -28,6 +29,7 @@ import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { PipelineFanoutService } from "../ai-pipeline";
 import { ConcurrentCallGuardService } from "../security";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { PendingActionService } from "../ai-pipeline/pending-action.service";
 import { ContactService } from "../contact.service";
 
 /**
@@ -85,6 +87,7 @@ export class CallAttemptService {
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly contactService: ContactService,
+    private readonly pendingActions: PendingActionService,
   ) {}
 
   async createAttempt(data: {
@@ -288,6 +291,7 @@ export class CallAttemptService {
             category: d.category,
             color: d.color,
             triggersCallback: d.triggersCallback,
+            automaticFollowUp: d.automaticFollowUp,
           })),
         });
         this.sseBridge.emit(sessionChannel, "session.state", {
@@ -451,12 +455,14 @@ export class CallAttemptService {
     callAttemptId: string;
     disposition: Disposition;
     note?: string;
-    callback?: { scheduledAt: Date; note?: string };
+    callback?: { scheduledAt: Date; note?: string; timezone?: string };
+    followUpPurpose?: "booking" | "information";
+    stopRequested?: boolean;
     campaignDefaults: { maxAttempts: number; retryDelayMin: number };
     organizationId: string;
     /** The agent asked to stop dialing once this lead was wrapped up. */
     closeSession?: boolean;
-  }): Promise<{ action: string; sessionClosed: boolean }> {
+  }) {
     const { disposition } = data;
 
     const current = await this.attemptRepo.findById(data.callAttemptId);
@@ -487,6 +493,36 @@ export class CallAttemptService {
         "This lead has been dialed again since that call, so its outcome can no longer be changed from it.",
       );
     }
+
+    const mapped = canonicalOutcomeOf(disposition);
+    if (
+      mapped === "callback_scheduled" &&
+      (!data.callback || !Number.isFinite(data.callback.scheduledAt.getTime()))
+    )
+      throw new BadRequestException("A valid callback date is required");
+    // Acceptance must finish before the session advances or any human callback
+    // can be enqueued. A persistence failure keeps wrap-up retryable.
+    const accepted =
+      current.callId && mapped
+        ? await this.pendingActions.recordHumanOutcome(
+            {
+              userId: current.agentUserId,
+              organizationId: data.organizationId,
+            },
+            current.callId,
+            {
+              outcome: mapped,
+              note: data.note,
+              disposition: { id: disposition.id, name: disposition.label },
+              purpose: data.followUpPurpose,
+              callbackAt: data.callback?.scheduledAt.toISOString(),
+              timezone: data.callback?.timezone,
+              stopRequested: data.stopRequested,
+              campaignLeadId: current.campaignLeadId,
+            },
+          )
+        : null;
+    const assigned = accepted?.followUp;
 
     // The browser saves the outcome the moment its call ends, which usually
     // beats the provider's hangup webhook. Whichever of the two ends the
@@ -522,7 +558,13 @@ export class CallAttemptService {
     let action = "dispositioned";
 
     // Process disposition workflow triggers
-    if (disposition.triggersCompletion) {
+    if (assigned && !["closed", "resolved"].includes(assigned.state)) {
+      await this.campaignLeadRepo.updateStatus(
+        attempt.campaignLeadId,
+        CampaignLeadStatus.completed,
+      );
+      action = "ai_follow_up";
+    } else if (disposition.triggersCompletion) {
       await this.campaignLeadRepo.updateStatus(
         attempt.campaignLeadId,
         CampaignLeadStatus.completed,
@@ -663,6 +705,7 @@ export class CallAttemptService {
         disposition,
         data.note,
         attempt.agentUserId,
+        accepted ?? undefined,
       );
     }
 
@@ -671,7 +714,23 @@ export class CallAttemptService {
         (sessionClosed ? " (session closed at the agent's request)" : ""),
     );
 
-    return { action, sessionClosed };
+    return {
+      action,
+      sessionClosed,
+      ...(assigned
+        ? {
+            followUp: {
+              id: assigned.id,
+              state: assigned.state,
+              objective: assigned.desiredResult,
+              nextAction: assigned.nextAction,
+              nextActionAt: assigned.nextActionAt,
+              timingBasis: assigned.timingBasis,
+              reason: assigned.reason,
+            },
+          }
+        : {}),
+    };
   }
 
   private statsOf(session: {
@@ -700,6 +759,7 @@ export class CallAttemptService {
     disposition: Disposition,
     note: string | undefined,
     agentUserId: string,
+    accepted?: { call: Call; changed: boolean },
   ): Promise<void> {
     const mappedOutcome = canonicalOutcomeOf(disposition);
     const recorded = { id: disposition.id, name: disposition.label };
@@ -708,7 +768,11 @@ export class CallAttemptService {
     let outcomeChanged = false;
     let call: Call | null = null;
     try {
-      if (mappedOutcome) {
+      if (accepted) {
+        call = accepted.call;
+        outcomeChanged = accepted.changed;
+        outcomePersisted = true;
+      } else if (mappedOutcome) {
         ({ call, changed: outcomeChanged } = await this.callRepo.recordOutcome(
           callId,
           mappedOutcome,

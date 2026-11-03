@@ -240,6 +240,12 @@ export class CallbackService {
     scheduledAt: Date;
     note?: string;
   }) {
+    const objectiveCallback =
+      await this.pendingActions.scheduleHumanObjectiveCallback(
+        data.agentCallId,
+        data.scheduledAt,
+      );
+    if (objectiveCallback) return objectiveCallback;
     const { callback, created } = await this.callbackRepo.createOnce({
       id: data.agentCallId,
       userId: data.userId,
@@ -735,7 +741,10 @@ export class CallbackService {
         return false;
       }
     }
-    const decision = await this.handoffs.decideCallback(callback, new Date());
+    const decision =
+      callback.followUpId && !callback.handoffId
+        ? await this.pendingActions.decideHumanCallback(callback, new Date())
+        : await this.handoffs.decideCallback(callback, new Date());
     if (decision.action === "skip") {
       await finish(decision.status, { reason: decision.reason });
       return false;
@@ -775,11 +784,18 @@ export class CallbackService {
           // The commit point: re-checked after all provider preparation,
           // immediately before the leg. It also binds the new call's tools to
           // the request before the agent says a word.
-          await this.handoffs.authorizeCallbackDial(
-            dialing,
-            decision,
-            placement,
-          );
+          if ("handoff" in decision)
+            await this.handoffs.authorizeCallbackDial(
+              dialing,
+              decision,
+              placement,
+            );
+          else
+            await this.pendingActions.authorizeHumanCallbackDial(
+              dialing,
+              decision,
+              placement,
+            );
           if (
             !(await this.callbackRepo.holdsAgentClaim(
               callback.id,

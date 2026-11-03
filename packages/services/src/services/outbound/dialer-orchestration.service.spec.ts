@@ -560,6 +560,22 @@ function createWorld(
     guard as never,
     { enqueueCallOutcomeUpdated: async () => undefined } as never,
     { addCallNote: async () => null } as never,
+    {
+      recordHumanOutcome: async (
+        _ctx: unknown,
+        id: string,
+        input: { outcome: string; note?: string; disposition?: unknown },
+      ) => {
+        outcomeWrites.push([
+          "recordOutcome",
+          id,
+          input.outcome,
+          input.note,
+          input.disposition,
+        ]);
+        return { call: null, changed: false };
+      },
+    } as never,
   );
   const orchestrator = new DialerOrchestrationService(
     {

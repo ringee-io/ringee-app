@@ -80,7 +80,8 @@ export function DispositionPanel() {
   const selectedDispo = availableDispositions.find(
     (d) => d.code === selectedCode
   );
-  const showCallbackFields = selectedDispo?.triggersCallback;
+  const showCallbackFields =
+    selectedDispo?.triggersCallback && !selectedDispo.automaticFollowUp;
 
   function resetForm() {
     setSelectedCode(null);

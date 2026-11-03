@@ -6,6 +6,7 @@ import {
   type FollowUpPlan,
 } from "./pending-action-follow-up.persistence";
 export type {
+  HumanOutcomeAssignment,
   NewFollowUpObjective,
   FollowUpPlan,
 } from "./pending-action-follow-up.persistence";
@@ -482,6 +483,117 @@ export class PendingActionRepository {
       }),
       this.prisma.pendingActionFollowUp.count({ where }),
     ]);
+  }
+
+  async planHumanFollowUpStep(
+    id: string,
+    revision: number,
+    at: Date,
+    kind: "recovery" | "agreed",
+    agentCallId?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await lockFollowUp(tx, id);
+      if (
+        !row ||
+        row.sourceType !== "human_call_outcome" ||
+        row.revision !== revision ||
+        row.mode !== "automatic" ||
+        ["paused", "blocked", "resolved", "closed"].includes(row.state) ||
+        row.attemptCount >= row.maxAttempts ||
+        (kind === "recovery" && row.recoveryCount >= row.maxRecoveries) ||
+        at >= row.expiresAt
+      )
+        return null;
+      const action = await tx.pendingAction.findUniqueOrThrow({
+        where: { id: row.pendingActionId },
+      });
+      const key = agentCallId
+        ? `followup:${id}:agreed:${agentCallId}`
+        : `followup:${id}:recovery:${row.recoveryCount + 1}`;
+      const existing = await tx.callbackTask.findUnique({
+        where: { agentCallbackKey: key },
+      });
+      if (existing) return existing;
+      if (
+        await tx.callbackTask.count({
+          where: {
+            followUpId: id,
+            dispatchCommittedAt: null,
+            status: { in: ["scheduled", "due", "in_progress"] },
+          },
+        })
+      )
+        return null;
+      if (
+        agentCallId &&
+        !(await tx.callbackTask.count({
+          where: {
+            followUpId: id,
+            agentCallId,
+            dispatchCommittedAt: { not: null },
+            sourceRevision: row.sourceRevision,
+          },
+        }))
+      )
+        return null;
+      const callback = await tx.callbackTask.create({
+        data: {
+          userId: row.configuredByUserId,
+          organizationId: action.organizationId,
+          contactId: action.contactId!,
+          callId: action.callId,
+          followUpId: id,
+          sourceRevision: row.sourceRevision,
+          agentId: row.agentId,
+          agentCallbackKind: kind,
+          agentCallbackKey: key,
+          scheduledAt: at,
+          note: row.desiredResult,
+        },
+      });
+      await applyFollowUpPlan(
+        tx,
+        row,
+        {
+          state: "scheduled",
+          reason: kind === "agreed" ? "callback_agreed" : "policy_recovery",
+          nextAction: "specialist_callback",
+          nextActionAt: at,
+          timingBasis: kind === "agreed" ? "agreed" : "policy",
+          activeCallbackId: null,
+        },
+        {
+          key,
+          kind: "callback_scheduled",
+          evidence: {
+            callbackId: callback.id,
+            timingBasis: kind === "agreed" ? "agreed" : "policy",
+          },
+        },
+        new Date(),
+      );
+      return callback;
+    });
+  }
+
+  followUpForAgentCall(agentCallId: string) {
+    return this.prisma.callbackTask.findUnique({
+      where: { agentCallId },
+      include: { followUp: true },
+    });
+  }
+
+  sourceCallback(ctx: OwnershipContext, callId: string) {
+    return this.prisma.callbackTask.findFirst({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        callId,
+        agentCallbackKind: null,
+        status: { in: ["scheduled", "due"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   followUpSnapshot(id: string) {

@@ -31,6 +31,7 @@ export interface DisposeLeadInput {
 export function useDisposeLead() {
   const api = useApi();
   const t = useTranslations('dialer.disposition');
+  const tFollow = useTranslations('calls.automaticFollowUp');
   const [submitting, setSubmitting] = useState(false);
 
   const dispose = useCallback(
@@ -40,28 +41,46 @@ export function useDisposeLead() {
 
       setSubmitting(true);
       try {
-        const result = await api.post<{ sessionClosed?: boolean }>(
-          '/dialer/dispose',
-          {
-            callAttemptId: attemptId,
-            dispositionId: input.dispositionId,
-            dispositionCode: input.dispositionCode,
-            note: input.note || undefined,
-            ...(input.callbackScheduledAt
-              ? {
-                  callbackScheduledAt: new Date(
-                    input.callbackScheduledAt
-                  ).toISOString(),
-                  callbackNote: input.callbackNote || undefined
-                }
-              : {}),
-            // Decided server-side inside this same request: a progressive
-            // campaign polls every 500ms, so ending the session from the
-            // browser a moment later would already be one call too late.
-            closeSession: useDialerSessionStore.getState().closeAfterLead
+        const result = await api.post<
+          import('@ringee/dialer-ui/data/types').OutcomeAcceptance & {
+            sessionClosed?: boolean;
           }
-        );
-        toast.success(t('saved'));
+        >('/dialer/dispose', {
+          callAttemptId: attemptId,
+          dispositionId: input.dispositionId,
+          dispositionCode: input.dispositionCode,
+          note: input.note || undefined,
+          ...(input.callbackScheduledAt
+            ? {
+                callbackScheduledAt: new Date(
+                  input.callbackScheduledAt
+                ).toISOString(),
+                callbackNote: input.callbackNote || undefined,
+                callbackTimezone:
+                  Intl.DateTimeFormat().resolvedOptions().timeZone
+              }
+            : {}),
+          // Decided server-side inside this same request: a progressive
+          // campaign polls every 500ms, so ending the session from the
+          // browser a moment later would already be one call too late.
+          closeSession: useDialerSessionStore.getState().closeAfterLead
+        });
+        const followUp = result.followUp;
+        if (followUp) {
+          const blocked = followUp.state === 'blocked';
+          const active = [
+            'scheduled',
+            'in_progress',
+            'waiting',
+            'recovering'
+          ].includes(followUp.state);
+          const next = followUp.nextActionAt
+            ? `${tFollow(followUp.timingBasis === 'agreed' ? 'agreedTime' : 'policyTime')}: ${new Date(followUp.nextActionAt).toLocaleString()}`
+            : (followUp.reason ?? '').replaceAll('_', ' ');
+          const message = `${tFollow(blocked ? 'blocked' : active ? 'accepted' : 'stopped')}. ${followUp.objective}. ${next}`;
+          if (blocked) toast.warning(message, { duration: 12000 });
+          else toast.success(message);
+        } else toast.success(t('saved'));
         // The server pushes where the session went over SSE. The answer to
         // this request is the fallback for when that event never arrives —
         // applied only while the screen is still on this attempt, because by
@@ -83,7 +102,7 @@ export function useDisposeLead() {
         setSubmitting(false);
       }
     },
-    [api, t]
+    [api, t, tFollow]
   );
 
   return { dispose, submitting };

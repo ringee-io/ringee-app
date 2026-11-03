@@ -1,3 +1,7 @@
+import {
+  lockFollowUp,
+  applyFollowUpPlan,
+} from "./pending-action-follow-up.persistence";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import {
@@ -243,6 +247,56 @@ export class MeetingRepository {
         if (agentCalls.length !== 1 || agentCalls[0]!.meetingId) return null;
       }
 
+      const execution = data.agentCallId
+        ? await tx.callbackTask.findUnique({
+            where: { agentCallId: data.agentCallId },
+            include: { followUp: true },
+          })
+        : null;
+      let objective =
+        execution?.followUp?.sourceType === "human_call_outcome"
+          ? execution.followUp
+          : null;
+      if (objective) {
+        await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${objective.sourceId}::uuid FOR UPDATE`;
+        objective = await lockFollowUp(tx, objective.id);
+        const source = objective
+          ? await tx.call.findFirst({
+              where: {
+                id: objective.sourceId,
+                organizationId: ctx.organizationId,
+                userId: objective.responsibleUserId,
+                contactId: data.contactId,
+                outcomeRevision: objective.sourceRevision,
+              },
+            })
+          : null;
+        if (
+          !objective ||
+          !source ||
+          !execution?.dispatchCommittedAt ||
+          execution.organizationId !== ctx.organizationId ||
+          execution.contactId !== data.contactId ||
+          execution.sourceRevision !== objective.sourceRevision ||
+          objective.objectiveType !== "book_meeting" ||
+          objective.calendarId !== data.calendarId ||
+          ["resolved", "closed"].includes(objective.state)
+        )
+          return null;
+        const placed = await tx.aiVoiceAgentCall.findFirst({
+          where: {
+            id: data.agentCallId,
+            callId: data.callId,
+            agentId: objective.agentId!,
+            organizationId: ctx.organizationId,
+            userId: objective.configuredByUserId,
+            contactId: data.contactId,
+            calendarId: objective.calendarId,
+          },
+        });
+        if (!placed) return null;
+      }
+
       if (
         !(await this.hasRoom(tx, ctx, scope, availabilityRuleId, {
           start: data.scheduledAt,
@@ -261,6 +315,41 @@ export class MeetingRepository {
           where: { id: data.agentCallId },
           data: { meetingId: meeting.id },
         });
+      }
+      if (objective && execution) {
+        await tx.pendingActionFollowUp.update({
+          where: { id: objective.id },
+          data: {
+            meetingId: meeting.id,
+            meetingScheduledAt: meeting.scheduledAt,
+          },
+        });
+        const evidence = {
+          kind: "stored_authorized_booking",
+          meetingId: meeting.id,
+          agentCallId: data.agentCallId!,
+          callbackId: execution.id,
+          sourceRevision: objective.sourceRevision,
+          calendarId: meeting.calendarId,
+          scheduledAt: meeting.scheduledAt.toISOString(),
+        };
+        await applyFollowUpPlan(
+          tx,
+          objective,
+          {
+            state: "resolved",
+            reason: "appointment_booked",
+            nextAction: null,
+            nextActionAt: null,
+            evidence,
+          },
+          {
+            key: `booking:${meeting.id}`,
+            kind: "objective_resolved",
+            evidence,
+          },
+          new Date(),
+        );
       }
       return meeting;
     });

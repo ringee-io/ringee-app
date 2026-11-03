@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  AiVoiceAgentAutomationRepository,
   CallOutcome,
   Disposition,
   DispositionCategory,
@@ -14,6 +15,7 @@ import {
   type WorkspaceDispositionData,
 } from "@ringee/database";
 import type { OwnershipContext } from "@ringee/platform";
+import { voiceAgentAutomationsEnabled } from "../voice-agents/automations/automation-access";
 import { CampaignService } from "../campaign.service";
 
 /** What a disposition makes the campaign dialer do with its lead. */
@@ -294,6 +296,7 @@ export class DispositionService {
   constructor(
     private readonly dispositionRepo: DispositionRepository,
     private readonly campaigns: CampaignService,
+    private readonly automations: AiVoiceAgentAutomationRepository,
   ) {}
 
   /** The canonical outcomes a disposition may map to — the Prisma enum, nothing else. */
@@ -502,10 +505,15 @@ export class DispositionService {
    * before workspace dispositions existed; else the workspace's default set.
    * For a campaign the caller already holds — the dialer, its webhooks.
    */
-  async listByCampaign(campaignId: string): Promise<Disposition[]> {
+  async listByCampaign(
+    campaignId: string,
+  ): Promise<Array<Disposition & { automaticFollowUp?: boolean }>> {
     const sources = await this.dispositionRepo.findCampaignSources(campaignId);
     if (!sources) return [];
-    return (await this.setFrom(sources)).dispositions;
+    return this.withFollowUpPolicy(
+      sources.owner,
+      (await this.setFrom(sources)).dispositions,
+    );
   }
 
   /** A campaign's set and where it comes from, for the campaign screen. */
@@ -648,6 +656,27 @@ export class DispositionService {
     id: string,
   ): Promise<Disposition> {
     return this.updateForCampaign(ctx, campaignId, id, { isActive: false });
+  }
+
+  private async withFollowUpPolicy(ctx: OwnershipContext, rows: Disposition[]) {
+    if (
+      !ctx.organizationId ||
+      !voiceAgentAutomationsEnabled(ctx.organizationId)
+    )
+      return rows;
+    const automation = await this.automations.findForOwner(
+      { ...ctx, organizationId: ctx.organizationId },
+      "appointment_booking",
+    );
+    const settings = automation?.settings as {
+      humanFollowUp?: { enabled?: boolean };
+    } | null;
+    return rows.map((row) => ({
+      ...row,
+      automaticFollowUp:
+        settings?.humanFollowUp?.enabled === true &&
+        ["interested", "follow_up"].includes(canonicalOutcomeOf(row) ?? ""),
+    }));
   }
 
   // ── Internals ────────────────────────────────────────────────────────────

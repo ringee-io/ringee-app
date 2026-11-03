@@ -74,7 +74,12 @@ export function useAutomationApi() {
           failed: Array<{ number: InboundNumberRef; error: string }>;
         }>(`${BASE}/receptionist/setup`, body),
       setupScheduling: (
-        body: QuickAgentBody & { callerNumberId?: string; calendarId?: string }
+        body: QuickAgentBody & {
+          callerNumberId?: string;
+          calendarId?: string;
+          humanFollowUpEnabled?: boolean;
+          interestedObjective?: 'booking' | 'information';
+        }
       ) => api.post<AutomationCard>(`${BASE}/scheduling/setup`, body),
       setEnabled: (capability: AutomationCapability, enabled: boolean) =>
         api.post<AutomationCard>(`${BASE}/${capability}/enabled`, { enabled }),

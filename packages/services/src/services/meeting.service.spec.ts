@@ -134,6 +134,7 @@ function build(
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   return {
@@ -540,6 +541,29 @@ describe("MeetingService.updateCallOutcome", () => {
         },
       },
     }) as MeetingService;
+    Object.assign(service, {
+      pendingActions: {
+        recordHumanOutcome: async (
+          _ctx: unknown,
+          id: string,
+          input: {
+            outcome: string;
+            note?: string;
+            disposition?: { id: string; name: string };
+          },
+        ) =>
+          (
+            service as unknown as {
+              callRepo: { recordOutcome: (...args: unknown[]) => unknown };
+            }
+          ).callRepo.recordOutcome(
+            id,
+            input.outcome,
+            input.note,
+            input.disposition,
+          ),
+      },
+    });
     return { service, published, notes };
   }
   const ctx = { userId: "user-1", organizationId: "org-1" };
@@ -726,6 +750,7 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
           return 0;
         },
       } as never,
+      {} as never,
       {} as never,
     );
     return { service, events, moves };
