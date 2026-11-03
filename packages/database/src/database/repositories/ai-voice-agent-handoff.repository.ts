@@ -9,6 +9,11 @@ import {
   AiVoiceAgentParticipantStatus,
   Prisma,
 } from "@prisma/client";
+import {
+  createFollowUpInTransaction,
+  observeFollowUp,
+  type NewFollowUpObjective,
+} from "./pending-action-follow-up.persistence";
 import { PrismaService } from "../prisma.service";
 
 const H = AiVoiceAgentHandoffStatus;
@@ -110,6 +115,7 @@ export class AiVoiceAgentHandoffRepository {
    */
   async createOnce(
     input: AiVoiceAgentHandoffInput,
+    followUp?: NewFollowUpObjective,
   ): Promise<{ handoff: AiVoiceAgentHandoff; created: boolean }> {
     try {
       const handoff = await this.prisma.$transaction(async (tx) => {
@@ -134,6 +140,8 @@ export class AiVoiceAgentHandoffRepository {
             skipDuplicates: true,
           });
         }
+        if (followUp)
+          await createFollowUpInTransaction(tx, created.id, followUp);
         return created;
       });
       return { handoff, created: true };
@@ -244,6 +252,13 @@ export class AiVoiceAgentHandoffRepository {
           `Handoff ${handoff.id} could not open the destination's participation`,
         );
       }
+      await observeFollowUp(tx, handoff.id, {
+        key: `handoff:${handoff.id}:activated`,
+        kind: "handoff_completed",
+        actorType: "agent",
+        actorId: destination.agentId,
+        at: destination.now,
+      });
       return {
         result: "activated" as const,
         handoff: completed,
@@ -262,26 +277,44 @@ export class AiVoiceAgentHandoffRepository {
     from: AiVoiceAgentHandoffStatus[],
     data: { failureReason: string; lastError?: string | null; now: Date },
   ): Promise<boolean> {
-    const { count } = await this.prisma.aiVoiceAgentHandoff.updateMany({
-      where: { id, status: { in: from } },
-      data: {
-        status: H.failed,
-        failureReason: data.failureReason,
-        failedAt: data.now,
-        ...(from.includes(H.uncertain) ? { reconciledAt: data.now } : {}),
-        ...(data.lastError ? { lastError: data.lastError.slice(0, 2000) } : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const { count } = await tx.aiVoiceAgentHandoff.updateMany({
+        where: { id, status: { in: from } },
+        data: {
+          status: H.failed,
+          failureReason: data.failureReason,
+          failedAt: data.now,
+          ...(from.includes(H.uncertain) ? { reconciledAt: data.now } : {}),
+          ...(data.lastError
+            ? { lastError: data.lastError.slice(0, 2000) }
+            : {}),
+        },
+      });
+      if (count)
+        await observeFollowUp(tx, id, {
+          key: `handoff:${id}:failed`,
+          kind: "handoff_failed",
+        });
+      return count === 1;
     });
-    return count === 1;
   }
 
   /** The call ended with the handoff still prepared: no proof either way. */
   async markUncertain(id: string): Promise<boolean> {
-    const { count } = await this.prisma.aiVoiceAgentHandoff.updateMany({
-      where: { id, status: H.prepared },
-      data: { status: H.uncertain },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const { count } = await tx.aiVoiceAgentHandoff.updateMany({
+        where: { id, status: H.prepared },
+        data: { status: H.uncertain },
+      });
+      if (count)
+        await observeFollowUp(tx, id, {
+          key: `handoff:${id}:uncertain`,
+          kind: "handoff_uncertain",
+        });
+      return count === 1;
     });
-    return count === 1;
   }
 
   /** Evidence of the availability the specialist offered, and on which call. */
@@ -293,13 +326,46 @@ export class AiVoiceAgentHandoffRepository {
       now: Date;
     },
   ): Promise<void> {
-    await this.prisma.aiVoiceAgentHandoff.update({
-      where: { id },
-      data: {
-        offeredSlots: data.slots as Prisma.InputJsonValue,
-        offeredAt: data.now,
-        offeredAgentCallId: data.agentCallId,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      await tx.aiVoiceAgentHandoff.update({
+        where: { id },
+        data: {
+          offeredSlots: data.slots as Prisma.InputJsonValue,
+          offeredAt: data.now,
+          offeredAgentCallId: data.agentCallId,
+        },
+      });
+      await observeFollowUp(tx, id, {
+        key: `offer:${data.agentCallId}:${data.slots.map((slot) => slot.start).join(",")}`,
+        kind: "availability_offered",
+        actorType: "agent",
+        evidence: { slots: data.slots.map((slot) => slot.start) },
+        at: data.now,
+      });
+    });
+  }
+
+  async recordExceptionalIntervention(
+    id: string,
+    participantId: string,
+    delivered: boolean,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      await observeFollowUp(tx, id, {
+        key: `support:${participantId}:${delivered}`,
+        kind: "exceptional_escalation",
+        actorType: "agent",
+        evidence: { delivered },
+      });
+      await tx.aiVoiceAgentHandoff.updateMany({
+        where: { id, requestStatus: "pending" },
+        data: {
+          requestStatus: "needs_attention",
+          resolution: "human_support_requested",
+        },
+      });
     });
   }
 
@@ -313,17 +379,25 @@ export class AiVoiceAgentHandoffRepository {
     resolution: string,
     now: Date,
   ): Promise<boolean> {
-    const { count } = await this.prisma.aiVoiceAgentHandoff.updateMany({
-      where: { id, requestStatus: R.pending },
-      data: {
-        requestStatus: status,
-        resolution,
-        ...(status === R.resolved || status === R.closed
-          ? { resolvedAt: now }
-          : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const { count } = await tx.aiVoiceAgentHandoff.updateMany({
+        where: { id, requestStatus: R.pending },
+        data: {
+          requestStatus: status,
+          resolution,
+          ...(status === R.resolved || status === R.closed
+            ? { resolvedAt: now }
+            : {}),
+        },
+      });
+      if (count)
+        await observeFollowUp(tx, id, {
+          key: `handoff:${id}:request:${status}:${resolution}`,
+          kind: "handoff_reviewed",
+        });
+      return count === 1;
     });
-    return count === 1;
   }
 
   /** When the reconciler looks at a pending request next. */
@@ -343,15 +417,23 @@ export class AiVoiceAgentHandoffRepository {
     expectedAttempts: number,
     reviewAt: Date,
   ): Promise<boolean> {
-    const { count } = await this.prisma.aiVoiceAgentHandoff.updateMany({
-      where: {
-        id,
-        requestStatus: R.pending,
-        recoveryAttempts: expectedAttempts,
-      },
-      data: { recoveryAttempts: { increment: 1 }, reviewAt },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const { count } = await tx.aiVoiceAgentHandoff.updateMany({
+        where: {
+          id,
+          requestStatus: R.pending,
+          recoveryAttempts: expectedAttempts,
+        },
+        data: { recoveryAttempts: { increment: 1 }, reviewAt },
+      });
+      if (count)
+        await observeFollowUp(tx, id, {
+          key: `handoff:${id}:recovery:${expectedAttempts + 1}`,
+          kind: "recovery_planned",
+        });
+      return count === 1;
     });
-    return count === 1;
   }
 
   /** Pending requests due for a look, oldest first. */

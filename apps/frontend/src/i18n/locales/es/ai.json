@@ -433,6 +433,22 @@
       "snooze": "Posponer",
       "dismiss": "Descartar",
       "complete": "Completar"
+    },
+    "followUp": {
+      "states": {
+        "scheduled": "Programado",
+        "in_progress": "En curso",
+        "waiting": "En espera",
+        "recovering": "Recuperando",
+        "paused": "Pausado",
+        "blocked": "Requiere atención",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      },
+      "modes": {
+        "automatic": "Seguimiento IA",
+        "manual": "Control manual"
+      }
     }
   },
   "pipelines": {

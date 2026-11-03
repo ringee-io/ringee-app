@@ -4,8 +4,9 @@ Propuesta de producto e implementación · 1 de noviembre de 2026
 
 Revisión de alcance y experiencia · 2 de noviembre de 2026
 
-Estado: propuesta revisada con la meta del usuario y las observaciones de producto
-y UX; no modifica el comportamiento de producción. Basado
+Estado (3 de noviembre de 2026): Step 0 y Stage 1 implementados detrás del piloto;
+ver §16 y §17 para el alcance comprobado y la validación real pendiente. La
+propuesta restante no está implementada. Basado
 en el código actual y en la
 [propuesta de activación rápida](PLAN_IA_VOICE_AGENTS_QUICK_ACTIONS.md), cuyas
 automatizaciones ya están parcialmente implementadas. Este documento define la
@@ -1077,3 +1078,71 @@ reintentos; bandeja de excepciones y notificación de `needs_attention`;
 idioma por contacto desde llamadas previas; vista de participantes en la UI y
 la API; devolución de llamada entrante hacia el especialista; activación nativa
 de Organization; métricas.
+
+## 17. Estado de implementación · Stage 1 (3 de noviembre de 2026)
+
+Implementado el objetivo persistente de seguimiento sobre el dueño existente:
+`PendingActionService` / `PendingActionRepository`. El hijo opcional
+`PendingActionFollowUp` conserva origen/versión, responsable comercial,
+administrador configurador, especialista, resultado deseado, modo, estado,
+próxima acción y base del horario, límites, revisión y evidencias. Su historial
+append-only deduplica por clave de acción. No se cambia el enum público de
+pendientes ni se activan recomendaciones históricas.
+
+Cada nueva solicitud de reagendamiento de Step 0 crea el objetivo en la misma
+transacción que el handoff. `AiVoiceAgentHandoff` conserva la conversación
+especializada; su estado de solicitud proyecta el del objetivo. Los callbacks
+son pasos vinculados. El tick existente concilia objetivos y ejecuta/reconcilia
+callbacks con lease, fencing y clave estable; no hay un segundo scheduler.
+
+La llamada completada o la disponibilidad ofrecida no resuelven el objetivo.
+Ofrecer horarios lo bloquea con `reschedule_commit_pending`; una reunión del
+mismo contacto/workspace, con versión nueva y hora distinta, aporta la prueba
+para resolver y retirar pasos obsoletos. Pasar la hora original no cierra nada.
+El cierre distingue rechazo, cancelación del objetivo, expiración y agotamiento.
+Los límites iniciales guardados son tres pasos de contacto, una recuperación por
+política y siete días; no son la cadencia completa de entregas futuras.
+
+Pausa, reanudación, cierre, toma manual y retorno automático son operaciones del
+dominio con revisión esperada. La pausa/toma/cierre comparten bloqueo con el
+commit de dispatch; una llamada ya despachada puede terminar y liquidarse.
+Reanudar recalcula ventana ≥60 minutos y conserva contadores. La colocación
+incierta se reconcilia sin volver a marcar. Los fallos de persistencia después de
+colocar permanecen fuera del manejo de rechazo del dial.
+
+Lecturas y controles autenticados viven en `/api/pending-actions`: listado
+`/follow-ups`, detalle `/:id/follow-up` e intervención `/:id/follow-up/control`.
+Incluyen historial, evidencia, próximo paso y consumo autorizado; un miembro no
+obtiene llamadas ni costos de sus colegas. El centro existente muestra el estado
+IA/manual sin controles genéricos de completar. Mi día excluye estos objetivos;
+solo excepciones bloqueadas aportan al badge. No hay rediseño de dashboard.
+
+**Reglas:** AGENT-022 nueva; AGENT-021 y CALL-013 ampliadas deliberadamente.
+No cambian tarifas, ledger, disposiciones, provisión por compra ni contratos de
+llamada/reunión. El handoff sigue siendo una llamada; cada callback es otra.
+Los costos no liquidados/desconocidos se muestran como null.
+
+**Validación automatizada:** suite de servicios (1493 pruebas aprobadas) y base
+de datos (73 aprobadas, 2 omitidas), incluyendo Postgres real desechable para
+creación repetida, claims competidores, lease vencido, worker obsoleto, pausa que
+retiene el lock mientras dispatch espera, cierre/toma, persistencia fallida tras
+colocación y reinicio sin redial, reunión original pasada, resolución autorizada,
+ventana de reanudación y aislamiento. Builds de database/backend/orchestrator
+aprobados, además del build de frontend, arranque del contenedor DI del
+orchestrator sin worker, 425 pruebas de platform y 32 de frontend. ESLint sin
+errores (solo backlog existente), formato y diff comprobados. La evidencia
+detallada y requisitos de rollout están en
+[FOLLOW_UP.md](../engineering/FOLLOW_UP.md).
+
+**Despliegue:** migración aditiva pendiente
+`20261103120000_follow_up_objectives` en `prisma/migrations-pending`, siguiendo el
+flujo seleccionado en Step 0; regenerar Prisma y desplegar API/worker después
+del esquema. No se ejecutaron migraciones de producción ni llamadas reales.
+Mantener `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` restringido al piloto. Persisten las
+pruebas reales de §16 (proveedor, audio, callback y liquidación) con organización
+y contactos expresamente autorizados.
+
+**Stage 2:** ampliar la autorización de origen de
+`PendingActionService.prepareFollowUpObjective` para la disposición humana y su
+revisión; reutilizar este objetivo, historial y ejecutor. No hay alta automática
+desde «Interesado», compra de Organization ni herramienta para mover reuniones.

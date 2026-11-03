@@ -4,7 +4,7 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { describe, it } from "node:test";
+import { after, before, describe, it, mock } from "node:test";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgentHandoffRequestStatus,
@@ -34,6 +34,8 @@ const hash = (value: string) =>
 /** 2026-11-03 10:00 Madrid: inside the default calling window. */
 const NOW = new Date("2026-11-03T09:00:00.000Z");
 const MEETING_AT = new Date("2026-11-03T15:00:00.000Z");
+before(() => mock.timers.enable({ apis: ["Date"], now: NOW }));
+after(() => mock.timers.reset());
 
 type Row = Record<string, any>;
 
@@ -202,6 +204,7 @@ function world(
   };
 
   const handoffRepo = {
+    recordExceptionalIntervention: async () => undefined,
     findById: async (id: string) => clone(handoffs.get(id) ?? null),
     findByIdempotencyKey: async (key: string) =>
       clone(
@@ -503,6 +506,10 @@ function world(
     callbackRepo as never,
     { assistantHandoffMode: () => "assistant_tool" } as never,
     { previousInteractions: async () => "" } as never,
+    {
+      prepareFollowUpObjective: async () => undefined,
+      followUpForHandoff: async () => null,
+    } as never,
   );
 
   return {
@@ -629,7 +636,7 @@ function tools(w: ReturnType<typeof world>) {
         agentCallbacks.push(row);
         return row;
       },
-      reschedule: async (id: string, scheduledAt: Date) => {
+      rescheduleAgreedAgentCallback: async (id: string, scheduledAt: Date) => {
         const row = w.callbacks.get(id)!;
         row.scheduledAt = scheduledAt;
         return row;

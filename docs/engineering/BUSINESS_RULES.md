@@ -547,6 +547,9 @@ out campaign callbacks — when one comes due the campaign re-queues its lead �
 and the callbacks an AI voice agent scheduled, which the agent places itself:
 those that reuse their source call's id, and those assigned to an agent for a
 handoff request (`CallbackTask.agentCallbackKind`, AGENT-021).
+Persistent objectives (AGENT-022) are also excluded, including during manual
+takeover: their explicit lifecycle owns the work. Only blocked exceptions count
+toward the responsible member's actionable pending-action badge.
 An item leaves the queue once it is handled: a missed call when anyone in the
 workspace has called the number since, a follow-up when its owner has called
 the contact after it was raised, a callback only when it is completed or
@@ -2043,6 +2046,10 @@ meeting is not in it yet.
   agreed. A person who chose to be called back instead of continuing on the
   call is never recovered: their callback was the automated step. Anything
   else that leaves no automated step settles the request as `needs_attention`.
+  For new objective-backed requests, AGENT-022 owns the lifecycle: an answered
+  call without a result may still receive the one policy recovery; exhausted
+  contact attempts close without success instead of returning a routine manual
+  call to the salesperson. Availability remains an explicit blocked exception.
 - **History and money.** One `Call` and one `AiVoiceAgentCall` root, with
   `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children; `agentId`
   keeps meaning the agent that placed the call. A participation is not a
@@ -2065,6 +2072,42 @@ meeting is not in it yet.
 - **Risk if violated:** a model hands a call to an agent nobody authorized,
   two agents act on one meeting, a person is called twice, or a request is
   dropped because the meeting's time passed
+
+### AGENT-022 — Automatic follow-up owns an objective across calls
+
+`PendingActionService` / `PendingActionRepository` own durable objectives through
+an optional child of the existing pending action, behind the automation pilot.
+A new Step 0 handoff creates that child and its initial evidence in the same
+transaction, once per workspace/source/version. Historical recommendations and
+legacy handoffs are not enrolled.
+
+- A callback is a step, not success. Rescheduling resolves only from an authorized
+  newer stored meeting at a different time, checked again under its row lock.
+  Availability blocks for the meeting decision; the original time passing and
+  meeting cancellation alone resolve nothing. Closure explicitly records refusal,
+  objective cancellation, expiry or exhausted attempts.
+- Every active objective has a timed next action, an active execution or an
+  explicit waiting/paused/blocked reason. Revisions fence stale writes and stable
+  action keys deduplicate evidence. The existing callback tick reconciles it;
+  there is no second scheduler.
+- Objective counters survive callback creation, retries and specialist changes.
+  Initial bounds are three dispatched contact steps, one policy recovery and
+  seven days. Proven-unplaced retries reuse the step's contact-attempt count.
+  Uncertain placement must reconcile the original execution, never redial.
+- Pause, takeover, close and resolve lock the same objective as final dispatch.
+  They withdraw uncommitted steps; a committed call may finish and settle.
+  Resume revalidates the case and schedules at least an hour in the future;
+  manual takeover requires explicit `return_automatic`.
+- Configuring administrator, commercial owner and executing agent are distinct.
+  Members can see their own objectives without gaining colleagues' call data.
+  Existing call/AI debit keys settle each linked call once; transitions are free
+  and unknown costs stay null.
+
+**Source of truth:** [FOLLOW_UP.md](FOLLOW_UP.md), `PendingActionService`,
+`PendingActionRepository`, `CallbackTaskRepository.commitFollowUpDispatch`.
+
+**Risk if violated:** duplicate calls, silent loss of follow-up, false success,
+colleague data disclosure or automatic work returning as a manual call.
 
 ---
 

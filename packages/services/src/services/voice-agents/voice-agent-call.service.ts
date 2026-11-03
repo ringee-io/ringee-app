@@ -328,6 +328,7 @@ export class VoiceAgentCallService {
       const callingAppId = await this.requireCallingApp(agent);
       // All potentially slow preparation is done. Durable callers commit their
       // current authorization immediately before the external side effect.
+      if (beforePlacement) await this.assertCallingAllowed(ctx, to);
       await beforePlacement?.({ agentCallId: agentCall.id, callId });
       const handle = await this.provider
         .startCall({

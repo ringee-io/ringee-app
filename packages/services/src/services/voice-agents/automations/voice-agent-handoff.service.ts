@@ -6,6 +6,7 @@ import {
   AiVoiceAgentCallParticipant,
   AiVoiceAgentCallRepository,
   AiVoiceAgentHandoff,
+  AiVoiceAgentHandoffInput,
   AiVoiceAgentHandoffPurpose,
   AiVoiceAgentHandoffRepository,
   AiVoiceAgentHandoffRequestStatus,
@@ -51,6 +52,7 @@ import {
 import { languageName } from "../blueprints/language";
 import { voiceAgentAutomationsEnabled } from "./automation-access";
 import { VoiceAgentConversationContextService } from "./conversation-context.service";
+import { PendingActionService } from "../../ai-pipeline/pending-action.service";
 import { personName } from "./person-name";
 
 const H = AiVoiceAgentHandoffStatus;
@@ -196,6 +198,8 @@ export type HandoffCallbackDecision =
       responsibleUserId: string | null;
       binding: AiVoiceAgentParticipantBinding;
       handoff: AiVoiceAgentHandoff;
+      followUpRevision?: number;
+      contactUpdatedAt?: Date;
     }
   | { action: "skip"; status: CallbackStatus; reason: string }
   | { action: "defer"; until: Date; reason: string };
@@ -278,6 +282,7 @@ export class VoiceAgentHandoffService {
     private readonly callbacks: CallbackTaskRepository,
     private readonly provider: VoiceAgentProviderService,
     private readonly context: VoiceAgentConversationContextService,
+    private readonly pendingActions: PendingActionService,
   ) {}
 
   // ── The destination ────────────────────────────────────────────────
@@ -567,7 +572,7 @@ export class VoiceAgentHandoffService {
     if (!destination.ok) {
       // Recorded even though nothing will happen live: the request exists,
       // and a person must see why it could not be handed over.
-      const { handoff } = await this.handoffs.createOnce({
+      const { handoff } = await this.createRequest(ctx, {
         ...base,
         destinationAgentId: null,
         automationId: null,
@@ -580,7 +585,7 @@ export class VoiceAgentHandoffService {
       return { ok: false, code: destination.reason, handoff };
     }
 
-    const { handoff, created } = await this.handoffs.createOnce({
+    const { handoff, created } = await this.createRequest(ctx, {
       ...base,
       destinationAgentId: destination.agent.id,
       automationId: destination.automationId,
@@ -598,6 +603,18 @@ export class VoiceAgentHandoffService {
       destination: destination.agent,
       replayed: false,
     };
+  }
+
+  private async createRequest(
+    ctx: OrganizationOwnershipContext,
+    input: AiVoiceAgentHandoffInput,
+  ) {
+    const objective = await this.pendingActions.prepareFollowUpObjective(
+      ctx,
+      input,
+      new Date(),
+    );
+    return this.handoffs.createOnce(input, objective);
   }
 
   private async replayPrepare(
@@ -865,17 +882,11 @@ export class VoiceAgentHandoffService {
     now = new Date(),
   ): Promise<void> {
     if (slots.length === 0) return;
-    await this.handoffs
-      .recordOffer(grant.handoff.id, {
-        agentCallId: grant.participant.agentCallId,
-        slots,
-        now,
-      })
-      .catch((error: unknown) => {
-        this.logger.warn(
-          `Could not record the slots offered for handoff ${grant.handoff.id}: ${describe(error)}`,
-        );
-      });
+    await this.handoffs.recordOffer(grant.handoff.id, {
+      agentCallId: grant.participant.agentCallId,
+      slots,
+      now,
+    });
   }
 
   // ── After the call: reconciliation and recovery ─────────────────────
@@ -912,6 +923,13 @@ export class VoiceAgentHandoffService {
   ): Promise<HandoffRecoveryPlan | null> {
     let handoff = initial;
     const ctx = ownerOf(handoff);
+    const objective = await this.pendingActions.followUpForHandoff(handoff.id);
+    if (
+      objective &&
+      (objective.mode !== "automatic" ||
+        ["paused", "blocked", "resolved", "closed"].includes(objective.state))
+    )
+      return null;
 
     if (!voiceAgentAutomationsEnabled(handoff.organizationId)) {
       await this.handoffs.settleRequest(
@@ -1022,7 +1040,7 @@ export class VoiceAgentHandoffService {
       attemptAgentCallId === handoff.agentCallId
         ? handoff.status === H.completed
         : true;
-    if (specialistTookPart && attemptCall?.answeredAt) {
+    if (!objective && specialistTookPart && attemptCall?.answeredAt) {
       await this.handoffs.settleRequest(
         handoff.id,
         R.needs_attention,
@@ -1164,6 +1182,51 @@ export class VoiceAgentHandoffService {
 
   // ── A callback for the request ─────────────────────────────────────
 
+  async authorizeCallbackCreation(data: {
+    handoffId: string;
+    organizationId: string;
+    userId: string;
+    agentId: string;
+    contactId: string;
+    callId: string | null;
+  }) {
+    const handoff = await this.handoffs.findById(data.handoffId);
+    if (
+      !handoff ||
+      handoff.organizationId !== data.organizationId ||
+      handoff.userId !== data.userId ||
+      handoff.destinationAgentId !== data.agentId ||
+      handoff.contactId !== data.contactId ||
+      !voiceAgentAutomationsEnabled(data.organizationId)
+    )
+      throw new BadRequestException("Callback source not authorized");
+    const ctx = ownerOf(handoff);
+    if (!(await this.contacts.findByIdForOwner(ctx, data.contactId)))
+      throw new BadRequestException("Callback contact unavailable");
+    if (data.callId) {
+      const call = await this.calls.findByIdForOwner(ctx, data.callId);
+      if (!call || (call.contactId && call.contactId !== data.contactId))
+        throw new BadRequestException("Callback call unavailable");
+    }
+    if (!(await this.callbackStillWanted(handoff)))
+      throw new BadRequestException("Callback objective no longer active");
+  }
+
+  async recordExceptionalIntervention(
+    grant: Extract<HandoffGrant, { kind: "participant" }>,
+    delivered: boolean,
+  ) {
+    await this.handoffs.recordExceptionalIntervention(
+      grant.handoff.id,
+      grant.participant.id,
+      delivered,
+    );
+    const objective = await this.pendingActions.followUpForHandoff(
+      grant.handoff.id,
+    );
+    if (objective) await this.pendingActions.reconcileFollowUp(objective.id);
+  }
+
   /**
    * Whether a callback for this request may still be promised. These are the
    * conditions `decideCallback` withdraws a due callback on — the request no
@@ -1173,6 +1236,13 @@ export class VoiceAgentHandoffService {
   async callbackStillWanted(
     handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId">,
   ): Promise<boolean> {
+    const objective = await this.pendingActions.followUpForHandoff(handoff.id);
+    if (
+      objective &&
+      (objective.mode !== "automatic" ||
+        ["paused", "blocked", "resolved", "closed"].includes(objective.state))
+    )
+      return false;
     const current = await this.handoffs.findById(handoff.id);
     if (!current || current.organizationId !== handoff.organizationId) {
       return false;
@@ -1231,6 +1301,18 @@ export class VoiceAgentHandoffService {
       };
     }
     const ctx = ownerOf(handoff);
+    const objective = await this.pendingActions.followUpForHandoff(handoff.id);
+    if (
+      objective &&
+      (objective.mode !== "automatic" ||
+        ["paused", "blocked", "resolved", "closed"].includes(objective.state))
+    ) {
+      return {
+        action: "skip",
+        status: CallbackStatus.cancelled,
+        reason: `objective_${objective.state}`,
+      };
+    }
 
     // Never call while the source call may still have an assistant talking
     // to the person — whatever the live handoff's state — and reconcile an
@@ -1340,7 +1422,10 @@ export class VoiceAgentHandoffService {
       ctx,
       handoff.calendarId,
     );
-    if (recovery && !isWithinCallingWindow(now, window, timeZone)) {
+    if (
+      (recovery || objective) &&
+      !isWithinCallingWindow(now, window, timeZone)
+    ) {
       const next = nextCallingWindowMoment(now, window, timeZone);
       return next &&
         next.getTime() - callback.scheduledAt.getTime() <= RECOVERY_HORIZON_MS
@@ -1387,6 +1472,8 @@ export class VoiceAgentHandoffService {
         calendarId: handoff.calendarId,
       },
       handoff,
+      followUpRevision: objective?.revision,
+      contactUpdatedAt: contact.updatedAt,
     };
   }
 
@@ -1410,6 +1497,7 @@ export class VoiceAgentHandoffService {
     const meeting = await this.meetings.findById(handoff.meetingId);
     if (
       !meeting ||
+      meeting.organizationId !== decision.ctx.organizationId ||
       meeting.scheduleVersion !== decision.binding.meetingScheduleVersion
     ) {
       throw new HandoffDialRefused(CallbackStatus.missed, "meeting_changed");
@@ -1436,6 +1524,37 @@ export class VoiceAgentHandoffService {
       handoffId: handoff.id,
       binding: decision.binding,
     });
+    if (callback.followUpId) {
+      const { window, timeZone } = await this.callingWindow(
+        decision.ctx,
+        handoff.calendarId,
+      );
+      const commitAt = new Date();
+      if (
+        !voiceAgentAutomationsEnabled(handoff.organizationId) ||
+        !isWithinCallingWindow(commitAt, window, timeZone)
+      )
+        throw new HandoffDialRefused(CallbackStatus.missed, "outside_window");
+      if (
+        !(await this.callbacks.commitFollowUpDispatch({
+          callbackId: callback.id,
+          claimToken: callback.claimToken!,
+          followUpId: callback.followUpId,
+          expectedRevision: decision.followUpRevision ?? -1,
+          agentId: destination.agent.id,
+          meetingId: meeting.id,
+          meetingVersion: meeting.scheduleVersion,
+          contactUpdatedAt: decision.contactUpdatedAt,
+          to: decision.to,
+          placement,
+          now: commitAt,
+        }))
+      )
+        throw new HandoffDialRefused(
+          CallbackStatus.cancelled,
+          "objective_dispatch_refused",
+        );
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────

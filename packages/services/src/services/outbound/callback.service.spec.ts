@@ -88,6 +88,7 @@ function build(
     } as never,
     {} as never,
     { reviewDue: async () => [] } as never,
+    { reconcileFollowUps: async () => undefined } as never,
   );
 
   return { service, dials, statuses, dueTransitions };

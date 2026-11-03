@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
 } from "@nestjs/common";
@@ -14,7 +15,12 @@ import {
   createOwnershipContext,
 } from "@ringee/platform";
 import { PendingActionService } from "@ringee/services";
-import { PendingActionFilterKey, PendingActionStatus } from "@ringee/database";
+import {
+  PendingActionFilterKey,
+  PendingActionStatus,
+  FollowUpState,
+  FollowUpClosureReason,
+} from "@ringee/database";
 
 const VALID_FILTERS: PendingActionFilterKey[] = [
   "all",
@@ -89,6 +95,81 @@ export class PendingActionController {
   async badge(@CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
     return { count: await this.service.badgeCount(ctx) };
+  }
+
+  @Get("follow-ups")
+  async followUps(
+    @CurrentUser() user: CurrentUserData,
+    @Query("state") state?: string,
+    @Query("memberId") memberId?: string,
+    @Query("scope") scope?: string,
+    @Query("page") page = "1",
+    @Query("limit") limit = "50",
+  ) {
+    if (state && !Object.values(FollowUpState).includes(state as FollowUpState))
+      throw new BadRequestException("Invalid follow-up state");
+    return this.service.listFollowUps(createOwnershipContext(user), {
+      state: state as FollowUpState | undefined,
+      memberUserId: this.resolvePendingMemberScope(user, memberId, scope),
+      page: Number(page) || 1,
+      limit: Number(limit) || 50,
+    });
+  }
+
+  @Get(":id/follow-up")
+  async followUp(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("after") after?: string,
+  ) {
+    if (
+      after &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        after,
+      )
+    )
+      throw new BadRequestException("Invalid history cursor");
+    return this.service.getFollowUp(createOwnershipContext(user), id, after);
+  }
+
+  @Post(":id/follow-up/control")
+  async controlFollowUp(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      operation?: string;
+      expectedRevision?: number;
+      reason?: string;
+      closureReason?: string;
+    },
+  ) {
+    const operations = [
+      "pause",
+      "resume",
+      "close",
+      "take_over",
+      "return_automatic",
+    ] as const;
+    if (
+      !body ||
+      !operations.includes(body.operation as (typeof operations)[number]) ||
+      !Number.isSafeInteger(body.expectedRevision) ||
+      body.expectedRevision! < 1 ||
+      (body.reason !== undefined &&
+        (typeof body.reason !== "string" || body.reason.length > 1000)) ||
+      (body.closureReason !== undefined &&
+        !Object.values(FollowUpClosureReason).includes(
+          body.closureReason as FollowUpClosureReason,
+        ))
+    )
+      throw new BadRequestException("Invalid follow-up control");
+    return this.service.controlFollowUp(createOwnershipContext(user), id, {
+      operation: body.operation as (typeof operations)[number],
+      expectedRevision: body.expectedRevision!,
+      reason: body.reason,
+      closureReason: body.closureReason as FollowUpClosureReason | undefined,
+    });
   }
 
   @Post(":id/complete")

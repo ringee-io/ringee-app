@@ -77,7 +77,8 @@ export function PendingActionsTable({
       </TableHeader>
       <TableBody>
         {actions.map((a) => {
-          const isOpen = a.status === 'pending' || a.status === 'snoozed';
+          const isOpen =
+            !a.followUp && (a.status === 'pending' || a.status === 'snoozed');
           return (
             <TableRow key={a.id}>
               <TableCell>
@@ -92,7 +93,9 @@ export function PendingActionsTable({
               </TableCell>
 
               <TableCell className='hidden md:table-cell'>
-                <div className='font-medium'>{t(`actionTypes.${a.type}`)}</div>
+                <div className='font-medium'>
+                  {a.followUp ? a.title : t(`actionTypes.${a.type}`)}
+                </div>
                 {a.reason && (
                   <div className='text-muted-foreground line-clamp-2 text-xs'>
                     {a.reason}
@@ -130,7 +133,9 @@ export function PendingActionsTable({
                   variant='secondary'
                   className={SOURCE_COLORS[a.source] || ''}
                 >
-                  {t(`sources.${a.source}`)}
+                  {a.followUp
+                    ? t(`followUp.modes.${a.followUp.mode}`)
+                    : t(`sources.${a.source}`)}
                 </Badge>
               </TableCell>
 
@@ -139,7 +144,9 @@ export function PendingActionsTable({
                   variant='secondary'
                   className={STATUS_COLORS[a.status] || ''}
                 >
-                  {t(`statuses.${a.status}`)}
+                  {a.followUp
+                    ? t(`followUp.states.${a.followUp.state}`)
+                    : t(`statuses.${a.status}`)}
                 </Badge>
               </TableCell>
 

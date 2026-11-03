@@ -1050,6 +1050,11 @@ export class VoiceAgentToolService {
       dedupeScope:
         grant.kind === "participant" ? grant.participant.id : undefined,
     });
+    if (grant.kind === "participant")
+      await this.handoffs.recordExceptionalIntervention(
+        grant,
+        delivery.delivered,
+      );
     if (!delivery.delivered) {
       return {
         ok: false,
@@ -1333,9 +1338,10 @@ export class VoiceAgentToolService {
         // changed the time they agreed to. A callback still waiting moves to
         // it; one already placed, being placed or withdrawn is never revived,
         // and its old time is never confirmed as the new one.
-        callback = await this.callbacks.reschedule(
+        callback = await this.callbacks.rescheduleAgreedAgentCallback(
           callback.id,
           input.scheduledAt,
+          input.handoffId,
         );
       }
       if (
