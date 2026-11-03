@@ -118,13 +118,48 @@ export function buildHandoffContextTool(
 }
 
 /**
+ * Scheduling: move the meeting it was handed to the time the person agreed.
+ * Only the time comes from the model — the meeting, its version and its
+ * calendar come from the request the call carries.
+ */
+export function buildMoveMeetingTool(
+  ctx: VoiceAgentToolContext,
+): VoiceAgentTool {
+  return {
+    kind: "webhook",
+    name: "move_meeting",
+    description:
+      "Move the meeting you are finding a new time for — never a new one — to the date and time the person explicitly agreed to, from the times get_available_slots just returned for it. Ringee moves it on its own calendar and emails everyone in the meeting the new time. Only say the meeting is moved after this returns success.",
+    url: `${ctx.toolBaseUrl}/${ctx.agentId}/move-meeting`,
+    method: "POST",
+    headers: voiceAgentWebhookHeaders(ctx),
+    parameters: {
+      type: "object",
+      properties: {
+        start: {
+          type: "string",
+          description:
+            "The agreed new start, exactly as get_available_slots returned it: an ISO 8601 timestamp with an explicit offset, e.g. 2026-09-04T14:30:00-04:00.",
+        },
+      },
+      required: ["start"],
+    },
+  };
+}
+
+/**
  * The provider's handoff, to the destinations the workspace authorizes now.
- * `shared` keeps the voice the person has been hearing.
+ *
+ * `own`: the agent that takes over speaks with its own configured voice. The
+ * person was just told they are being passed to it by name, so hearing a
+ * different voice is what makes that true. With the voice kept (`shared`),
+ * the provider continues "without announcing the transition", and on real
+ * calls the destination then spoke as the agent it replaced (2026-11-03).
  */
 export function buildHandoffTool(
   ctx: VoiceAgentToolContext,
 ): VoiceAgentTool | null {
   const targets = ctx.handoffTargets ?? [];
   if (targets.length === 0) return null;
-  return { kind: "handoff", voice: "shared", targets };
+  return { kind: "handoff", voice: "own", targets };
 }

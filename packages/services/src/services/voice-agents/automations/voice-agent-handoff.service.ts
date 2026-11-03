@@ -230,6 +230,10 @@ export interface HandoffContextView {
   mode: "reschedule_existing_meeting";
   continuation: "same_call" | "callback";
   callback_kind: "agreed" | "recovery" | null;
+  /** The agent reading this: who it is on the call. */
+  you_are: string;
+  /** Same call only: the agent that spoke with the person before it. */
+  handed_over_by: string | null;
   language: string;
   person: { first_name: string | null; identity_confirmed: boolean };
   meeting: {
@@ -755,6 +759,14 @@ export class VoiceAgentHandoffService {
     const callbackKind = sameCall
       ? null
       : await this.callbackKindFor(participant.agentCallId);
+    // Named, because the provider gives the agent that took over the earlier
+    // turns as if they were its own: it must be told which voice it is.
+    const self =
+      (await this.agentName(ctx, participant.agentId)) ??
+      "the scheduling assistant";
+    const source = sameCall
+      ? await this.agentName(ctx, handoff.sourceAgentId)
+      : null;
     const status: HandoffContextView["meeting"]["status"] =
       meeting.status === MeetingStatus.cancelled
         ? "cancelled"
@@ -778,6 +790,8 @@ export class VoiceAgentHandoffService {
       mode: "reschedule_existing_meeting",
       continuation: sameCall ? "same_call" : "callback",
       callback_kind: callbackKind,
+      you_are: self,
+      handed_over_by: source,
       language: languageName(language),
       person: {
         first_name: contact ? personName(contact).first || null : null,
@@ -801,11 +815,17 @@ export class VoiceAgentHandoffService {
       already_done: alreadyDone,
       speech_instruction: [
         sameCall
-          ? `You are continuing this call. Do not greet the person again, do not introduce your company again${
+          ? `You are ${self}, and you are continuing this call: ${
+              source ?? "another assistant"
+            } spoke with the person before you and handed it to you. Everything said before the handoff was said by ${
+              source ?? "that assistant"
+            }, not by you — never repeat it or speak as ${
+              source ?? "it"
+            }, and never say you are passing the call to anyone. In one short sentence, introduce yourself as ${self} and say you will help find a new time for their meeting${preference}. Do not greet them as if you had just called and do not introduce your company again${
               context.identityConfirmed
-                ? " and do not check again who you are speaking with"
+                ? ", and do not check again who you are speaking with"
                 : ""
-            }. In one short sentence, say you are taking over to find a new time for their meeting${preference}.`
+            }.`
           : `Before you mention the meeting, check briefly that you are speaking with ${
               contact ? personName(contact).first || "the person" : "the person"
             }. Then say in one sentence that you are calling about moving their meeting${
@@ -815,7 +835,7 @@ export class VoiceAgentHandoffService {
             }.`,
         `Speak ${languageName(language)} for the rest of the call unless they ask to switch.`,
         "Then call get_available_slots for a day that suits them and offer at most three times from its result.",
-        "Moving the meeting cannot be completed on this call: when they choose a time, say it is noted and that the team will confirm the change — never say the meeting is moved — and call request_human_support with the chosen time. Never call book_appointment for this meeting.",
+        "When they choose one, repeat the day and time back, get an explicit yes and call move_meeting with that time; say the meeting is moved only after it returns success. Never call book_appointment for this meeting.",
       ].join(" "),
     };
   }
@@ -1162,6 +1182,17 @@ export class VoiceAgentHandoffService {
       return null;
     }
     return at;
+  }
+
+  /**
+   * The agent that took the request moved the meeting on the call: the
+   * request is done, and a callback still planned for it is withdrawn.
+   */
+  async resolveMoved(
+    handoff: AiVoiceAgentHandoff,
+    now = new Date(),
+  ): Promise<void> {
+    await this.closeRequest(handoff, R.resolved, "meeting_moved_by_agent", now);
   }
 
   private async closeRequest(
@@ -1601,6 +1632,17 @@ export class VoiceAgentHandoffService {
     calendarId: string | null,
   ): Promise<string> {
     return (await this.callingWindow(ctx, calendarId)).timeZone;
+  }
+
+  /** An agent's name in this workspace, or null when it is gone. */
+  private async agentName(
+    ctx: OrganizationOwnershipContext,
+    agentId: string,
+  ): Promise<string | null> {
+    const agent = await this.agents
+      .findByIdForOwner(ctx, agentId)
+      .catch(() => null);
+    return agent?.name.trim() || null;
   }
 
   private async memberName(userId: string | null): Promise<string | null> {

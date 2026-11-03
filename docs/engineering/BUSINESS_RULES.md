@@ -1466,13 +1466,28 @@ de-duplication is always asked of the calendar that received the first attempt.
   limited window only and does not read back. A `retryExternalSync` long after
   the failed attempt can therefore still create a second event.
 
+A meeting that moves — from the dashboard or by an agent — moves its event
+(`CalendarService.moveExternalEvent`): a `PATCH` of the event's start and end
+to the meeting's time, which the provider announces to its attendees (Google
+with `sendUpdates=all`). It is best-effort in the same way: the move in Ringee
+stands. The move itself marks `externalSyncStatus` `pending` in its own
+transaction, so the meeting never reads `synced` while its event shows the old
+time — not when the `PATCH` fails, and not when recording the failure does.
+`synced` is recorded only while the meeting is still at the time that was
+applied (`MeetingRepository.recordExternalMove`); a meeting moved again
+meanwhile gets the latest time applied instead. `retryExternalSync` retries a
+move that failed or never ran as a move — setting an absolute time is safe to
+repeat. A retried push that finds Google's event (`409`) at a time the meeting
+has since moved from moves it before recording it.
+
 The destination is stored **on the meeting**, not read back from the calendar, so
 re-pointing a calendar at a different Google account never rewrites where an
 event that already exists lives. Disconnecting an account leaves each calendar's
 pointer in place, so reconnecting restores every calendar that used it at once.
 
-- **Source of truth:** `CalendarService.syncMeetingToExternalCalendar`,
-  `MeetingRepository.recordExternalSync`
+- **Source of truth:** `CalendarService.syncMeetingToExternalCalendar` /
+  `moveExternalEvent`, `MeetingRepository.recordExternalSync` /
+  `recordExternalMove`
 - **Risk if violated:** duplicate events on a customer's real calendar, or a
   booking silently lost because an external API was down
 
@@ -1497,7 +1512,8 @@ member. Ownership (`userId`) is never rewritten to stand in for it; rows that
 predate it fall back to their creator.
 
 - **Source of truth:** `MeetingRepository.recordAttendance` / `reschedule` /
-  `setResponsible`, `MeetingService.updateMeeting` / `setResponsible`
+  `rescheduleIfAvailable` / `setResponsible`, `MeetingService.updateMeeting` /
+  `moveForAgent` / `setResponsible`
 - **Risk if violated:** a lead's "yes" confirms a time they were never asked
   about, or a reminder names someone the meeting is not with
 
@@ -1947,14 +1963,20 @@ being prepared.
 - **Risk if violated:** a lead called twice, at night, or about a time that
   moved
 
-### AGENT-020 — An attendance answer owes one email, delivered durably
+### AGENT-020 — An attendance answer, or an agent's move, owes one email, delivered durably
 
 A confirmation owes one email: the lead and the responsible member — plus the
 person who created the meeting, when that is someone else who is still a member
 — in To, the organization's current admins in CC with every To removed, and
 Reply-To the member, so a reply reaches the person the meeting is with and
 "reply all" keeps everyone on one thread. "Can't attend" goes to the member and
-creator with the admins, never to the lead.
+creator with the admins, never to the lead. A meeting an agent moved
+(`AGENT-021`) owes one too: the lead, when there is an address, the member and
+the creator in To, the admins in CC — without the lead's address it still tells
+the team rather than waiting. It names the new time and the one before, speaks
+with the voice of the agent that moved it — on a call another agent took over,
+that agent's, not the caller's — and starts its own thread, because the lead
+was never on the "can't attend" one before it.
 
 Recipients are resolved at send time from the meeting and the organization as
 they are then: a member who left is never written to (`needs_member`), and a
@@ -1968,9 +1990,11 @@ the previous one's Message-ID. The email carries the meeting's title, time with
 its zone, place and the answer — never a recording, transcript or internal
 summary.
 
-The delivery stores the version of the attendance answer. Rescheduling invalidates
-it; merely changing the responsible member preserves the answer and resolves the
-new recipient. Recording the same answer with a newly supplied lead address
+The delivery stores the version of the attendance answer — or, for a move, the
+version the meeting moved to — and the move's email is created in the move's
+transaction. Rescheduling invalidates an answer's email, and moving again
+withdraws the previous move's unsent one; merely changing the responsible member
+preserves the answer and resolves the new recipient. Recording the same answer with a newly supplied lead address
 requeues its existing `needs_email` delivery, never a second delivery.
 
 Claims are token-fenced. Before the first send, the worker verifies the answer
@@ -1991,8 +2015,8 @@ When the person on a reminder call cannot attend and agrees to look for another
 time, the reminders agent can hand **the same call** to the organization's
 scheduling agent. It is the pilot's first delivery of
 [PLAN_ORGANIZATION_AI_FOLLOWUP](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md):
-the call ends with valid availability offered; moving or cancelling the
-meeting is not in it yet.
+the call ends with the meeting moved to the time the person chose; cancelling
+it is not in it yet.
 
 - **Mechanism.** The provider switches assistants inside the conversation when
   the handing model uses its handoff tool (`VoiceAgentHandoffMode`
@@ -2012,6 +2036,16 @@ meeting is not in it yet.
   one transaction. The model may hand over only after it succeeds. A
   destination that cannot take the call leaves the request recorded as
   `needs_attention`, with why.
+- **Taking over.** The scheduling agent speaks with its own configured voice,
+  after the reminders agent tells the person, by name, who they are being
+  passed to — in the same reply as the handoff. The provider hands it the
+  earlier turns as if they were its own, and the earlier call's variables, so
+  its blueprint leads its prompt — the default or the owner's — with how to
+  continue: those turns and that context are the other agent's, its first
+  action is `get_handoff_context` (which names it and the agent it took over
+  from), and it introduces itself by name. The dial path re-syncs a
+  destination without that section and a source handing over with another
+  voice.
 - **Proof.** The destination's first authenticated tool call on the live call
   (its own secret, the provider-filled call header) completes the handoff,
   under the request's row lock: the source's participation becomes
@@ -2021,9 +2055,23 @@ meeting is not in it yet.
 - **Binding.** A participant's tools act on the meeting it was handed, at the
   schedule version it was handed: availability comes from the meeting's own
   calendar and length, the meeting does not block its own new time, and a
-  meeting moved or cancelled during the call gets no times offered. While
-  moving an existing meeting `book_appointment` refuses — a second meeting
-  beside the first is exactly what must not happen.
+  meeting moved or cancelled during the call gets no times offered.
+  `book_appointment` refuses on such a call — a second meeting beside the first
+  is exactly what must not happen.
+- **Moving the meeting.** Once the person says yes to a time, `move_meeting`
+  moves that meeting — the model supplies only the time, with its offset — to
+  one its calendar offers at that moment, under the workspace lock and capacity
+  check a booking uses (`MeetingRepository.rescheduleIfAvailable`), only while
+  its version is still the one handed and only while the request is pending.
+  The time it already has is no move: nothing is written and no email is
+  owed. A repeat of the same move — even after the version moved on — writes
+  nothing, and finishes what the first attempt may not have. The move is a new
+  schedule version (`CAL-003`) and does everything a move from the dashboard
+  does: reminder calls are replanned and the external event follows it
+  (`CAL-002`). It resolves the request, withdraws its callbacks, and owes one
+  email to the lead and the team (`AGENT-020`). A cancelled meeting, reachable
+  only on a callback, is not moved: the team is asked instead, and the person
+  is told so only once that request went out.
 - **Failure and doubt.** The source still holding the call and scheduling a
   callback is a confirmed failure — unless the destination's first tool call
   completed the handoff first, and then no callback is promised. A call that
@@ -2060,15 +2108,18 @@ meeting is not in it yet.
   participant. Each record counts once, and the AI half waits (bounded) while
   that conversation's records cannot yet be read on their own.
 - **Language.** The reminders agent speaks its configured voice language — it
-  does not pick the contact's language from earlier calls — and the handoff
-  keeps that voice; the request carries the language, or the one the person
-  asked to switch to. A callback speaks the scheduling agent's configured
-  language.
+  does not pick the contact's language from earlier calls; the request
+  carries the language, or the one the person asked to switch to. The
+  scheduling agent takes the call over only when its own voice speaks that
+  language. A callback speaks the scheduling agent's configured language.
 
 - **Source of truth:** `VoiceAgentHandoffService`,
   `AiVoiceAgentHandoffRepository`, `VoiceAgentToolService`
   (`prepareRescheduleHandoff`, `scheduleRescheduleCallback`,
-  `getHandoffContext`), `CallbackService.processDueCallbacks`
+  `getHandoffContext`, `moveMeeting`), `MeetingService.moveForAgent`,
+  `CallbackService.processDueCallbacks`,
+  `AppointmentBookingBlueprint.buildLeadingInstructions`,
+  `VoiceAgentService.ensureToolEndpoints`
 - **Risk if violated:** a model hands a call to an agent nobody authorized,
   two agents act on one meeting, a person is called twice, or a request is
   dropped because the meeting's time passed

@@ -91,14 +91,21 @@ export function readVoiceAgentConversationSettings(
 /**
  * User markdown is the main prompt. Telnyx's post-call turn shares the system
  * prompt, so its phase-specific instructions receive a hard boundary. The
- * blueprint safety block is last whenever the user customized either phase.
+ * blueprint safety block is last whenever the user customized either phase;
+ * the blueprint's leading section, when it has one, is first either way.
  */
 export function composeVoiceAgentInstructions(
   settings: VoiceAgentConversationSettings,
   defaults: VoiceAgentConversationSettings,
   safetyInstructions: string,
+  leadingInstructions?: string | null,
 ): string {
-  const sections = [settings.instructions.trim()];
+  // Ringee's leading section, when the blueprint has one, comes before the
+  // prompt and is kept whether or not the prompt was customized.
+  const sections = [
+    leadingInstructions?.trim() ?? "",
+    settings.instructions.trim(),
+  ];
   const hasCustomInstructions =
     settings.instructions.trim() !== defaults.instructions.trim();
   const hasPostInstructions =

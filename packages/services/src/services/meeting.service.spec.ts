@@ -634,3 +634,270 @@ describe("MeetingService.updateCallOutcome", () => {
     assert.equal(s.published.length, 0);
   });
 });
+
+describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
+  const ctx = { userId: "user-1", organizationId: "org-1" };
+  const NEW_TIME = new Date("2099-01-06T16:00:00.000Z");
+
+  function moveBuild(
+    options: {
+      slots?: Array<{ start: string; availabilityRuleId: string | null }>;
+      outcome?: Record<string, unknown>;
+      stored?: Record<string, unknown>;
+    } = {},
+  ) {
+    const events: string[] = [];
+    const moves: Array<{
+      input: Record<string, unknown>;
+      scope: unknown;
+      ruleId: unknown;
+    }> = [];
+    const moved = { ...STORED_MEETING, scheduledAt: NEW_TIME };
+    const service = new MeetingService(
+      {
+        rescheduleIfAvailable: async (
+          _ctx: unknown,
+          input: Record<string, unknown>,
+          scope: unknown,
+          ruleId: unknown,
+        ) => {
+          events.push("ringee:move");
+          moves.push({ input, scope, ruleId });
+          return (
+            options.outcome ?? {
+              result: "moved",
+              meeting: moved,
+              previousScheduledAt: STORED_MEETING.scheduledAt,
+              repeated: false,
+            }
+          );
+        },
+        reschedule: async (_id: string, data: Record<string, unknown>) => {
+          events.push("ringee:reschedule");
+          return { ...STORED_MEETING, ...data };
+        },
+        findById: async () => options.stored ?? STORED_MEETING,
+      } as never,
+      {} as never,
+      {
+        getBookableSlotsForCalendar: async (
+          _ctx: unknown,
+          _calendar: unknown,
+          opts: Record<string, unknown>,
+        ) => {
+          events.push(`slots:${opts.date}:${opts.excludeMeetingId}`);
+          return (
+            options.slots ?? [
+              { start: NEW_TIME.toISOString(), availabilityRuleId: "rule-1" },
+            ]
+          );
+        },
+        moveExternalEvent: async (
+          _ctx: unknown,
+          meeting: { scheduledAt: Date },
+        ) => {
+          events.push(`external:${meeting.scheduledAt.toISOString()}`);
+          return { status: "synced" };
+        },
+        syncMeetingToExternalCalendar: async () => {
+          events.push("external:create");
+          return { status: "synced" };
+        },
+      } as never,
+      {} as never,
+      {
+        replanMeetingCalls: async () => {
+          events.push("reminder-calls:replan");
+          return 0;
+        },
+        rescheduleForSubject: async () => {
+          events.push("reminder:reschedule");
+        },
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        cancelUnsentForMeeting: async () => {
+          events.push("emails:withdraw");
+          return 0;
+        },
+      } as never,
+      {} as never,
+    );
+    return { service, events, moves };
+  }
+
+  const agentMove = {
+    meetingId: "meeting-1",
+    expectedScheduleVersion: 3,
+    scheduledAt: NEW_TIME,
+    resolvedCalendar: RESOLVED_CALENDAR as never,
+    durationMinutes: 30,
+    agentCallId: "agent-call-1",
+  };
+
+  it("moves to a time the meeting's own calendar offers now, with the email it owes, then follows it everywhere", async () => {
+    const { service, events, moves } = moveBuild();
+
+    const outcome = await service.moveForAgent(ctx, agentMove);
+
+    assert.equal(outcome.result, "moved");
+    assert.deepEqual(moves, [
+      {
+        input: {
+          meetingId: "meeting-1",
+          expectedScheduleVersion: 3,
+          scheduledAt: NEW_TIME,
+          // One email per move, keyed on the version it moves to.
+          email: {
+            idempotencyKey: "meeting:meeting-1:v4:rescheduled",
+            agentCallId: "agent-call-1",
+          },
+        },
+        scope: RESOLVED_CALENDAR.scope,
+        ruleId: "rule-1",
+      },
+    ]);
+    // The meeting's own place does not count against its new time; the move
+    // is written before anything follows it.
+    assert.deepEqual(events, [
+      "slots:2099-01-06:meeting-1",
+      "ringee:move",
+      "reminder-calls:replan",
+      "reminder:reschedule",
+      `external:${NEW_TIME.toISOString()}`,
+    ]);
+  });
+
+  it("does not move to a time the calendar no longer offers", async () => {
+    const { service, events, moves } = moveBuild({ slots: [] });
+    const outcome = await service.moveForAgent(ctx, agentMove);
+    assert.deepEqual(outcome, { result: "unavailable" });
+    assert.deepEqual(moves, []);
+    assert.deepEqual(events, ["slots:2099-01-06:meeting-1"]);
+  });
+
+  it("changes nothing else for a move that was refused or left the time as it was", async () => {
+    for (const outcome of [
+      { result: "stale" },
+      { result: "unavailable" },
+      { result: "unchanged" },
+    ]) {
+      const { service, events } = moveBuild({ outcome });
+      await service.moveForAgent(ctx, agentMove);
+      assert.deepEqual(
+        events,
+        ["slots:2099-01-06:meeting-1", "ringee:move"],
+        String(outcome.result),
+      );
+    }
+  });
+
+  // A repeat writes nothing, but finishes what the first attempt may have
+  // left: every step after a move is safe to run again.
+  it("finishes what follows a move on a repeat of it", async () => {
+    const { service, events } = moveBuild({
+      outcome: {
+        result: "moved",
+        meeting: { ...STORED_MEETING, scheduledAt: NEW_TIME },
+        previousScheduledAt: null,
+        repeated: true,
+      },
+    });
+    await service.moveForAgent(ctx, agentMove);
+    assert.deepEqual(events, [
+      "slots:2099-01-06:meeting-1",
+      "ringee:move",
+      "reminder-calls:replan",
+      "reminder:reschedule",
+      `external:${NEW_TIME.toISOString()}`,
+    ]);
+  });
+
+  it("recognizes a move a retry finds already made, past the version it was handed", async () => {
+    const done = moveBuild({
+      stored: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
+    });
+    const outcome = await done.service.completeRepeatedMove(ctx, {
+      meetingId: "meeting-1",
+      expectedScheduleVersion: 3,
+      scheduledAt: NEW_TIME,
+    });
+    assert.equal(outcome?.repeated, true);
+    assert.deepEqual(done.events, [
+      "reminder-calls:replan",
+      "reminder:reschedule",
+      `external:${NEW_TIME.toISOString()}`,
+    ]);
+
+    // Another version, another time, or a cancelled meeting is not that move.
+    for (const stored of [
+      { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 5 },
+      { ...STORED_MEETING, scheduleVersion: 4 },
+      {
+        ...STORED_MEETING,
+        scheduledAt: NEW_TIME,
+        scheduleVersion: 4,
+        status: "cancelled",
+      },
+    ]) {
+      const other = moveBuild({ stored });
+      assert.equal(
+        await other.service.completeRepeatedMove(ctx, {
+          meetingId: "meeting-1",
+          expectedScheduleVersion: 3,
+          scheduledAt: NEW_TIME,
+        }),
+        null,
+      );
+      assert.deepEqual(other.events, []);
+    }
+  });
+
+  it("moves the external event with a meeting moved from the dashboard too", async () => {
+    const { service, events } = moveBuild();
+    await service.updateMeeting(ctx, "meeting-1", {
+      scheduledAt: NEW_TIME.toISOString(),
+    });
+    assert.deepEqual(events, [
+      "ringee:reschedule",
+      "emails:withdraw",
+      "reminder-calls:replan",
+      "reminder:reschedule",
+      `external:${NEW_TIME.toISOString()}`,
+    ]);
+  });
+
+  it("retries a move of the external event that failed or never ran as a move, never as a second event", async () => {
+    for (const externalSyncStatus of ["failed", "pending"]) {
+      const { service, events } = moveBuild({
+        stored: {
+          ...STORED_MEETING,
+          externalEventId: "google-event-1",
+          externalSyncStatus,
+        },
+      });
+      await service.retryExternalSync(ctx, "meeting-1");
+      assert.deepEqual(
+        events,
+        [`external:${STORED_MEETING.scheduledAt.toISOString()}`],
+        externalSyncStatus,
+      );
+    }
+
+    // An event that is in sync has nothing to retry.
+    const synced = moveBuild({
+      stored: {
+        ...STORED_MEETING,
+        externalEventId: "google-event-1",
+        externalSyncStatus: "synced",
+      },
+    });
+    await synced.service.retryExternalSync(ctx, "meeting-1");
+    assert.deepEqual(synced.events, []);
+  });
+});

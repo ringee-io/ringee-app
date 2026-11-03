@@ -1085,7 +1085,9 @@ export class VoiceAgentService {
   /**
    * Makes sure the agent has the current set of webhook tools, that all of them
    * still call this backend, and that its prompt consumes Ringee's call-time
-   * clock before it dials.
+   * clock before it dials — and, around a handoff (AGENT-021), that the
+   * handoff names the current destination with the current voice and that a
+   * scheduling agent holds its blueprint's leading section.
    *
    * Tool definitions are written when the agent is saved and otherwise outlive
    * the code that created them. A new required tool (such as human support) is
@@ -1111,15 +1113,17 @@ export class VoiceAgentService {
     if (!assistant) return false;
 
     const base = this.toolBaseUrl();
+    const blueprint = this.blueprints.require(agent.type);
     const handoffTargets = await this.handoffs.handoffTargetsFor(ctx, agent);
-    const expectedTools = this.blueprints.require(agent.type).buildTools({
+    const acceptsHandoffs = this.handoffs.acceptsHandoffs(agent);
+    const expectedTools = blueprint.buildTools({
       agentId: agent.id,
       toolBaseUrl: base,
       toolSecretRef: this.toolSecretIdentifier(agent.id),
       // Retrieval stores do not affect the webhook set compared here.
       knowledgeBucketIds: [],
       handoffTargets,
-      acceptsHandoffs: this.handoffs.acceptsHandoffs(agent),
+      acceptsHandoffs,
     });
     const expected = expectedTools
       .flatMap((tool) => (tool.kind === "webhook" ? [tool.url] : []))
@@ -1142,20 +1146,42 @@ export class VoiceAgentService {
         syncedNames[target.assistantId] === undefined ||
         syncedNames[target.assistantId] === target.name,
     );
+    // And the voice it hands over with: an assistant saved while the handoff
+    // kept the caller's voice still does, until it is re-synced.
+    const [expectedVoice] = expectedTools.flatMap((tool) =>
+      tool.kind === "handoff" ? [tool.voice] : [],
+    );
+    const voiceMatches =
+      expectedVoice === undefined ||
+      assistant.handoffVoice === undefined ||
+      assistant.handoffVoice === expectedVoice;
+    // A scheduling agent's leading section is what makes it continue a call
+    // handed to it instead of opening a new one (AGENT-021). Nothing else
+    // re-syncs it — a handoff destination dials nothing itself — so an
+    // assistant saved before the section existed is drift too.
+    const leading = blueprint
+      .buildLeadingInstructions?.({ agentName: agent.name, acceptsHandoffs })
+      ?.trim();
+    const leadingSynced =
+      !leading ||
+      assistant.instructions === undefined ||
+      (assistant.instructions ?? "").includes(leading);
     const matches =
       assistant.runtimeContextConfigured &&
       actual.length === expected.length &&
       actual.every((url, index) => url === expected[index]) &&
       actualTargets.length === expectedTargets.length &&
       actualTargets.every((id, index) => id === expectedTargets[index]) &&
-      namesMatch;
+      namesMatch &&
+      voiceMatches &&
+      leadingSynced;
     if (matches) {
       await this.ensureHandoffDestinations(ctx, agent, handoffTargets);
       return true;
     }
 
     this.logger.warn(
-      `Agent ${agent.id} has stale tools or runtime context; re-syncing against its current blueprint`,
+      `Agent ${agent.id} has stale tools, handoff or instructions; re-syncing against its current blueprint`,
     );
     const synced = await this.syncToProvider(ctx, agent.id);
     await this.ensureHandoffDestinations(ctx, agent, handoffTargets);
@@ -1308,6 +1334,7 @@ export class VoiceAgentService {
         conversation,
         defaults,
         blueprint.buildSafetyInstructions(promptContext),
+        blueprint.buildLeadingInstructions?.(promptContext),
       ),
       greeting: conversation.greeting,
       greetingMode: conversation.greetingMode,

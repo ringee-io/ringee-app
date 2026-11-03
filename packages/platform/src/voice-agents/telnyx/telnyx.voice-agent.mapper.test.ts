@@ -302,6 +302,7 @@ describe("toVoiceAgentAssistant", () => {
       toolWebhookUrls: [],
       handoffAssistantIds: [],
       handoffAssistantNames: {},
+      instructions: null,
     });
   });
 
@@ -368,6 +369,34 @@ describe("toVoiceAgentAssistant", () => {
     expect(assistant.toolWebhookUrls).toEqual(["https://api.ringee.io/x"]);
   });
 
+  // Read back so the dial path re-syncs an assistant whose handoff was
+  // saved with another voice (AGENT-021).
+  it("reports the voice a handoff tool was saved with", () => {
+    const voiceOf = (voice_mode: string | null | undefined) =>
+      toVoiceAgentAssistant({
+        id: "assistant-6",
+        tools: [
+          {
+            type: "handoff",
+            handoff: {
+              ...(voice_mode === undefined ? {} : { voice_mode }),
+              ai_assistants: [{ id: "assistant-sched", name: "Carmen" }],
+            },
+          },
+        ],
+      }).handoffVoice;
+
+    expect(voiceOf("unified")).toBe("shared");
+    expect(voiceOf("distinct")).toBe("own");
+    // Unreported or unrecognized is unknown, never a guess.
+    expect(voiceOf(undefined)).toBeUndefined();
+    expect(voiceOf("something_new")).toBeUndefined();
+    expect(
+      toVoiceAgentAssistant({ id: "assistant-7", tools: [{ type: "hangup" }] })
+        .handoffVoice,
+    ).toBeUndefined();
+  });
+
   it("recognizes prompts that consume Ringee's call-time clock", () => {
     const assistant = toVoiceAgentAssistant({
       id: "assistant-4",
@@ -376,6 +405,10 @@ describe("toVoiceAgentAssistant", () => {
     });
 
     expect(assistant.runtimeContextConfigured).toBe(true);
+    // The text itself is returned too, for sections the dial path checks.
+    expect(assistant.instructions).toBe(
+      "It is {{current_datetime}} in {{agent_timezone}} at call start.",
+    );
   });
 });
 

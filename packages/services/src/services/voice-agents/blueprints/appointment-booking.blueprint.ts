@@ -15,7 +15,7 @@ import {
   buildHumanSupportTool,
   voiceAgentWebhookHeaders,
 } from "./human-support.tool";
-import { buildHandoffContextTool } from "./handoff.tools";
+import { buildHandoffContextTool, buildMoveMeetingTool } from "./handoff.tools";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -165,7 +165,6 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "   call `schedule_callback`. Only say it is scheduled after the tool",
       "   returns success. If it fails, do not promise the callback.",
       "",
-      ...(ctx.acceptsHandoffs ? continuationInstructions() : []),
       "## Ending the call",
       "",
       "Once the meeting is booked, or the person has declined, or you have agreed",
@@ -235,12 +234,78 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
         ? [
             "- When you join a call already under way, or the reason for your call",
             "  is moving a meeting, call `get_handoff_context` before you speak and",
-            "  follow it. Never greet again or repeat a check it says was done.",
+            "  follow it. Never open as if you had just called them, and never",
+            "  repeat a check it says was done.",
             "- While moving an existing meeting, offer only times",
             "  `get_available_slots` returned for it, never call",
-            "  `book_appointment`, and never say the meeting is moved.",
+            "  `book_appointment`, and say the meeting is moved only after",
+            "  `move_meeting` returns success.",
           ]
         : []),
+    ].join("\n");
+  }
+
+  /**
+   * How a scheduling agent continues a call it did not start (AGENT-021),
+   * ahead of its own prompt — the default or the owner's, which both open a
+   * new call. On a handed-over call the provider gives the agent the
+   * previous agent's turns as if they were its own, and renders its prompt
+   * with the previous call's variables. On real calls (2026-11-03), with
+   * these rules only at the end, it re-ran the reminder or repeated "I'm
+   * passing you to …", and never read its context.
+   */
+  buildLeadingInstructions(
+    ctx: Pick<VoiceAgentPromptContext, "agentName" | "acceptsHandoffs">,
+  ): string | null {
+    if (!ctx.acceptsHandoffs) return null;
+    const name = ctx.agentName.trim() || "the scheduling assistant";
+    return [
+      "## When a call is handed to you",
+      "",
+      "These rules come from Ringee. When they apply, they come before",
+      "everything below — including how to open a call, why you are calling",
+      "and what the call is about. On any other call, ignore this section.",
+      "",
+      "Another assistant may speak with the person first and then hand the",
+      "call to you, because they cannot attend a meeting and want another",
+      "time. You can tell: before your first turn, the conversation already",
+      "holds that assistant telling the person it is passing them to you, and",
+      "its `handoff` tool call. Every turn before that handoff was spoken by",
+      "the other assistant, not by you, even where it appears as yours. The",
+      "reason for the call and the additional context below describe that",
+      "assistant's call, not what you must do now.",
+      "",
+      "- Your first action, before you say a single word, is to call",
+      "  `get_handoff_context`. Then follow its speech_instruction.",
+      `- You are ${name}. Never repeat or rephrase what the other assistant`,
+      "  said, never speak as it, and never say you are passing the call to",
+      "  anyone — the call is already yours.",
+      `- Open with one short sentence: you are ${name}, and you will help them`,
+      "  find a new time for their meeting. Do not greet them as if you had",
+      "  just called, do not introduce the company again, and do not repeat a",
+      "  check the context says was done.",
+      "- Keep speaking the conversation's language as the context gives it.",
+      "",
+      "When the reason for your own call says you are following up a request",
+      "to move a meeting, also call `get_handoff_context` before you offer",
+      "any time, and follow it.",
+      "",
+      "On either kind of call you are moving an existing meeting, not booking",
+      "a new one:",
+      "",
+      "- Its calendar, length and the member it is with stay as they are, and",
+      "  `get_available_slots` reads that calendar for you. Times are in the",
+      "  time zone its result names.",
+      "- When they choose a time, repeat the day and time back and get an",
+      "  explicit yes, then call `move_meeting` with that time. Only after it",
+      "  returns success say the meeting is moved, and follow its",
+      "  speech_instruction. Never call `book_appointment` for this meeting:",
+      "  a second meeting beside it is exactly what must not happen.",
+      "- If `move_meeting` fails, follow what it says: offer other times, or",
+      "  call `request_human_support` with the chosen time and, only after it",
+      "  succeeds, say the time is noted and that the team will confirm it.",
+      "- If none of the times suit them and they want to be called again,",
+      "  agree an exact time and call `schedule_callback`.",
     ].join("\n");
   }
 
@@ -310,8 +375,11 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       },
     ];
     // A scheduling agent the reminders agent may hand calls to (AGENT-021):
-    // it reads what it continues instead of opening a new call's script.
-    if (ctx.acceptsHandoffs) tools.push(buildHandoffContextTool(ctx));
+    // it reads what it continues instead of opening a new call's script, and
+    // moves the meeting it was handed instead of booking a second one.
+    if (ctx.acceptsHandoffs) {
+      tools.push(buildHandoffContextTool(ctx), buildMoveMeetingTool(ctx));
+    }
 
     if (ctx.knowledgeBucketIds.length) {
       tools.push({ kind: "retrieval", bucketIds: ctx.knowledgeBucketIds });
@@ -331,40 +399,4 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       ].join(" "),
     );
   }
-}
-
-/**
- * How a scheduling agent continues a call it did not start (AGENT-021): taken
- * over from the reminders agent, or a callback about moving a meeting. The
- * per-call facts come from `get_handoff_context`, never from this prompt —
- * the same assistant serves every conversation at once.
- */
-function continuationInstructions(): string[] {
-  return [
-    "## Continuing a conversation",
-    "",
-    "Sometimes you join a call that is already under way: another assistant",
-    "spoke with the person first and handed the call to you, because they",
-    "cannot attend a meeting and want another time. Sometimes the reason for",
-    "your call says you are following up a request to move a meeting.",
-    "",
-    "- In either case, call `get_handoff_context` before you say anything,",
-    "  and follow its speech_instruction.",
-    "- On a call handed to you, do not greet the person again, do not",
-    "  introduce the company again and do not repeat a check the context",
-    "  says was done. Say one short sentence about why you are taking over,",
-    "  then continue.",
-    "- Keep speaking the conversation's language as the context gives it.",
-    "- You are moving an existing meeting, not booking a new one. Its",
-    "  calendar, length and the member it is with stay as they are, and",
-    "  `get_available_slots` reads that calendar for you. Times are in the",
-    "  time zone its result names.",
-    "- You cannot move the meeting on this call. When they choose a time, say",
-    "  it is noted and that the team will confirm the change — never say it",
-    "  is moved — and call `request_human_support` with the chosen time.",
-    "  Never call `book_appointment` for this meeting.",
-    "- If none of the times suit them and they want to be called again,",
-    "  agree an exact time and call `schedule_callback`.",
-    "",
-  ];
 }

@@ -2,6 +2,7 @@ import type {
   VoiceAgentAssistant,
   VoiceAgentCallingAppSettings,
   VoiceAgentConfig,
+  VoiceAgentHandoffVoice,
   VoiceAgentInsightDelivery,
   VoiceAgentInsightGroupSettings,
   VoiceAgentInsightResult,
@@ -27,6 +28,7 @@ export interface TelnyxAssistantResponse {
     type?: string | null;
     webhook?: { url?: string | null } | null;
     handoff?: {
+      voice_mode?: string | null;
       ai_assistants?: Array<{
         id?: string | null;
         name?: string | null;
@@ -265,6 +267,10 @@ export function toAssistantPayload(
 export function toVoiceAgentAssistant(
   raw: TelnyxAssistantResponse,
 ): VoiceAgentAssistant {
+  const handoffVoice = fromTelnyxVoiceMode(
+    (raw.tools ?? []).find((tool) => tool?.type === "handoff")?.handoff
+      ?.voice_mode,
+  );
   return {
     assistantId: raw.id,
     // Telnyx provisions a TeXML application per assistant and reports it here.
@@ -298,6 +304,8 @@ export function toVoiceAgentAssistant(
           : [],
       ),
     ),
+    ...(handoffVoice ? { handoffVoice } : {}),
+    instructions: raw.instructions ?? null,
   };
 }
 
@@ -426,6 +434,15 @@ export function toTranscriptTurns(
     if (!text) return [];
     return [{ role, text, at: toDate(row.sent_at ?? row.created_at) }];
   });
+}
+
+/** Telnyx's handoff `voice_mode`, read back; anything else is unknown. */
+function fromTelnyxVoiceMode(
+  raw: string | null | undefined,
+): VoiceAgentHandoffVoice | null {
+  if (raw === "unified") return "shared";
+  if (raw === "distinct") return "own";
+  return null;
 }
 
 function str(raw: unknown): string | null {

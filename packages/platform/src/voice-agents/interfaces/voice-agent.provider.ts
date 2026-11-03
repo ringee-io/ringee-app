@@ -58,7 +58,9 @@ export interface VoiceAgentHandoffTarget {
 /**
  * Whether the assistant that takes the conversation over keeps speaking with
  * the voice the call already has (`shared`) or with its own (`own`). `shared`
- * keeps the language and voice the person has been hearing.
+ * keeps the language and voice the person has been hearing; `own` lets the
+ * person hear that someone else took over, which is what a handoff announced
+ * by name ("I'm passing you to …") needs.
  */
 export type VoiceAgentHandoffVoice = "shared" | "own";
 
@@ -178,6 +180,18 @@ export interface VoiceAgentAssistant {
    * the destination by it, so a destination renamed since is drift too.
    */
   handoffAssistantNames?: Record<string, string>;
+  /**
+   * The voice the handoff tool was saved with, where the provider reports
+   * one. Compared at dial time like the destinations: an assistant saved
+   * before the voice changed is drift. Unreported means unknown, not stale.
+   */
+  handoffVoice?: VoiceAgentHandoffVoice;
+  /**
+   * The instructions the assistant holds, as last saved — so the dial path
+   * can tell whether a section Ringee requires is there yet. Unreported
+   * (`undefined`) means unknown, not stale.
+   */
+  instructions?: string | null;
 }
 
 export interface VoiceAgentCallRequest {
