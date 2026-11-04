@@ -1,6 +1,6 @@
-import { createClient } from "@keyv/redis";
 import { Module, Global } from "@nestjs/common";
 import { RedisService } from "./redis.service";
+import { connectRedisClient } from "./redis-client";
 
 @Global()
 @Module({
@@ -8,14 +8,7 @@ import { RedisService } from "./redis.service";
     RedisService,
     {
       provide: "REDIS_CLIENT",
-      useFactory: async () => {
-        const client = createClient({
-          url: process.env.REDIS_URL,
-        });
-
-        await client.connect();
-        return client;
-      },
+      useFactory: () => connectRedisClient(process.env.REDIS_URL),
     },
   ],
   exports: [RedisService, "REDIS_CLIENT"],

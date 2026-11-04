@@ -59,14 +59,25 @@ export class RealtimeBusService implements OnModuleInit, OnModuleDestroy {
    * delivery path to reason about.
    */
   async publish(channel: string, payload: unknown): Promise<void> {
+    await this.tryPublish(channel, payload);
+  }
+
+  /**
+   * {@link publish}, reporting whether Redis took the message. A caller that
+   * can still reach its own listeners another way (the SSE bridge) uses the
+   * answer to fall back instead of losing the event.
+   */
+  async tryPublish(channel: string, payload: unknown): Promise<boolean> {
     try {
       await this.client.publish(channel, JSON.stringify(payload));
+      return true;
     } catch (error) {
       // Realtime delivery is best-effort UX on top of an authoritative,
       // already-persisted action. Never fail the caller because Redis blipped.
       this.logger.error(
         `Failed to publish on ${channel}: ${this.message(error)}`,
       );
+      return false;
     }
   }
 
