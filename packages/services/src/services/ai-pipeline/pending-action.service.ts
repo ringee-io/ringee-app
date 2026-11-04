@@ -413,6 +413,7 @@ export class PendingActionService {
     const assignment: HumanOutcomeAssignment = {
       organizationId: ctx.organizationId,
       userId: call.userId,
+      actorUserId: ctx.userId,
       commitment,
       hasNewCommitment:
         input.purpose !== undefined ||

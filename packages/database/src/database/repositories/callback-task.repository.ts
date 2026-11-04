@@ -719,6 +719,7 @@ export class CallbackTaskRepository {
           organizationId: action.organizationId,
           userId: objective.configuredByUserId,
           agentId: input.agentId,
+          ...(human ? { contactId: action.contactId } : {}),
           toNumber: input.to,
         },
       });

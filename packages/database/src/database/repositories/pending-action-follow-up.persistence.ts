@@ -55,6 +55,7 @@ export const FOLLOW_UP_TERMINAL: FollowUpState[] = ["resolved", "closed"];
 export interface HumanOutcomeAssignment {
   organizationId: string;
   userId: string;
+  actorUserId: string;
   commitment: Prisma.InputJsonValue;
   hasNewCommitment: boolean;
   objective: NewFollowUpObjective | null;
@@ -143,7 +144,7 @@ export async function acceptHumanOutcome(
             key: `human:${call.id}:${call.outcomeRevision}:close`,
             kind: "objective_closed",
             actorType: "human",
-            actorId: input.userId,
+            actorId: input.actorUserId,
           },
           now,
         );
@@ -234,7 +235,7 @@ export async function acceptHumanOutcome(
       key: `source:${call.outcomeRevision}`,
       kind: "source_corrected",
       actorType: "human",
-      actorId: input.userId,
+      actorId: input.actorUserId,
     });
     if (controlled) return row;
     row = await applyFollowUpPlan(

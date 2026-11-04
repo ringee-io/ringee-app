@@ -573,7 +573,7 @@ function createWorld(
           input.note,
           input.disposition,
         ]);
-        return { call: null, changed: false };
+        return { call: { id, outcomeRevision: 1 }, changed: false };
       },
     } as never,
   );

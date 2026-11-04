@@ -276,7 +276,30 @@ then enable the explicit policy only in the restricted pilot.
 human call/contact and zero meetings/handoffs. It covers manual and campaign
 acceptance, simultaneous saves, semantic revisions, queue exclusion, committed
 and uncommitted correction fences, blocked configuration and repair, timing,
-manual takeover, exact reservation evidence, isolation and uncertain placement.
-It uses the same local-only `RINGEE_FOLLOWUP_TEST_DATABASE_URL` opt-in as Stage 1.
+manual takeover, exact reservation evidence, isolation, authenticated audit actors
+and uncertain placement. The two PostgreSQL worker suites share a test-only
+transaction advisory lock: worker claims intentionally span workspaces, so test
+files must not steal each other's fixtures. Competing-worker and request tests
+remain concurrent within each suite. It uses the same local-only `RINGEE_FOLLOWUP_TEST_DATABASE_URL` opt-in as Stage 1.
 No real calls or production migrations were performed. Live provider validation
 still requires named test contacts and an expressly authorized pilot organization.
+
+Stage 2 verification (4 November 2026):
+
+- Full services suite: 1,556 passed, zero failures or skipped tests, using
+  `pnpm --filter @ringee/services run test --test-concurrency=2` with both
+  `DATABASE_URL` and `RINGEE_FOLLOWUP_TEST_DATABASE_URL` explicitly set to the
+  disposable local database.
+- Both PostgreSQL follow-up suites together: 36 passed, including 13 Stage 2 cases.
+  The disposable database included the SQL-only lifecycle checks and DNC indexes.
+- Database suite: 73 passed, 2 unrelated opt-in suites skipped. Booking and meeting
+  automation concurrency tests used explicit local database URLs.
+- Platform: 426 passed; browser extension: 73 passed; frontend: 32 passed.
+- Prisma generation, database/backend/orchestrator/frontend builds, dialer UI and
+  extension typechecks passed. Orchestrator DI resolved against disposable
+  PostgreSQL with an inert Redis transport; no worker or dial loops were started.
+- Repository ESLint: zero errors, existing warning backlog only. Repository
+  Prettier check and diff whitespace checks passed; final changed-file lint added
+  no warnings.
+- Stage 2 SQL applied to a separate disposable database constructed from the
+  preceding Stage 1 schema; Prisma schema comparison reported no difference.

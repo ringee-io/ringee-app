@@ -1,3 +1,4 @@
+import { isolateFollowUpWorkerFixtures } from "../../../test/postgres-worker-fixture";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -67,6 +68,7 @@ describe(
       AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS: string[];
     };
     const oldFlags = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    let releaseFixture: (() => Promise<void>) | undefined;
     const manual = Object.assign(Object.create(MeetingService.prototype), {
       callRepo: calls,
       pendingActions: service,
@@ -80,6 +82,7 @@ describe(
     }) as MeetingService;
     before(async () => {
       assert.ok(["127.0.0.1", "localhost"].includes(new URL(url!).hostname));
+      releaseFixture = await isolateFollowUpWorkerFixtures(prisma);
       config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = [organizationId];
       await prisma.user.createMany({
         data: [{ id: userId, canCall: true }, { id: colleagueId }],
@@ -152,18 +155,22 @@ describe(
       });
     });
     after(async () => {
-      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
-      await prisma.callbackTask.deleteMany({ where: { organizationId } });
-      await prisma.pendingAction.deleteMany({ where: { organizationId } });
-      await prisma.call.updateMany({
-        where: { organizationId },
-        data: { dispositionId: null },
-      });
-      await prisma.organization.delete({ where: { id: organizationId } });
-      await prisma.user.deleteMany({
-        where: { id: { in: [userId, colleagueId] } },
-      });
-      await prisma.$disconnect();
+      try {
+        config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
+        await prisma.callbackTask.deleteMany({ where: { organizationId } });
+        await prisma.pendingAction.deleteMany({ where: { organizationId } });
+        await prisma.call.updateMany({
+          where: { organizationId },
+          data: { dispositionId: null },
+        });
+        await prisma.organization.delete({ where: { id: organizationId } });
+        await prisma.user.deleteMany({
+          where: { id: { in: [userId, colleagueId] } },
+        });
+      } finally {
+        await releaseFixture?.();
+        await prisma.$disconnect();
+      }
     });
     async function seed(source = "web") {
       const contact = await prisma.contact.create({
@@ -718,6 +725,31 @@ describe(
           { outcome: "interested" },
         ),
       );
+    });
+    it("attributes an administrator correction to its authenticated actor while keeping the commercial owner", async () => {
+      const f = await enroll();
+      await prisma.organizationMembership.updateMany({
+        where: { organizationId, userId: colleagueId },
+        data: { role: "org:admin" },
+      });
+      try {
+        await manual.updateCallOutcome(
+          { ...ctx, userId: colleagueId },
+          f.call.id,
+          { outcome: "not_interested" },
+        );
+        const closed = (await repo.followUpSnapshot(f.objective.id))!;
+        assert.equal(closed.responsibleUserId, userId);
+        const event = await prisma.pendingActionFollowUpEvent.findFirstOrThrow({
+          where: { followUpId: closed.id, kind: "objective_closed" },
+        });
+        assert.equal(event.actorId, colleagueId);
+      } finally {
+        await prisma.organizationMembership.updateMany({
+          where: { organizationId, userId: colleagueId },
+          data: { role: "org:member" },
+        });
+      }
     });
     it("the existing callback executor reconciles an uncertain placement without redial", async () => {
       const f = await enroll();

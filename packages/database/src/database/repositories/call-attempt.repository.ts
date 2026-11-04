@@ -1,11 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import {
-  CallAttempt,
-  CallAttemptStatus,
-  CallOutcome,
-  Prisma,
-} from "@prisma/client";
+import { CallAttempt, CallAttemptStatus, CallOutcome } from "@prisma/client";
 
 /** An attempt with no provider leg yet: assigned, or handed to the browser. */
 const UNDIALED_ATTEMPT_STATUSES: CallAttemptStatus[] = [
@@ -243,8 +238,9 @@ export class CallAttemptRepository {
   }
 
   /**
-   * Conditionally set disposition only if attempt is in 'ended' status.
-   * Returns null if no rows matched (already dispositioned or wrong state).
+   * Legacy writes require an ended attempt. Accepted human outcomes may also
+   * finish a retried wrap-up or correct a disposition; the locked canonical
+   * call revision fences older concurrent requests.
    */
   async setDisposition(
     attemptId: string,

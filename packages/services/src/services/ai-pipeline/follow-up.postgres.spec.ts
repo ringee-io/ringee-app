@@ -1,3 +1,4 @@
+import { isolateFollowUpWorkerFixtures } from "../../../test/postgres-worker-fixture";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -98,6 +99,7 @@ describe(
       AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS: string[];
     };
     const oldFlags = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    let releaseFixture: (() => Promise<void>) | undefined;
     // One number per seeded contact: a repeated one would see an earlier
     // fixture's live call as the person already being on the phone.
     let phoneSeq = 1000;
@@ -108,6 +110,7 @@ describe(
           new URL(url!).hostname === "localhost",
         "Use an isolated local test database",
       );
+      releaseFixture = await isolateFollowUpWorkerFixtures(prisma);
       config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = [organizationId];
       await prisma.user.createMany({
         data: [adminId, memberId, colleagueId].map((id) => ({ id })),
@@ -169,13 +172,17 @@ describe(
       });
     });
     after(async () => {
-      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
-      await prisma.pendingAction.deleteMany({ where: { organizationId } });
-      await prisma.organization.deleteMany({ where: { id: organizationId } });
-      await prisma.user.deleteMany({
-        where: { id: { in: [adminId, memberId, colleagueId] } },
-      });
-      await prisma.$disconnect();
+      try {
+        config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
+        await prisma.pendingAction.deleteMany({ where: { organizationId } });
+        await prisma.organization.deleteMany({ where: { id: organizationId } });
+        await prisma.user.deleteMany({
+          where: { id: { in: [adminId, memberId, colleagueId] } },
+        });
+      } finally {
+        await releaseFixture?.();
+        await prisma.$disconnect();
+      }
     });
 
     /** `placedBy`: the member who placed the reminder call (a "call now");
