@@ -41,7 +41,7 @@ Referencia: [gitroomhq/postiz-aws](https://github.com/gitroomhq/postiz-aws), una
 
 _4 nov: escrito en `ringee-infra` (local, sin commit ni repo en GitHub todavía). Pasa `terraform validate` y un `terraform test` que aplica el stack completo contra proveedores simulados. No se ha aplicado nada en AWS._
 
-- [ ] **AWS-12** Repo `ringee-infra` (privado), estado en S3 con bloqueo nativo, roles OIDC.
+- [ ] **AWS-12** Repo `ringee-infra`, estado en S3 con bloqueo nativo, roles OIDC. _4 nov: el repo es **público**; así GitHub Free aplica las reglas de los entornos. No contiene secretos, estado ni planes._
 - [ ] **AWS-13** Red: VPC en 2 AZ, subredes públicas y privadas, sin NAT, security groups.
 - [ ] **AWS-14** ECR (tags inmutables, escaneo, lifecycle) y clúster ECS Fargate.
 - [ ] **AWS-15** RDS PostgreSQL 17 con parámetros y alarmas.
@@ -54,7 +54,7 @@ _4 nov: escrito en `ringee-infra` (local, sin commit ni repo en GitHub todavía)
 ### Fase 3 — Pipeline
 
 - [ ] **AWS-21** `deploy-aws.yml`: build ARM64, push a ECR, `migrate`, rolling deploy y smoke test. _4 nov: escrito en `feat/aws-migration-prep`, sin commit. `staging` despliega en la cuenta de staging y `main` en prod, con aprobación. Nada despliega hasta definir `AWS_DEPLOY_ENVIRONMENTS`._
-- [ ] **AWS-22** Entorno `production` de GitHub con revisores; ninguna clave de AWS en GitHub. _Los entornos van en `ringee-app`, que es público. En `ringee-infra`, privado, GitHub no permite revisores obligatorios por debajo de Enterprise: su CI solo planifica y el apply se hace desde una estación con SSO._
+- [ ] **AWS-22** Entorno `production` de GitHub con revisores; ninguna clave de AWS en GitHub. _Los dos repos son públicos y cada uno tiene sus entornos `staging` (solo su branch) y `production` (solo `main`, con revisor). `ringee-infra` aplica desde el CI cuando `TF_APPLY_ENVIRONMENTS` lo permite; el primer apply de cada entorno se hace desde una estación con SSO._
 
 ### Fase 4 — Ensayo
 
@@ -122,15 +122,15 @@ Postiz movió su app y Temporal de Railway a AWS us-east-2 con Terraform, ECS, R
 | Savings Plans comprados en la consola tras un mes de uso real                          | se compromete lo que de verdad se usa                                            |
 | Presupuesto de conexiones por rol y alarma de conexiones                               | con Prisma y Temporal en la misma instancia, importa                             |
 
-| No tomar                                    | Por qué                                                                                   |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Hosts r8g.xlarge y db.r8g.large (~$930/mes) | tu carga cabe con holgura en ~$260                                                        |
-| ECS sobre EC2 con hosts propios             | a tu tamaño Fargate cuesta ~$20/mes más y no hay servidores que parchear                  |
-| Elasticsearch para Temporal                 | ya usas visibility en Postgres                                                            |
-| Copia exacta de la BD de Temporal           | Postiz guarda posts programados como workflows con timers; los tuyos duran minutos (§4.5) |
-| Temporal UI pública con basic auth          | mejor sin dominio público: túnel de SSM o ALB con login de Google                         |
-| SES en vez de Resend                        | cambiar de proveedor de email es otro proyecto                                            |
-| Repo de infraestructura público             | nada se gana publicándolo                                                                 |
+| No tomar                                        | Por qué                                                                                                                                                     |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hosts r8g.xlarge y db.r8g.large (~$930/mes)     | tu carga cabe con holgura en ~$260                                                                                                                          |
+| ECS sobre EC2 con hosts propios                 | a tu tamaño Fargate cuesta ~$20/mes más y no hay servidores que parchear                                                                                    |
+| Elasticsearch para Temporal                     | ya usas visibility en Postgres                                                                                                                              |
+| Copia exacta de la BD de Temporal               | Postiz guarda posts programados como workflows con timers; los tuyos duran minutos (§4.5)                                                                   |
+| Temporal UI pública con basic auth              | mejor sin dominio público: túnel de SSM o ALB con login de Google                                                                                           |
+| SES en vez de Resend                            | cambiar de proveedor de email es otro proyecto                                                                                                              |
+| Secretos o planes en el repo de infraestructura | el repo es público desde el 4 de noviembre de 2026, para tener entornos con revisor en GitHub Free; los secretos viven en Secrets Manager y el estado en S3 |
 
 ## 4. Arquitectura objetivo
 
@@ -336,14 +336,14 @@ node-redis encola los comandos mientras reconecta, sin límite de tiempo. Durant
 
 ## 7. Pipeline
 
-- `ringee-infra` (privado) con Terraform, estado en S3 con bloqueo nativo y `plan` en cada PR y push. El `apply` se hace desde una estación con SSO, porque un repo privado no puede exigir revisor sin GitHub Enterprise. Los módulos de postiz-aws son AGPL-3.0, como Ringee: si copias alguno, conserva la licencia y la atribución.
+- `ringee-infra` (público) con Terraform, estado en S3 con bloqueo nativo y `plan` en cada PR y push. Al hacer push, el `apply` corre bajo las reglas del entorno (prod espera tu aprobación) y vuelve a planificar para comprobar que nada cambió desde la revisión. El plan nunca se sube como artefacto, porque guarda los secretos generados. Los módulos de postiz-aws son AGPL-3.0, como Ringee: si copias alguno, conserva la licencia y la atribución.
 - `deploy-aws.yml` en este repo, por branch (decidido el 4 de noviembre de 2026): un push a `staging` despliega en la cuenta de staging y uno al branch de producción (`main` o un `prod` nuevo, por confirmar) en la de prod. Cada entorno de GitHub solo acepta su branch, y producción además pide tu aprobación. Usa los mismos filtros de rutas que los Watch Paths de Railway:
   1. build de las imágenes que cambiaron para `linux/arm64`, en un runner ARM (sin emular con QEMU);
   2. push a ECR con el SHA como tag;
   3. tarea `migrate` (`prisma migrate deploy`), esperando a que termine bien;
   4. nueva revisión de cada servicio con circuit breaker y rollback automático, esperando a que estén estables;
   5. smoke test de `/api/health`.
-- Autenticación por OIDC: un rol de solo lectura para el plan de `ringee-infra` y un rol de deploy para `ringee-app`, que solo acepta su entorno de GitHub (`staging` o `production`, este con revisor). Ninguna clave de AWS en GitHub.
+- Autenticación por OIDC: un rol de solo lectura para los planes, uno de apply para `ringee-infra` y uno de deploy para `ringee-app`. Los dos últimos solo aceptan su entorno de GitHub (`staging` o `production`, este con revisor). Ninguna clave de AWS en GitHub.
 - Rollback: volver a desplegar el SHA anterior, cuya imagen sigue en ECR.
 - Deploys sin corte: `api` y `orchestrator` con 100 % mínimo y 200 % máximo (dos workers de Temporal sobre la misma cola conviven bien); `temporal` con 0 % y 100 %, una pausa de segundos que los workers reintentan.
 
