@@ -538,6 +538,10 @@ export class RingeeApi {
             callId: input.callId || undefined,
             callSessionId: input.callSessionId || undefined,
             outcome: input.outcome || undefined,
+            callbackTimezone:
+              input.outcome === "callback_scheduled"
+                ? Intl.DateTimeFormat().resolvedOptions().timeZone
+                : undefined,
             outcomeNote: input.outcomeNote || undefined,
           }),
         });

@@ -690,11 +690,18 @@ export class CallbackTaskRepository {
             },
           },
         });
-        if (active) return false;
-        await tx.aiVoiceAgentCall.update({
-          where: { id: input.placement.agentCallId },
-          data: { calendarId: calendar.id },
-        });
+        if (
+          active ||
+          (await tx.campaignLead.count({
+            where: {
+              contactId: action.contactId!,
+              campaign: { organizationId: action.organizationId },
+              lockedBy: { not: null },
+              status: { in: ["locked", "dialing", "in_call", "wrap_up"] },
+            },
+          }))
+        )
+          return false;
       }
 
       const firstAttempt = callback.objectiveAttempt === null;
@@ -716,6 +723,11 @@ export class CallbackTaskRepository {
         },
       });
       if (!placedRow) return false;
+      if (human)
+        await tx.aiVoiceAgentCall.update({
+          where: { id: placedRow.id },
+          data: { calendarId: objective.calendarId },
+        });
       // Claims can be reclaimed without locking the objective. Fence the write
       // itself, not just the preceding read, against that newer worker.
       const committed = await tx.callbackTask.updateMany({

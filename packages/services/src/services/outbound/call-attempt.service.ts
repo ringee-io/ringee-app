@@ -536,16 +536,22 @@ export class CallAttemptService {
       }
     }
 
-    const attempt = await this.attemptRepo.setDisposition(data.callAttemptId, {
-      dispositionId: disposition.id,
-      dispositionCode: disposition.code,
-      dispositionNote: data.note,
-      dispositionOutcome: canonicalOutcomeOf(disposition),
-    });
+    const attempt = await this.attemptRepo.setDisposition(
+      data.callAttemptId,
+      {
+        dispositionId: disposition.id,
+        dispositionCode: disposition.code,
+        dispositionNote: data.note,
+        dispositionOutcome: canonicalOutcomeOf(disposition),
+      },
+      accepted
+        ? { callId: accepted.call.id, revision: accepted.call.outcomeRevision }
+        : undefined,
+    );
 
     if (!attempt) {
-      throw new NotFoundException(
-        "Call attempt not in valid state for disposition",
+      throw new ConflictException(
+        "The call outcome changed; reload before saving again",
       );
     }
 

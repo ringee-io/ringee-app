@@ -381,7 +381,7 @@ export class CampaignLeadRepository {
           AND cl2."attempts" < ${maxAttempts}
         ORDER BY cl2."priority" DESC, cl2."nextCallAt" ASC NULLS FIRST, cl2."createdAt" ASC
         LIMIT 1
-        FOR UPDATE OF cl2 SKIP LOCKED
+        FOR UPDATE OF cl2, c SKIP LOCKED
       ) sub
       WHERE cl.id = sub.id
       RETURNING cl.id

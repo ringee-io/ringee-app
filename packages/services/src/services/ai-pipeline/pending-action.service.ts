@@ -252,6 +252,23 @@ export class PendingActionService {
     },
     now = new Date(),
   ) {
+    if (
+      input.stopRequested !== undefined &&
+      typeof input.stopRequested !== "boolean"
+    )
+      throw new BadRequestException("stopRequested must be a boolean");
+    if (
+      input.note !== undefined &&
+      (typeof input.note !== "string" || input.note.length > 2000)
+    )
+      throw new BadRequestException(
+        "The outcome note must be at most 2000 characters",
+      );
+    if (
+      input.timezone !== undefined &&
+      (typeof input.timezone !== "string" || input.timezone.length > 100)
+    )
+      throw new BadRequestException("A valid callback time zone is required");
     const call = await this.calls.findByIdForOwner(ctx, callId);
     if (!call) throw new NotFoundException("Call not found");
     if (ctx.organizationId) {
@@ -328,6 +345,9 @@ export class PendingActionService {
       callbackAt: callbackAt ?? null,
       timezone,
       stopRequested: input.stopRequested ?? prior?.stopRequested === true,
+      note:
+        legacyCallback?.note ??
+        (typeof prior?.note === "string" ? prior.note : null),
     };
     const eligible =
       authorized &&
@@ -378,19 +398,26 @@ export class PendingActionService {
                       ? "contact_on_dnc"
                       : !at || at <= now
                         ? "callback_time_unavailable"
-                        : null;
+                        : at.getTime() >= now.getTime() + 7 * 86400000
+                          ? "callback_outside_objective_horizon"
+                          : null;
     const desiredResult =
       purpose === "booking"
         ? "Book an appointment at a time the contact agrees to"
         : (
             input.note?.trim() ||
             call.outcomeNote ||
+            legacyCallback?.note ||
             "Fulfil the agreed informational follow-up"
           ).slice(0, 2000);
     const assignment: HumanOutcomeAssignment = {
       organizationId: ctx.organizationId,
       userId: call.userId,
       commitment,
+      hasNewCommitment:
+        input.purpose !== undefined ||
+        input.callbackAt !== undefined ||
+        input.stopRequested !== undefined,
       closeContact:
         commitment.stopRequested ||
         ["not_interested", "sale", "wrong_number"].includes(input.outcome),
@@ -424,12 +451,7 @@ export class PendingActionService {
             automationId: automation?.id,
             calendarId: calendar?.id,
             commitment,
-            expiresAt: new Date(
-              Math.max(
-                now.getTime() + 7 * 86400000,
-                (at?.getTime() ?? 0) + 86400000,
-              ),
-            ),
+            expiresAt: new Date(now.getTime() + 7 * 86400000),
             state: reason ? "blocked" : "scheduled",
             reason: reason ?? "human_outcome_accepted",
             nextAction: reason ? "exceptional_decision" : "specialist_callback",
@@ -996,6 +1018,9 @@ export class PendingActionService {
     const reason = input.reason?.trim().slice(0, 1000);
     let plan: FollowUpPlan;
     let resumeAt: Date | undefined;
+    let resumeBinding:
+      | { agentId: string; calendarId: string; automationId: string }
+      | undefined;
     switch (input.operation) {
       case "pause":
       case "take_over":
@@ -1067,8 +1092,9 @@ export class PendingActionService {
           : null;
         if (
           snapshot.sourceType !== "human_call_outcome" &&
-          (!meeting || (meeting.status !== MeetingStatus.scheduled && meeting.status !== MeetingStatus.rescheduled))
-
+          (!meeting ||
+            (meeting.status !== MeetingStatus.scheduled &&
+              meeting.status !== MeetingStatus.rescheduled))
         )
           throw new ConflictException(
             "The meeting is no longer scheduled; it cannot return to automatic follow-up",
@@ -1109,7 +1135,8 @@ export class PendingActionService {
           membership.some((value) => !value) ||
           !automation?.enabled ||
           !agent ||
-          agent.id !== row.agentId ||
+          (snapshot.sourceType !== "human_call_outcome" &&
+            agent.id !== row.agentId) ||
           agent.status !== "active" ||
           agent.deletedAt ||
           !agent.providerAssistantId ||
@@ -1124,21 +1151,52 @@ export class PendingActionService {
           row.expiresAt <= now
         )
           throw new ConflictException("The follow-up policy is exhausted");
-        const calendarId = snapshot.handoff?.calendarId ?? snapshot.calendarId;
+        const human = snapshot.sourceType === "human_call_outcome";
+        const settings = automation.settings as {
+          humanFollowUp?: { enabled?: boolean };
+        } | null;
+        if (
+          human &&
+          (settings?.humanFollowUp?.enabled !== true || !agent.callerNumberId)
+        )
+          throw new ConflictException(
+            "The enrollment policy or caller ID is unavailable",
+          );
+        const calendarId =
+          snapshot.handoff?.calendarId ??
+          snapshot.calendarId ??
+          agent.calendarId;
         const calendar = calendarId
           ? await this.calendars.findByIdForOwner(ctx, calendarId)
           : await this.calendars.findDefault(ctx);
-        if (!calendar)
+        if (!calendar || calendar.archivedAt)
           throw new ConflictException("The meeting calendar is unavailable");
+        if (human)
+          resumeBinding = {
+            agentId: agent.id,
+            calendarId: calendar.id,
+            automationId: automation.id,
+          };
         const policy = await this.reminderPolicies.findForCalendar(
           ctx,
           calendar.id,
         );
-        const at = nextCallingWindowMoment(
-          new Date(now.getTime() + 60 * 60_000),
-          policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW,
-          calendar.timezone,
-        );
+        const agreed = human
+          ? snapshot.callbacks.find(
+              (step) =>
+                step.agentCallbackKind === "agreed" &&
+                !step.dispatchCommittedAt &&
+                step.sourceRevision === row.sourceRevision &&
+                step.scheduledAt > now,
+            )
+          : undefined;
+        const at =
+          agreed?.scheduledAt ??
+          nextCallingWindowMoment(
+            new Date(now.getTime() + 60 * 60_000),
+            policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW,
+            calendar.timezone,
+          );
         if (!at || at >= row.expiresAt)
           throw new ConflictException("No valid calling window remains");
         resumeAt = at;
@@ -1148,7 +1206,7 @@ export class PendingActionService {
           mode: "automatic",
           nextAction: "review_recovery",
           nextActionAt: at,
-          timingBasis: "policy",
+          timingBasis: agreed ? "agreed" : "policy",
           evidence: {
             intervention: input.operation,
             nextActionAt: at.toISOString(),
@@ -1169,6 +1227,7 @@ export class PendingActionService {
       actorId: ctx.userId,
       now,
       resumeAt,
+      resumeBinding,
     });
     if (!updated)
       throw new ConflictException("Follow-up changed; reload before acting");

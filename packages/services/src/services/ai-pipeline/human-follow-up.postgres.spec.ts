@@ -9,6 +9,8 @@ import {
   CallbackTaskRepository,
   ContactRepository,
   CallRepository,
+  CallAttemptRepository,
+  CampaignLeadRepository,
   MeetingRepository,
   OrganizationRepository,
   AiVoiceAgentAutomationRepository,
@@ -22,6 +24,7 @@ import {
 import { ComplianceService } from "../outbound/compliance.service";
 import { PendingActionService } from "./pending-action.service";
 import { MeetingService } from "../meeting.service";
+import { CallAttemptService } from "../outbound/call-attempt.service";
 import { CallbackService } from "../outbound/callback.service";
 
 const url = process.env.RINGEE_FOLLOWUP_TEST_DATABASE_URL;
@@ -150,7 +153,12 @@ describe(
     });
     after(async () => {
       config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
+      await prisma.callbackTask.deleteMany({ where: { organizationId } });
       await prisma.pendingAction.deleteMany({ where: { organizationId } });
+      await prisma.call.updateMany({
+        where: { organizationId },
+        data: { dispositionId: null },
+      });
       await prisma.organization.delete({ where: { id: organizationId } });
       await prisma.user.deleteMany({
         where: { id: { in: [userId, colleagueId] } },
@@ -267,6 +275,122 @@ describe(
         "closed",
       );
     });
+    it("accepts a campaign canonical outcome once and removes the contact from human queues", async () => {
+      const f = await seed();
+      const campaign = await prisma.campaign.create({
+        data: { ...ctx, name: "Campaign fixture" },
+      });
+      const lead = await prisma.campaignLead.create({
+        data: { campaignId: campaign.id, contactId: f.contact.id },
+      });
+      const attempt = await prisma.callAttempt.create({
+        data: {
+          campaignId: campaign.id,
+          campaignLeadId: lead.id,
+          callId: f.call.id,
+          agentUserId: userId,
+          attemptNumber: 1,
+          status: "ended",
+          endedAt: new Date(),
+        },
+      });
+      const disposition = await prisma.disposition.create({
+        data: {
+          campaignId: campaign.id,
+          code: "custom_demo",
+          label: "Editable label",
+          canonicalOutcome: "interested",
+          category: "positive",
+          triggersCallback: true,
+        },
+      });
+      const leadRepo = new CampaignLeadRepository(db);
+      const workflow = Object.assign(
+        Object.create(CallAttemptService.prototype),
+        {
+          logger: { log: () => undefined, warn: () => undefined },
+          attemptRepo: new CallAttemptRepository(db),
+          campaignLeadRepo: leadRepo,
+          callRepo: calls,
+          pendingActions: service,
+          callbackService: {
+            scheduleFromCampaign: () => {
+              throw new Error("Duplicate human callback");
+            },
+          },
+          pipelineFanout: { handleCallFinalized: () => undefined },
+          crmCallLog: { enqueueOutcomeUpdate: async () => undefined },
+          customIntegrationOutbound: {
+            enqueueCallOutcomeUpdated: async () => undefined,
+          },
+          contactService: { addCallNote: async () => undefined },
+        },
+      ) as CallAttemptService;
+      const input = {
+        callAttemptId: attempt.id,
+        disposition,
+        organizationId,
+        campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+      };
+      const results = await Promise.all([
+        workflow.submitDisposition(input),
+        workflow.submitDisposition(input),
+      ]);
+      assert.equal(results[0].action, "ai_follow_up");
+      assert.equal(results[0].followUp!.id, results[1].followUp!.id);
+      const objective = (await repo.followUpSnapshot(results[0].followUp!.id))!;
+      assert.equal(objective.callbacks.length, 1);
+      assert.equal(
+        (
+          await prisma.campaignLead.findUniqueOrThrow({
+            where: { id: lead.id },
+          })
+        ).status,
+        "completed",
+      );
+      await prisma.pendingAction.create({
+        data: {
+          ...ctx,
+          contactId: f.contact.id,
+          type: "send_follow_up",
+          source: "rule",
+          title: "Old recommendation",
+          contextType: "organization_outside_campaign",
+          contextKey: "fixture",
+        },
+      });
+      const humanQueue = await repo.listOpenForCalling(ctx, {
+        types: ["send_follow_up"],
+        dueBy: new Date(Date.now() + 86400000),
+        now: new Date(),
+        limit: 100,
+      });
+      assert.ok(!humanQueue.some((row) => row.contact?.id === f.contact.id));
+      const otherCampaign = await prisma.campaign.create({
+        data: { ...ctx, name: "Other queue" },
+      });
+      await prisma.campaignLead.create({
+        data: {
+          campaignId: otherCampaign.id,
+          contactId: f.contact.id,
+          status: "queued",
+        },
+      });
+      assert.equal(
+        await leadRepo.lockNextLead(
+          otherCampaign.id,
+          randomUUID(),
+          3,
+          organizationId,
+        ),
+        null,
+      );
+      const blockedContacts = await callbacks.findContactsWithOpenCallback(
+        ctx,
+        [f.contact.id],
+      );
+      assert.ok(blockedContacts.has(f.contact.id));
+    });
     it("concurrent saves create one objective, step and initiation event; unrelated updates do not revise it", async () => {
       const f = await seed();
       await Promise.all(
@@ -328,15 +452,7 @@ describe(
       const historic = await seed();
       await prisma.call.update({
         where: { id: historic.call.id },
-        data: {
-          outcome: "interested",
-          outcomeCommitment: {
-            purpose: "booking",
-            callbackAt: null,
-            timezone: "UTC",
-            stopRequested: false,
-          },
-        },
+        data: { outcome: "interested" },
       });
       assert.equal(
         (
@@ -416,6 +532,66 @@ describe(
           data: { agentId },
         });
       }
+    });
+    it("resumes a blocked assignment after specialist configuration is repaired", async () => {
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId },
+        data: { agentId: null },
+      });
+      const f = await seed();
+      const accepted = await manual.updateCallOutcome(ctx, f.call.id, {
+        outcome: "interested",
+      });
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId },
+        data: { agentId },
+      });
+      const before = (await repo.followUpSnapshot(accepted.followUp!.id))!;
+      await service.controlFollowUp(ctx, before.pendingActionId, {
+        operation: "resume",
+        expectedRevision: before.revision,
+      });
+      const objective = (await repo.followUpSnapshot(before.id))!;
+      assert.equal(objective.agentId, agentId);
+      assert.equal(objective.state, "scheduled");
+      await claimAndPrepare({
+        ...f,
+        objective,
+        callback: objective.callbacks[0],
+      });
+    });
+    it("a corrected source cannot book through a previously committed execution", async () => {
+      const f = await enroll();
+      const p = await claimAndPrepare(f);
+      await service.authorizeHumanCallbackDial(
+        p.callback,
+        p.decision,
+        p.placement,
+      );
+      await manual.updateCallOutcome(ctx, f.call.id, {
+        outcome: "not_interested",
+      });
+      assert.equal(
+        await meetings.createIfAvailable(
+          ctx,
+          {
+            contactId: f.contact.id,
+            calendarId,
+            callId: p.placement.callId,
+            agentCallId: p.placement.agentCallId,
+            scheduledAt: new Date(Date.now() + 3 * 86400000),
+            duration: 30,
+            responsibleUserId: userId,
+          },
+          { calendarId, isDefault: true },
+          null,
+        ),
+        null,
+      );
+      assert.equal(
+        await prisma.meeting.count({ where: { contactId: f.contact.id } }),
+        0,
+      );
     });
     it("a correction fences dispatch and repeated saves preserve takeover", async () => {
       const f = await enroll();

@@ -154,6 +154,7 @@ describe("My Day persistence regressions", () => {
   it("pages follow-ups with a deterministic cursor and preserves ownership", async () => {
     let query: any;
     const repo = new PendingActionRepository({
+      pendingActionFollowUp: { findMany: async () => [] },
       pendingAction: {
         findMany: async (q: unknown) => {
           query = q;

@@ -182,7 +182,8 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     if (!outcome) return;
     setIsSaving(true);
     try {
-      let acceptance: Awaited<ReturnType<typeof data.saveCallOutcome>>;
+      let acceptance: Awaited<ReturnType<typeof data.saveCallOutcome>> =
+        undefined;
       if (callId || callSessionId) {
         acceptance = await data.saveCallOutcome({
           callId: callId || undefined,
@@ -203,7 +204,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         ].includes(followUp.state);
         const next = followUp.nextActionAt
           ? `${followUp.timingBasis === "agreed" ? labels.followUpAgreedTime : labels.followUpPolicyTime}: ${new Date(followUp.nextActionAt).toLocaleString()}`
-          : (followUp.reason ?? "").replaceAll("_", " ");
+          : (followUp.reason ?? "").replace(/_/g, " ");
         notify(
           blocked ? "error" : "success",
           `${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,

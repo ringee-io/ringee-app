@@ -56,6 +56,7 @@ export interface HumanOutcomeAssignment {
   organizationId: string;
   userId: string;
   commitment: Prisma.InputJsonValue;
+  hasNewCommitment: boolean;
   objective: NewFollowUpObjective | null;
   closeReason: FollowUpClosureReason;
   closeContact: boolean;
@@ -185,8 +186,10 @@ export async function acceptHumanOutcome(
         },
         state: { notIn: FOLLOW_UP_TERMINAL },
       },
+      include: { action: { select: { userId: true } } },
     });
-    if (active) return active;
+    // Never expose another member's private objective through an outcome save.
+    if (active) return active.action.userId === input.userId ? active : null;
     row = await createFollowUpInTransaction(tx, null, {
       ...input.objective,
       sourceKey,
@@ -218,6 +221,9 @@ export async function acceptHumanOutcome(
       data: {
         sourceRevision: call.outcomeRevision,
         commitment: input.commitment,
+        agentId: input.objective.agentId,
+        automationId: input.objective.automationId,
+        calendarId: input.objective.calendarId,
         desiredResult: input.objective.desiredResult,
         objectiveType: input.objective.objectiveType,
         revision: { increment: 1 },

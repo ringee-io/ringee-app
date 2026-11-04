@@ -545,6 +545,17 @@ export class VoiceAgentAutomationService {
     },
   ): Promise<AutomationCard> {
     assertVoiceAgentAutomations(ctx);
+    if (
+      input.humanFollowUpEnabled !== undefined &&
+      !(
+        await this.organizations.listAdminUserIds(ctx.organizationId, [
+          ctx.userId,
+        ])
+      ).includes(ctx.userId)
+    )
+      throw new BadRequestException(
+        "Only an administrator can authorize automatic follow-up",
+      );
     if (input.calendarId) {
       const calendar = await this.calendarService.getCalendar(
         ctx,
@@ -564,18 +575,9 @@ export class VoiceAgentAutomationService {
       ctx,
       AGENT_TYPE.scheduling,
     );
-    if (
-      input.humanFollowUpEnabled !== undefined &&
-      !(
-        await this.organizations.listAdminUserIds(ctx.organizationId, [
-          ctx.userId,
-        ])
-      ).includes(ctx.userId)
-    )
-      throw new BadRequestException(
-        "Only an administrator can authorize automatic follow-up",
-      );
-    const settings = (previous?.settings ?? {}) as Record<string, any>;
+    const settings = (previous?.settings ?? {}) as Record<string, unknown> & {
+      humanFollowUp?: { interestedObjective?: string };
+    };
     await this.automations.upsertForOwner(ctx, AGENT_TYPE.scheduling, {
       agentId: agent.id,
       enabled: true,

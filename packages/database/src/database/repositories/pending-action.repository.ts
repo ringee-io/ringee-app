@@ -341,6 +341,19 @@ export class PendingActionRepository {
       after?: string;
     },
   ): Promise<CallablePendingAction[]> {
+    const assigned = await this.prisma.pendingActionFollowUp.findMany({
+      where: {
+        action: {
+          organizationId: owner.organizationId ?? null,
+          ...(owner.organizationId ? {} : { userId: owner.userId }),
+        },
+        state: { notIn: FOLLOW_UP_TERMINAL },
+      },
+      select: { action: { select: { contactId: true } } },
+    });
+    const assignedContactIds = unique(
+      assigned.map((row) => row.action.contactId),
+    );
     const actions = await this.prisma.pendingAction.findMany({
       where: {
         AND: [
@@ -350,7 +363,7 @@ export class PendingActionRepository {
           },
           { status: PendingActionStatus.pending },
           { type: { in: options.types } },
-          { contactId: { not: null } },
+          { contactId: { not: null, notIn: assignedContactIds } },
           { campaignId: null },
           { followUp: { is: null } },
           {
@@ -700,6 +713,11 @@ export class PendingActionRepository {
     actorId?: string;
     now: Date;
     resumeAt?: Date;
+    resumeBinding?: {
+      agentId: string;
+      calendarId: string;
+      automationId: string;
+    };
     meetingEvidence?: {
       id: string;
       revision: number;
@@ -746,6 +764,12 @@ export class PendingActionRepository {
         },
         input.now,
       );
+      if (input.resumeBinding && row.sourceType === "human_call_outcome") {
+        await tx.pendingActionFollowUp.update({
+          where: { id: row.id },
+          data: input.resumeBinding,
+        });
+      }
       if (input.resumeAt) {
         // Restore at most one uncommitted step. All older steps stay withdrawn;
         // an already committed placement keeps its identity for reconciliation.
@@ -764,7 +788,11 @@ export class PendingActionRepository {
             data: {
               status: "scheduled",
               scheduledAt: input.resumeAt,
-              agentCallbackKind: "recovery",
+              ...(input.resumeBinding
+                ? { agentId: input.resumeBinding.agentId }
+                : {}),
+              agentCallbackKind:
+                input.plan.timingBasis === "agreed" ? "agreed" : "recovery",
               notBefore: null,
               dialTries: 0,
               dialReservedAt: null,
@@ -778,7 +806,7 @@ export class PendingActionRepository {
             data: {
               nextAction: "specialist_callback",
               nextActionAt: input.resumeAt,
-              timingBasis: "policy",
+              timingBasis: input.plan.timingBasis ?? "policy",
             },
           });
         }

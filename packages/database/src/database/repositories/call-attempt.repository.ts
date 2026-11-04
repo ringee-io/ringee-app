@@ -252,23 +252,40 @@ export class CallAttemptRepository {
       dispositionId: string;
       dispositionCode: string;
       dispositionNote?: string;
-      /** The disposition's canonical outcome; null for a custom code. */
       dispositionOutcome?: CallOutcome | null;
     },
+    source?: { callId: string; revision: number },
   ): Promise<CallAttempt | null> {
-    const result = await this.prisma.callAttempt.updateMany({
-      where: { id: attemptId, status: CallAttemptStatus.ended },
-      data: {
-        status: CallAttemptStatus.dispositioned,
-        dispositionId: data.dispositionId,
-        dispositionCode: data.dispositionCode,
-        dispositionNote: data.dispositionNote,
-        dispositionOutcome: data.dispositionOutcome ?? null,
-        dispositionedAt: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      if (source) {
+        await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${source.callId}::uuid FOR UPDATE`;
+        if (
+          !(await tx.call.count({
+            where: { id: source.callId, outcomeRevision: source.revision },
+          }))
+        )
+          return null;
+      }
+      const result = await tx.callAttempt.updateMany({
+        where: {
+          id: attemptId,
+          ...(source ? { callId: source.callId } : {}),
+          status: source
+            ? { in: [CallAttemptStatus.ended, CallAttemptStatus.dispositioned] }
+            : CallAttemptStatus.ended,
+        },
+        data: {
+          status: CallAttemptStatus.dispositioned,
+          dispositionId: data.dispositionId,
+          dispositionCode: data.dispositionCode,
+          dispositionNote: data.dispositionNote,
+          dispositionOutcome: data.dispositionOutcome ?? null,
+          dispositionedAt: new Date(),
+        },
+      });
+      if (result.count === 0) return null;
+      return tx.callAttempt.findUnique({ where: { id: attemptId } });
     });
-    if (result.count === 0) return null;
-    return this.prisma.callAttempt.findUnique({ where: { id: attemptId } });
   }
 
   async findByCampaignLead(campaignLeadId: string): Promise<CallAttempt[]> {

@@ -145,6 +145,10 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 - `PendingActionService` / `PendingActionRepository` own the optional
   `PendingActionFollowUp` child of an existing pending action.
+- `PendingActionService.recordHumanOutcome` authorizes manual/campaign enrollment;
+  `CallRepository.recordOutcome` and `acceptHumanOutcome` persist the semantic
+  source revision, objective and first step together. `MeetingRepository.createIfAvailable`
+  binds successful booking evidence to the exact execution.
 - `PendingActionService.reconcileFollowUp` / `controlFollowUp` own evidence and
   controls; `pending-action-follow-up.persistence.ts` shares transaction helpers
   with the specialized handoff and callback repositories.

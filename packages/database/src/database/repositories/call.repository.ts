@@ -1004,10 +1004,10 @@ export class CallRepository {
   /**
    * Records an outcome — with the disposition that produced it, when a person
    * picked one — and says whether it changed anything. An unchanged outcome,
-   * disposition and note are not written again: `updatedAt` is the revision an
-   * outcome event is keyed on, and a retried save must not publish the same
-   * outcome twice. The match is the write itself, so two identical saves
-   * racing each other change the row once.
+   * disposition and note are not written again. Semantic outcome revisions
+   * change only with the outcome, note or commitment, independently of other
+   * call updates. Source locking makes simultaneous identical saves change
+   * the row once; follow-up acceptance shares the same transaction.
    *
    * A disposition always names the outcome it was recorded with (DISP-005): an
    * outcome written without one replaces the call's disposition only when the
@@ -1031,9 +1031,17 @@ export class CallRepository {
       const current = await tx.call.findUniqueOrThrow({
         where: { id: callId },
       });
+      const changedHumanMeaning =
+        current.outcome !== outcome ||
+        (outcomeNote !== undefined && current.outcomeNote !== outcomeNote) ||
+        assignment?.hasNewCommitment;
       const commitment =
-        assignment?.commitment ??
-        (current.outcome === outcome ? current.outcomeCommitment : null);
+        assignment &&
+        (changedHumanMeaning || current.outcomeCommitment !== null)
+          ? assignment.commitment
+          : current.outcome === outcome
+            ? current.outcomeCommitment
+            : null;
       const semanticChange =
         current.outcome !== outcome ||
         (outcomeNote !== undefined && current.outcomeNote !== outcomeNote) ||
