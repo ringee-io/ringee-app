@@ -453,6 +453,7 @@ describe("MeetingService Ringee-first calendar sync", () => {
 
 describe("MeetingService.updateCallOutcome", () => {
   function setup() {
+    const acceptedInputs: unknown[] = [];
     const call = {
       id: "call-1",
       userId: "user-1",
@@ -551,8 +552,9 @@ describe("MeetingService.updateCallOutcome", () => {
             note?: string;
             disposition?: { id: string; name: string };
           },
-        ) =>
-          (
+        ) => {
+          acceptedInputs.push(input);
+          return (
             service as unknown as {
               callRepo: { recordOutcome: (...args: unknown[]) => unknown };
             }
@@ -561,12 +563,25 @@ describe("MeetingService.updateCallOutcome", () => {
             input.outcome,
             input.note,
             input.disposition,
-          ),
+          );
+        },
       },
     });
-    return { service, published, notes };
+    return { service, published, notes, acceptedInputs };
   }
   const ctx = { userId: "user-1", organizationId: "org-1" };
+
+  it("forwards an explicit stop request to durable outcome acceptance", async () => {
+    const s = setup();
+    await s.service.updateCallOutcome(ctx, "call-1", {
+      outcome: "not_interested",
+      stopRequested: true,
+    });
+    assert.equal(
+      (s.acceptedInputs[0] as { stopRequested: boolean }).stopRequested,
+      true,
+    );
+  });
 
   it("publishes an outcome once however often the same one is saved", async () => {
     const s = setup();

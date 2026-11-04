@@ -1020,6 +1020,10 @@ export class CallRepository {
     outcomeNote?: string,
     disposition?: RecordedDisposition,
     assignment?: HumanOutcomeAssignment,
+    stopRequest?: {
+      requested: boolean;
+      persist: (tx: Prisma.TransactionClient) => Promise<void>;
+    },
   ) {
     return this.prisma.$transaction(async (tx) => {
       const seed = await tx.call.findUniqueOrThrow({ where: { id: callId } });
@@ -1035,13 +1039,23 @@ export class CallRepository {
         current.outcome !== outcome ||
         (outcomeNote !== undefined && current.outcomeNote !== outcomeNote) ||
         assignment?.hasNewCommitment;
-      const commitment =
+      let commitment =
         assignment &&
         (changedHumanMeaning || current.outcomeCommitment !== null)
           ? assignment.commitment
           : current.outcome === outcome
             ? current.outcomeCommitment
             : null;
+      if (stopRequest) {
+        commitment = {
+          ...(commitment &&
+          typeof commitment === "object" &&
+          !Array.isArray(commitment)
+            ? commitment
+            : {}),
+          stopRequested: stopRequest.requested,
+        };
+      }
       const semanticChange =
         current.outcome !== outcome ||
         (outcomeNote !== undefined && current.outcomeNote !== outcomeNote) ||
@@ -1073,9 +1087,32 @@ export class CallRepository {
             },
           })
         : current;
-      const followUp = assignment
-        ? await acceptHumanOutcome(tx, call, semanticChange, assignment)
+      // Booking writes also correct the human source, even without enrollment
+      // input. Close its obsolete objective without claiming AI booking success.
+      const acceptance =
+        assignment ??
+        (semanticChange &&
+        outcome === "meeting_booked" &&
+        call.organizationId &&
+        call.userId &&
+        call.contactId &&
+        call.source !== "ai_voice_agent"
+          ? {
+              organizationId: call.organizationId,
+              userId: call.userId,
+              actorUserId: call.userId,
+              commitment: commitment ?? {},
+              hasNewCommitment: false,
+              objective: null,
+              closeContact: false,
+              closeReason: "cancelled" as const,
+              scheduledAt: new Date(),
+            }
+          : undefined);
+      const followUp = acceptance
+        ? await acceptHumanOutcome(tx, call, semanticChange, acceptance)
         : null;
+      await stopRequest?.persist(tx);
       return { call, changed, followUp };
     });
   }
@@ -1124,27 +1161,30 @@ export class CallRepository {
     disposition: RecordedDisposition,
     outcomeNote?: string,
   ): Promise<Call> {
-    await this.prisma.call.updateMany({
-      where: {
-        id: callId,
-        OR: [
-          { dispositionId: null },
-          { dispositionId: { not: disposition.id } },
-          { dispositionName: null },
-          { dispositionName: { not: disposition.name } },
-          ...(outcomeNote !== undefined
-            ? [{ outcomeNote: null }, { outcomeNote: { not: outcomeNote } }]
-            : []),
-        ],
-      },
-      data: {
-        dispositionId: disposition.id,
-        dispositionName: disposition.name,
-        ...(outcomeNote !== undefined ? { outcomeNote } : {}),
-        updatedAt: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${callId}::uuid FOR UPDATE`;
+      const current = await tx.call.findUniqueOrThrow({
+        where: { id: callId },
+      });
+      const noteChanged =
+        outcomeNote !== undefined && outcomeNote !== current.outcomeNote;
+      if (
+        !noteChanged &&
+        current.dispositionId === disposition.id &&
+        current.dispositionName === disposition.name
+      )
+        return current;
+      return tx.call.update({
+        where: { id: callId },
+        data: {
+          dispositionId: disposition.id,
+          dispositionName: disposition.name,
+          ...(noteChanged
+            ? { outcomeNote, outcomeRevision: { increment: 1 } }
+            : {}),
+        },
+      });
     });
-    return this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
   }
 
   /**

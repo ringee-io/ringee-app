@@ -341,51 +341,53 @@ export class PendingActionRepository {
       after?: string;
     },
   ): Promise<CallablePendingAction[]> {
-    const assigned = await this.prisma.pendingActionFollowUp.findMany({
-      where: {
-        action: {
-          organizationId: owner.organizationId ?? null,
-          ...(owner.organizationId ? {} : { userId: owner.userId }),
-        },
-        state: { notIn: FOLLOW_UP_TERMINAL },
-      },
-      select: { action: { select: { contactId: true } } },
-    });
-    const assignedContactIds = unique(
-      assigned.map((row) => row.action.contactId),
-    );
-    const actions = await this.prisma.pendingAction.findMany({
-      where: {
-        AND: [
-          {
-            userId: owner.userId,
-            organizationId: owner.organizationId ?? null,
-          },
-          { status: PendingActionStatus.pending },
-          { type: { in: options.types } },
-          { contactId: { not: null, notIn: assignedContactIds } },
-          { campaignId: null },
-          { followUp: { is: null } },
-          {
-            OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: options.now } }],
-          },
-          { OR: [{ expiresAt: null }, { expiresAt: { gt: options.now } }] },
-          { OR: [{ dueAt: null }, { dueAt: { lte: options.dueBy } }] },
-        ],
-      },
-      select: {
-        id: true,
-        type: true,
-        priority: true,
-        title: true,
-        dueAt: true,
-        createdAt: true,
-        contactId: true,
-      },
-      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-      ...(options.after ? { cursor: { id: options.after }, skip: 1 } : {}),
-      take: options.limit,
-    });
+    if (!options.types.length) return [];
+    // PendingAction's contactId is a scalar, not a Prisma relation. Keep the
+    // workspace-wide exclusion in SQL so a page never loads every objective.
+    const actions = await this.prisma.$queryRaw<
+      Pick<
+        PendingAction,
+        | "id"
+        | "type"
+        | "priority"
+        | "title"
+        | "dueAt"
+        | "createdAt"
+        | "contactId"
+      >[]
+    >`
+      SELECT a."id", a."type", a."priority", a."title", a."dueAt", a."createdAt", a."contactId"
+      FROM "PendingAction" a
+      WHERE a."userId" = ${owner.userId}::uuid
+        AND a."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+        AND a."status" = 'pending'
+        AND a."type"::text IN (${Prisma.join(options.types)})
+        AND a."contactId" IS NOT NULL AND a."campaignId" IS NULL
+        AND (a."snoozedUntil" IS NULL OR a."snoozedUntil" < ${options.now}::timestamptz AT TIME ZONE 'UTC')
+        AND (a."expiresAt" IS NULL OR a."expiresAt" > ${options.now}::timestamptz AT TIME ZONE 'UTC')
+        AND (a."dueAt" IS NULL OR a."dueAt" <= ${options.dueBy}::timestamptz AT TIME ZONE 'UTC')
+        AND NOT EXISTS (SELECT 1 FROM "PendingActionFollowUp" own WHERE own."pendingActionId" = a."id")
+        AND NOT EXISTS (
+          SELECT 1 FROM "PendingActionFollowUp" f
+          JOIN "PendingAction" assigned ON assigned."id" = f."pendingActionId"
+          WHERE assigned."contactId" = a."contactId"
+            AND assigned."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+            ${owner.organizationId ? Prisma.empty : Prisma.sql`AND assigned."userId" = ${owner.userId}::uuid`}
+            AND f."state" NOT IN (${Prisma.join(FOLLOW_UP_TERMINAL.map((state) => Prisma.sql`${state}::"FollowUpState"`))})
+        )
+        ${
+          options.after
+            ? Prisma.sql`AND (COALESCE(a."dueAt", 'infinity'::timestamp), a."createdAt", a."id") > (
+          SELECT COALESCE(cursor."dueAt", 'infinity'::timestamp), cursor."createdAt", cursor."id"
+          FROM "PendingAction" cursor WHERE cursor."id" = ${options.after}::uuid
+            AND cursor."userId" = ${owner.userId}::uuid
+            AND cursor."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+        )`
+            : Prisma.empty
+        }
+      ORDER BY a."dueAt" ASC NULLS LAST, a."createdAt" ASC, a."id" ASC
+      LIMIT ${options.limit}
+    `;
 
     const contactIds = unique(actions.map((a) => a.contactId));
     const contacts = contactIds.length
@@ -507,9 +509,17 @@ export class PendingActionRepository {
   ) {
     return this.prisma.$transaction(async (tx) => {
       const row = await lockFollowUp(tx, id);
+      if (!row || row.sourceType !== "human_call_outcome") return null;
+      // A proven-unplaced callback does not consume recoveryCount. Bind a new
+      // recovery to this review revision while retaining the same replay key.
+      const key = agentCallId
+        ? `followup:${id}:agreed:${agentCallId}`
+        : `followup:${id}:recovery:revision:${revision}`;
+      const existing = await tx.callbackTask.findUnique({
+        where: { agentCallbackKey: key },
+      });
+      if (existing) return existing;
       if (
-        !row ||
-        row.sourceType !== "human_call_outcome" ||
         row.revision !== revision ||
         row.mode !== "automatic" ||
         ["paused", "blocked", "resolved", "closed"].includes(row.state) ||
@@ -521,13 +531,6 @@ export class PendingActionRepository {
       const action = await tx.pendingAction.findUniqueOrThrow({
         where: { id: row.pendingActionId },
       });
-      const key = agentCallId
-        ? `followup:${id}:agreed:${agentCallId}`
-        : `followup:${id}:recovery:${row.recoveryCount + 1}`;
-      const existing = await tx.callbackTask.findUnique({
-        where: { agentCallbackKey: key },
-      });
-      if (existing) return existing;
       if (
         await tx.callbackTask.count({
           where: {

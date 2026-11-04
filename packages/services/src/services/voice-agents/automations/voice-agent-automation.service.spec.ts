@@ -3,7 +3,11 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentAutomationService } from "./voice-agent-automation.service";
 
@@ -48,6 +52,8 @@ function build(
     routes?: Row[];
     released?: Row;
     members?: string[];
+    admins?: string[];
+    lockedAutomation?: Row;
     /** What the conditional delete of the automation row reports. */
     removes?: boolean;
   } = {},
@@ -94,6 +100,8 @@ function build(
         return true;
       },
       upsertForOwner: async (_ctx: Row, _type: string, data: Row) => {
+        if (typeof data === "function")
+          data = data(over.lockedAutomation ?? over.automation ?? null);
         automationUpdates.push(data);
         return data;
       },
@@ -139,6 +147,7 @@ function build(
     { listByDestination: async () => over.routes ?? [] } as never,
     {
       findAdminMembersWithEmails: async () => [{ id: "admin-1" }],
+      listAdminUserIds: async () => over.admins ?? ["admin-1"],
       isMember: async (id: string) =>
         (over.members ?? ["admin-1", "member-1"]).includes(id),
     } as never,
@@ -231,6 +240,38 @@ function build(
 }
 
 describe("VoiceAgentAutomationService quick setup", () => {
+  it("preserves the objective read under the repository lock and defaults only a new policy to booking", async () => {
+    for (const objective of [undefined, "information"] as const) {
+      const s = build({
+        lockedAutomation: {
+          settings: { humanFollowUp: { interestedObjective: objective } },
+        },
+      });
+      await s.service.setupScheduling(CTX, { humanFollowUpEnabled: true });
+      assert.equal(
+        s.automationUpdates[0].settings.humanFollowUp.interestedObjective,
+        objective ?? "booking",
+      );
+    }
+  });
+  it("checks administrator authority and rejects an objective without the enablement field before setup", async () => {
+    for (const admins of [[], ["admin-1"]]) {
+      const s = build({ admins });
+      await assert.rejects(
+        s.service.setupScheduling(CTX, { interestedObjective: "information" }),
+        (error: unknown) => {
+          assert.ok(error instanceof BadRequestException);
+          assert.match(
+            error.message,
+            admins.length ? /humanFollowUpEnabled/ : /administrator/,
+          );
+          return true;
+        },
+      );
+      assert.deepEqual(s.automationUpdates, []);
+      assert.deepEqual(s.created, []);
+    }
+  });
   it("creates the agent once, under the card's claim, with a voice in the person's language", async () => {
     const { service, created, calls } = build({ automation: null });
 

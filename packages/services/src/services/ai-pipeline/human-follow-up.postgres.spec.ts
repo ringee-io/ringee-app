@@ -1,4 +1,7 @@
-import { isolateFollowUpWorkerFixtures } from "../../../test/postgres-worker-fixture";
+import {
+  isolateFollowUpWorkerFixtures,
+  FOLLOW_UP_SUITE_TIMEOUT_MS,
+} from "../../../test/postgres-worker-fixture";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -20,6 +23,9 @@ import {
   DNCEntryRepository,
   MeetingReminderPolicyRepository,
   AiVoiceAgentCallRepository,
+  CustomIntegrationRepository,
+  CustomIntegrationDeliveryRepository,
+  UserRepository,
   type CallOutcome,
 } from "@ringee/database";
 import { ComplianceService } from "../outbound/compliance.service";
@@ -27,11 +33,12 @@ import { PendingActionService } from "./pending-action.service";
 import { MeetingService } from "../meeting.service";
 import { CallAttemptService } from "../outbound/call-attempt.service";
 import { CallbackService } from "../outbound/callback.service";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 
 const url = process.env.RINGEE_FOLLOWUP_TEST_DATABASE_URL;
 describe(
   "Stage 2 human outcomes — disposable PostgreSQL",
-  { skip: !url },
+  { skip: !url, timeout: FOLLOW_UP_SUITE_TIMEOUT_MS },
   () => {
     const prisma = new PrismaClient({ datasourceUrl: url });
     const db = prisma as never;
@@ -44,6 +51,7 @@ describe(
     const agentCalls = new AiVoiceAgentCallRepository(db);
     const policies = new MeetingReminderPolicyRepository(db);
     const organizations = new OrganizationRepository(db);
+    const dnc = new DNCEntryRepository(db);
     const service = new PendingActionService(
       repo,
       {} as never,
@@ -55,7 +63,7 @@ describe(
       agents,
       new CalendarRepository(db),
       policies,
-      new ComplianceService(new DNCEntryRepository(db), {} as never),
+      new ComplianceService(dnc, { enqueue: async () => undefined } as never),
       callbacks,
     );
     const organizationId = randomUUID();
@@ -282,6 +290,127 @@ describe(
         "closed",
       );
     });
+    it("publishes an agreed human-objective callback once across tool replays", async () => {
+      const f = await enroll();
+      const p = await claimAndPrepare(f);
+      await service.authorizeHumanCallbackDial(
+        p.callback,
+        p.decision,
+        p.placement,
+      );
+      const integration = await prisma.customIntegration.create({
+        data: {
+          ...ctx,
+          name: "Callback events",
+          apiKeyPrefix: randomUUID(),
+          apiKeyHash: randomUUID(),
+          webhookSigningSecretCt: "fixture",
+          outboundUrl: "https://example.invalid/events",
+          subscribedEvents: ["callback_created"],
+        },
+      });
+      const workflow = Object.assign(Object.create(CallbackService.prototype), {
+        pendingActions: service,
+        contactRepo: contacts,
+        customIntegrationOutbound: new CustomIntegrationOutboundService(
+          new CustomIntegrationRepository(db),
+          new CustomIntegrationDeliveryRepository(db),
+          agentCalls,
+          new UserRepository(db, {} as never),
+          agents,
+          calls,
+        ),
+      }) as CallbackService;
+      try {
+        const input = {
+          ...ctx,
+          ...p.placement,
+          contactId: f.contact.id,
+          scheduledAt: new Date(Date.now() + 86400000),
+        };
+        const first = await workflow.scheduleFromVoiceAgent(input);
+        const [delivery] = await prisma.customIntegrationDelivery.findMany({
+          where: { integrationId: integration.id },
+        });
+        assert.ok(
+          delivery,
+          "publication completes before the scheduling response",
+        );
+        assert.equal(delivery.subjectId, first.id);
+        assert.equal(delivery.eventType, "callback_created");
+        await prisma.customIntegrationDelivery.update({
+          where: { id: delivery.id },
+          data: { status: "sent" },
+        });
+        const replay = await workflow.scheduleFromVoiceAgent(input);
+        assert.equal(replay.id, first.id);
+        assert.equal(
+          await prisma.customIntegrationDelivery.count({
+            where: { integrationId: integration.id },
+          }),
+          1,
+        );
+        assert.equal(
+          (
+            await prisma.customIntegrationDelivery.findUniqueOrThrow({
+              where: { id: delivery.id },
+            })
+          ).status,
+          "sent",
+        );
+      } finally {
+        await prisma.customIntegration.delete({
+          where: { id: integration.id },
+        });
+      }
+    });
+    it("pages the human queue while excluding another member's active contact objective", async () => {
+      const assigned = await enroll();
+      await prisma.pendingAction.update({
+        where: { id: assigned.objective.pendingActionId },
+        data: { userId: colleagueId },
+      });
+      const available = await Promise.all([seed(), seed()]);
+      const ids: string[] = [];
+      for (const [index, f] of [assigned, ...available].entries()) {
+        const action = await prisma.pendingAction.create({
+          data: {
+            ...ctx,
+            contactId: f.contact.id,
+            type: "ask_for_referral",
+            source: "rule",
+            title: "Queue fixture",
+            contextType: "organization_outside_campaign",
+            contextKey: "fixture",
+            dueAt: index === 2 ? null : new Date(Date.now() - 1000),
+          },
+        });
+        ids.push(action.id);
+      }
+      const options = {
+        types: ["ask_for_referral" as const],
+        dueBy: new Date(),
+        now: new Date(),
+        limit: 1,
+      };
+      const first = await repo.listOpenForCalling(ctx, options);
+      assert.deepEqual(
+        first.map((row) => row.id),
+        [ids[1]],
+      );
+      const second = await repo.listOpenForCalling(ctx, {
+        ...options,
+        after: first[0].id,
+      });
+      assert.deepEqual(
+        second.map((row) => row.id),
+        [ids[2]],
+      );
+      assert.deepEqual(
+        await repo.listOpenForCalling(ctx, { ...options, after: second[0].id }),
+        [],
+      );
+    });
     it("accepts a campaign canonical outcome once and removes the contact from human queues", async () => {
       const f = await seed();
       const campaign = await prisma.campaign.create({
@@ -397,6 +526,146 @@ describe(
         [f.contact.id],
       );
       assert.ok(blockedContacts.has(f.contact.id));
+      const acceptedCall = (await calls.findById(f.call.id))!;
+      const another = await prisma.disposition.create({
+        data: {
+          campaignId: campaign.id,
+          code: "another_demo",
+          label: "Another label",
+          canonicalOutcome: "interested",
+          category: "positive",
+        },
+      });
+      const corrected = await calls.recordOutcome(
+        f.call.id,
+        "interested",
+        undefined,
+        { id: another.id, name: another.label },
+      );
+      assert.equal(
+        corrected.call.outcomeRevision,
+        acceptedCall.outcomeRevision,
+      );
+      const rejected = await new CallAttemptRepository(db).setDisposition(
+        attempt.id,
+        {
+          dispositionId: disposition.id,
+          dispositionCode: disposition.code,
+          dispositionOutcome: "interested",
+        },
+        { callId: f.call.id, revision: acceptedCall.outcomeRevision },
+      );
+      assert.equal(
+        rejected,
+        null,
+        "a disposition-only correction must fence stale campaign acceptance",
+      );
+      assert.equal(
+        (await calls.findById(f.call.id))!.dispositionId,
+        another.id,
+      );
+    });
+    it("increments the semantic revision once for a changed custom-disposition note, never for disposition alone", async () => {
+      const f = await seed();
+      const custom = await prisma.disposition.create({
+        data: {
+          ...ctx,
+          code: "custom_note",
+          label: "Custom",
+          category: "neutral",
+        },
+      });
+      const disposition = { id: custom.id, name: custom.label };
+      const initial = await calls.recordDispositionWithoutOutcome(
+        f.call.id,
+        disposition,
+      );
+      assert.equal(initial.outcomeRevision, 0);
+      await Promise.all(
+        Array.from({ length: 4 }, () =>
+          calls.recordDispositionWithoutOutcome(
+            f.call.id,
+            disposition,
+            "New commitment",
+          ),
+        ),
+      );
+      const noted = (await calls.findById(f.call.id))!;
+      assert.equal(noted.outcomeRevision, 1);
+      assert.equal(noted.outcomeNote, "New commitment");
+      const renamed = await calls.recordDispositionWithoutOutcome(
+        f.call.id,
+        { ...disposition, name: "Renamed" },
+        "New commitment",
+      );
+      assert.equal(renamed.outcomeRevision, 1);
+      const cleared = await calls.recordDispositionWithoutOutcome(
+        f.call.id,
+        disposition,
+        "",
+      );
+      assert.equal(cleared.outcomeRevision, 2);
+      assert.equal(cleared.outcomeNote, "");
+    });
+    it("merges scheduling policy against the current locked automation across concurrent saves", async () => {
+      const automations = new AiVoiceAgentAutomationRepository(db);
+      const before = (await automations.findForOwner(
+        ctx,
+        "appointment_booking",
+      ))!;
+      let entered!: () => void;
+      const ready = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const first = automations.upsertForOwner(
+        ctx,
+        "appointment_booking",
+        () => {
+          entered();
+          return {
+            agentId,
+            enabled: true,
+            settings: {
+              humanFollowUp: {
+                enabled: true,
+                interestedObjective: "information",
+              },
+            },
+          };
+        },
+      );
+      try {
+        await ready;
+        const second = automations.upsertForOwner(
+          ctx,
+          "appointment_booking",
+          (current) => ({
+            agentId,
+            enabled: true,
+            settings: current!.settings!,
+          }),
+        );
+        await Promise.all([first, second]);
+        const current = (await automations.findForOwner(
+          ctx,
+          "appointment_booking",
+        ))!;
+        assert.equal(
+          (
+            current.settings as {
+              humanFollowUp: { interestedObjective: string };
+            }
+          ).humanFollowUp.interestedObjective,
+          "information",
+        );
+      } finally {
+        await first;
+        await automations.upsertForOwner(ctx, "appointment_booking", {
+          agentId,
+          enabled: true,
+          settings: before.settings!,
+        });
+      }
     });
     it("concurrent saves create one objective, step and initiation event; unrelated updates do not revise it", async () => {
       const f = await seed();
@@ -438,7 +707,7 @@ describe(
         before!.outcomeRevision,
       );
     });
-    it("does not enroll no-answer, voicemail, AI outcomes, historical repeats or disabled policies", async () => {
+    it("does not enroll no-answer, voicemail, AI outcomes, historical repeats or pilot-off outcomes", async () => {
       for (const outcome of ["no_answer", "voicemail"] as CallOutcome[]) {
         const f = await seed();
         assert.equal(
@@ -480,6 +749,223 @@ describe(
         undefined,
       );
       config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = [organizationId];
+    });
+    it("saves interested without enrollment when the stored policy is disabled in a piloted organization", async () => {
+      const automation = await prisma.aiVoiceAgentAutomation.findFirstOrThrow({
+        where: { organizationId },
+      });
+      await prisma.aiVoiceAgentAutomation.update({
+        where: { id: automation.id },
+        data: {
+          settings: {
+            humanFollowUp: { enabled: false, interestedObjective: "booking" },
+          },
+        },
+      });
+      try {
+        assert.ok(
+          config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS.includes(organizationId),
+        );
+        const f = await seed();
+        const result = await manual.updateCallOutcome(ctx, f.call.id, {
+          outcome: "interested",
+        });
+        assert.equal(result.followUp, undefined);
+        assert.equal((await calls.findById(f.call.id))!.outcome, "interested");
+        assert.equal(
+          await prisma.pendingActionFollowUp.count({
+            where: { sourceId: f.call.id },
+          }),
+          0,
+        );
+      } finally {
+        await prisma.aiVoiceAgentAutomation.update({
+          where: { id: automation.id },
+          data: { settings: automation.settings! },
+        });
+      }
+    });
+    it("closes the source objective and withdraws its callback when booking records an outcome without assignment", async () => {
+      const f = await enroll();
+      const result = await calls.recordOutcome(f.call.id, "meeting_booked");
+      assert.equal(result.followUp!.state, "closed");
+      assert.equal(result.followUp!.reason, "source_outcome_corrected");
+      assert.equal(
+        (await callbacks.findById(f.callback.id))!.status,
+        "cancelled",
+      );
+      const revision = result.followUp!.revision;
+      await calls.recordOutcome(f.call.id, "meeting_booked");
+      assert.equal(
+        (await repo.followUpSnapshot(f.objective.id))!.revision,
+        revision,
+      );
+    });
+    it("gives an unplaced recovery a new key on the next review and replays the same attempt", async () => {
+      const f = await enroll();
+      await prisma.callbackTask.update({
+        where: { id: f.callback.id },
+        data: { status: "missed", reason: "not_placed" },
+      });
+      const at = new Date(Date.now() + 86400000);
+      const first = (await repo.planHumanFollowUpStep(
+        f.objective.id,
+        f.objective.revision,
+        at,
+        "recovery",
+      ))!;
+      assert.ok(first);
+      assert.equal(
+        (await repo.planHumanFollowUpStep(
+          f.objective.id,
+          f.objective.revision,
+          at,
+          "recovery",
+        ))!.id,
+        first.id,
+      );
+      await prisma.callbackTask.update({
+        where: { id: first.id },
+        data: { status: "missed", reason: "not_placed" },
+      });
+      const row = (await repo.followUpSnapshot(f.objective.id))!;
+      assert.equal(row.recoveryCount, 0);
+      const second = (await repo.planHumanFollowUpStep(
+        row.id,
+        row.revision,
+        at,
+        "recovery",
+      ))!;
+      assert.ok(second);
+      assert.notEqual(second.id, first.id);
+      assert.notEqual(second.agentCallbackKey, first.agentCallbackKey);
+      assert.equal(
+        (await repo.planHumanFollowUpStep(
+          row.id,
+          row.revision,
+          at,
+          "recovery",
+        ))!.id,
+        second.id,
+      );
+    });
+    it("commits stop and DNC together, tolerates a duplicate phone and rolls back unrelated failures", async () => {
+      const f = await enroll();
+      const before = (await calls.findById(f.call.id))!;
+      const createOnce = dnc.createOnce.bind(dnc);
+      dnc.createOnce = async (...args) => {
+        await createOnce(...args);
+        throw new Error("injected persistence failure");
+      };
+      try {
+        await assert.rejects(
+          manual.updateCallOutcome(ctx, f.call.id, {
+            outcome: "not_interested",
+            stopRequested: true,
+          }),
+          /injected persistence failure/,
+        );
+        assert.equal(await dnc.findByPhone(ctx, f.contact.phoneNumber), null);
+        assert.equal(
+          (await calls.findById(f.call.id))!.outcomeRevision,
+          before.outcomeRevision,
+        );
+        assert.equal(
+          (await repo.followUpSnapshot(f.objective.id))!.state,
+          "scheduled",
+        );
+        assert.equal(
+          (await callbacks.findById(f.callback.id))!.status,
+          "scheduled",
+        );
+      } finally {
+        dnc.createOnce = createOnce;
+      }
+      // A colleague's entry on the same org list also satisfies the stop.
+      const existing = await dnc.create({
+        ...ctx,
+        userId: colleagueId,
+        phoneNumber: f.contact.phoneNumber,
+      });
+      for (let replay = 0; replay < 2; replay++) {
+        const result = await manual.updateCallOutcome(ctx, f.call.id, {
+          outcome: "not_interested",
+          stopRequested: true,
+        });
+        assert.equal(result.followUp!.state, "closed");
+      }
+      assert.equal(
+        (await dnc.findByPhone(ctx, f.contact.phoneNumber))!.id,
+        existing.id,
+      );
+      assert.equal(
+        (await calls.findById(f.call.id))!.outcomeRevision,
+        before.outcomeRevision + 1,
+      );
+      assert.equal(
+        (
+          (await calls.findById(f.call.id))!.outcomeCommitment as {
+            stopRequested: boolean;
+          }
+        ).stopRequested,
+        true,
+      );
+    });
+    it("records stop and the actual remote number for personal, unknown-contact, unattributed and AI calls", async () => {
+      await prisma.organizationMembership.updateMany({
+        where: { ...ctx },
+        data: { role: "org:admin" },
+      });
+      const personal = { userId, organizationId: null };
+      try {
+        for (const variant of [
+          "personal",
+          "unknown",
+          "unattributed",
+          "ai",
+        ] as const) {
+          const f = await seed(variant === "ai" ? "ai_voice_agent" : "web");
+          const owner = variant === "personal" ? personal : ctx;
+          await prisma.call.update({
+            where: { id: f.call.id },
+            data: {
+              organizationId: owner.organizationId,
+              userId: variant === "unattributed" ? null : userId,
+              contactId: variant === "ai" ? f.contact.id : null,
+              direction: "inbound",
+              fromNumber: f.contact.phoneNumber,
+              toNumber: "+12025550100",
+            },
+          });
+          try {
+            for (let replay = 0; replay < 2; replay++) {
+              const result = await service.recordHumanOutcome(
+                owner,
+                f.call.id,
+                { outcome: "not_interested", stopRequested: true },
+              );
+              assert.equal(result.followUp, null);
+              assert.equal(
+                (result.call.outcomeCommitment as { stopRequested: boolean })
+                  .stopRequested,
+                true,
+              );
+            }
+            assert.ok(await dnc.findByPhone(owner, f.contact.phoneNumber));
+            assert.equal(await dnc.findByPhone(owner, "+12025550100"), null);
+          } finally {
+            if (variant === "personal") {
+              await prisma.call.delete({ where: { id: f.call.id } });
+              await dnc.deleteByPhone(owner, f.contact.phoneNumber);
+            }
+          }
+        }
+      } finally {
+        await prisma.organizationMembership.updateMany({
+          where: { ...ctx },
+          data: { role: "org:member" },
+        });
+      }
     });
     it("preserves agreed callback date/time zone and blocks an informational purpose honestly", async () => {
       const f = await seed();

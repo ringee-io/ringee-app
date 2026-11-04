@@ -1202,6 +1202,50 @@ describe("CallAttemptService lifecycle", () => {
       }),
     );
 
+  it("rejects invalid callback dates before accepting any callback-triggering outcome", async () => {
+    for (const outcome of ["interested", "follow_up", "callback_scheduled"]) {
+      const { world, attemptId } = await dialedAndAnswered();
+      await hangup(world, attemptId);
+      await assert.rejects(
+        world.callAttemptService.submitDisposition({
+          callAttemptId: attemptId,
+          disposition: {
+            ...notInterested,
+            code: outcome,
+            canonicalOutcome: outcome,
+            triggersCallback: true,
+          } as never,
+          callback: { scheduledAt: new Date(NaN) },
+          campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+          organizationId: "org-1",
+        }),
+        BadRequestException,
+      );
+      assert.deepEqual(world.outcomeWrites, []);
+      assert.equal(world.attempts.get(attemptId)!.status, "ended");
+    }
+  });
+  it("makes a stop request DNC even when the disposition would otherwise schedule or complete", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    const result = await world.callAttemptService.submitDisposition({
+      callAttemptId: attemptId,
+      disposition: {
+        ...notInterested,
+        code: "interested",
+        canonicalOutcome: "interested",
+        triggersCallback: true,
+        triggersCompletion: true,
+      } as never,
+      callback: { scheduledAt: new Date(Date.now() + 86400000) },
+      stopRequested: true,
+      campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+      organizationId: "org-1",
+    });
+    assert.equal(result.action, "dnc");
+    assert.equal(world.lead("lead-1").status, "dnc");
+  });
+
   it("counts the attempt once and sends the agent on when the disposition and the hangup webhook race", async () => {
     for (const order of ["together", "hangup-first", "dispose-first"]) {
       const { world, attemptId } = await dialedAndAnswered();

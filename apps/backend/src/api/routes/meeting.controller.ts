@@ -282,6 +282,11 @@ export class MeetingController {
     }
 
     if (!dto.outcome && !dto.dispositionId) {
+      if (dto.stopRequested !== undefined) {
+        throw new BadRequestException(
+          "An outcome or dispositionId is required with stopRequested",
+        );
+      }
       return this.meetingService.finalizeCall(ctx, callId);
     }
     if (dto.dispositionId && !isUUID(dto.dispositionId)) {

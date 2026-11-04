@@ -284,6 +284,30 @@ remain concurrent within each suite. It uses the same local-only `RINGEE_FOLLOWU
 No real calls or production migrations were performed. Live provider validation
 still requires named test contacts and an expressly authorized pilot organization.
 
+CI starts PostgreSQL 16 with an empty `ringee_followup_test` database. Before the
+Test step it runs:
+
+```bash
+FOLLOWUP_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ringee_followup_test \
+  node packages/services/test/prepare-follow-up-database.mjs
+```
+
+The test-only script refuses nonlocal, differently named or nonempty databases.
+It derives the schema preceding follow-up from the current Prisma schema, adds
+the SQL-only DNC partial indexes, then applies the actual Stage 1 migration,
+callback index/foreign-key validation and Stage 2 migration. This includes the
+lifecycle checks that `prisma db push` omits. The generated baseline already
+includes the Step 0 callback uniqueness indexes. The Test step alone receives
+`RINGEE_FOLLOWUP_TEST_DATABASE_URL` pointing at this prepared database, so both
+PostgreSQL suites execute in CI. Each suite enforces a ten-minute timeout;
+the shared advisory-lock transaction allows twenty-one minutes, covering a
+competing suite and the full bounded run. Providers remain mocked.
+
+For bounded local test concurrency, put `--test-concurrency=2` before the
+`src/**/*.spec.ts` pattern in the package's `node --test` command. Appending it
+with `pnpm run test --test-concurrency=2` places it after the pattern and does
+not limit the test runner's workers.
+
 Stage 2 verification (4 November 2026):
 
 - Full services suite: 1,556 passed, zero failures or skipped tests, using

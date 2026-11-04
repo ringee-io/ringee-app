@@ -207,7 +207,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           : (followUp.reason ?? "").replace(/_/g, " ");
         notify(
           blocked ? "error" : "success",
-          `${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,
+          `Call outcome saved. ${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,
         );
       } else notify("success", "Call outcome saved");
       onClose();

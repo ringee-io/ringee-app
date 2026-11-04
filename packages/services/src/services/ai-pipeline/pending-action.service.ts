@@ -9,6 +9,7 @@ import {
 import {
   AiPipelineActivationRepository,
   CallOutcome,
+  DNCEntry,
   CallbackTask,
   CallbackTaskRepository,
   HumanOutcomeAssignment,
@@ -276,18 +277,56 @@ export class PendingActionService {
       if (scope && call.userId !== scope)
         throw new NotFoundException("Call not found");
     }
+    const save = async (assignment?: HumanOutcomeAssignment) => {
+      let dncEntry: DNCEntry | undefined;
+      const recorded = await this.calls.recordOutcome(
+        call.id,
+        input.outcome,
+        input.note,
+        input.disposition,
+        assignment,
+        input.stopRequested !== undefined
+          ? {
+              requested: input.stopRequested,
+              persist: async (tx) => {
+                if (!input.stopRequested) return;
+                // Use the actual remote party, including unknown contacts and
+                // AI-origin calls. Ownership was checked on the source above.
+                const phone = normalizePhoneE164(
+                  ["inbound", "incoming"].includes(call.direction ?? "")
+                    ? call.fromNumber
+                    : call.toNumber,
+                );
+                if (!phone)
+                  throw new BadRequestException(
+                    "The call has no valid remote phone number for the stop request",
+                  );
+                dncEntry = await this.compliance.addToDNC(
+                  {
+                    userId: call.userId ?? ctx.userId,
+                    organizationId: ctx.organizationId,
+                    phoneNumber: phone,
+                    reason:
+                      "Explicit stop request recorded with the human outcome",
+                    source: "disposition",
+                    addedByUserId: ctx.userId,
+                  },
+                  tx,
+                );
+              },
+            }
+          : undefined,
+      );
+      if (dncEntry) this.compliance.publishDncCreated(dncEntry);
+      return recorded;
+    };
     if (
       !ctx.organizationId ||
       !call.contactId ||
       !call.userId ||
       call.source === "ai_voice_agent"
     )
-      return this.calls.recordOutcome(
-        callId,
-        input.outcome,
-        input.note,
-        input.disposition,
-      );
+      return save();
     const contact = await this.contacts.findByIdForOwner(ctx, call.contactId);
     if (
       !contact ||
@@ -461,22 +500,7 @@ export class PendingActionService {
           }
         : null,
     };
-    if (commitment.stopRequested && phone)
-      await this.compliance.addToDNC({
-        userId: call.userId,
-        organizationId: ctx.organizationId,
-        phoneNumber: phone,
-        reason: "Explicit stop request recorded with the human outcome",
-        source: "disposition",
-        addedByUserId: ctx.userId,
-      });
-    return this.calls.recordOutcome(
-      call.id,
-      input.outcome,
-      input.note,
-      input.disposition,
-      assignment,
-    );
+    return save(assignment);
   }
 
   async scheduleHumanObjectiveCallback(agentCallId: string, at: Date) {

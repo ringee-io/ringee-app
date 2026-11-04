@@ -257,7 +257,11 @@ export class CallAttemptRepository {
         await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${source.callId}::uuid FOR UPDATE`;
         if (
           !(await tx.call.count({
-            where: { id: source.callId, outcomeRevision: source.revision },
+            where: {
+              id: source.callId,
+              outcomeRevision: source.revision,
+              dispositionId: data.dispositionId,
+            },
           }))
         )
           return null;

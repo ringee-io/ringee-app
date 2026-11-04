@@ -86,7 +86,7 @@ export class CallbackService {
     const contact = await this.contactRepo
       .findById(callback.contactId)
       .catch(() => null);
-    void this.customIntegrationOutbound.enqueue({
+    await this.customIntegrationOutbound.enqueue({
       ctx: { userId: callback.userId, organizationId: callback.organizationId },
       eventEnum: "callback_created",
       subjectId: callback.id,
@@ -245,7 +245,12 @@ export class CallbackService {
         data.agentCallId,
         data.scheduledAt,
       );
-    if (objectiveCallback) return objectiveCallback;
+    if (objectiveCallback) {
+      // The outbound outbox deduplicates callback_created by callback id,
+      // including a replay after scheduling committed but publication failed.
+      await this.enqueueCallbackCreated(objectiveCallback);
+      return objectiveCallback;
+    }
     const { callback, created } = await this.callbackRepo.createOnce({
       id: data.agentCallId,
       userId: data.userId,

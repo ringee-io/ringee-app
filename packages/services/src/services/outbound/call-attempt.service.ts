@@ -496,8 +496,8 @@ export class CallAttemptService {
 
     const mapped = canonicalOutcomeOf(disposition);
     if (
-      mapped === "callback_scheduled" &&
-      (!data.callback || !Number.isFinite(data.callback.scheduledAt.getTime()))
+      (mapped === "callback_scheduled" && !data.callback) ||
+      (data.callback && !Number.isFinite(data.callback.scheduledAt.getTime()))
     )
       throw new BadRequestException("A valid callback date is required");
     // Acceptance must finish before the session advances or any human callback
@@ -564,7 +564,13 @@ export class CallAttemptService {
     let action = "dispositioned";
 
     // Process disposition workflow triggers
-    if (assigned && !["closed", "resolved"].includes(assigned.state)) {
+    if (data.stopRequested) {
+      await this.campaignLeadRepo.updateStatus(
+        attempt.campaignLeadId,
+        CampaignLeadStatus.dnc,
+      );
+      action = "dnc";
+    } else if (assigned && !["closed", "resolved"].includes(assigned.state)) {
       await this.campaignLeadRepo.updateStatus(
         attempt.campaignLeadId,
         CampaignLeadStatus.completed,
@@ -596,7 +602,11 @@ export class CallAttemptService {
         });
       }
       action = "dnc";
-    } else if (disposition.triggersCallback && data.callback?.scheduledAt) {
+    } else if (
+      !data.stopRequested &&
+      disposition.triggersCallback &&
+      data.callback?.scheduledAt
+    ) {
       await this.callbackService.scheduleFromCampaign({
         campaignLeadId: attempt.campaignLeadId,
         userId: attempt.agentUserId,

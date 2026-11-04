@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { CallOutcome, DispositionCategory } from "@ringee/database";
+import { apiConfiguration } from "@ringee/configuration";
 import { buildOwnershipFilter, type OwnershipContext } from "@ringee/platform";
 import {
   DispositionService,
@@ -237,12 +238,12 @@ function fakeCampaigns(campaigns: Map<string, Row>) {
   };
 }
 
-function setup() {
+function setup(automation: Row | null = null) {
   const fake = fakeRepository();
   const service = new DispositionService(
     fake.repo as never,
     fakeCampaigns(fake.campaigns) as never,
-    { findForOwner: async () => null } as never,
+    { findForOwner: async () => automation } as never,
   );
   fake.campaigns.set("campaign-1", {
     id: "campaign-1",
@@ -254,6 +255,40 @@ function setup() {
 }
 
 describe("DispositionService — the workspace's defaults", () => {
+  it("marks only eligible canonical outcomes under an enabled follow-up policy", async () => {
+    const config = apiConfiguration as unknown as {
+      AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS: string[];
+    };
+    const previous = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1"];
+    try {
+      for (const enabled of [true, false, null]) {
+        const { service } = setup(
+          enabled === null
+            ? null
+            : { settings: { humanFollowUp: { enabled } } },
+        );
+        const rows = await service.listByCampaign("campaign-1");
+        assert.equal(
+          rows.find((row) => row.canonicalOutcome === "interested")!
+            .automaticFollowUp,
+          enabled === true,
+        );
+        assert.equal(
+          rows.find((row) => row.canonicalOutcome === "follow_up")!
+            .automaticFollowUp,
+          enabled === true,
+        );
+        assert.equal(
+          rows.find((row) => row.canonicalOutcome === "no_answer")!
+            .automaticFollowUp,
+          false,
+        );
+      }
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = previous;
+    }
+  });
   it("creates the defaults on first read, once, with the outcome as their code", async () => {
     const { service, repo } = setup();
     const first = await service.list(ORG_ADMIN);

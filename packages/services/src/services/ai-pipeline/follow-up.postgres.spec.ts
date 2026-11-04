@@ -1,4 +1,7 @@
-import { isolateFollowUpWorkerFixtures } from "../../../test/postgres-worker-fixture";
+import {
+  isolateFollowUpWorkerFixtures,
+  FOLLOW_UP_SUITE_TIMEOUT_MS,
+} from "../../../test/postgres-worker-fixture";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -31,7 +34,7 @@ import { VoiceAgentHandoffService } from "../voice-agents/automations/voice-agen
 const url = process.env.RINGEE_FOLLOWUP_TEST_DATABASE_URL;
 describe(
   "Stage 1 follow-up — real PostgreSQL and domain services",
-  { skip: !url },
+  { skip: !url, timeout: FOLLOW_UP_SUITE_TIMEOUT_MS },
   () => {
     const prisma = new PrismaClient({ datasourceUrl: url });
     const db = prisma as never;

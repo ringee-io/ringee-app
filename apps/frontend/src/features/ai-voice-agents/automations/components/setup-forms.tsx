@@ -1206,7 +1206,6 @@ export function SchedulingSetup({
         ...agent.body(),
         callerNumberId,
         humanFollowUpEnabled: draft.humanFollowUpEnabled,
-        interestedObjective: 'booking',
         calendarId
       });
       clear();
