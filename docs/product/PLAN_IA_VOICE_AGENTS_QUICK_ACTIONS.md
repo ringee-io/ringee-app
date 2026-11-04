@@ -283,3 +283,11 @@ Alcance acordado: entregas 1, 2 y 4 sin traspaso IA. El handoff (entrega 3 y su 
 2. Piloto: activar el flag para una organización y recorrer cita → llamada → confirmación → correo con llamadas reales; verificar el hilo en Gmail y Outlook.
 3. Entrega 5: varios offsets, reintentos tras «sin respuesta», ventanas por equipo y reprogramación por voz. El modelo de datos ya admite varios offsets y ventanas.
 4. Eventos de Custom Integrations para la asistencia (aditivos).
+
+**Actualización Stage 1 (3 de noviembre de 2026):** los nuevos handoffs de
+reagendamiento crean objetivos persistentes en el centro de pendientes existente,
+con pasos de callback, controles de pausa/toma/cierre y resolución por evidencia
+de reunión. Disponibilidad no equivale a reagendamiento. Ver
+[§17 del plan de seguimiento](PLAN_ORGANIZATION_AI_FOLLOWUP.md#17-estado-de-implementación--stage-1-3-de-noviembre-de-2026)
+y [FOLLOW_UP.md](../engineering/FOLLOW_UP.md). El piloto sigue cerrado; no se
+validaron llamadas reales ni se implementó alta desde resultados de llamada fría.

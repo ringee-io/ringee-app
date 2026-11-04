@@ -67,6 +67,9 @@ calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
   The claim is left to expire and the next tick links the call by its key;
 - re-checks what it is calling about right before the dial (versions, calling
   window, DNC through `startCall`), because the row it planned from may be stale.
+  `startCall` fills the contact's blank fields from the call's variables
+  before `beforePlacement` runs, so a guard fenced on `Contact.updatedAt`
+  re-reads the contact there instead of comparing the version its plan read.
 
 A call can hold more than one agent (AGENT-021): the agent that placed it and
 one that took it over through a handoff. A voice-agent tool therefore never

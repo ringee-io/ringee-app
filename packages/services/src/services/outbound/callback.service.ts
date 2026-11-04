@@ -35,6 +35,8 @@ import {
   VoiceAgentHandoffService,
 } from "../voice-agents/automations/voice-agent-handoff.service";
 
+import { PendingActionService } from "../ai-pipeline/pending-action.service";
+
 const MAX_AUTOMATED_CALLBACK_ATTEMPTS = 3;
 /** How long a worker owns a claimed agent callback before another may take it. */
 const AGENT_CALLBACK_LEASE_MS = 5 * 60_000;
@@ -68,6 +70,7 @@ export class CallbackService {
     private readonly voiceAgentCalls: VoiceAgentCallService,
     private readonly callRepo: CallRepository,
     private readonly handoffs: VoiceAgentHandoffService,
+    private readonly pendingActions: PendingActionService,
   ) {}
 
   private async enqueueCallbackCreated(callback: {
@@ -296,6 +299,7 @@ export class CallbackService {
     scheduledAt: Date;
     note?: string;
   }): Promise<CallbackTask> {
+    await this.handoffs.authorizeCallbackCreation(data);
     const { callback, created } =
       await this.callbackRepo.createAgentCallbackOnce({
         userId: data.userId,
@@ -371,6 +375,37 @@ export class CallbackService {
     if (!updated) throw beingPlaced();
     await this.silentlyCancelReminders(id);
     return updated;
+  }
+
+  async rescheduleAgreedAgentCallback(
+    id: string,
+    scheduledAt: Date,
+    handoffId: string,
+  ) {
+    const callback = await this.callbackRepo.findById(id);
+    if (
+      !callback ||
+      callback.handoffId !== handoffId ||
+      callback.status !== CallbackStatus.scheduled ||
+      !callback.organizationId ||
+      !callback.agentId
+    )
+      throw beingPlaced();
+    await this.handoffs.authorizeCallbackCreation({
+      handoffId,
+      userId: callback.userId,
+      organizationId: callback.organizationId,
+      agentId: callback.agentId,
+      contactId: callback.contactId,
+      callId: callback.callId,
+    });
+    const moved = await this.callbackRepo.rescheduleAgentCallback(
+      id,
+      scheduledAt,
+      CallbackStatus.scheduled,
+    );
+    if (!moved) throw beingPlaced();
+    return moved;
   }
 
   async reschedule(id: string, scheduledAt: Date) {
@@ -539,7 +574,9 @@ export class CallbackService {
     // recovery calls policy allows, then place the agent callbacks that are
     // due. Isolated, so a failure here never holds up the callbacks above.
     try {
+      await this.pendingActions.reconcileFollowUps();
       count += await this.planHandoffRecoveries(new Date());
+      await this.pendingActions.reconcileFollowUps();
     } catch (error) {
       this.logger.error(
         `Handoff recovery planning failed: ${
@@ -549,6 +586,7 @@ export class CallbackService {
     }
     try {
       count += await this.processAgentCallbacks();
+      await this.pendingActions.reconcileFollowUps();
     } catch (error) {
       this.logger.error(
         `Agent callbacks failed: ${
@@ -682,6 +720,21 @@ export class CallbackService {
       }
     }
 
+    if (callback.dispatchCommittedAt && callback.dialTries > 0) {
+      const earlier = await this.agentCalls.findByIdempotencyKey(
+        agentDialKey(callback, callback.dialTries),
+      );
+      if (earlier && provablyUnplaced(earlier)) {
+        await this.callbackRepo.deferAgentCallback(
+          callback.id,
+          claimToken,
+          new Date(Date.now() + 60_000),
+          "retry_before_placement",
+          true,
+        );
+        return false;
+      }
+    }
     const decision = await this.handoffs.decideCallback(callback, new Date());
     if (decision.action === "skip") {
       await finish(decision.status, { reason: decision.reason });
@@ -756,8 +809,20 @@ export class CallbackService {
         const agentCallId =
           error instanceof VoiceAgentCallStartError ? error.agentCallId : null;
         if (agentCallId) {
-          await finish(CallbackStatus.completed, { agentCallId });
-          return true;
+          const existing = await this.agentCalls.findByIdempotencyKey(
+            agentDialKey(dialing, dialing.dialTries),
+          );
+          if (existing?.providerCallControlId) {
+            await finish(CallbackStatus.completed, { agentCallId });
+            return true;
+          }
+          await this.callbackRepo.deferAgentCallback(
+            callback.id,
+            claimToken,
+            new Date(Date.now() + PLACEMENT_RECHECK_MS),
+            "placement_pending",
+          );
+          return false;
         }
         await finish(CallbackStatus.missed, {
           reason: "placement_unconfirmed",
@@ -812,6 +877,10 @@ export class CallbackService {
    * row under the claim would let a second call follow the first.
    */
   private assertNotBeingPlaced(callback: CallbackTask): void {
+    if (callback.followUpId)
+      throw new ConflictException(
+        "Use the follow-up objective controls for this automatic step.",
+      );
     if (
       callback.agentCallbackKind &&
       callback.status === CallbackStatus.in_progress

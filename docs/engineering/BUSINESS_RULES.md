@@ -547,6 +547,9 @@ out campaign callbacks — when one comes due the campaign re-queues its lead �
 and the callbacks an AI voice agent scheduled, which the agent places itself:
 those that reuse their source call's id, and those assigned to an agent for a
 handoff request (`CallbackTask.agentCallbackKind`, AGENT-021).
+Persistent objectives (AGENT-022) are also excluded, including during manual
+takeover: their explicit lifecycle owns the work. Only blocked exceptions count
+toward the responsible member's actionable pending-action badge.
 An item leaves the queue once it is handled: a missed call when anyone in the
 workspace has called the number since, a follow-up when its owner has called
 the contact after it was raised, a callback only when it is completed or
@@ -2078,11 +2081,15 @@ it is not in it yet.
   has ended, no participant's tool call changes anything.
 - **Callbacks.** A callback agreed after a failure is assigned to the
   scheduling agent (AGENT-014) and promised only once it exists, and only
-  while the request is pending and its meeting not already moved. The same
-  call agreeing another time moves that callback; it never adds a second one.
-  When it comes due its context is rebuilt from the request, and it is
-  withdrawn if someone already moved the meeting; the original time passing,
-  or the meeting being cancelled, resolves nothing. A try whose call row never
+  while the request is pending and its meeting not already moved — and, for
+  an objective-backed request, only for a time before its objective expires.
+  The same call agreeing another time moves that callback; it never adds a
+  second one. When it comes due its context is rebuilt from the request, and
+  it is withdrawn if someone already moved the meeting; the original time
+  passing, or the meeting being cancelled, resolves nothing. A callback or
+  recovery is placed on behalf of the request's owner, and never once that
+  member has left the organization: it is skipped as `owner_not_member` and a
+  person decides. A try whose call row never
   confirmed its leg is waited on, then recorded as `placement_unconfirmed` —
   never completed on a guess, never dialed again. When a call ends before the
   scheduling agent ever spoke and nothing was agreed, the request is recovered
@@ -2091,6 +2098,10 @@ it is not in it yet.
   agreed. A person who chose to be called back instead of continuing on the
   call is never recovered: their callback was the automated step. Anything
   else that leaves no automated step settles the request as `needs_attention`.
+  For new objective-backed requests, AGENT-022 owns the lifecycle: an answered
+  call without a result may still receive the one policy recovery; exhausted
+  contact attempts close without success instead of returning a routine manual
+  call to the salesperson. Availability remains an explicit blocked exception.
 - **History and money.** One `Call` and one `AiVoiceAgentCall` root, with
   `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children; `agentId`
   keeps meaning the agent that placed the call. A participation is not a
@@ -2116,6 +2127,46 @@ it is not in it yet.
 - **Risk if violated:** a model hands a call to an agent nobody authorized,
   two agents act on one meeting, a person is called twice, or a request is
   dropped because the meeting's time passed
+
+### AGENT-022 — Automatic follow-up owns an objective across calls
+
+`PendingActionService` / `PendingActionRepository` own durable objectives through
+an optional child of the existing pending action, behind the automation pilot.
+A new Step 0 handoff creates that child and its initial evidence in the same
+transaction, once per workspace/source/version. Historical recommendations and
+legacy handoffs are not enrolled.
+
+- A callback is a step, not success. Rescheduling resolves only from an authorized
+  newer stored meeting at a different time, checked again under its row lock.
+  Availability blocks for the meeting decision once no call is live and no
+  callback is still to come — the specialist may still move the meeting on that
+  call, and a callback the person agreed to is kept; the original time passing
+  and meeting cancellation alone resolve nothing. A request whose objective
+  cannot be enrolled is still recorded, without one. Closure explicitly records refusal,
+  objective cancellation, expiry or exhausted attempts.
+- Every active objective has a timed next action, an active execution or an
+  explicit waiting/paused/blocked reason. Revisions fence stale writes and stable
+  action keys deduplicate evidence. The existing callback tick reconciles it;
+  there is no second scheduler.
+- Objective counters survive callback creation, retries and specialist changes.
+  Initial bounds are three dispatched contact steps, one policy recovery and
+  seven days. Proven-unplaced retries reuse the step's contact-attempt count.
+  Uncertain placement must reconcile the original execution, never redial.
+- Pause, takeover, close and resolve lock the same objective as final dispatch.
+  They withdraw uncommitted steps; a committed call may finish and settle.
+  Resume revalidates the case, the meeting still scheduled or rescheduled, and
+  schedules at least an hour in the future; manual takeover requires explicit
+  `return_automatic`.
+- Configuring administrator, commercial owner and executing agent are distinct.
+  Members can see their own objectives without gaining colleagues' call data.
+  Existing call/AI debit keys settle each linked call once; transitions are free
+  and unknown costs stay null.
+
+**Source of truth:** [FOLLOW_UP.md](FOLLOW_UP.md), `PendingActionService`,
+`PendingActionRepository`, `CallbackTaskRepository.commitFollowUpDispatch`.
+
+**Risk if violated:** duplicate calls, silent loss of follow-up, false success,
+colleague data disclosure or automatic work returning as a manual call.
 
 ---
 

@@ -4,6 +4,23 @@ export interface PendingActionView {
   status: 'pending' | 'completed' | 'dismissed' | 'snoozed';
   priority: 'low' | 'medium' | 'high';
   source: 'rule' | 'ai' | 'manual';
+  followUp?: {
+    id: string;
+    objectiveType: string;
+    state:
+      | 'scheduled'
+      | 'in_progress'
+      | 'waiting'
+      | 'recovering'
+      | 'paused'
+      | 'blocked'
+      | 'resolved'
+      | 'closed';
+    mode: 'automatic' | 'manual';
+    nextAction: string | null;
+    nextActionAt: string | null;
+    reason: string | null;
+  } | null;
   title: string;
   reason: string | null;
   suggestedMessage: string | null;

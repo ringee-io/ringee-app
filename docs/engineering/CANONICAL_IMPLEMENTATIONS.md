@@ -141,6 +141,17 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Provider handoff capability           | `VoiceAgentTool` `handoff`, `assistantHandoffMode()`                                  |
 | Agent callbacks for a request         | `CallbackService.scheduleAgentCallback` (lease, dial key)                             |
 
+## Persistent follow-up objectives (AGENT-022)
+
+- `PendingActionService` / `PendingActionRepository` own the optional
+  `PendingActionFollowUp` child of an existing pending action.
+- `PendingActionService.reconcileFollowUp` / `controlFollowUp` own evidence and
+  controls; `pending-action-follow-up.persistence.ts` shares transaction helpers
+  with the specialized handoff and callback repositories.
+- `CallbackTaskRepository.commitFollowUpDispatch` is the final dispatch fence;
+  it shares the objective lock with controls. The existing callback tick is the
+  executor. See [FOLLOW_UP.md](FOLLOW_UP.md).
+
 ## Contacts and lists
 
 | Responsibility                            | Owner                                                                                                                                                                       |

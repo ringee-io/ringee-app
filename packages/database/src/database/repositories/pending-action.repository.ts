@@ -1,7 +1,19 @@
+import { buildOwnershipFilter, type OwnershipContext } from "@ringee/platform";
+import {
+  applyFollowUpPlan,
+  lockFollowUp,
+  FOLLOW_UP_TERMINAL,
+  type FollowUpPlan,
+} from "./pending-action-follow-up.persistence";
+export type {
+  NewFollowUpObjective,
+  FollowUpPlan,
+} from "./pending-action-follow-up.persistence";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import {
   PendingAction,
+  FollowUpState,
   PendingActionPriority,
   PendingActionSource,
   PendingActionStatus,
@@ -59,6 +71,16 @@ export type PendingActionFilterKey =
   | "personal";
 
 export interface PendingActionDisplay extends PendingAction {
+  followUp?: {
+    id: string;
+    /** What the objective is for (`reschedule_meeting`), for its label. */
+    objectiveType: string;
+    state: FollowUpState;
+    mode: "automatic" | "manual";
+    nextAction: string | null;
+    nextActionAt: Date | null;
+    reason: string | null;
+  } | null;
   contact: {
     id: string;
     name: string | null;
@@ -245,7 +267,30 @@ export class PendingActionRepository {
       take: limit,
     });
 
-    const data = await this.enrich(actions);
+    const enriched = await this.enrich(actions, owner, memberUserId);
+    const objectives = await this.prisma.pendingActionFollowUp.findMany({
+      where: { pendingActionId: { in: actions.map((action) => action.id) } },
+      select: {
+        id: true,
+        pendingActionId: true,
+        objectiveType: true,
+        state: true,
+        mode: true,
+        nextAction: true,
+        nextActionAt: true,
+        reason: true,
+      },
+    });
+    const objectiveByAction = new Map(
+      objectives.map(({ pendingActionId, ...objective }) => [
+        pendingActionId,
+        objective,
+      ]),
+    );
+    const data = enriched.map((action) => ({
+      ...action,
+      followUp: objectiveByAction.get(action.id) ?? null,
+    }));
     return {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -306,6 +351,7 @@ export class PendingActionRepository {
           { type: { in: options.types } },
           { contactId: { not: null } },
           { campaignId: null },
+          { followUp: { is: null } },
           {
             OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: options.now } }],
           },
@@ -382,8 +428,269 @@ export class PendingActionRepository {
     });
   }
 
+  findFollowUpForAction(
+    ctx: OwnershipContext,
+    actionId: string,
+    memberUserId?: string,
+  ) {
+    return this.prisma.pendingActionFollowUp.findFirst({
+      where: {
+        pendingActionId: actionId,
+        action: {
+          ...buildOwnershipFilter(ctx),
+          ...(memberUserId ? { userId: memberUserId } : {}),
+        },
+      },
+    });
+  }
+
+  findFollowUpForHandoff(handoffId: string) {
+    return this.prisma.pendingActionFollowUp.findUnique({
+      where: { handoffId },
+    });
+  }
+
+  listFollowUps(
+    ctx: OwnershipContext,
+    options: {
+      memberUserId?: string;
+      state?: FollowUpState;
+      page: number;
+      limit: number;
+    },
+  ) {
+    const where: Prisma.PendingActionFollowUpWhereInput = {
+      action: {
+        ...buildOwnershipFilter(ctx),
+        ...(options.memberUserId ? { userId: options.memberUserId } : {}),
+      },
+      ...(options.state ? { state: options.state } : {}),
+    };
+    return Promise.all([
+      this.prisma.pendingActionFollowUp.findMany({
+        where,
+        include: {
+          action: { select: { contactId: true } },
+          events: {
+            orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+            take: 1,
+          },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (options.page - 1) * options.limit,
+        take: options.limit,
+      }),
+      this.prisma.pendingActionFollowUp.count({ where }),
+    ]);
+  }
+
+  followUpSnapshot(id: string) {
+    return this.prisma.pendingActionFollowUp.findUnique({
+      where: { id },
+      include: {
+        action: true,
+        handoff: {
+          include: {
+            agentCall: {
+              select: {
+                id: true,
+                callId: true,
+                userId: true,
+                organizationId: true,
+                providerCallControlId: true,
+                status: true,
+                aiChargedCredits: true,
+                aiCostDebitedAt: true,
+                call: {
+                  select: {
+                    id: true,
+                    userId: true,
+                    organizationId: true,
+                    status: true,
+                    endedAt: true,
+                    answeredAt: true,
+                    startedAt: true,
+                    totalCost: true,
+                    durationSeconds: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        callbacks: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            agentCall: {
+              select: {
+                id: true,
+                callId: true,
+                userId: true,
+                organizationId: true,
+                providerCallControlId: true,
+                status: true,
+                aiChargedCredits: true,
+                aiCostDebitedAt: true,
+                call: {
+                  select: {
+                    id: true,
+                    userId: true,
+                    organizationId: true,
+                    status: true,
+                    endedAt: true,
+                    answeredAt: true,
+                    startedAt: true,
+                    totalCost: true,
+                    durationSeconds: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async ownsFollowUpEvent(followUpId: string, id: string) {
+    return (
+      (await this.prisma.pendingActionFollowUpEvent.count({
+        where: { id, followUpId },
+      })) === 1
+    );
+  }
+
+  followUpEvents(id: string, after?: string) {
+    return this.prisma.pendingActionFollowUpEvent.findMany({
+      where: { followUpId: id },
+      orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
+      ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+      take: 100,
+    });
+  }
+
+  listFollowUpsForReview(now: Date, limit: number) {
+    return this.prisma.pendingActionFollowUp.findMany({
+      where: { state: { notIn: FOLLOW_UP_TERMINAL }, reviewAt: { lte: now } },
+      orderBy: [{ reviewAt: "asc" }, { id: "asc" }],
+      take: limit,
+      select: { id: true },
+    });
+  }
+
+  /** A versioned plan: a pause, callback event or newer reconciler fences it. */
+  async applyFollowUpTransition(input: {
+    id: string;
+    expectedRevision: number;
+    plan: FollowUpPlan;
+    key: string;
+    kind: string;
+    actorId?: string;
+    now: Date;
+    resumeAt?: Date;
+    meetingEvidence?: {
+      id: string;
+      revision: number;
+      scheduledAt: Date;
+      organizationId: string;
+      contactId: string;
+    };
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      if (input.plan.state === "resolved") {
+        const evidence = input.meetingEvidence;
+        if (!evidence) return null;
+        await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${evidence.id}::uuid FOR UPDATE`;
+        const stillAuthoritative = await tx.meeting.count({
+          where: {
+            id: evidence.id,
+            organizationId: evidence.organizationId,
+            contactId: evidence.contactId,
+            scheduleVersion: evidence.revision,
+            scheduledAt: evidence.scheduledAt,
+            status: { in: ["scheduled", "rescheduled"] },
+          },
+        });
+        if (!stillAuthoritative) return null;
+      }
+      const row = await lockFollowUp(tx, input.id);
+      if (
+        !row ||
+        row.revision !== input.expectedRevision ||
+        FOLLOW_UP_TERMINAL.includes(row.state)
+      )
+        return null;
+      const updated = await applyFollowUpPlan(
+        tx,
+        row,
+        input.plan,
+        {
+          key: input.key,
+          kind: input.kind,
+          actorType: input.actorId ? "human" : "system",
+          actorId: input.actorId,
+          evidence: input.plan.evidence,
+          at: input.now,
+        },
+        input.now,
+      );
+      if (input.resumeAt) {
+        // Restore at most one uncommitted step. All older steps stay withdrawn;
+        // an already committed placement keeps its identity for reconciliation.
+        const callback = await tx.callbackTask.findFirst({
+          where: {
+            followUpId: row.id,
+            status: "cancelled",
+            dispatchCommittedAt: null,
+            reason: { in: ["objective_paused", "objective_blocked"] },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (callback) {
+          await tx.callbackTask.update({
+            where: { id: callback.id },
+            data: {
+              status: "scheduled",
+              scheduledAt: input.resumeAt,
+              agentCallbackKind: "recovery",
+              notBefore: null,
+              dialTries: 0,
+              dialReservedAt: null,
+              claimToken: null,
+              leaseExpiresAt: null,
+              reason: null,
+            },
+          });
+          await tx.pendingActionFollowUp.update({
+            where: { id: row.id },
+            data: {
+              nextAction: "specialist_callback",
+              nextActionAt: input.resumeAt,
+              timingBasis: "policy",
+            },
+          });
+        }
+      }
+      return updated;
+    });
+  }
+
+  async deferFollowUpReview(
+    id: string,
+    revision: number,
+    until: Date,
+    nextActionAt?: Date,
+  ) {
+    await this.prisma.pendingActionFollowUp.updateMany({
+      where: { id, revision },
+      data: { reviewAt: until, nextActionAt },
+    });
+  }
+
   private async enrich(
     actions: PendingAction[],
+    owner: PendingActionOwnerFilter,
+    memberUserId?: string,
   ): Promise<PendingActionDisplay[]> {
     const contactIds = unique(actions.map((a) => a.contactId));
     const callIds = unique(actions.map((a) => a.callId));
@@ -392,13 +699,21 @@ export class PendingActionRepository {
     const [contacts, calls, campaigns] = await Promise.all([
       contactIds.length
         ? this.prisma.contact.findMany({
-            where: { id: { in: contactIds } },
+            where: {
+              id: { in: contactIds },
+              ...buildOwnershipFilter(owner),
+              deletedAt: null,
+            },
             select: { id: true, name: true, phoneNumber: true, company: true },
           })
         : Promise.resolve([]),
       callIds.length
         ? this.prisma.call.findMany({
-            where: { id: { in: callIds } },
+            where: {
+              id: { in: callIds },
+              ...buildOwnershipFilter(owner),
+              ...(memberUserId ? { userId: memberUserId } : {}),
+            },
             select: { id: true, outcome: true, startedAt: true },
           })
         : Promise.resolve([]),
@@ -417,6 +732,7 @@ export class PendingActionRepository {
     return actions.map((a) => ({
       ...a,
       contact: a.contactId ? (contactMap.get(a.contactId) ?? null) : null,
+      callId: a.callId && callMap.has(a.callId) ? a.callId : null,
       call: a.callId
         ? ((callMap.get(a.callId) as PendingActionDisplay["call"]) ?? null)
         : null,

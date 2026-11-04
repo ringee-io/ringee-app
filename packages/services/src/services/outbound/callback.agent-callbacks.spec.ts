@@ -45,6 +45,8 @@ function agentCallback(over: Partial<Row> = {}): Row {
     dialTries: 0,
     dialReservedAt: null,
     agentCallId: null,
+    followUpId: null,
+    dispatchCommittedAt: null,
     reason: null,
     lastError: null,
     createdAt: new Date("2026-11-03T09:05:00.000Z"),
@@ -95,8 +97,10 @@ function build(
 
   // Exercise the repository's actual write predicates against the current
   // state, including a worker or cancellation changing it after the read.
-  const conditionalRepo = new CallbackTaskRepository({
+  const conditionalClient = {
+    pendingActionFollowUp: { findUnique: async () => null },
     callbackTask: {
+      findUnique: async ({ where }: Row) => store.get(where.id) ?? null,
       updateManyAndReturn: async ({ where, data }: Row) => {
         const row = store.get(where.id);
         if (
@@ -113,6 +117,11 @@ function build(
         return [{ ...row }];
       },
     },
+  };
+  const conditionalRepo = new CallbackTaskRepository({
+    ...conditionalClient,
+    $transaction: (fn: (tx: typeof conditionalClient) => unknown) =>
+      fn(conditionalClient),
   } as never);
 
   const repo = {
@@ -297,6 +306,7 @@ function build(
     {} as never,
     {
       reviewDue: async () => options.plans ?? [],
+      authorizeCallbackCreation: async () => undefined,
       markRecoveryPlanned: async (plan: Row) => {
         recoveriesMarked.push(plan);
         return recoveriesMarked.length === 1;
@@ -311,6 +321,7 @@ function build(
         if (options.authorizeError) throw options.authorizeError;
       },
     } as never,
+    { reconcileFollowUps: async () => undefined } as never,
   );
 
   return {
@@ -501,10 +512,10 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
           "ac-maybe",
         ),
     });
-    assert.equal(await h.service.processDueCallbacks(), 1);
+    assert.equal(await h.service.processDueCallbacks(), 0);
     const row = h.store.get("cb-1")!;
-    assert.equal(row.status, CallbackStatus.completed);
-    assert.equal(row.agentCallId, "ac-maybe");
+    assert.equal(row.status, CallbackStatus.scheduled);
+    assert.equal(row.reason, "placement_pending");
     assert.equal(await h.service.processDueCallbacks(), 0);
     assert.equal(h.dials.length, 1);
   });

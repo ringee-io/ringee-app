@@ -1952,17 +1952,17 @@ model ContactList {
 
 /// A contact's place in a list: once per list, while one contact can be in many.
 model ContactListEntry {
-  id        String   @id @default(uuid()) @db.Uuid
-  listId    String   @db.Uuid
-  contactId String   @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  listId    String    @db.Uuid
+  contactId String    @db.Uuid
   /// The order the list is worked in. A database sequence, so the rows of one
   /// CSV keep the file's order and later additions go to the end.
-  sequence  BigInt   @default(autoincrement())
+  sequence  BigInt    @default(autoincrement())
   /// How the contact got here: "csv" or "manual".
-  source    String   @db.VarChar(20)
+  source    String    @db.VarChar(20)
   /// Who added it.
-  addedById String?  @db.Uuid
-  createdAt DateTime @default(now())
+  addedById String?   @db.Uuid
+  createdAt DateTime  @default(now())
   /// When a call to the contact was found after it joined the list — placed by
   /// anyone in the workspace, from any surface. The list records it from the
   /// workspace's calls (LIST-005); null while the contact is still to call.
@@ -2331,6 +2331,13 @@ model CallbackTask {
   completedAt    DateTime?
   attemptCount   Int            @default(0)
 
+  /// Stage 1 objective; null on all pre-existing/manual callbacks.
+  followUpId          String?                @db.Uuid
+  objectiveAttempt    Int?
+  /// Atomic dispatch commit point, serialized with objective control changes.
+  dispatchCommittedAt DateTime?
+  followUp            PendingActionFollowUp? @relation(fields: [followUpId], references: [id], onDelete: SetNull)
+
   /// An AI voice agent callback the callback worker places itself (AGENT-014,
   /// AGENT-021): set together with `agentId` and `handoffId`. Null for a
   /// person's callback — and for the legacy agent callbacks, which reuse their
@@ -2376,6 +2383,7 @@ model CallbackTask {
   @@index([status, scheduledAt])
   @@index([campaignLeadId])
   @@index([agentCallbackKind, status, scheduledAt])
+  @@index([followUpId])
   @@index([handoffId])
   @@index([agentId])
 }
@@ -4057,6 +4065,8 @@ model PendingAction {
   contactId      String?               @db.Uuid
   callId         String?               @db.Uuid
 
+  followUp PendingActionFollowUp?
+
   // Dedupe grouped actions. Partial-unique on non-null values is created in the
   // migration so re-firing the same rule does not duplicate an action.
   groupKey String?
@@ -4072,6 +4082,99 @@ model PendingAction {
   @@index([organizationId])
   @@index([contactId])
   @@index([callId])
+}
+
+// Execution is additive: historical PendingAction statuses keep their meaning.
+enum FollowUpState {
+  scheduled
+  in_progress
+  waiting
+  recovering
+  paused
+  blocked
+  resolved
+  closed
+}
+
+enum FollowUpExecutionMode {
+  automatic
+  manual
+}
+
+enum FollowUpClosureReason {
+  refusal
+  cancelled
+  expired
+  attempts_exhausted
+}
+
+/// The durable business objective of an existing pending action. Calls and
+/// callbacks are steps, never proof that this objective was achieved.
+model PendingActionFollowUp {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  pendingActionId    String                 @unique @db.Uuid
+  sourceKey          String                 @unique
+  sourceType         String
+  sourceId           String
+  sourceRevision     Int
+  objectiveType      String
+  desiredResult      String
+  configuredByUserId String                 @db.Uuid
+  responsibleUserId  String                 @db.Uuid
+  agentId            String?                @db.Uuid
+  meetingId          String?                @db.Uuid
+  meetingScheduledAt DateTime?
+  handoffId          String?                @unique @db.Uuid
+  mode               FollowUpExecutionMode  @default(automatic)
+  state              FollowUpState          @default(waiting)
+  revision           Int                    @default(1)
+  nextAction         String?
+  nextActionAt       DateTime?
+  /// agreed / policy / none; never describe a recovery time as agreed.
+  timingBasis        String                 @default("none")
+  reason             String?
+  activeCallbackId   String?                @db.Uuid
+  attemptCount       Int                    @default(0)
+  maxAttempts        Int                    @default(3)
+  recoveryCount      Int                    @default(0)
+  maxRecoveries      Int                    @default(1)
+  expiresAt          DateTime
+  reviewAt           DateTime               @default(now())
+  lastActionAt       DateTime               @default(now())
+  resolutionEvidence Json?
+  closureReason      FollowUpClosureReason?
+  closureEvidence    Json?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  action    PendingAction                @relation(fields: [pendingActionId], references: [id], onDelete: Cascade)
+  handoff   AiVoiceAgentHandoff?         @relation(fields: [handoffId], references: [id], onDelete: SetNull)
+  callbacks CallbackTask[]
+  events    PendingActionFollowUpEvent[]
+
+  @@index([state, reviewAt])
+  @@index([responsibleUserId])
+  @@index([meetingId])
+}
+
+/// Append-only, replay-safe evidence; event keys identify source actions, not
+/// worker deliveries. No transcripts, provider payloads or credentials.
+model PendingActionFollowUpEvent {
+  id         String                @id @default(uuid()) @db.Uuid
+  followUpId String                @db.Uuid
+  actionKey  String
+  revision   Int
+  kind       String
+  actorType  String
+  actorId    String?
+  evidence   Json?
+  occurredAt DateTime              @default(now())
+  followUp   PendingActionFollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+
+  @@unique([followUpId, actionKey])
+  @@index([followUpId, occurredAt])
 }
 
 enum ObjectionInsightStatus {
@@ -5215,6 +5318,7 @@ model AiVoiceAgentHandoff {
   contact          Contact?                      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   participants     AiVoiceAgentCallParticipant[]
   callbacks        CallbackTask[]
+  followUp         PendingActionFollowUp?
 
   @@index([requestStatus, reviewAt])
   @@index([agentCallId])

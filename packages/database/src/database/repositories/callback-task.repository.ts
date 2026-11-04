@@ -1,3 +1,8 @@
+import {
+  lockFollowUp,
+  observeFollowUp,
+  appendFollowUpEvent,
+} from "./pending-action-follow-up.persistence";
 import { Injectable } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma.service";
@@ -130,19 +135,75 @@ export class CallbackTaskRepository {
     data: CreateAgentCallbackInput,
   ): Promise<{ callback: CallbackTask; created: boolean }> {
     try {
-      const callback = await this.prisma.callbackTask.create({
-        data: {
-          userId: data.userId,
-          organizationId: data.organizationId,
-          contactId: data.contactId,
-          callId: data.callId ?? null,
-          scheduledAt: data.scheduledAt,
-          note: data.note,
-          agentCallbackKind: data.agentCallbackKind,
-          agentId: data.agentId,
-          handoffId: data.handoffId,
-          agentCallbackKey: data.agentCallbackKey,
-        },
+      const callback = await this.prisma.$transaction(async (tx) => {
+        // Creation and suspension use the same order and lock. A callback
+        // cannot appear after pause/closure under an old service decision.
+        await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${data.handoffId}::uuid FOR UPDATE`;
+        const handoff = await tx.aiVoiceAgentHandoff.findUnique({
+          where: { id: data.handoffId },
+        });
+        if (
+          !handoff ||
+          handoff.organizationId !== data.organizationId ||
+          handoff.userId !== data.userId ||
+          handoff.contactId !== data.contactId ||
+          handoff.destinationAgentId !== data.agentId
+        )
+          throw new Error("Callback source mismatch");
+        const seed = await tx.pendingActionFollowUp.findUnique({
+          where: { handoffId: data.handoffId },
+        });
+        const objective = seed ? await lockFollowUp(tx, seed.id) : null;
+        const existing = await tx.callbackTask.findUnique({
+          where: { agentCallbackKey: data.agentCallbackKey },
+        });
+        if (existing) return existing;
+        if (
+          objective &&
+          (objective.mode !== "automatic" ||
+            ["paused", "blocked", "resolved", "closed"].includes(
+              objective.state,
+            ))
+        )
+          throw new Error("Follow-up is not accepting automatic work");
+        if (
+          objective &&
+          (objective.attemptCount >= objective.maxAttempts ||
+            (data.agentCallbackKind === "recovery" &&
+              objective.recoveryCount >= objective.maxRecoveries))
+        )
+          throw new Error("Follow-up contact policy exhausted");
+        const created = await tx.callbackTask.create({
+          data: {
+            followUpId: objective?.id,
+            userId: data.userId,
+            organizationId: data.organizationId,
+            contactId: data.contactId,
+            callId: data.callId ?? null,
+            scheduledAt: data.scheduledAt,
+            note: data.note,
+            agentCallbackKind: data.agentCallbackKind,
+            agentId: data.agentId,
+            handoffId: data.handoffId,
+            agentCallbackKey: data.agentCallbackKey,
+          },
+        });
+        await observeFollowUp(tx, data.handoffId, {
+          key: `callback:${created.id}:scheduled`,
+          kind:
+            data.agentCallbackKind === "agreed"
+              ? "callback_agreed"
+              : "recovery_scheduled",
+          actorType: data.agentCallbackKind === "agreed" ? "agent" : "system",
+          actorId: data.agentId,
+          evidence: {
+            callbackId: created.id,
+            scheduledAt: data.scheduledAt.toISOString(),
+            timingBasis:
+              data.agentCallbackKind === "agreed" ? "agreed" : "policy",
+          },
+        });
+        return created;
       });
       return { callback, created: true };
     } catch (error) {
@@ -366,6 +427,12 @@ export class CallbackTaskRepository {
         SELECT "id"
         FROM "CallbackTask"
         WHERE "agentCallbackKind" IS NOT NULL
+          AND ("followUpId" IS NULL OR "dispatchCommittedAt" IS NOT NULL OR EXISTS (
+            SELECT 1 FROM "PendingActionFollowUp" f
+            WHERE f."id" = "CallbackTask"."followUpId" AND f."mode" = 'automatic'
+              AND f."state" IN ('scheduled', 'in_progress', 'waiting', 'recovering')
+              AND f."expiresAt" > (${now}::timestamptz AT TIME ZONE 'UTC')
+          ))
           AND (
             ("status" IN ('scheduled', 'due')
               AND "scheduledAt" <= (${now}::timestamptz AT TIME ZONE 'UTC')
@@ -409,6 +476,217 @@ export class CallbackTaskRepository {
     return row ?? this.prisma.callbackTask.findFirst({ where });
   }
 
+  /** Serialized with objective controls and source versions. Committed steps
+   * remain recoverable even when a person pauses/closes the objective next. */
+  async commitFollowUpDispatch(input: {
+    callbackId: string;
+    claimToken: string;
+    followUpId: string;
+    expectedRevision: number;
+    agentId: string;
+    meetingId: string;
+    meetingVersion: number;
+    contactUpdatedAt?: Date;
+    to: string;
+    placement: { agentCallId: string; callId: string };
+    now: Date;
+  }): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${input.meetingId}::uuid FOR UPDATE`;
+      const seed = await tx.pendingActionFollowUp.findUnique({
+        where: { id: input.followUpId },
+        include: { handoff: true },
+      });
+      if (seed?.handoff?.automationId)
+        await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentAutomation" WHERE "id" = ${seed.handoff.automationId}::uuid FOR UPDATE`;
+      const objective = await lockFollowUp(tx, input.followUpId);
+      // Read after the lock: an objective that expired while this waited for
+      // it is not dispatched on the time the caller read before.
+      const lockedAt = new Date();
+      // A database wait must not carry an expired calling-window decision to the provider.
+      if (lockedAt.getTime() - input.now.getTime() > 30_000) return false;
+      if (
+        !objective ||
+        objective.revision !== input.expectedRevision ||
+        objective.mode !== "automatic" ||
+        !["scheduled", "in_progress", "waiting", "recovering"].includes(
+          objective.state,
+        ) ||
+        objective.expiresAt <= lockedAt ||
+        objective.agentId !== input.agentId
+      )
+        return false;
+      const action = await tx.pendingAction.findUniqueOrThrow({
+        where: { id: objective.pendingActionId },
+      });
+      const handoff = objective.handoffId
+        ? await tx.aiVoiceAgentHandoff.findUnique({
+            where: { id: objective.handoffId },
+          })
+        : null;
+      if (
+        !handoff ||
+        handoff.requestStatus !== "pending" ||
+        handoff.organizationId !== action.organizationId
+      )
+        return false;
+      const meeting = await tx.meeting.findFirst({
+        where: {
+          id: input.meetingId,
+          organizationId: action.organizationId,
+          contactId: action.contactId!,
+          scheduleVersion: input.meetingVersion,
+        },
+      });
+      const automation = await tx.aiVoiceAgentAutomation.findFirst({
+        where: {
+          id: handoff.automationId ?? "00000000-0000-0000-0000-000000000000",
+          organizationId: action.organizationId!,
+          enabled: true,
+          agentId: input.agentId,
+        },
+      });
+      const agent = await tx.aiVoiceAgent.findFirst({
+        where: {
+          id: input.agentId,
+          organizationId: action.organizationId,
+          status: "active",
+          deletedAt: null,
+          providerAssistantId: { not: null },
+          toolSecretHash: { not: null },
+        },
+      });
+      const contact = await tx.contact.findFirst({
+        where: {
+          id: action.contactId!,
+          organizationId: action.organizationId,
+          deletedAt: null,
+          ...(input.contactUpdatedAt
+            ? { updatedAt: input.contactUpdatedAt }
+            : {}),
+        },
+      });
+      const members = await tx.organizationMembership.findMany({
+        where: {
+          organizationId: action.organizationId!,
+          userId: {
+            in: [objective.configuredByUserId, objective.responsibleUserId],
+          },
+        },
+        select: { userId: true },
+      });
+      const user = await tx.user.findFirst({
+        where: {
+          id: objective.configuredByUserId,
+          canCall: true,
+          blockedAt: null,
+        },
+      });
+      const onDnc = await tx.dNCEntry.findFirst({
+        where: { organizationId: action.organizationId, phoneNumber: input.to },
+        select: { id: true },
+      });
+      if (
+        !meeting ||
+        !automation ||
+        !agent ||
+        !contact ||
+        !user ||
+        onDnc ||
+        ![objective.configuredByUserId, objective.responsibleUserId].every(
+          (id) => members.some((member) => member.userId === id),
+        )
+      )
+        return false;
+      if (
+        objective.activeCallbackId &&
+        objective.activeCallbackId !== input.callbackId
+      )
+        return false;
+      const callback = await tx.callbackTask.findFirst({
+        where: {
+          id: input.callbackId,
+          followUpId: objective.id,
+          handoffId: handoff.id,
+          agentId: input.agentId,
+          claimToken: input.claimToken,
+          status: "in_progress",
+          leaseExpiresAt: { gt: input.now },
+        },
+      });
+      if (!callback || callback.dispatchCommittedAt) return false;
+      const firstAttempt = callback.objectiveAttempt === null;
+      if (
+        firstAttempt &&
+        (objective.attemptCount >= objective.maxAttempts ||
+          (callback.agentCallbackKind === "recovery" &&
+            objective.recoveryCount >= objective.maxRecoveries))
+      )
+        return false;
+      const placedRow = await tx.aiVoiceAgentCall.findFirst({
+        where: {
+          id: input.placement.agentCallId,
+          callId: input.placement.callId,
+          organizationId: action.organizationId,
+          userId: objective.configuredByUserId,
+          agentId: input.agentId,
+          toNumber: input.to,
+        },
+      });
+      if (!placedRow) return false;
+      // Claims can be reclaimed without locking the objective. Fence the write
+      // itself, not just the preceding read, against that newer worker.
+      const committed = await tx.callbackTask.updateMany({
+        where: {
+          id: callback.id,
+          claimToken: input.claimToken,
+          status: "in_progress",
+          leaseExpiresAt: { gt: new Date() },
+          dispatchCommittedAt: null,
+        },
+        data: {
+          dispatchCommittedAt: input.now,
+          objectiveAttempt:
+            callback.objectiveAttempt ?? objective.attemptCount + 1,
+          agentCallId: input.placement.agentCallId,
+        },
+      });
+      if (committed.count !== 1) return false;
+      const updated = await tx.pendingActionFollowUp.update({
+        where: { id: objective.id },
+        data: {
+          state: "in_progress",
+          reason: "dispatch_committed",
+          activeCallbackId: callback.id,
+          nextAction: "reconcile_call",
+          nextActionAt: new Date(input.now.getTime() + 5 * 60_000),
+          revision: { increment: 1 },
+          lastActionAt: input.now,
+          ...(firstAttempt
+            ? {
+                attemptCount: { increment: 1 },
+                ...(callback.agentCallbackKind === "recovery"
+                  ? { recoveryCount: { increment: 1 } }
+                  : {}),
+              }
+            : {}),
+        },
+      });
+      await appendFollowUpEvent(tx, updated, {
+        key: `callback:${callback.id}:d${callback.dialTries}:dispatch`,
+        kind: "dispatch_committed",
+        actorType: "agent",
+        actorId: input.agentId,
+        evidence: {
+          callbackId: callback.id,
+          attempt: callback.objectiveAttempt ?? objective.attemptCount + 1,
+        },
+        at: input.now,
+      });
+      return true;
+    });
+  }
+
   /** The dial's commit point: still this worker's, still in its lease. */
   async holdsAgentClaim(
     id: string,
@@ -438,21 +716,34 @@ export class CallbackTaskRepository {
       now: Date;
     },
   ): Promise<boolean> {
-    const { count } = await this.prisma.callbackTask.updateMany({
-      where: { id, status: CallbackStatus.in_progress, claimToken },
-      data: {
-        status,
-        claimToken: null,
-        leaseExpiresAt: null,
-        ...(status === CallbackStatus.completed
-          ? { completedAt: data.now }
-          : {}),
-        ...(data.reason ? { reason: data.reason } : {}),
-        ...(data.lastError ? { lastError: data.lastError.slice(0, 2000) } : {}),
-        ...(data.agentCallId ? { agentCallId: data.agentCallId } : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const seed = await tx.callbackTask.findUnique({ where: { id } });
+      if (seed?.followUpId) await lockFollowUp(tx, seed.followUpId);
+      const { count } = await tx.callbackTask.updateMany({
+        where: { id, status: CallbackStatus.in_progress, claimToken },
+        data: {
+          status,
+          claimToken: null,
+          leaseExpiresAt: null,
+          ...(status === CallbackStatus.completed
+            ? { completedAt: data.now }
+            : {}),
+          ...(data.reason ? { reason: data.reason } : {}),
+          ...(data.lastError
+            ? { lastError: data.lastError.slice(0, 2000) }
+            : {}),
+          ...(data.agentCallId ? { agentCallId: data.agentCallId } : {}),
+        },
+      });
+      if (count && seed?.handoffId)
+        await observeFollowUp(tx, seed.handoffId, {
+          key: `callback:${id}:d${seed.dialTries}:finished:${status}`,
+          kind: "callback_finished",
+          evidence: { callbackId: id, status, reason: data.reason ?? null },
+          at: data.now,
+        });
+      return count === 1;
     });
-    return count === 1;
   }
 
   /** Hands a claimed agent callback back for later — a deferral. */
@@ -463,18 +754,34 @@ export class CallbackTaskRepository {
     reason: string,
     unplaced = false,
   ): Promise<boolean> {
-    const { count } = await this.prisma.callbackTask.updateMany({
-      where: { id, status: CallbackStatus.in_progress, claimToken },
-      data: {
-        status: CallbackStatus.scheduled,
-        claimToken: null,
-        leaseExpiresAt: null,
-        notBefore,
-        reason,
-        ...(unplaced ? { dialReservedAt: null } : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const seed = await tx.callbackTask.findUnique({ where: { id } });
+      if (seed?.followUpId) await lockFollowUp(tx, seed.followUpId);
+      const { count } = await tx.callbackTask.updateMany({
+        where: { id, status: CallbackStatus.in_progress, claimToken },
+        data: {
+          status: CallbackStatus.scheduled,
+          claimToken: null,
+          leaseExpiresAt: null,
+          notBefore,
+          reason,
+          ...(unplaced
+            ? { dialReservedAt: null, dispatchCommittedAt: null }
+            : {}),
+        },
+      });
+      if (count && seed?.handoffId)
+        await observeFollowUp(tx, seed.handoffId, {
+          key: `callback:${id}:d${seed.dialTries}:deferred:${reason}:${notBefore.getTime()}`,
+          kind: "callback_deferred",
+          evidence: {
+            callbackId: id,
+            reason,
+            notBefore: notBefore.toISOString(),
+          },
+        });
+      return count === 1;
     });
-    return count === 1;
   }
 
   /** The agent callbacks of one handoff request, newest first. */
@@ -583,26 +890,50 @@ export class CallbackTaskRepository {
     scheduledAt: Date,
     expectedStatus: CallbackStatus,
   ): Promise<CallbackTask | null> {
-    const [moved] = await this.prisma.callbackTask.updateManyAndReturn({
-      where: {
-        id,
-        agentCallbackKind: { not: null },
-        status: expectedStatus,
-      },
-      data: {
-        scheduledAt,
-        status: CallbackStatus.scheduled,
-        completedAt: null,
-        attemptCount: 0,
-        notBefore: null,
-        dialTries: 0,
-        dialReservedAt: null,
-        claimToken: null,
-        leaseExpiresAt: null,
-        reason: null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const seed = await tx.callbackTask.findUnique({ where: { id } });
+      const objective = seed?.followUpId
+        ? await lockFollowUp(tx, seed.followUpId)
+        : null;
+      if (
+        objective &&
+        (objective.mode !== "automatic" ||
+          ["paused", "blocked", "resolved", "closed"].includes(objective.state))
+      )
+        return null;
+      const [moved] = await tx.callbackTask.updateManyAndReturn({
+        where: {
+          id,
+          agentCallbackKind: { not: null },
+          dispatchCommittedAt: null,
+          status: expectedStatus,
+          ...(expectedStatus === "completed" ? { followUpId: null } : {}),
+        },
+        data: {
+          scheduledAt,
+          status: CallbackStatus.scheduled,
+          completedAt: null,
+          attemptCount: 0,
+          notBefore: null,
+          dialTries: 0,
+          dialReservedAt: null,
+          claimToken: null,
+          leaseExpiresAt: null,
+          reason: null,
+        },
+      });
+      if (moved?.handoffId)
+        await observeFollowUp(tx, moved.handoffId, {
+          key: `callback:${id}:rescheduled:${scheduledAt.getTime()}`,
+          kind: "callback_agreed",
+          evidence: {
+            callbackId: id,
+            scheduledAt: scheduledAt.toISOString(),
+            timingBasis: "agreed",
+          },
+        });
+      return moved ?? null;
     });
-    return moved ?? null;
   }
 
   async completeUnlessBeingPlaced(id: string): Promise<CallbackTask | null> {
