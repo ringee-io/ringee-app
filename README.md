@@ -1,4 +1,3 @@
-
 ![Ringee Logo](https://www.ringee.io/logos/white.logo.png)
 
 [![License: AGPL 3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/license/agpl-v3)
