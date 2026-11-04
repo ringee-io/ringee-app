@@ -3,7 +3,11 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { DatabaseModule } from "@ringee/database";
 import { ApiModule } from "./api/api.module";
-import { ServicesModule, DialerOrchestrationService } from "@ringee/services";
+import {
+  ServicesModule,
+  DialerOrchestrationService,
+  SSEBridgeService,
+} from "@ringee/services";
 import { McpModule } from "./mcp/mcp.module";
 import { RedisModule } from "@ringee/platform";
 import { APP_GUARD } from "@nestjs/core";
@@ -33,14 +37,16 @@ import { BackendRealtimeModule } from "./realtime/realtime.module";
 export class AppModule implements OnApplicationBootstrap {
   constructor(
     private readonly dialerOrchestration: DialerOrchestrationService,
+    private readonly sseBridge: SSEBridgeService,
   ) {}
 
   /**
-   * Start the dialer poll loop here (and only here). It must run in the same
-   * process as the SSE endpoint so lead assignments reach agents; the worker
-   * process must NOT poll (see DialerOrchestrationService.startPolling).
+   * Relay SSE events between API instances before the first stream opens, then
+   * start the dialer poll loop — here and only here: the worker process must
+   * NOT poll (see DialerOrchestrationService.startPolling).
    */
   onApplicationBootstrap(): void {
+    void this.sseBridge.listen();
     this.dialerOrchestration.startPolling();
   }
 }

@@ -38,6 +38,12 @@ import { CallService } from "../call.service";
 const DIALER_POLL_INTERVAL_MS = 500;
 
 /**
+ * On shutdown, how long the tick in flight may keep running after polling
+ * stops. A tick cut off half-way leaves its claim for the stalled-dial sweep.
+ */
+const SHUTDOWN_TICK_GRACE_MS = 10_000;
+
+/**
  * After a dial is refused and the agent is returned to `ready`, the poller
  * leaves that agent alone this long. The condition that refused them is almost
  * always still true on the next tick, 500ms later, and each spin used to lock a
@@ -222,7 +228,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   private readonly logger = new Logger(DialerOrchestrationService.name);
   private pollingTimer: NodeJS.Timeout | null = null;
   private lastWindowLog: number | null = null;
-  private tickInFlight = false;
+  private tickInFlight: Promise<void> | null = null;
   private lastStalledDialSweepAt = 0;
   /** Agent session id → epoch ms until which the poller skips that agent. */
   private readonly cooldownUntil = new Map<string, number>();
@@ -244,20 +250,33 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     private readonly callService: CallService,
   ) {}
 
-  onModuleDestroy(): void {
+  /**
+   * Stop scheduling ticks, then let the one in flight finish (bounded), so a
+   * deploy does not cut a tick off between claiming a lead and telling the
+   * agent. Runs on SIGTERM because the API enables Nest's shutdown hooks.
+   */
+  async onModuleDestroy(): Promise<void> {
     this.stopPolling();
+    const inFlight = this.tickInFlight;
+    if (!inFlight) return;
+    let timer: NodeJS.Timeout | undefined;
+    const grace = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, SHUTDOWN_TICK_GRACE_MS);
+      timer.unref();
+    });
+    await Promise.race([inFlight, grace]);
+    clearTimeout(timer);
   }
 
   /**
    * Start the dialer poll loop.
    *
-   * IMPORTANT: this must run in the same process that serves the SSE endpoint
-   * (the backend HTTP app), because lead assignments are pushed to agents via
-   * the in-process {@link SSEBridgeService}. It is therefore started explicitly
-   * from the backend's bootstrap (AppModule.onApplicationBootstrap) and NOT
-   * from onModuleInit — otherwise the worker process (which also imports
-   * ServicesModule) would poll and emit events that never reach SSE clients,
-   * leaving the agent UI stuck on "Waiting for lead".
+   * Started explicitly from the backend's bootstrap
+   * (AppModule.onApplicationBootstrap) and NOT from onModuleInit, so the worker
+   * process (which also imports ServicesModule) never polls. Each API instance
+   * runs its own loop: the atomic claim in {@link assignLeadToAgent} keeps them
+   * from dialing an agent twice, and {@link SSEBridgeService} relays the events
+   * over Redis to whichever instance holds the agent's stream.
    */
   startPolling(): void {
     if (this.pollingTimer) return;
@@ -289,14 +308,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
    */
   private async runTick(): Promise<void> {
     if (this.tickInFlight) return;
-    this.tickInFlight = true;
-    try {
-      await this.tick();
-    } catch (err) {
-      this.logger.error("Dialer tick error", err);
-    } finally {
-      this.tickInFlight = false;
-    }
+    this.tickInFlight = this.tick()
+      .catch((err) => this.logger.error("Dialer tick error", err))
+      .finally(() => {
+        this.tickInFlight = null;
+      });
+    await this.tickInFlight;
   }
 
   /**

@@ -68,6 +68,11 @@ the integration's `allowedOrigins`, not by widening the static list.
 
 The API process does not do slow work inline. Start a Temporal workflow via
 `OrchestratorService`. The one deliberate exception is
-`DialerOrchestrationService.startPolling()`, which must run in this process
-because lead assignment is pushed over in-process SSE — see the comment in
-`app.module.ts` before touching it.
+`DialerOrchestrationService.startPolling()`, started from
+`AppModule.onApplicationBootstrap` in every API instance and never in the
+worker — see the comment in `app.module.ts` before touching it.
+
+SSE events go through `SSEBridgeService`, which relays them between API
+instances over Redis (`RealtimeBusService`): the instance that emits (the dialer
+loop, a webhook, the Ringee AI chat) is often not the one holding the stream.
+Never push to an SSE stream through a process-local channel.

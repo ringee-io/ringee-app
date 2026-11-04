@@ -1,0 +1,233 @@
+name: Deploy to AWS
+
+# AWS-21. A push to `staging` deploys to the staging account, a push to `main`
+# to production. Each GitHub environment only accepts its own branch, and
+# production waits for a reviewer (AWS-22). AWS credentials come from GitHub's
+# OIDC token, scoped to the environment: no AWS key lives in this repository.
+#
+# Repository variable AWS_DEPLOY_ENVIRONMENTS lists the environments that may
+# deploy ("staging" until the cutover, then "staging,production"). Railway keeps
+# deploying `main` until then.
+#
+# Environment variables (Settings → Environments → <env> → Variables):
+#   AWS_DEPLOY_ROLE_ARN   github-deploy role of that account (bootstrap output)
+#   API_HOST              api.staging.ringee.io / api.ringee.io (smoke test)
+#   RUN_MIGRATIONS        "true" once migrations are in git (AWS-09)
+#
+# Infrastructure (cluster, task families, roles) comes from the ringee-infra
+# repository. This workflow only builds images and rolls them out.
+
+on:
+  push:
+    branches: [main, staging]
+    paths:
+      - "apps/backend/**"
+      - "apps/orchestrator/**"
+      - "apps/chatgpt-app/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig*.json"
+      - ".github/workflows/deploy-aws.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-aws-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  target:
+    name: Pick environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+      stack: ${{ steps.pick.outputs.stack }}
+      enabled: ${{ steps.pick.outputs.enabled }}
+    steps:
+      - id: pick
+        env:
+          BRANCH: ${{ github.ref_name }}
+          ENABLED_ENVIRONMENTS: ${{ vars.AWS_DEPLOY_ENVIRONMENTS }}
+        run: |
+          case "$BRANCH" in
+            main) environment=production; stack=prod ;;
+            staging) environment=staging; stack=staging ;;
+            *) echo "::error::$BRANCH does not deploy to AWS"; exit 1 ;;
+          esac
+          enabled=false
+          if [[ ",${ENABLED_ENVIRONMENTS// /}," == *",$environment,"* ]]; then enabled=true; fi
+          {
+            echo "environment=$environment"
+            echo "stack=$stack"
+            echo "enabled=$enabled"
+          } >> "$GITHUB_OUTPUT"
+          echo "$BRANCH → $environment (deploys enabled: $enabled)" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build ${{ matrix.image }}
+    needs: target
+    if: needs.target.outputs.enabled == 'true'
+    # Native ARM64 (free for public repositories): Fargate runs Graviton.
+    runs-on: ubuntu-24.04-arm
+    environment: ${{ needs.target.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: api
+            dockerfile: apps/backend/Dockerfile.compose
+          - image: orchestrator
+            dockerfile: apps/orchestrator/Dockerfile.compose
+          - image: chatgpt-mcp
+            dockerfile: apps/chatgpt-app/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - id: exists
+        name: Skip if this commit is already in ECR
+        env:
+          REPOSITORY: ringee/${{ matrix.image }}
+          TAG: ${{ github.sha }}
+        run: |
+          # Tags are immutable: a re-run of the same commit reuses its image.
+          if aws ecr describe-images --repository-name "$REPOSITORY" --image-ids imageTag="$TAG" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.exists.outputs.found == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - if: steps.exists.outputs.found == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/ringee/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    name: Roll out
+    needs: [target, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.target.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      STACK: ${{ needs.target.outputs.stack }}
+      CLUSTER: ringee-${{ needs.target.outputs.stack }}
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - id: revisions
+        name: Register task definitions with the new images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          # Start from the family's latest revision, which carries whatever
+          # Terraform last changed (variables, secrets, size), and swap the image.
+          register() { # <task name> <repository>
+            aws ecs describe-task-definition --task-definition "ringee-$STACK-$1" --query taskDefinition --output json |
+              jq --arg image "$REGISTRY/$2:$TAG" '
+                .containerDefinitions[0].image = $image
+                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                      .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)' > task-definition.json
+            aws ecs register-task-definition --cli-input-json file://task-definition.json \
+              --query taskDefinition.taskDefinitionArn --output text
+          }
+          {
+            echo "api=$(register api ringee/api)"
+            echo "orchestrator=$(register orchestrator ringee/orchestrator)"
+            echo "chatgpt=$(register chatgpt-mcp ringee/chatgpt-mcp)"
+            echo "migrate=$(register migrate ringee/api)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Migrate the database
+        if: vars.RUN_MIGRATIONS == 'true'
+        env:
+          TASK_DEFINITION: ${{ steps.revisions.outputs.migrate }}
+        run: |
+          subnets=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=ringee-$STACK-public-*" \
+            --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          group=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ringee-$STACK-ops" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          task=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$TASK_DEFINITION" --launch-type FARGATE \
+            --started-by "deploy-aws ${TAG::7}" \
+            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$group],assignPublicIp=ENABLED}" \
+            --query 'tasks[0].taskArn' --output text)
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$task"
+          code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task" --query 'tasks[0].containers[0].exitCode' --output text)
+          aws logs get-log-events --log-group-name "/ecs/ringee-$STACK-migrate" --log-stream-name "migrate/migrate/${task##*/}" \
+            --query 'events[].message' --output text | tr '\t' '\n' || true
+          if [[ $code != 0 ]]; then
+            echo "::error::migrate exited with $code; the services were not updated"
+            exit 1
+          fi
+
+      - name: Update the services
+        env:
+          API: ${{ steps.revisions.outputs.api }}
+          ORCHESTRATOR: ${{ steps.revisions.outputs.orchestrator }}
+          CHATGPT: ${{ steps.revisions.outputs.chatgpt }}
+        run: |
+          aws ecs update-service --cluster "$CLUSTER" --service api --task-definition "$API" >/dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service orchestrator --task-definition "$ORCHESTRATOR" >/dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service chatgpt-mcp --task-definition "$CHATGPT" >/dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services api orchestrator chatgpt-mcp
+          # The circuit breaker may have rolled a service back to the previous
+          # revision; "stable" alone would hide that.
+          failed=0
+          for pair in "api=$API" "orchestrator=$ORCHESTRATOR" "chatgpt-mcp=$CHATGPT"; do
+            service=${pair%%=*}
+            running=$(aws ecs describe-services --cluster "$CLUSTER" --services "$service" \
+              --query "services[0].deployments[?status=='PRIMARY'] | [0].taskDefinition" --output text)
+            if [[ $running != "${pair#*=}" ]]; then
+              echo "::error::$service did not take the new revision (rolled back?)"
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: Smoke test
+        env:
+          API_HOST: ${{ vars.API_HOST }}
+        run: |
+          running=$(aws ecs describe-services --cluster "$CLUSTER" --services api --query 'services[0].runningCount' --output text)
+          if [[ $running == 0 ]]; then
+            echo "api has no running task (off hours or before the cutover); skipping the smoke test"
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 "https://$API_HOST/api/health"

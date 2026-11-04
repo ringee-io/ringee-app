@@ -66,9 +66,12 @@ Layer rules are enforced statically — see `ARCH-001`..`ARCH-004` in
   the orchestrator runs them and owns the Schedules (retry/callback/reminder
   pollers, CRM/enrichment/custom-integration drains, sweeps, health recompute).
   Contracts are shared in `packages/platform/src/temporal/contracts.ts`.
-- **Redis** — caching, the one-call-at-a-time dial lease, orphan webhook parking.
+- **Redis** — caching, the one-call-at-a-time dial lease, orphan webhook parking,
+  and the realtime fan-out between API instances.
 - **Realtime** — a per-user WebSocket gateway (`/ws/user-events`), a Telnyx media
-  stream socket (`/media-stream`), and in-process SSE for dialer lead assignment.
+  stream socket (`/media-stream`), and SSE streams (dialer lead assignment,
+  Ringee AI chat). WebSocket and SSE events are relayed between API instances
+  over Redis, so any instance can hold a client's connection.
 - **Storage** — recordings: a public mp3 copy plus an encrypted private copy,
   keyed per workspace.
 

@@ -15,6 +15,9 @@ import { validationExceptionFactory } from "./api/validation-error";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  // On SIGTERM (every deploy) run the destroy hooks: the dialer stops polling
+  // and lets its tick finish, sockets are told the server is going away.
+  app.enableShutdownHooks();
 
   if (apiConfiguration.TRUST_PROXY_HOPS > 0) {
     // Use req.ip only after Express has been told exactly how many proxy hops
