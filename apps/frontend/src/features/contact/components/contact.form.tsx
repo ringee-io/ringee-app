@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTranslations } from 'next-intl';
+import posthog from 'posthog-js';
 
 const SOURCE_OPTIONS = [
   'manual',
@@ -56,6 +57,10 @@ const SOURCE_OPTIONS = [
   'inbound_call',
   'other'
 ];
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 const createFormSchema = (messages: {
   invalidEmail: string;
@@ -211,8 +216,25 @@ export default function ContactForm({
           [values.firstName, values.lastName].filter(Boolean).join(' ') ||
           undefined
       };
-      if (!isEdit) await api.post('/contacts', payload);
-      else await api.put(`/contacts/${initialData?.id}`, payload);
+      if (!isEdit) {
+        await api.post('/contacts', payload);
+        if (posthogConfigured) {
+          posthog.capture('contact_created', {
+            source: values.source || 'unspecified',
+            tag_count: values.tagIds?.length ?? 0,
+            has_organization: Boolean(values.organization)
+          });
+        }
+      } else {
+        await api.put(`/contacts/${initialData?.id}`, payload);
+        if (posthogConfigured) {
+          posthog.capture('contact_updated', {
+            source: values.source || 'unspecified',
+            tag_count: values.tagIds?.length ?? 0,
+            has_organization: Boolean(values.organization)
+          });
+        }
+      }
       if (!onSaved) router.push('/dashboard/contact');
 
       onSaved?.();
