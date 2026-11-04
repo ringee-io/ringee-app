@@ -723,15 +723,24 @@ export class PendingActionService {
     for (const { id } of due) {
       try {
         await this.reconcileFollowUp(id, now);
-      } catch {
-        this.logger.warn(`Follow-up ${id} reconciliation deferred`);
-        const row = await this.repo.followUpSnapshot(id);
-        if (row)
-          await this.repo.deferFollowUpReview(
-            id,
-            row.revision,
-            new Date(now.getTime() + 60_000),
+      } catch (error) {
+        this.logger.warn(
+          `Follow-up ${id} reconciliation deferred: ${describeError(error)}`,
+        );
+        // A deferral that fails as well must not stop the rest of the batch.
+        try {
+          const row = await this.repo.followUpSnapshot(id);
+          if (row)
+            await this.repo.deferFollowUpReview(
+              id,
+              row.revision,
+              new Date(now.getTime() + 60_000),
+            );
+        } catch (deferError) {
+          this.logger.error(
+            `Follow-up ${id} could not be deferred: ${describeError(deferError)}`,
           );
+        }
       }
     }
   }
@@ -1050,18 +1059,19 @@ export class PendingActionService {
           throw new ConflictException(
             "The meeting change needs an exceptional decision",
           );
-        // A meeting cancelled while the objective was paused or taken over
-        // resolves nothing, and no agent may move it: bringing it back is a
-        // person's decision, so nothing is scheduled for it.
+        // Only a meeting still on can be moved by an agent. One cancelled or
+        // held while the objective was paused or taken over resolves nothing:
+        // what follows is a person's decision, so nothing is scheduled for it.
         const meeting = snapshot.meetingId
           ? await this.meetings.findByIdForOwner(ctx, snapshot.meetingId)
           : null;
         if (
           snapshot.sourceType !== "human_call_outcome" &&
-          (!meeting || meeting.status === MeetingStatus.cancelled)
+          (!meeting || (meeting.status !== MeetingStatus.scheduled && meeting.status !== MeetingStatus.rescheduled))
+
         )
           throw new ConflictException(
-            "The meeting was cancelled; it cannot return to automatic follow-up",
+            "The meeting is no longer scheduled; it cannot return to automatic follow-up",
           );
         if (
           snapshot.sourceType === "human_call_outcome" &&
@@ -1226,6 +1236,10 @@ export class PendingActionService {
       );
     }
   }
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function samePlan(row: FollowUpSnapshot, plan: FollowUpPlan): boolean {

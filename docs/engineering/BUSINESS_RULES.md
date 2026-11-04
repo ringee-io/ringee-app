@@ -2081,11 +2081,15 @@ it is not in it yet.
   has ended, no participant's tool call changes anything.
 - **Callbacks.** A callback agreed after a failure is assigned to the
   scheduling agent (AGENT-014) and promised only once it exists, and only
-  while the request is pending and its meeting not already moved. The same
-  call agreeing another time moves that callback; it never adds a second one.
-  When it comes due its context is rebuilt from the request, and it is
-  withdrawn if someone already moved the meeting; the original time passing,
-  or the meeting being cancelled, resolves nothing. A try whose call row never
+  while the request is pending and its meeting not already moved — and, for
+  an objective-backed request, only for a time before its objective expires.
+  The same call agreeing another time moves that callback; it never adds a
+  second one. When it comes due its context is rebuilt from the request, and
+  it is withdrawn if someone already moved the meeting; the original time
+  passing, or the meeting being cancelled, resolves nothing. A callback or
+  recovery is placed on behalf of the request's owner, and never once that
+  member has left the organization: it is skipped as `owner_not_member` and a
+  person decides. A try whose call row never
   confirmed its leg is waited on, then recorded as `placement_unconfirmed` —
   never completed on a guess, never dialed again. When a call ends before the
   scheduling agent ever spoke and nothing was agreed, the request is recovered
@@ -2134,8 +2138,11 @@ legacy handoffs are not enrolled.
 
 - A callback is a step, not success. Rescheduling resolves only from an authorized
   newer stored meeting at a different time, checked again under its row lock.
-  Availability blocks for the meeting decision; the original time passing and
-  meeting cancellation alone resolve nothing. Closure explicitly records refusal,
+  Availability blocks for the meeting decision once no call is live and no
+  callback is still to come — the specialist may still move the meeting on that
+  call, and a callback the person agreed to is kept; the original time passing
+  and meeting cancellation alone resolve nothing. A request whose objective
+  cannot be enrolled is still recorded, without one. Closure explicitly records refusal,
   objective cancellation, expiry or exhausted attempts.
 - Every active objective has a timed next action, an active execution or an
   explicit waiting/paused/blocked reason. Revisions fence stale writes and stable
@@ -2147,8 +2154,9 @@ legacy handoffs are not enrolled.
   Uncertain placement must reconcile the original execution, never redial.
 - Pause, takeover, close and resolve lock the same objective as final dispatch.
   They withdraw uncommitted steps; a committed call may finish and settle.
-  Resume revalidates the case and schedules at least an hour in the future;
-  manual takeover requires explicit `return_automatic`.
+  Resume revalidates the case, the meeting still scheduled or rescheduled, and
+  schedules at least an hour in the future; manual takeover requires explicit
+  `return_automatic`.
 - Configuring administrator, commercial owner and executing agent are distinct.
   Members can see their own objectives without gaining colleagues' call data.
   Existing call/AI debit keys settle each linked call once; transitions are free

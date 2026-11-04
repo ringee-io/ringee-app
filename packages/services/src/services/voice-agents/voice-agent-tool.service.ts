@@ -62,6 +62,12 @@ const SUPPORT_SUBJECT_MAX = 120;
 const SUPPORT_MESSAGE_MAX = 2000;
 const CALLBACK_NOTE_MAX = 2000;
 const ATTENDANCE_NOTE_MAX = 1000;
+/**
+ * Waits between tries to record a participant's request for help. Until it
+ * is recorded the request stays pending, and a scheduled callback could still
+ * dial: a transient failure is retried within the tool call, a few times.
+ */
+const INTERVENTION_RETRY_DELAYS_MS = [150, 500];
 
 /**
  * A participant moving a handed-over meeting gives it the person's new time
@@ -1064,23 +1070,10 @@ export class VoiceAgentToolService {
       dedupeScope:
         grant.kind === "participant" ? grant.participant.id : undefined,
     });
-    if (grant.kind === "participant") {
-      // The team was (or was not) told whatever this write does: its failure
-      // must not change what the person hears. Nothing is marked recorded —
-      // the write is one keyed transaction — so a repeated request records it.
-      try {
-        await this.handoffs.recordExceptionalIntervention(
-          grant,
-          delivery.delivered,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `Could not record the human support request on handoff ${grant.handoff.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      }
-    }
+    // Recorded on every request, a repeated one included: a duplicate
+    // delivery says the team was told, not that this was recorded.
+    if (grant.kind === "participant")
+      await this.recordIntervention(grant, delivery.delivered);
     if (!delivery.delivered) {
       return {
         ok: false,
@@ -1102,6 +1095,38 @@ export class VoiceAgentToolService {
       speech_instruction:
         "Tell the person that human follow-up has been requested. Do not promise a response time.",
     };
+  }
+
+  /**
+   * Records a participant's request for help on its handoff, which suspends
+   * the request's automatic callbacks. The team was (or was not) told whatever
+   * happens here, so a failure never changes what the person hears. Nothing is
+   * marked recorded — the write is one keyed transaction — so a later request
+   * records it if every try here fails.
+   */
+  private async recordIntervention(
+    grant: Extract<HandoffGrant, { kind: "participant" }>,
+    delivered: boolean,
+  ): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.handoffs.recordExceptionalIntervention(grant, delivered);
+        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const delay = INTERVENTION_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) {
+          this.logger.error(
+            `Could not record the human support request on handoff ${grant.handoff.id} after ${attempt + 1} tries: ${message}`,
+          );
+          return;
+        }
+        this.logger.warn(
+          `Recording the human support request on handoff ${grant.handoff.id} failed, retrying: ${message}`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
 
   // ── Handoff to the scheduling agent (AGENT-021) ──────────────
@@ -1511,6 +1536,20 @@ export class VoiceAgentToolService {
       };
     }
     try {
+      // A callback due after the request's objective expires would never be
+      // placed: none is created or moved there, and none is promised.
+      if (
+        !(await this.handoffs.objectiveOpenAt(
+          input.handoffId,
+          input.scheduledAt,
+        ))
+      ) {
+        return {
+          ok: false,
+          error:
+            "The callback could not be scheduled. Do not promise that the call will happen.",
+        };
+      }
       let callback = await this.callbacks.scheduleAgentCallback({
         handoffId: input.handoffId,
         agentId: input.destinationAgentId,

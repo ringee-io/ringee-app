@@ -46,6 +46,79 @@ describe("persistent follow-up business results", () => {
     assert.equal(plan?.state, "blocked");
     assert.equal(plan?.reason, "reschedule_commit_pending");
   });
+  it("offered times wait for a person only once no call is live", () => {
+    const offered = {
+      ...objective,
+      handoff: { ...objective.handoff!, offeredAt: now },
+    } as unknown as FollowUpSnapshot;
+    const liveCall = { status: "answered", endedAt: null };
+    const onSource = planFollowUp(
+      {
+        ...offered,
+        handoff: {
+          ...offered.handoff!,
+          agentCall: { call: liveCall },
+        },
+      } as unknown as FollowUpSnapshot,
+      meeting,
+      now,
+    );
+    assert.equal(onSource?.state, "waiting");
+    assert.equal(onSource?.nextAction, "reconcile_handoff");
+    const onCallback = planFollowUp(
+      {
+        ...offered,
+        callbacks: [
+          {
+            id: "callback",
+            status: "in_progress",
+            dispatchCommittedAt: now,
+            agentCall: {
+              status: "in_progress",
+              providerCallControlId: "leg",
+              call: liveCall,
+            },
+          },
+        ],
+      } as unknown as FollowUpSnapshot,
+      meeting,
+      now,
+    );
+    assert.equal(onCallback?.state, "in_progress");
+    assert.equal(onCallback?.reason, "callback_call_active");
+  });
+  it("a callback agreed around offered times is the next step, not a decision for a person", () => {
+    const agreed = {
+      id: "callback",
+      status: "scheduled",
+      agentCallbackKind: "agreed",
+      reason: null,
+      scheduledAt: new Date(now.getTime() + 86_400_000),
+      notBefore: null,
+      dispatchCommittedAt: null,
+      agentCall: null,
+    };
+    const offered = {
+      ...objective,
+      handoff: { ...objective.handoff!, offeredAt: now },
+      callbacks: [agreed],
+    } as unknown as FollowUpSnapshot;
+    const plan = planFollowUp(offered, meeting, now);
+    assert.equal(plan?.state, "scheduled");
+    assert.equal(plan?.nextAction, "specialist_callback");
+    assert.equal(plan?.timingBasis, "agreed");
+    // Once that callback is over, the offered times wait for a person.
+    const after = planFollowUp(
+      {
+        ...offered,
+        callbacks: [{ ...agreed, status: "completed" }],
+      } as unknown as FollowUpSnapshot,
+      meeting,
+      now,
+    );
+    assert.equal(after?.state, "blocked");
+    assert.equal(after?.reason, "reschedule_commit_pending");
+  });
   it("only a newer active meeting at a different time proves rescheduling, even while paused", () => {
     const changed = {
       ...meeting,

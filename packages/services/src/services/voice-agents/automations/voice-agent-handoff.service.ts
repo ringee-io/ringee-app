@@ -1,5 +1,11 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  type NewFollowUpObjective,
   AiVoiceAgent,
   AiVoiceAgentAutomationRepository,
   AiVoiceAgentCall,
@@ -31,6 +37,7 @@ import {
   MeetingReminderPolicyRepository,
   MeetingRepository,
   MeetingStatus,
+  OrganizationRepository,
   UserRepository,
   type AiVoiceAgentParticipantBinding,
 } from "@ringee/database";
@@ -286,6 +293,7 @@ export class VoiceAgentHandoffService {
     private readonly provider: VoiceAgentProviderService,
     private readonly context: VoiceAgentConversationContextService,
     private readonly pendingActions: PendingActionService,
+    private readonly organizations: OrganizationRepository,
   ) {}
 
   // ── The destination ────────────────────────────────────────────────
@@ -619,13 +627,24 @@ export class VoiceAgentHandoffService {
     input: AiVoiceAgentHandoffInput,
     options: { followUp: boolean } = { followUp: true },
   ) {
-    const objective = options.followUp
-      ? await this.pendingActions.prepareFollowUpObjective(
+    let objective: NewFollowUpObjective | undefined;
+    if (options.followUp) {
+      try {
+        objective = await this.pendingActions.prepareFollowUpObjective(
           ctx,
           input,
           new Date(),
-        )
-      : undefined;
+        );
+      } catch (error) {
+        // Enrollment refused — a responsible member who left, a contact
+        // deleted since: the request is still recorded, without an objective,
+        // as before follow-up objectives existed. Anything else propagates.
+        if (!(error instanceof NotFoundException)) throw error;
+        this.logger.warn(
+          `Handoff ${input.idempotencyKey} recorded without a follow-up objective: ${error.message}`,
+        );
+      }
+    }
     return this.handoffs.createOnce(input, objective);
   }
 
@@ -1274,12 +1293,16 @@ export class VoiceAgentHandoffService {
    */
   async callbackStillWanted(
     handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId">,
+    now = new Date(),
   ): Promise<boolean> {
     const objective = await this.pendingActions.followUpForHandoff(handoff.id);
+    // An objective past its expiry is never claimed again, even before the
+    // reconciler closes it: no callback is promised for it.
     if (
       objective &&
       (objective.mode !== "automatic" ||
-        ["paused", "blocked", "resolved", "closed"].includes(objective.state))
+        ["paused", "blocked", "resolved", "closed"].includes(objective.state) ||
+        objective.expiresAt <= now)
     )
       return false;
     const current = await this.handoffs.findById(handoff.id);
@@ -1298,6 +1321,16 @@ export class VoiceAgentHandoffService {
     if (!reason) return true;
     await this.callbacks.cancelOpenForHandoff(current.id, reason);
     return false;
+  }
+
+  /**
+   * Whether the request's follow-up objective is still open at `at`. A
+   * callback due at or after its expiry is never claimed, so it must not be
+   * promised. A request without an objective has no such bound.
+   */
+  async objectiveOpenAt(handoffId: string, at: Date): Promise<boolean> {
+    const objective = await this.pendingActions.followUpForHandoff(handoffId);
+    return !objective || objective.expiresAt > at;
   }
 
   /**
@@ -1403,6 +1436,22 @@ export class VoiceAgentHandoffService {
         action: "skip",
         status: CallbackStatus.cancelled,
         reason: "objective_resolved",
+      };
+    }
+
+    // A callback or recovery is placed on behalf of the request's owner, the
+    // member whose call it continues. One who has left the organization
+    // places nothing: a person decides what follows.
+    if (
+      !(await this.organizations.isMember(
+        handoff.userId,
+        handoff.organizationId,
+      ))
+    ) {
+      return {
+        action: "skip",
+        status: CallbackStatus.missed,
+        reason: "owner_not_member",
       };
     }
 
