@@ -290,6 +290,138 @@ describe(
         "closed",
       );
     });
+    it("scopes callback planning and replay to the verified workspace and call owner", async () => {
+      const f = await enroll();
+      const p = await claimAndPrepare(f);
+      await service.authorizeHumanCallbackDial(
+        p.callback,
+        p.decision,
+        p.placement,
+      );
+      const emitted: unknown[] = [];
+      const workflow = Object.assign(Object.create(CallbackService.prototype), {
+        pendingActions: service,
+        contactRepo: contacts,
+        agentCalls,
+        callRepo: calls,
+        callbackRepo: callbacks,
+        customIntegrationOutbound: {
+          enqueue: async (event: unknown) => emitted.push(event),
+        },
+      }) as CallbackService;
+      const input = {
+        ...ctx, // Supplied identity fields must never override the verified ctx.
+        ...p.placement,
+        contactId: f.contact.id,
+        scheduledAt: new Date(Date.now() + 86400000),
+      };
+      const before = (await repo.followUpSnapshot(f.objective.id))!;
+      const outsiders = [
+        { ...ctx, organizationId: randomUUID() },
+        { ...ctx, organizationId: null },
+        { ...ctx, userId: colleagueId },
+      ];
+      for (const owner of outsiders) {
+        await assert.rejects(
+          workflow.scheduleFromVoiceAgent(owner, input),
+          /Callback source not found/,
+        );
+        assert.equal(
+          await repo.followUpForAgentCall(owner, p.placement.agentCallId),
+          null,
+        );
+        assert.equal(
+          await repo.planHumanFollowUpStep(
+            owner,
+            before.id,
+            before.revision,
+            input.scheduledAt,
+            "agreed",
+            p.placement.agentCallId,
+          ),
+          null,
+        );
+      }
+      const other = await seed();
+      for (const changed of [
+        { contactId: other.contact.id },
+        { callId: other.call.id },
+      ]) {
+        await assert.rejects(
+          workflow.scheduleFromVoiceAgent(ctx, { ...input, ...changed }),
+          /Callback source not found/,
+        );
+      }
+      // The linked action and callback are independently scoped in persistence.
+      await prisma.pendingAction.update({
+        where: { id: before.pendingActionId },
+        data: { userId: colleagueId },
+      });
+      await assert.rejects(
+        workflow.scheduleFromVoiceAgent(ctx, input),
+        /Follow-up not found/,
+      );
+      assert.equal(
+        await repo.planHumanFollowUpStep(
+          ctx,
+          before.id,
+          before.revision,
+          input.scheduledAt,
+          "agreed",
+          p.placement.agentCallId,
+        ),
+        null,
+      );
+      await prisma.pendingAction.update({
+        where: { id: before.pendingActionId },
+        data: { userId },
+      });
+      await prisma.callbackTask.update({
+        where: { id: p.callback.id },
+        data: { userId: colleagueId },
+      });
+      assert.equal(
+        await repo.planHumanFollowUpStep(
+          ctx,
+          before.id,
+          before.revision,
+          input.scheduledAt,
+          "agreed",
+          p.placement.agentCallId,
+        ),
+        null,
+      );
+      await prisma.callbackTask.update({
+        where: { id: p.callback.id },
+        data: { userId },
+      });
+      const unchanged = (await repo.followUpSnapshot(f.objective.id))!;
+      assert.equal(unchanged.revision, before.revision);
+      assert.equal(unchanged.callbacks.length, before.callbacks.length);
+      assert.deepEqual(emitted, []);
+      const accepted = await workflow.scheduleFromVoiceAgent(ctx, input);
+      assert.equal(
+        accepted.callId,
+        f.call.id,
+        "the objective retains its original human call",
+      );
+      for (const owner of outsiders) {
+        assert.equal(
+          await repo.planHumanFollowUpStep(
+            owner,
+            before.id,
+            before.revision,
+            input.scheduledAt,
+            "agreed",
+            p.placement.agentCallId,
+          ),
+          null,
+        );
+      }
+      const replay = await workflow.scheduleFromVoiceAgent(ctx, input);
+      assert.equal(replay.id, accepted.id);
+    });
+
     it("publishes an agreed human-objective callback once across tool replays", async () => {
       const f = await enroll();
       const p = await claimAndPrepare(f);
@@ -312,6 +444,9 @@ describe(
       const workflow = Object.assign(Object.create(CallbackService.prototype), {
         pendingActions: service,
         contactRepo: contacts,
+        agentCalls,
+        callRepo: calls,
+        callbackRepo: callbacks,
         customIntegrationOutbound: new CustomIntegrationOutboundService(
           new CustomIntegrationRepository(db),
           new CustomIntegrationDeliveryRepository(db),
@@ -328,7 +463,7 @@ describe(
           contactId: f.contact.id,
           scheduledAt: new Date(Date.now() + 86400000),
         };
-        const first = await workflow.scheduleFromVoiceAgent(input);
+        const first = await workflow.scheduleFromVoiceAgent(ctx, input);
         const [delivery] = await prisma.customIntegrationDelivery.findMany({
           where: { integrationId: integration.id },
         });
@@ -342,7 +477,7 @@ describe(
           where: { id: delivery.id },
           data: { status: "sent" },
         });
-        const replay = await workflow.scheduleFromVoiceAgent(input);
+        const replay = await workflow.scheduleFromVoiceAgent(ctx, input);
         assert.equal(replay.id, first.id);
         assert.equal(
           await prisma.customIntegrationDelivery.count({
@@ -809,6 +944,7 @@ describe(
       });
       const at = new Date(Date.now() + 86400000);
       const first = (await repo.planHumanFollowUpStep(
+        ctx,
         f.objective.id,
         f.objective.revision,
         at,
@@ -817,6 +953,7 @@ describe(
       assert.ok(first);
       assert.equal(
         (await repo.planHumanFollowUpStep(
+          ctx,
           f.objective.id,
           f.objective.revision,
           at,
@@ -831,6 +968,7 @@ describe(
       const row = (await repo.followUpSnapshot(f.objective.id))!;
       assert.equal(row.recoveryCount, 0);
       const second = (await repo.planHumanFollowUpStep(
+        ctx,
         row.id,
         row.revision,
         at,
@@ -841,6 +979,7 @@ describe(
       assert.notEqual(second.agentCallbackKey, first.agentCallbackKey);
       assert.equal(
         (await repo.planHumanFollowUpStep(
+          ctx,
           row.id,
           row.revision,
           at,
@@ -967,6 +1106,67 @@ describe(
         });
       }
     });
+    it("rejects ambiguous and impossible timestamps in the shared outcome service before writing", async () => {
+      const f = await seed();
+      for (const callbackAt of [
+        "2030-01-02",
+        "2030-01-02T10:30:00",
+        "January 2, 2030 10:30:00 GMT",
+        "2030-02-30T10:30:00Z",
+        "2030-02-29T10:30:00-04:00",
+        "2030-01-02T10:30:00+25:00",
+        "",
+      ]) {
+        await assert.rejects(
+          service.recordHumanOutcome(ctx, f.call.id, {
+            outcome: "callback_scheduled",
+            callbackAt,
+          }),
+          /valid callback date/,
+        );
+      }
+      assert.equal((await calls.findById(f.call.id))!.outcome, null);
+      assert.equal(
+        await prisma.pendingAction.count({ where: { callId: f.call.id } }),
+        0,
+      );
+      const personal = await prisma.call.create({
+        data: {
+          userId,
+          organizationId: null,
+          source: "web",
+          direction: "outbound",
+          fromNumber: "+12025550100",
+          toNumber: "+12025550101",
+        },
+      });
+      await assert.rejects(
+        service.recordHumanOutcome(
+          { userId, organizationId: null },
+          personal.id,
+          {
+            outcome: "callback_scheduled",
+            callbackAt: "2030-01-02T10:30:00",
+          },
+        ),
+        /valid callback date/,
+      );
+      await prisma.call.delete({ where: { id: personal.id } });
+      const callbackAt = new Date(Date.now() + 86400000)
+        .toISOString()
+        .replace("Z", "-04:00");
+      const accepted = await service.recordHumanOutcome(ctx, f.call.id, {
+        outcome: "callback_scheduled",
+        callbackAt,
+        purpose: "booking",
+      });
+      const row = (await repo.followUpSnapshot(accepted.followUp!.id))!;
+      assert.equal(
+        row.callbacks[0].scheduledAt.toISOString(),
+        new Date(callbackAt).toISOString(),
+      );
+    });
+
     it("preserves agreed callback date/time zone and blocks an informational purpose honestly", async () => {
       const f = await seed();
       const at = new Date(Date.now() + 86400000).toISOString();

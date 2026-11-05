@@ -421,6 +421,10 @@ function createWorld(
       const a = attempts.get(id);
       return a ? copyAttempt(a) : null;
     },
+    findByIdWithRelations: async (id: string) => {
+      const a = attempts.get(id);
+      return a ? { ...a, campaignLead: leads.get(a.campaignLeadId) } : null;
+    },
     findByIdWithCampaignOrganization: async (id: string) => {
       await roundTrip();
       const a = attempts.get(id);
@@ -523,7 +527,13 @@ function createWorld(
   };
   /** What the attempt's disposition wrote onto its Call. */
   const outcomeWrites: unknown[][] = [];
-  const complianceService = { isWithinCallingWindow: () => true };
+  const dncWrites: unknown[] = [];
+  const complianceService = {
+    isWithinCallingWindow: () => true,
+    addToDNC: async (input: unknown) => {
+      dncWrites.push(input);
+    },
+  };
   const userService = { getCachedUserById: async () => ({ ...user }) };
 
   const agentSessionService = new AgentSessionService(
@@ -606,6 +616,7 @@ function createWorld(
     campaign,
     failures,
     outcomeWrites,
+    dncWrites,
     liveCalls,
     guard,
     rotation,
@@ -1244,6 +1255,44 @@ describe("CallAttemptService lifecycle", () => {
     });
     assert.equal(result.action, "dnc");
     assert.equal(world.lead("lead-1").status, "dnc");
+    assert.equal(
+      world.dncWrites.length,
+      0,
+      "accepted outcome owns the DNC write",
+    );
+  });
+
+  it("persists a stop request when there is no linked call or canonical outcome", async () => {
+    for (const without of ["call", "outcome"]) {
+      const { world, attemptId } = await dialedAndAnswered();
+      await hangup(world, attemptId);
+      if (without === "call") world.attempts.get(attemptId)!.callId = null;
+      const result = await world.callAttemptService.submitDisposition({
+        callAttemptId: attemptId,
+        disposition: {
+          ...notInterested,
+          ...(without === "outcome"
+            ? { code: "custom_result", canonicalOutcome: null }
+            : {}),
+          triggersCompletion: true,
+        } as never,
+        stopRequested: true,
+        campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+        organizationId: "org-1",
+      });
+      assert.equal(result.action, "dnc");
+      assert.equal(world.lead("lead-1").status, "dnc");
+      assert.deepEqual(world.dncWrites, [
+        {
+          phoneNumber: world.lead("lead-1").contact.phoneNumber,
+          userId: "user-1",
+          organizationId: "org-1",
+          reason: "Disposition: Not interested",
+          source: "disposition",
+          addedByUserId: "user-1",
+        },
+      ]);
+    }
   });
 
   it("counts the attempt once and sends the agent on when the disposition and the hangup webhook race", async () => {

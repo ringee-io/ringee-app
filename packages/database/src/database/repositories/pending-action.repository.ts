@@ -501,6 +501,7 @@ export class PendingActionRepository {
   }
 
   async planHumanFollowUpStep(
+    ctx: OwnershipContext,
     id: string,
     revision: number,
     at: Date,
@@ -508,15 +509,47 @@ export class PendingActionRepository {
     agentCallId?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const row = await lockFollowUp(tx, id);
+      const owner = { ...buildOwnershipFilter(ctx), userId: ctx.userId };
+      const row = await lockFollowUp(tx, id, owner);
       if (!row || row.sourceType !== "human_call_outcome") return null;
+      const action = await tx.pendingAction.findFirst({
+        where: { id: row.pendingActionId, ...owner },
+      });
+      if (!action) return null;
+      await tx.$queryRaw`
+        SELECT "id" FROM "CallbackTask"
+        WHERE "followUpId" = ${id}::uuid AND "userId" = ${ctx.userId}::uuid
+          AND "organizationId" IS NOT DISTINCT FROM ${ctx.organizationId ?? null}::uuid
+        FOR UPDATE`;
+      if (
+        agentCallId &&
+        !(await tx.callbackTask.count({
+          where: {
+            ...owner,
+            followUpId: id,
+            agentCallId,
+            agentCall: { ...owner, contactId: action.contactId },
+            contactId: action.contactId!,
+            callId: action.callId,
+            dispatchCommittedAt: { not: null },
+            sourceRevision: row.sourceRevision,
+          },
+        }))
+      )
+        return null;
       // A proven-unplaced callback does not consume recoveryCount. Bind a new
       // recovery to this review revision while retaining the same replay key.
       const key = agentCallId
         ? `followup:${id}:agreed:${agentCallId}`
         : `followup:${id}:recovery:revision:${revision}`;
-      const existing = await tx.callbackTask.findUnique({
-        where: { agentCallbackKey: key },
+      const existing = await tx.callbackTask.findFirst({
+        where: {
+          ...owner,
+          followUpId: id,
+          agentCallbackKey: key,
+          contactId: action.contactId!,
+          callId: action.callId,
+        },
       });
       if (existing) return existing;
       if (
@@ -528,29 +561,15 @@ export class PendingActionRepository {
         at >= row.expiresAt
       )
         return null;
-      const action = await tx.pendingAction.findUniqueOrThrow({
-        where: { id: row.pendingActionId },
-      });
       if (
         await tx.callbackTask.count({
           where: {
+            ...owner,
             followUpId: id,
             dispatchCommittedAt: null,
             status: { in: ["scheduled", "due", "in_progress"] },
           },
         })
-      )
-        return null;
-      if (
-        agentCallId &&
-        !(await tx.callbackTask.count({
-          where: {
-            followUpId: id,
-            agentCallId,
-            dispatchCommittedAt: { not: null },
-            sourceRevision: row.sourceRevision,
-          },
-        }))
       )
         return null;
       const callback = await tx.callbackTask.create({
@@ -593,10 +612,19 @@ export class PendingActionRepository {
     });
   }
 
-  followUpForAgentCall(agentCallId: string) {
-    return this.prisma.callbackTask.findUnique({
-      where: { agentCallId },
-      include: { followUp: true },
+  followUpForAgentCall(ctx: OwnershipContext, agentCallId: string) {
+    const owner = { ...buildOwnershipFilter(ctx), userId: ctx.userId };
+    return this.prisma.callbackTask.findFirst({
+      where: {
+        ...owner,
+        agentCallId,
+        agentCall: owner,
+      },
+      include: {
+        followUp: {
+          where: { configuredByUserId: ctx.userId, action: owner },
+        },
+      },
     });
   }
 

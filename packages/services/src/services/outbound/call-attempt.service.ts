@@ -587,20 +587,6 @@ export class CallAttemptService {
         attempt.campaignLeadId,
         CampaignLeadStatus.dnc,
       );
-      // Add to DNC list
-      const leadData = await this.attemptRepo.findByIdWithRelations(
-        data.callAttemptId,
-      );
-      if (leadData) {
-        await this.complianceService.addToDNC({
-          phoneNumber: leadData.campaignLead.contact.phoneNumber,
-          userId: attempt.agentUserId,
-          organizationId: data.organizationId,
-          reason: `Disposition: ${disposition.label}`,
-          source: "disposition",
-          addedByUserId: attempt.agentUserId,
-        });
-      }
       action = "dnc";
     } else if (
       !data.stopRequested &&
@@ -639,6 +625,24 @@ export class CallAttemptService {
           CampaignLeadStatus.completed,
         );
         action = "completed";
+      }
+    }
+
+    // Accepted human outcomes already persist an explicit stop atomically.
+    if (action === "dnc" && (!data.stopRequested || !accepted)) {
+      // Add to DNC list
+      const leadData = await this.attemptRepo.findByIdWithRelations(
+        data.callAttemptId,
+      );
+      if (leadData) {
+        await this.complianceService.addToDNC({
+          phoneNumber: leadData.campaignLead.contact.phoneNumber,
+          userId: attempt.agentUserId,
+          organizationId: data.organizationId,
+          reason: `Disposition: ${disposition.label}`,
+          source: "disposition",
+          addedByUserId: attempt.agentUserId,
+        });
       }
     }
 

@@ -231,21 +231,46 @@ export class CallbackService {
    * tables, and the deterministic key gives provider retries a database-backed
    * idempotency marker without adding another public identifier or schema field.
    */
-  async scheduleFromVoiceAgent(data: {
-    agentCallId: string;
-    userId: string;
-    organizationId: string | null;
-    contactId: string;
-    callId: string;
-    scheduledAt: Date;
-    note?: string;
-  }) {
+  async scheduleFromVoiceAgent(
+    ctx: OwnershipContext,
+    data: {
+      agentCallId: string;
+      contactId: string;
+      callId: string;
+      scheduledAt: Date;
+      note?: string;
+    },
+  ) {
+    const [agentCall, call, contact] = await Promise.all([
+      this.agentCalls.findByIdForOwner(ctx, data.agentCallId),
+      this.callRepo.findByIdForOwner(ctx, data.callId),
+      this.contactRepo.findByIdForOwner(ctx, data.contactId),
+    ]);
+    if (
+      !agentCall ||
+      agentCall.userId !== ctx.userId ||
+      agentCall.callId !== data.callId ||
+      agentCall.contactId !== data.contactId ||
+      !call ||
+      call.userId !== ctx.userId ||
+      (call.contactId && call.contactId !== data.contactId) ||
+      !contact
+    )
+      throw new NotFoundException("Callback source not found");
+
     const objectiveCallback =
       await this.pendingActions.scheduleHumanObjectiveCallback(
+        ctx,
         data.agentCallId,
         data.scheduledAt,
       );
     if (objectiveCallback) {
+      if (
+        objectiveCallback.userId !== ctx.userId ||
+        objectiveCallback.organizationId !== (ctx.organizationId ?? null) ||
+        objectiveCallback.contactId !== data.contactId
+      )
+        throw new ConflictException("Callback source changed");
       // The outbound outbox deduplicates callback_created by callback id,
       // including a replay after scheduling committed but publication failed.
       await this.enqueueCallbackCreated(objectiveCallback);
@@ -253,8 +278,8 @@ export class CallbackService {
     }
     const { callback, created } = await this.callbackRepo.createOnce({
       id: data.agentCallId,
-      userId: data.userId,
-      organizationId: data.organizationId,
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
       contactId: data.contactId,
       callId: data.callId,
       scheduledAt: data.scheduledAt,
@@ -264,8 +289,8 @@ export class CallbackService {
     // A same-id row can only be accepted as this tool's prior write. This also
     // fails closed if seeded/test data ever reuses an id across the two tables.
     if (
-      callback.userId !== data.userId ||
-      callback.organizationId !== data.organizationId ||
+      callback.userId !== ctx.userId ||
+      callback.organizationId !== (ctx.organizationId ?? null) ||
       callback.contactId !== data.contactId ||
       callback.callId !== data.callId
     ) {
@@ -274,8 +299,8 @@ export class CallbackService {
 
     if (created) {
       await this.scheduleReminders(
-        data.userId,
-        data.organizationId,
+        ctx.userId,
+        ctx.organizationId ?? null,
         callback.id,
         data.scheduledAt,
       );

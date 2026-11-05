@@ -6,6 +6,7 @@ import {
   Prisma,
   Call,
 } from "@prisma/client";
+import type { OwnershipContext } from "@ringee/platform";
 
 /** Transaction helpers of PendingActionRepository, shared with the handoff and
  * callback repositories so their observations cannot be lost between writes. */
@@ -379,14 +380,42 @@ export async function createFollowUpInTransaction(
 export async function lockFollowUp(
   tx: Prisma.TransactionClient,
   id: string,
+  // Prebuilt ownership filter plus the required call-owner predicate.
+  owner?: OwnershipContext,
 ): Promise<PendingActionFollowUp | null> {
-  const seed = await tx.pendingActionFollowUp.findUnique({ where: { id } });
+  const where = {
+    id,
+    ...(owner
+      ? {
+          configuredByUserId: owner.userId,
+          action: {
+            userId: owner.userId,
+            organizationId: owner.organizationId ?? null,
+          },
+        }
+      : {}),
+  };
+  const seed = owner
+    ? await tx.pendingActionFollowUp.findFirst({ where })
+    : await tx.pendingActionFollowUp.findUnique({ where: { id } });
   if (!seed) return null;
   if (seed.handoffId) {
     await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${seed.handoffId}::uuid FOR UPDATE`;
   }
-  await tx.$queryRaw`SELECT "id" FROM "PendingActionFollowUp" WHERE "id" = ${id}::uuid FOR UPDATE`;
-  return tx.pendingActionFollowUp.findUnique({ where: { id } });
+  if (owner) {
+    await tx.$queryRaw`
+      SELECT f."id" FROM "PendingActionFollowUp" f
+      JOIN "PendingAction" a ON a."id" = f."pendingActionId"
+      WHERE f."id" = ${id}::uuid AND f."configuredByUserId" = ${owner.userId}::uuid
+        AND a."userId" = ${owner.userId}::uuid
+        AND a."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+      FOR UPDATE OF f, a`;
+  } else {
+    await tx.$queryRaw`SELECT "id" FROM "PendingActionFollowUp" WHERE "id" = ${id}::uuid FOR UPDATE`;
+  }
+  return owner
+    ? tx.pendingActionFollowUp.findFirst({ where })
+    : tx.pendingActionFollowUp.findUnique({ where: { id } });
 }
 
 export async function appendFollowUpEvent(

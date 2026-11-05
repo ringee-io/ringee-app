@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { parseISO } from "date-fns";
 import {
   AiPipelineActivationRepository,
   CallOutcome,
@@ -253,6 +254,8 @@ export class PendingActionService {
     },
     now = new Date(),
   ) {
+    if (input.callbackAt !== undefined)
+      this.validateCallbackTimestamp(input.callbackAt);
     if (
       input.stopRequested !== undefined &&
       typeof input.stopRequested !== "boolean"
@@ -367,8 +370,7 @@ export class PendingActionService {
     }
     if (input.purpose && !["booking", "information"].includes(input.purpose))
       throw new BadRequestException("Invalid follow-up purpose");
-    if (callbackAt && !Number.isFinite(new Date(callbackAt).getTime()))
-      throw new BadRequestException("A valid callback date is required");
+    if (callbackAt !== undefined) this.validateCallbackTimestamp(callbackAt);
     if (authorized && input.outcome === "callback_scheduled" && !callbackAt)
       throw new BadRequestException("A callback date is required");
     const purpose =
@@ -503,11 +505,32 @@ export class PendingActionService {
     return save(assignment);
   }
 
-  async scheduleHumanObjectiveCallback(agentCallId: string, at: Date) {
-    const step = await this.repo.followUpForAgentCall(agentCallId);
+  private validateCallbackTimestamp(value: unknown) {
+    if (
+      typeof value !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(
+        value,
+      ) ||
+      !Number.isFinite(parseISO(value).getTime()) ||
+      !Number.isFinite(new Date(value).getTime())
+    )
+      throw new BadRequestException(
+        "A valid callback date with an explicit time zone is required",
+      );
+  }
+
+  async scheduleHumanObjectiveCallback(
+    ctx: OwnershipContext,
+    agentCallId: string,
+    at: Date,
+  ) {
+    const step = await this.repo.followUpForAgentCall(ctx, agentCallId);
+    if (step?.followUpId && !step.followUp)
+      throw new NotFoundException("Follow-up not found");
     if (!step?.followUp || step.followUp.sourceType !== "human_call_outcome")
       return undefined;
     const callback = await this.repo.planHumanFollowUpStep(
+      ctx,
       step.followUp.id,
       step.followUp.revision,
       at,
@@ -834,6 +857,7 @@ export class PendingActionService {
         );
         if (at && at < row.expiresAt)
           return this.repo.planHumanFollowUpStep(
+            ctx,
             row.id,
             row.revision,
             at,
