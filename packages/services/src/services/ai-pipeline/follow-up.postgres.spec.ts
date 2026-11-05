@@ -1,3 +1,7 @@
+import {
+  isolateFollowUpWorkerFixtures,
+  FOLLOW_UP_SUITE_TIMEOUT_MS,
+} from "../../../test/postgres-worker-fixture";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -30,7 +34,7 @@ import { VoiceAgentHandoffService } from "../voice-agents/automations/voice-agen
 const url = process.env.RINGEE_FOLLOWUP_TEST_DATABASE_URL;
 describe(
   "Stage 1 follow-up — real PostgreSQL and domain services",
-  { skip: !url },
+  { skip: !url, timeout: FOLLOW_UP_SUITE_TIMEOUT_MS },
   () => {
     const prisma = new PrismaClient({ datasourceUrl: url });
     const db = prisma as never;
@@ -59,6 +63,7 @@ describe(
       calendars,
       policies,
       new ComplianceService(new DNCEntryRepository(db), {} as never),
+      callbacks,
     );
     const handoffs = new VoiceAgentHandoffService(
       handoffRepo,
@@ -97,6 +102,7 @@ describe(
       AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS: string[];
     };
     const oldFlags = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    let releaseFixture: (() => Promise<void>) | undefined;
     // One number per seeded contact: a repeated one would see an earlier
     // fixture's live call as the person already being on the phone.
     let phoneSeq = 1000;
@@ -107,6 +113,7 @@ describe(
           new URL(url!).hostname === "localhost",
         "Use an isolated local test database",
       );
+      releaseFixture = await isolateFollowUpWorkerFixtures(prisma);
       config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = [organizationId];
       await prisma.user.createMany({
         data: [adminId, memberId, colleagueId].map((id) => ({ id })),
@@ -168,13 +175,17 @@ describe(
       });
     });
     after(async () => {
-      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
-      await prisma.pendingAction.deleteMany({ where: { organizationId } });
-      await prisma.organization.deleteMany({ where: { id: organizationId } });
-      await prisma.user.deleteMany({
-        where: { id: { in: [adminId, memberId, colleagueId] } },
-      });
-      await prisma.$disconnect();
+      try {
+        config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = oldFlags;
+        await prisma.pendingAction.deleteMany({ where: { organizationId } });
+        await prisma.organization.deleteMany({ where: { id: organizationId } });
+        await prisma.user.deleteMany({
+          where: { id: { in: [adminId, memberId, colleagueId] } },
+        });
+      } finally {
+        await releaseFixture?.();
+        await prisma.$disconnect();
+      }
     });
 
     /** `placedBy`: the member who placed the reminder call (a "call now");

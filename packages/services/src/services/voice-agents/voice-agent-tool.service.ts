@@ -731,7 +731,11 @@ export class VoiceAgentToolService {
     }
 
     const agentCall = await this.agentCalls.findByCallControlId(callControlId);
-    if (!agentCall?.callId) {
+    if (
+      !agentCall?.callId ||
+      agentCall.organizationId !== ctx.organizationId ||
+      (!ctx.organizationId && agentCall.userId !== ctx.userId)
+    ) {
       return {
         ok: false,
         error: "The current call could not be found for a callback.",
@@ -772,15 +776,18 @@ export class VoiceAgentToolService {
     }
 
     try {
-      const callback = await this.callbacks.scheduleFromVoiceAgent({
-        agentCallId: agentCall.id,
-        userId: agentCall.userId,
-        organizationId: agentCall.organizationId,
-        contactId,
-        callId: agentCall.callId,
-        scheduledAt,
-        note: this.supportText(input.note, CALLBACK_NOTE_MAX) || undefined,
-      });
+      // The verified agent grant binds this stored call to the authenticated
+      // workspace. Its owner can differ from the agent's creator in an org.
+      const callback = await this.callbacks.scheduleFromVoiceAgent(
+        { ...ctx, userId: agentCall.userId },
+        {
+          agentCallId: agentCall.id,
+          contactId,
+          callId: agentCall.callId,
+          scheduledAt,
+          note: this.supportText(input.note, CALLBACK_NOTE_MAX) || undefined,
+        },
+      );
 
       await this.recordCallbackOutcome(agentCall);
 

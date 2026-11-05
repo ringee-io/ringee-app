@@ -49,18 +49,36 @@ export function failureSnapshot(
  * Merge a WebRTC lifecycle event into the background snapshot without losing
  * the Telnyx session id. Some final SDK updates omit `telnyxIDs`, so blindly
  * assigning `undefined` on `ended` makes the post-call note impossible to
- * associate with its backend Call row.
+ * associate with its backend Call row. A call that ends keeps the time it
+ * first did (`endedAt`).
  */
 export function callEventSnapshotPatch(
   current: CallSnapshotMsg,
   event: CallEventMsg,
+  now = Date.now(),
 ): Partial<Omit<CallSnapshotMsg, "type">> {
   const cause = event.detail?.cause;
+  const over = event.state === "ended" || event.state === "failed";
   return {
     state: event.state,
     error: event.detail?.error ?? cause,
     telnyxSessionId: event.detail?.telnyxSessionId ?? current.telnyxSessionId,
+    ...(over ? { endedAt: current.endedAt ?? now } : {}),
   };
+}
+
+/**
+ * How long the call lasted, in whole seconds. The snapshot keeps the call's
+ * end, so a wrap-up opened later does not count the time since; a call with
+ * no recorded end is counted up to now.
+ */
+export function callDurationSeconds(
+  snapshot: Pick<CallSnapshotMsg, "startedAt" | "endedAt">,
+  now = Date.now(),
+): number {
+  if (!snapshot.startedAt) return 0;
+  const end = snapshot.endedAt ?? now;
+  return Math.max(0, Math.round((end - snapshot.startedAt) / 1000));
 }
 
 /**

@@ -56,6 +56,7 @@ function presetDate(preset: CallbackPreset, now = new Date()): Date {
 
 export function DispositionPanel() {
   const t = useTranslations('dialer.disposition');
+  const tFollow = useTranslations('calls.automaticFollowUp');
   const tVoicemail = useTranslations('voicemail');
   const attemptId = useDialerAttemptStore((s) => s.attemptId);
   const dispositionRequired = useDialerAttemptStore(
@@ -80,7 +81,8 @@ export function DispositionPanel() {
   const selectedDispo = availableDispositions.find(
     (d) => d.code === selectedCode
   );
-  const showCallbackFields = selectedDispo?.triggersCallback;
+  const showCallbackFields =
+    selectedDispo?.triggersCallback && !selectedDispo.automaticFollowUp;
 
   function resetForm() {
     setSelectedCode(null);
@@ -345,7 +347,11 @@ export function DispositionPanel() {
           aria-keyshortcuts='Enter'
         >
           {submitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          {callLive && selectedCode ? t('submitOnHangup') : t('submit')}
+          {submitting
+            ? tFollow('preparing')
+            : callLive && selectedCode
+              ? t('submitOnHangup')
+              : t('submit')}
           {!callLive && selectedCode && !submitting ? (
             <kbd className='ml-2 rounded border border-current/30 px-1 font-mono text-[10px] opacity-70'>
               Enter

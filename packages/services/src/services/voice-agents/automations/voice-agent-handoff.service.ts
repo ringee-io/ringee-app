@@ -1727,7 +1727,9 @@ export class VoiceAgentHandoffService {
     const callback = callbackId
       ? await this.callbacks.findById(callbackId)
       : null;
-    return callback?.agentCallbackKind ?? null;
+    return callback?.agentCallbackKind === "policy"
+      ? null
+      : (callback?.agentCallbackKind ?? null);
   }
 
   /**

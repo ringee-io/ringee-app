@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Prisma } from "@prisma/client";
 import { CallRepository } from "./call.repository";
 import { ContactListRepository } from "./contact-list.repository";
 import { DashboardRepository } from "./dashboard.repository";
@@ -152,13 +153,14 @@ describe("My Day persistence regressions", () => {
   });
 
   it("pages follow-ups with a deterministic cursor and preserves ownership", async () => {
-    let query: any;
+    let query!: Prisma.Sql;
     const repo = new PendingActionRepository({
-      pendingAction: {
-        findMany: async (q: unknown) => {
-          query = q;
-          return [];
-        },
+      $queryRaw: async (
+        strings: TemplateStringsArray,
+        ...values: unknown[]
+      ) => {
+        query = Prisma.sql(strings, ...values);
+        return [];
       },
     } as never);
     await repo.listOpenForCalling(owner, {
@@ -168,13 +170,13 @@ describe("My Day persistence regressions", () => {
       limit: 100,
       after: "action-100",
     });
-    assert.deepEqual(query.cursor, { id: "action-100" });
-    assert.equal(query.skip, 1);
-    assert.deepEqual(query.where.AND[0], owner);
-    assert.deepEqual(query.orderBy, [
-      { dueAt: "asc" },
-      { createdAt: "asc" },
-      { id: "asc" },
-    ]);
+    assert.ok(query.values.includes("action-100"));
+    assert.ok(query.values.includes(owner.userId));
+    assert.equal(query.values.at(-1), 100);
+    assert.match(query.sql, /NOT EXISTS/);
+    assert.match(
+      query.sql,
+      /ORDER BY a\."dueAt" ASC NULLS LAST, a\."createdAt" ASC, a\."id" ASC/,
+    );
   });
 });

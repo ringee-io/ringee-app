@@ -6,6 +6,13 @@ import {
 } from "@prisma/client";
 import type { OrganizationOwnershipContext } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
+import { lockWorkspace } from "./calendar.repository";
+
+type AutomationSetup = {
+  agentId: string;
+  enabled: boolean;
+  settings?: Prisma.InputJsonValue;
+};
 
 /** The organization-wide context the rail drives. */
 export const AUTOMATION_WORKSPACE_CONTEXT = "workspace";
@@ -177,33 +184,48 @@ export class AiVoiceAgentAutomationRepository {
   upsertForOwner(
     ctx: OrganizationOwnershipContext,
     capability: AiVoiceAgentType,
-    data: {
-      agentId: string;
-      enabled: boolean;
-      settings?: Prisma.InputJsonValue;
-    },
+    data:
+      | AutomationSetup
+      | ((current: AiVoiceAgentAutomation | null) => AutomationSetup),
   ): Promise<AiVoiceAgentAutomation> {
-    return this.prisma.aiVoiceAgentAutomation.upsert({
-      where: {
-        organizationId_capability_contextKey: {
+    return this.prisma.$transaction(async (tx) => {
+      // The workspace lock covers first creation; the row lock also serializes
+      // with direct updates and follow-up dispatch of an existing automation.
+      await lockWorkspace(tx, ctx);
+      await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentAutomation"
+        WHERE "organizationId" = ${ctx.organizationId}::uuid
+          AND "capability" = ${capability}::"AiVoiceAgentType"
+          AND "contextKey" = ${AUTOMATION_WORKSPACE_CONTEXT} FOR UPDATE`;
+      const current = await tx.aiVoiceAgentAutomation.findFirst({
+        where: {
           organizationId: ctx.organizationId,
           capability,
           contextKey: AUTOMATION_WORKSPACE_CONTEXT,
         },
-      },
-      create: {
-        userId: ctx.userId,
-        organizationId: ctx.organizationId,
-        capability,
-        contextKey: AUTOMATION_WORKSPACE_CONTEXT,
-        ...data,
-      },
-      update: {
-        ...data,
-        userId: ctx.userId,
-        claimToken: null,
-        claimedAt: null,
-      },
+      });
+      const setup = typeof data === "function" ? data(current) : data;
+      return tx.aiVoiceAgentAutomation.upsert({
+        where: {
+          organizationId_capability_contextKey: {
+            organizationId: ctx.organizationId,
+            capability,
+            contextKey: AUTOMATION_WORKSPACE_CONTEXT,
+          },
+        },
+        create: {
+          userId: ctx.userId,
+          organizationId: ctx.organizationId,
+          capability,
+          contextKey: AUTOMATION_WORKSPACE_CONTEXT,
+          ...setup,
+        },
+        update: {
+          ...setup,
+          userId: ctx.userId,
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
     });
   }
 

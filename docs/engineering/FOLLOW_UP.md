@@ -1,8 +1,9 @@
 # Persistent follow-up objectives
 
-Stage 1, 3 November 2026. The pilot flag remains
-`AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. This stage does not enroll human call
-outcomes, provision agents on purchase, or move meetings by voice.
+Stages 1 and 2, 3 November 2026. The pilot flag remains
+`AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. Human-outcome enrollment additionally
+requires an administrator's explicit scheduling-automation policy. Purchasing
+Organization does not enable it.
 
 ## Ownership and execution
 
@@ -29,11 +30,10 @@ stored meeting change can resolve a case that previously needed attention.
 Reviews are bounded and ordered by `reviewAt` so old blocked cases do not starve
 new work.
 
-Only a Step 0 reschedule handoff enrolls an objective: no caller enrolls human
-dispositions, and recommendations retain their own activation and execution
-mode. The next stage is planned in
-[PLAN_ORGANIZATION_AI_FOLLOWUP.md](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md)
-§17.
+Step 0 reschedule handoffs and newly saved eligible human outcomes can enroll
+objectives. Recommendations retain their own activation and execution mode.
+See [PLAN_ORGANIZATION_AI_FOLLOWUP.md](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md)
+§17–18 for implementation status.
 
 ## Lifecycle and evidence
 
@@ -193,3 +193,137 @@ Validation commands used for this delivery:
 No production database, Temporal worker, phone number or provider call was used
 for these checks. Apply the migration to the deployed database before these
 new reads or workers run; the generated Prisma client alone is insufficient.
+
+## Stage 2: human-outcome assignment
+
+`MeetingService.updateCallOutcome` and `CallAttemptService.submitDisposition`
+call `PendingActionService.recordHumanOutcome`. Canonical outcomes, not editable
+labels, determine eligibility. `CallRepository.recordOutcome` locks the contact
+and source call and persists the semantic `outcomeRevision`, commitment,
+objective, first callback and initiation evidence in one transaction. Unrelated
+call updates and identical saves do not advance that revision. Campaign wrap-up
+waits for acceptance; its disposition snapshot is fenced by the accepted source
+revision. Retries can finish wrap-up without another objective or callback.
+
+Enrollment requires the pilot and `appointment_booking.settings.humanFollowUp`
+with `enabled: true`. The existing scheduling setup accepts `humanFollowUpEnabled`
+and `interestedObjective` (`booking` or `information`); only a current admin can
+explicitly authorize the policy. Older requests that omit it preserve its value.
+The existing setup form defaults the opt-in off. No historical recommendation or
+unchanged historical call is enrolled, and AI-origin calls cannot recursively
+enroll work. No-answer and voicemail remain human prospecting.
+
+Interested produces a booking objective only when that policy specifies booking.
+Follow-up and callback commitments preserve purpose, note, instant and IANA time
+zone. Existing manual callbacks linked to the source supply the committed date
+for older clients. A missing callback date is rejected. An unspecified agreed
+purpose is conservatively informational, never silently converted to booking.
+Information objectives are stored as blocked with
+`information_follow_up_not_supported`. Missing specialist, caller ID, calendar,
+contact details, disabled automation or an unusable time also produce a visible
+blocked objective and a non-dispatchable stored step.
+
+Human booking objectives start with **no meeting and no handoff**. Policy,
+controls and the existing callback worker handle this source explicitly. The
+server selects the configured specialist, caller ID, calendar and responsible
+member; the agent's existing language/company configuration remains authoritative.
+Policy timing is labelled policy-selected. Agreed timing is retained; a missed
+agreement is blocked rather than presented as a new promise. Resuming a human
+objective retains a still-future agreed callback; otherwise it selects a new
+window at least one hour ahead and labels it policy-selected. Repairing specialist
+configuration can explicitly resume a blocked booking objective.
+
+Corrections withdraw uncommitted work and advance the source fence. Pauses,
+closures and manual takeover survive repeated and corrected saves. Refusal,
+stop, wrong number and sale close obsolete contact objectives; an explicit stop
+also writes DNC. Source corrections and dispatch share contact/source locks;
+controls share the objective lock. Human dispatch rechecks policy, source
+revision, ownership, membership, DNC, contact changes, calendar, agent, claim,
+lease and bounds. The common voice-agent path retains balance/calling gates and
+stable placement reconciliation. Campaign claims lock the contact and exclude
+active objectives; final dispatch also rejects a contact assigned to an active
+campaign caller. Human recommendation/list queues exclude assigned contacts,
+including blocked or paused objectives. Only this source's manual callback is
+transferred; unrelated historical commitments are not converted.
+
+`MeetingRepository.createIfAvailable` binds the actual successful reservation to
+the exact dispatched callback, objective, source revision, agent call, contact,
+workspace and pinned calendar. It records `stored_authorized_booking` evidence
+and resolves in the same reservation transaction. An unrelated meeting, completed
+call, transcript inference or offered availability cannot resolve a human booking
+objective. Existing availability and booking tools are reused. Reminder planning
+uses only an existing enabled calendar policy; context forbids claiming a
+confirmation call when none exists. Autonomous rescheduling/cancellation is not
+part of this enrollment delivery.
+
+The post-call and campaign controls show preparing while saving, then accepted,
+blocked or stopped from the durable response, with objective and next action.
+No second form or call-to-schedule button is introduced. REST and shared dialer
+contracts add an optional `followUp` field; older consumers can ignore it. The
+extension preserves that response. Member-scoped reads and controls are unchanged.
+
+### Stage 2 deployment and verification
+
+After Stage 0/1 schema and SQL-only index/check prerequisites, deploy
+`packages/database/prisma/migrations-pending/20261103140000_human_outcome_follow_up/migration.sql`
+using the same pending-migration workflow. It adds `CallbackAgentKind.policy`,
+semantic outcome fields on `Call`, the callback source revision, and nullable
+objective policy/calendar/commitment fields. It builds no index on `Call` and
+performs no historical enrollment. Regenerate Prisma; deploy API, worker and UI;
+then enable the explicit policy only in the restricted pilot.
+
+`human-follow-up.postgres.spec.ts` starts each primary source with one authorized
+human call/contact and zero meetings/handoffs. It covers manual and campaign
+acceptance, simultaneous saves, semantic revisions, queue exclusion, committed
+and uncommitted correction fences, blocked configuration and repair, timing,
+manual takeover, exact reservation evidence, isolation, authenticated audit actors
+and uncertain placement. The two PostgreSQL worker suites share a test-only
+transaction advisory lock: worker claims intentionally span workspaces, so test
+files must not steal each other's fixtures. Competing-worker and request tests
+remain concurrent within each suite. It uses the same local-only `RINGEE_FOLLOWUP_TEST_DATABASE_URL` opt-in as Stage 1.
+No real calls or production migrations were performed. Live provider validation
+still requires named test contacts and an expressly authorized pilot organization.
+
+CI starts PostgreSQL 16 with an empty `ringee_followup_test` database. Before the
+Test step it runs:
+
+```bash
+FOLLOWUP_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ringee_followup_test \
+  node packages/services/test/prepare-follow-up-database.mjs
+```
+
+The test-only script refuses nonlocal, differently named or nonempty databases.
+It derives the schema preceding follow-up from the current Prisma schema, adds
+the SQL-only DNC partial indexes, then applies the actual Stage 1 migration,
+callback index/foreign-key validation and Stage 2 migration. This includes the
+lifecycle checks that `prisma db push` omits. The generated baseline already
+includes the Step 0 callback uniqueness indexes. The Test step alone receives
+`RINGEE_FOLLOWUP_TEST_DATABASE_URL` pointing at this prepared database, so both
+PostgreSQL suites execute in CI. Each suite enforces a ten-minute timeout;
+the shared advisory-lock transaction allows twenty-one minutes, covering a
+competing suite and the full bounded run. Providers remain mocked.
+
+For bounded local test concurrency, put `--test-concurrency=2` before the
+`src/**/*.spec.ts` pattern in the package's `node --test` command. Appending it
+with `pnpm run test --test-concurrency=2` places it after the pattern and does
+not limit the test runner's workers.
+
+Stage 2 verification (4 November 2026):
+
+- Full services suite: 1,556 passed, zero failures or skipped tests, using
+  `pnpm --filter @ringee/services run test --test-concurrency=2` with both
+  `DATABASE_URL` and `RINGEE_FOLLOWUP_TEST_DATABASE_URL` explicitly set to the
+  disposable local database.
+- Both PostgreSQL follow-up suites together: 36 passed, including 13 Stage 2 cases.
+  The disposable database included the SQL-only lifecycle checks and DNC indexes.
+- Database suite: 73 passed, 2 unrelated opt-in suites skipped. Booking and meeting
+  automation concurrency tests used explicit local database URLs.
+- Platform: 426 passed; browser extension: 73 passed; frontend: 32 passed.
+- Prisma generation, database/backend/orchestrator/frontend builds, dialer UI and
+  extension typechecks passed. Orchestrator DI resolved against disposable
+  PostgreSQL with an inert Redis transport; no worker or dial loops were started.
+- Repository ESLint: zero errors, existing warning backlog only. Repository
+  Prettier check and diff whitespace checks passed; final changed-file lint added
+  no warnings.
+- Stage 2 SQL applied to a separate disposable database constructed from the
+  preceding Stage 1 schema; Prisma schema comparison reported no difference.

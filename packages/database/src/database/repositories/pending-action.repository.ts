@@ -6,6 +6,7 @@ import {
   type FollowUpPlan,
 } from "./pending-action-follow-up.persistence";
 export type {
+  HumanOutcomeAssignment,
   NewFollowUpObjective,
   FollowUpPlan,
 } from "./pending-action-follow-up.persistence";
@@ -340,38 +341,53 @@ export class PendingActionRepository {
       after?: string;
     },
   ): Promise<CallablePendingAction[]> {
-    const actions = await this.prisma.pendingAction.findMany({
-      where: {
-        AND: [
-          {
-            userId: owner.userId,
-            organizationId: owner.organizationId ?? null,
-          },
-          { status: PendingActionStatus.pending },
-          { type: { in: options.types } },
-          { contactId: { not: null } },
-          { campaignId: null },
-          { followUp: { is: null } },
-          {
-            OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: options.now } }],
-          },
-          { OR: [{ expiresAt: null }, { expiresAt: { gt: options.now } }] },
-          { OR: [{ dueAt: null }, { dueAt: { lte: options.dueBy } }] },
-        ],
-      },
-      select: {
-        id: true,
-        type: true,
-        priority: true,
-        title: true,
-        dueAt: true,
-        createdAt: true,
-        contactId: true,
-      },
-      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-      ...(options.after ? { cursor: { id: options.after }, skip: 1 } : {}),
-      take: options.limit,
-    });
+    if (!options.types.length) return [];
+    // PendingAction's contactId is a scalar, not a Prisma relation. Keep the
+    // workspace-wide exclusion in SQL so a page never loads every objective.
+    const actions = await this.prisma.$queryRaw<
+      Pick<
+        PendingAction,
+        | "id"
+        | "type"
+        | "priority"
+        | "title"
+        | "dueAt"
+        | "createdAt"
+        | "contactId"
+      >[]
+    >`
+      SELECT a."id", a."type", a."priority", a."title", a."dueAt", a."createdAt", a."contactId"
+      FROM "PendingAction" a
+      WHERE a."userId" = ${owner.userId}::uuid
+        AND a."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+        AND a."status" = 'pending'
+        AND a."type"::text IN (${Prisma.join(options.types)})
+        AND a."contactId" IS NOT NULL AND a."campaignId" IS NULL
+        AND (a."snoozedUntil" IS NULL OR a."snoozedUntil" < ${options.now}::timestamptz AT TIME ZONE 'UTC')
+        AND (a."expiresAt" IS NULL OR a."expiresAt" > ${options.now}::timestamptz AT TIME ZONE 'UTC')
+        AND (a."dueAt" IS NULL OR a."dueAt" <= ${options.dueBy}::timestamptz AT TIME ZONE 'UTC')
+        AND NOT EXISTS (SELECT 1 FROM "PendingActionFollowUp" own WHERE own."pendingActionId" = a."id")
+        AND NOT EXISTS (
+          SELECT 1 FROM "PendingActionFollowUp" f
+          JOIN "PendingAction" assigned ON assigned."id" = f."pendingActionId"
+          WHERE assigned."contactId" = a."contactId"
+            AND assigned."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+            ${owner.organizationId ? Prisma.empty : Prisma.sql`AND assigned."userId" = ${owner.userId}::uuid`}
+            AND f."state" NOT IN (${Prisma.join(FOLLOW_UP_TERMINAL.map((state) => Prisma.sql`${state}::"FollowUpState"`))})
+        )
+        ${
+          options.after
+            ? Prisma.sql`AND (COALESCE(a."dueAt", 'infinity'::timestamp), a."createdAt", a."id") > (
+          SELECT COALESCE(cursor."dueAt", 'infinity'::timestamp), cursor."createdAt", cursor."id"
+          FROM "PendingAction" cursor WHERE cursor."id" = ${options.after}::uuid
+            AND cursor."userId" = ${owner.userId}::uuid
+            AND cursor."organizationId" IS NOT DISTINCT FROM ${owner.organizationId ?? null}::uuid
+        )`
+            : Prisma.empty
+        }
+      ORDER BY a."dueAt" ASC NULLS LAST, a."createdAt" ASC, a."id" ASC
+      LIMIT ${options.limit}
+    `;
 
     const contactIds = unique(actions.map((a) => a.contactId));
     const contacts = contactIds.length
@@ -484,6 +500,146 @@ export class PendingActionRepository {
     ]);
   }
 
+  async planHumanFollowUpStep(
+    ctx: OwnershipContext,
+    id: string,
+    revision: number,
+    at: Date,
+    kind: "recovery" | "agreed",
+    agentCallId?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const owner = { ...buildOwnershipFilter(ctx), userId: ctx.userId };
+      const row = await lockFollowUp(tx, id, owner);
+      if (!row || row.sourceType !== "human_call_outcome") return null;
+      const action = await tx.pendingAction.findFirst({
+        where: { id: row.pendingActionId, ...owner },
+      });
+      if (!action) return null;
+      await tx.$queryRaw`
+        SELECT "id" FROM "CallbackTask"
+        WHERE "followUpId" = ${id}::uuid AND "userId" = ${ctx.userId}::uuid
+          AND "organizationId" IS NOT DISTINCT FROM ${ctx.organizationId ?? null}::uuid
+        FOR UPDATE`;
+      if (
+        agentCallId &&
+        !(await tx.callbackTask.count({
+          where: {
+            ...owner,
+            followUpId: id,
+            agentCallId,
+            agentCall: { ...owner, contactId: action.contactId },
+            contactId: action.contactId!,
+            callId: action.callId,
+            dispatchCommittedAt: { not: null },
+            sourceRevision: row.sourceRevision,
+          },
+        }))
+      )
+        return null;
+      // A proven-unplaced callback does not consume recoveryCount. Bind a new
+      // recovery to this review revision while retaining the same replay key.
+      const key = agentCallId
+        ? `followup:${id}:agreed:${agentCallId}`
+        : `followup:${id}:recovery:revision:${revision}`;
+      const existing = await tx.callbackTask.findFirst({
+        where: {
+          ...owner,
+          followUpId: id,
+          agentCallbackKey: key,
+          contactId: action.contactId!,
+          callId: action.callId,
+        },
+      });
+      if (existing) return existing;
+      if (
+        row.revision !== revision ||
+        row.mode !== "automatic" ||
+        ["paused", "blocked", "resolved", "closed"].includes(row.state) ||
+        row.attemptCount >= row.maxAttempts ||
+        (kind === "recovery" && row.recoveryCount >= row.maxRecoveries) ||
+        at >= row.expiresAt
+      )
+        return null;
+      if (
+        await tx.callbackTask.count({
+          where: {
+            ...owner,
+            followUpId: id,
+            dispatchCommittedAt: null,
+            status: { in: ["scheduled", "due", "in_progress"] },
+          },
+        })
+      )
+        return null;
+      const callback = await tx.callbackTask.create({
+        data: {
+          userId: row.configuredByUserId,
+          organizationId: action.organizationId,
+          contactId: action.contactId!,
+          callId: action.callId,
+          followUpId: id,
+          sourceRevision: row.sourceRevision,
+          agentId: row.agentId,
+          agentCallbackKind: kind,
+          agentCallbackKey: key,
+          scheduledAt: at,
+          note: row.desiredResult,
+        },
+      });
+      await applyFollowUpPlan(
+        tx,
+        row,
+        {
+          state: "scheduled",
+          reason: kind === "agreed" ? "callback_agreed" : "policy_recovery",
+          nextAction: "specialist_callback",
+          nextActionAt: at,
+          timingBasis: kind === "agreed" ? "agreed" : "policy",
+          activeCallbackId: null,
+        },
+        {
+          key,
+          kind: "callback_scheduled",
+          evidence: {
+            callbackId: callback.id,
+            timingBasis: kind === "agreed" ? "agreed" : "policy",
+          },
+        },
+        new Date(),
+      );
+      return callback;
+    });
+  }
+
+  followUpForAgentCall(ctx: OwnershipContext, agentCallId: string) {
+    const owner = { ...buildOwnershipFilter(ctx), userId: ctx.userId };
+    return this.prisma.callbackTask.findFirst({
+      where: {
+        ...owner,
+        agentCallId,
+        agentCall: owner,
+      },
+      include: {
+        followUp: {
+          where: { configuredByUserId: ctx.userId, action: owner },
+        },
+      },
+    });
+  }
+
+  sourceCallback(ctx: OwnershipContext, callId: string) {
+    return this.prisma.callbackTask.findFirst({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        callId,
+        agentCallbackKind: null,
+        status: { in: ["scheduled", "due"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   followUpSnapshot(id: string) {
     return this.prisma.pendingActionFollowUp.findUnique({
       where: { id },
@@ -588,6 +744,11 @@ export class PendingActionRepository {
     actorId?: string;
     now: Date;
     resumeAt?: Date;
+    resumeBinding?: {
+      agentId: string;
+      calendarId: string;
+      automationId: string;
+    };
     meetingEvidence?: {
       id: string;
       revision: number;
@@ -634,6 +795,12 @@ export class PendingActionRepository {
         },
         input.now,
       );
+      if (input.resumeBinding && row.sourceType === "human_call_outcome") {
+        await tx.pendingActionFollowUp.update({
+          where: { id: row.id },
+          data: input.resumeBinding,
+        });
+      }
       if (input.resumeAt) {
         // Restore at most one uncommitted step. All older steps stay withdrawn;
         // an already committed placement keeps its identity for reconciliation.
@@ -652,7 +819,11 @@ export class PendingActionRepository {
             data: {
               status: "scheduled",
               scheduledAt: input.resumeAt,
-              agentCallbackKind: "recovery",
+              ...(input.resumeBinding
+                ? { agentId: input.resumeBinding.agentId }
+                : {}),
+              agentCallbackKind:
+                input.plan.timingBasis === "agreed" ? "agreed" : "recovery",
               notBefore: null,
               dialTries: 0,
               dialReservedAt: null,
@@ -666,7 +837,7 @@ export class PendingActionRepository {
             data: {
               nextAction: "specialist_callback",
               nextActionAt: input.resumeAt,
-              timingBasis: "policy",
+              timingBasis: input.plan.timingBasis ?? "policy",
             },
           });
         }

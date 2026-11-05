@@ -213,9 +213,12 @@ function build(
       },
     } as never,
     {
-      scheduleFromVoiceAgent: async (input: Record<string, unknown>) => {
+      scheduleFromVoiceAgent: async (
+        ctx: Record<string, unknown>,
+        input: Record<string, unknown>,
+      ) => {
         if (over.callbackError) throw over.callbackError;
-        callbacks.push(input);
+        callbacks.push({ ...ctx, ...input });
         return {
           id: "callback-1",
           scheduledAt: input.scheduledAt,
@@ -529,6 +532,29 @@ describe("VoiceAgentToolService booking", () => {
 });
 
 describe("VoiceAgentToolService callbacks", () => {
+  it("uses the verified call owner for a shared agent and refuses another workspace", async () => {
+    for (const organizationId of ["org-1", "org-2", null]) {
+      const { service, callbacks } = build({
+        agentCall: {
+          id: "call-1",
+          agentId: "agent-1",
+          userId: "member-2",
+          organizationId,
+          contactId: "contact-1",
+          callId: "c-1",
+        },
+      });
+      const result = await service.scheduleCallback("agent-1", SECRET, "cc-1", {
+        scheduled_at: FUTURE,
+      });
+      assert.equal(result.ok, organizationId === "org-1");
+      if (organizationId === "org-1") {
+        assert.equal(callbacks[0].userId, "member-2");
+        assert.equal(callbacks[0].organizationId, "org-1");
+      } else assert.deepEqual(callbacks, []);
+    }
+  });
+
   it("schedules a future callback and records the tool-backed outcome", async () => {
     const scheduledAt = "2099-01-06T10:30:00-04:00";
     const { service, callbacks, callbackOutcomes } = build();
@@ -599,6 +625,8 @@ describe("VoiceAgentToolService callbacks", () => {
       agentCall: {
         id: "call-9",
         agentId: "another-agent",
+        userId: "user-1",
+        organizationId: "org-1",
         callId: "c-9",
       },
     });

@@ -1085,6 +1085,9 @@ only when the outcome does not change; a different outcome clears it. The name i
 snapshotted on the call, so history shows what was picked after a rename or a
 deletion. Every write is conditional on a change, so a retried save publishes no
 new event (`call.outcome.updated` is keyed on the write's revision).
+Human follow-up uses the separate semantic `Call.outcomeRevision`: changes to
+outcome, note or commitment advance it; unrelated call metadata and disposition
+label edits do not. Acceptance and that revision commit atomically.
 
 - **Source of truth:** `CallRepository.recordOutcome` /
   `updateOutcomeUnlessTakenOver`, `MeetingService.updateCallOutcome`,
@@ -2133,9 +2136,17 @@ it is not in it yet.
 `PendingActionService` / `PendingActionRepository` own durable objectives through
 an optional child of the existing pending action, behind the automation pilot.
 A new Step 0 handoff creates that child and its initial evidence in the same
-transaction, once per workspace/source/version. Historical recommendations and
-legacy handoffs are not enrolled.
+transaction, once per workspace/source/version. Stage 2 also accepts newly saved
+human canonical outcomes under an explicit administrator-authorized enrollment
+policy and the pilot. Outcome, semantic source revision, objective and first step
+commit together. Interested enrolls booking only by policy; informational
+commitments remain honestly blocked. No-answer/voicemail and AI-origin outcomes
+do not enroll. Historical recommendations and unchanged old outcomes stay manual.
 
+- Human booking objectives require no meeting or handoff. Only a successful
+  authorized reservation bound to the exact dispatched callback, source revision,
+  objective and calendar resolves them; unrelated bookings and call completion
+  prove nothing. Corrections fence uncommitted dispatch and stale booking tools.
 - A callback is a step, not success. Rescheduling resolves only from an authorized
   newer stored meeting at a different time, checked again under its row lock.
   Availability blocks for the meeting decision once no call is live and no
@@ -2154,8 +2165,9 @@ legacy handoffs are not enrolled.
   Uncertain placement must reconcile the original execution, never redial.
 - Pause, takeover, close and resolve lock the same objective as final dispatch.
   They withdraw uncommitted steps; a committed call may finish and settle.
-  Resume revalidates the case, the meeting still scheduled or rescheduled, and
-  schedules at least an hour in the future; manual takeover requires explicit
+  Resume revalidates the case and, for rescheduling, its still-active meeting.
+  Human booking retains a still-future agreed callback; otherwise resume selects
+  a policy window at least an hour ahead. Manual takeover requires explicit
   `return_automatic`.
 - Configuring administrator, commercial owner and executing agent are distinct.
   Members can see their own objectives without gaining colleagues' call data.

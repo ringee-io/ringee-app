@@ -38,6 +38,7 @@ import { zonedClock } from "./reminders/reminder-call-schedule";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
 import { buildMeetingEventData } from "./custom-integrations/custom-integration-event-builders";
+import { PendingActionService } from "./ai-pipeline/pending-action.service";
 import { PipelineFanoutService } from "./ai-pipeline";
 import { ContactService } from "./contact.service";
 import {
@@ -64,6 +65,7 @@ export class MeetingService {
     private readonly dispositions: DispositionService,
     private readonly emailDeliveries: MeetingEmailDeliveryRepository,
     private readonly organizations: OrganizationRepository,
+    private readonly pendingActions: PendingActionService,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -786,8 +788,25 @@ export class MeetingService {
       outcome?: CallOutcome | string;
       outcomeNote?: string;
       dispositionId?: string;
+      followUpPurpose?: "booking" | "information";
+      callbackScheduledAt?: string;
+      callbackTimezone?: string;
+      stopRequested?: boolean;
     },
-  ): Promise<Call> {
+  ): Promise<
+    Call & {
+      followUp?: {
+        id: string;
+        pendingActionId: string;
+        state: string;
+        objective: string;
+        nextAction: string | null;
+        nextActionAt: Date | null;
+        timingBasis: string;
+        reason: string | null;
+      };
+    }
+  > {
     const call = await this.assertCallAccess(ctx, callId);
 
     const picked = dto.dispositionId
@@ -800,14 +819,21 @@ export class MeetingService {
     }
     const outcome = picked ? picked.outcome : (dto.outcome as CallOutcome);
 
-    const { call: updated, changed } = await this.callRepo.recordOutcome(
-      call.id,
+    const {
+      call: updated,
+      changed,
+      followUp,
+    } = await this.pendingActions.recordHumanOutcome(ctx, call.id, {
       outcome,
-      dto.outcomeNote,
-      picked
+      note: dto.outcomeNote,
+      disposition: picked
         ? { id: picked.disposition.id, name: picked.disposition.label }
         : undefined,
-    );
+      purpose: dto.followUpPurpose,
+      callbackAt: dto.callbackScheduledAt,
+      timezone: dto.callbackTimezone,
+      stopRequested: dto.stopRequested,
+    });
     await this.enqueueOutcomeUpdated(updated, changed);
     void this.contactService
       .addCallNote(ctx.userId, updated, dto.outcomeNote)
@@ -816,7 +842,23 @@ export class MeetingService {
           `could not add the note of call ${call.id} to its contact: ${err.message}`,
         ),
       );
-    return updated;
+    return {
+      ...updated,
+      ...(followUp
+        ? {
+            followUp: {
+              id: followUp.id,
+              pendingActionId: followUp.pendingActionId,
+              state: followUp.state,
+              objective: followUp.desiredResult,
+              nextAction: followUp.nextAction,
+              nextActionAt: followUp.nextActionAt,
+              timingBasis: followUp.timingBasis,
+              reason: followUp.reason,
+            },
+          }
+        : {}),
+    };
   }
 
   /**

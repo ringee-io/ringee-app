@@ -635,5 +635,13 @@
       "clear": "Borrar la búsqueda",
       "hint": "No se activan mientras escribes ni cuando hay una llamada o un diálogo abierto."
     }
+  },
+  "automaticFollowUp": {
+    "preparing": "Guardando resultado y preparando seguimiento…",
+    "accepted": "La IA se encarga del seguimiento",
+    "blocked": "Seguimiento bloqueado",
+    "stopped": "El seguimiento está pausado o cerrado",
+    "policyTime": "Llamada programada por política",
+    "agreedTime": "Callback acordado"
   }
 }

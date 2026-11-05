@@ -18,6 +18,7 @@ export interface DispositionOption {
   category: string;
   color: string | null;
   triggersCallback: boolean;
+  automaticFollowUp?: boolean;
 }
 
 interface DialerAttemptState {

@@ -18,7 +18,13 @@ import {
 } from "@ringee/dialer-core/contracts";
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
 import { RingeeApi, type CurrentUser } from "../lib/ringee-api";
-import { ENDING_TEXT, ERROR_COPY, statusTextFor } from "../lib/call-flow";
+import { panelTokenProvider, workerTokenSource } from "../lib/panel-token";
+import {
+  ENDING_TEXT,
+  ERROR_COPY,
+  callDurationSeconds,
+  statusTextFor,
+} from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import {
   ensureMicrophoneAccess,
@@ -60,6 +66,12 @@ async function requestDial(msg: DialRequestMsg): Promise<boolean> {
   }
 }
 
+/**
+ * A token from the background worker, for when the panel's own Clerk copy has
+ * none (see lib/panel-token.ts). One per panel, so concurrent requests share it.
+ */
+const workerToken = workerTokenSource((msg) => chrome.runtime.sendMessage(msg));
+
 /** What `promise` settles to within `ms`; undefined once that has passed. */
 function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -70,7 +82,7 @@ function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
 }
 
 export function CallExperience() {
-  const { getToken } = useAuth();
+  const { getToken, userId, orgId } = useAuth();
   const [snap, setSnap] = useState<CallSnapshotMsg>(EMPTY_SNAPSHOT);
   const [muted, setMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
@@ -87,12 +99,18 @@ export function CallExperience() {
     reset: resetCallStore,
   } = useCallStore();
 
+  // A token borrowed from the worker is used only for the user and workspace
+  // this panel shows.
   const api = useMemo(
     () =>
-      new RingeeApi((opts) =>
-        getToken(opts?.forceRefresh ? { skipCache: true } : undefined),
+      new RingeeApi(
+        panelTokenProvider(
+          (opts) => getToken(opts),
+          workerToken,
+          () => ({ userId, orgId }),
+        ),
       ),
-    [getToken],
+    [getToken, userId, orgId],
   );
 
   // Identity / admin flag / workspace label for the shell header.
@@ -138,11 +156,10 @@ export function CallExperience() {
   // Drive the shared post-call (outcome/notes) phase when the call ends.
   useEffect(() => {
     if (prevState.current !== "ended" && snap.state === "ended") {
-      const duration = snap.startedAt
-        ? Math.max(0, Math.round((Date.now() - snap.startedAt) / 1000))
-        : 0;
       enterPostCallPhase({
-        duration,
+        // Up to the call's recorded end: a panel opened later on the wrap-up
+        // must not count the time since.
+        duration: callDurationSeconds(snap),
         contactName: snap.contact?.name ?? null,
         contactId: snap.contact?.id ?? null,
         // prepare-call returns no Ringee callId up front (the Call row is created
@@ -168,7 +185,7 @@ export function CallExperience() {
         callSessionId?: string | null;
         outcome?: Parameters<RingeeApi["saveCallOutcome"]>[0]["outcome"];
         outcomeNote?: string;
-      }) => api.saveCallOutcome(input).then(() => undefined),
+      }) => api.saveCallOutcome(input),
     }),
     [api],
   );

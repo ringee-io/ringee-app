@@ -4,8 +4,8 @@ Propuesta de producto e implementación · 1 de noviembre de 2026
 
 Revisión de alcance y experiencia · 2 de noviembre de 2026
 
-Estado (3 de noviembre de 2026): Step 0 y Stage 1 implementados detrás del piloto;
-ver §16 y §17 para el alcance comprobado y la validación real pendiente. La
+Estado (3 de noviembre de 2026): Step 0, Stage 1 y Stage 2 implementados detrás del piloto;
+ver §16, §17 y §18 para el alcance comprobado y la validación real pendiente. La
 propuesta restante no está implementada. Basado
 en el código actual y en la
 [propuesta de activación rápida](PLAN_IA_VOICE_AGENTS_QUICK_ACTIONS.md), cuyas
@@ -1147,8 +1147,43 @@ Mantener `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` restringido al piloto. Persisten l
 pruebas reales de §16 (proveedor, audio, callback y liquidación) con organización
 y contactos expresamente autorizados.
 
-**Stage 2:** ampliar la autorización de origen de
-`PendingActionService.prepareFollowUpObjective` para la disposición humana y su
-revisión; reutilizar este objetivo, historial y ejecutor. No hay alta automática
-desde «Interesado» ni compra de Organization. Mover la reunión ya lo hace
-`move_meeting` (AGENT-021), llegado desde main.
+**Siguiente entrega a partir de Stage 1:** asignación desde resultados humanos,
+implementada en §18. La compra de Organization no activa esa política.
+Mover la reunión ya lo hace `move_meeting` (AGENT-021), llegado desde main.
+
+## 18. Estado de implementación · Stage 2 (3 de noviembre de 2026)
+
+El resultado humano manual o de campaña puede asignar el siguiente paso a IA
+sin otra configuración por llamada. Requiere el piloto y autorización explícita
+de un administrador en la configuración existente de Agendar citas. Se usan
+resultados canónicos, nunca etiquetas editables: interesado agenda por política;
+seguimiento/callback conservan propósito y compromiso. Las solicitudes
+informativas quedan bloqueadas con motivo honesto. No-answer/voicemail siguen en
+prospección humana. No se activan históricos, pipelines ajenos ni resultados IA.
+
+Se generalizaron política, controles y ejecutor para empezar sin reunión ni
+handoff. `PendingActionService.recordHumanOutcome` autoriza; la transacción de
+`CallRepository.recordOutcome` guarda revisión semántica, compromiso, objetivo,
+primer CallbackTask y evidencia. Reintentos concurrentes no duplican asignación.
+Correcciones retiran pasos no despachados y bloquean reservas de ejecuciones
+obsoletas; pausa, cierre y toma manual no se deshacen por repetición. Las colas
+humanas/campaña excluyen trabajo asignado. Continúan leases, fencing, idempotencia,
+DNC, ventanas, membresía, balance y conciliación de colocación incierta.
+
+El booking existente vincula la reserva real al objetivo y ejecución exactos,
+y resuelve en la misma transacción con evidencia almacenada. Una llamada
+completada, disponibilidad ofrecida o reunión ajena no resuelve nada. Solo una
+política de recordatorios existente y habilitada programa confirmación. No se
+entrega un nuevo flujo autónomo de reagendamiento/cancelación.
+
+Los controles actuales muestran preparación mientras se guarda y, tras aceptación
+durable, objetivo y próxima acción, o bloqueo explícito. El horario acordado se
+distingue del seleccionado por política. Contratos aditivos preservan clientes
+anteriores; web y extensión consumen la nueva respuesta opcional.
+
+**Despliegue:** después de Stage 0/1, aplicar la migración aditiva pendiente
+`20261103140000_human_outcome_follow_up`; regenerar Prisma y desplegar API/worker/UI.
+Activar `humanFollowUpEnabled` solo en el piloto autorizado. No se hicieron
+migraciones de producción ni llamadas reales. Validación con proveedor, audio,
+contactos de prueba autorizados y liquidación real sigue pendiente. Detalles,
+pruebas y límites están en [FOLLOW_UP.md](../engineering/FOLLOW_UP.md).

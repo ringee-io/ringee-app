@@ -844,5 +844,13 @@
       "clear": "Clear the search",
       "hint": "They don't fire while you type, or while a call or a dialog is open."
     }
+  },
+  "automaticFollowUp": {
+    "preparing": "Saving outcome and preparing follow-up…",
+    "accepted": "AI will handle the follow-up",
+    "blocked": "Follow-up blocked",
+    "stopped": "Follow-up is paused or closed",
+    "policyTime": "Policy-selected call",
+    "agreedTime": "Agreed callback"
   }
 }

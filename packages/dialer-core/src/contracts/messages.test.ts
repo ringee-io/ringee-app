@@ -9,6 +9,10 @@ import {
   isCallEvent,
   isCallSnapshot,
   isCallQuality,
+  isRequestSnapshot,
+  isEndCall,
+  isRequestAuthToken,
+  isAuthTokenResult,
 } from "./messages";
 
 describe("isRingeeMessage", () => {
@@ -148,6 +152,49 @@ describe("isCallEvent / isCallSnapshot", () => {
   it("rejects when state is missing", () => {
     expect(isCallEvent({ type: MessageType.CallEvent })).toBe(false);
     expect(isCallSnapshot({ type: MessageType.CallSnapshot })).toBe(false);
+  });
+});
+
+describe("isRequestSnapshot / isEndCall / isRequestAuthToken", () => {
+  it("accepts its own request only", () => {
+    expect(isRequestSnapshot({ type: MessageType.RequestSnapshot })).toBe(true);
+    expect(isEndCall({ type: MessageType.EndCall })).toBe(true);
+    expect(isEndCall({ type: MessageType.RequestSnapshot })).toBe(false);
+    expect(isRequestAuthToken({ type: MessageType.RequestAuthToken })).toBe(
+      true,
+    );
+    expect(isRequestSnapshot({ type: MessageType.RequestAuthToken })).toBe(
+      false,
+    );
+    expect(isRequestAuthToken({ type: MessageType.RequestSnapshot })).toBe(
+      false,
+    );
+    expect(isRequestAuthToken(MessageType.RequestAuthToken)).toBe(false);
+    expect(isRequestAuthToken(undefined)).toBe(false);
+  });
+});
+
+describe("isAuthTokenResult", () => {
+  it("accepts a token or an explicit null", () => {
+    expect(isAuthTokenResult({ token: "eyJ.a.b" })).toBe(true);
+    expect(isAuthTokenResult({ token: null })).toBe(true);
+  });
+  it("accepts whose session the token is, or that it has none", () => {
+    expect(
+      isAuthTokenResult({ token: "eyJ.a.b", userId: "user_1", orgId: "org_1" }),
+    ).toBe(true);
+    expect(
+      isAuthTokenResult({ token: "eyJ.a.b", userId: "user_1", orgId: null }),
+    ).toBe(true);
+    expect(isAuthTokenResult({ token: "eyJ.a.b", userId: 1 })).toBe(false);
+    expect(isAuthTokenResult({ token: "eyJ.a.b", orgId: {} })).toBe(false);
+  });
+  it("rejects anything else, a closed channel's undefined included", () => {
+    expect(isAuthTokenResult(undefined)).toBe(false);
+    expect(isAuthTokenResult({})).toBe(false);
+    expect(isAuthTokenResult({ token: "" })).toBe(false);
+    expect(isAuthTokenResult({ token: 42 })).toBe(false);
+    expect(isAuthTokenResult({ placed: true })).toBe(false);
   });
 });
 
