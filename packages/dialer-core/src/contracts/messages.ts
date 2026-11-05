@@ -10,6 +10,7 @@
  *   sidepanel ◀──CALL_SNAPSHOT── background  ◀──CALL_EVENT──  offscreen
  *   sidepanel ──CALL_COMMAND───▶ background  ──CALL_COMMAND─▶ offscreen
  *                                background  ◀─CALL_QUALITY─  offscreen
+ *   sidepanel ──REQUEST_AUTH_TOKEN──▶ background (answers with a token)
  *
  * These types live in `@ringee/dialer-core` (not the extension) so the offscreen
  * engine, the side panel, and any test can import the identical contract.
@@ -33,6 +34,7 @@ export const MessageType = {
   RequestSnapshot: "RINGEE_REQUEST_SNAPSHOT",
   EndCall: "RINGEE_END_CALL",
   CallQuality: "RINGEE_CALL_QUALITY",
+  RequestAuthToken: "RINGEE_REQUEST_AUTH_TOKEN",
 } as const;
 
 export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -125,6 +127,17 @@ export interface CallSnapshotMsg {
    */
   concurrentCall?: boolean;
   startedAt?: number;
+  /**
+   * When the call ended or failed (epoch ms). The snapshot outlives the call,
+   * so a wrap-up opened later counts the call up to here, not up to now.
+   */
+  endedAt?: number;
+  /**
+   * The Clerk user whose dial this is. The snapshot outlives the worker, and a
+   * finished call's wrap-up goes only to that user — never to whoever signs in
+   * to the same browser after them.
+   */
+  userId?: string;
   muted?: boolean;
   onHold?: boolean;
   error?: string;
@@ -150,6 +163,30 @@ export interface CallQualityMsg {
   summary: CallQualitySummary;
 }
 
+/**
+ * side panel → background : "a session token for the API". The panel's own
+ * Clerk copy fails to renew its ~60 s token while the panel stays open, so once
+ * that token has lapsed the panel asks the worker, which loads a fresh Clerk
+ * client for each request and so always has a current token. The worker answers
+ * extension pages only: a content script runs inside a web page and must never
+ * receive a token.
+ */
+export interface RequestAuthTokenMsg {
+  type: typeof MessageType.RequestAuthToken;
+}
+
+/**
+ * background → the sender of a REQUEST_AUTH_TOKEN : a token minted for the
+ * request, or null, and whose session it belongs to. The worker's session is
+ * the browser's current one, which can be another user or workspace than the
+ * panel loaded with, so the panel uses the token only when they match.
+ */
+export interface AuthTokenResult {
+  token: string | null;
+  userId?: string | null;
+  orgId?: string | null;
+}
+
 export type RingeeMessage =
   | DialRequestMsg
   | StartCallMsg
@@ -158,7 +195,8 @@ export type RingeeMessage =
   | CallSnapshotMsg
   | RequestSnapshotMsg
   | EndCallMsg
-  | CallQualityMsg;
+  | CallQualityMsg
+  | RequestAuthTokenMsg;
 
 // ── Runtime guards ────────────────────────────────────────────────────────────
 // Messages arrive from other extension contexts and must be validated before
@@ -235,6 +273,31 @@ export function isCallSnapshot(m: unknown): m is CallSnapshotMsg {
     isObject(m) &&
     m.type === MessageType.CallSnapshot &&
     typeof m.state === "string"
+  );
+}
+
+export function isRequestSnapshot(m: unknown): m is RequestSnapshotMsg {
+  return isObject(m) && m.type === MessageType.RequestSnapshot;
+}
+
+export function isEndCall(m: unknown): m is EndCallMsg {
+  return isObject(m) && m.type === MessageType.EndCall;
+}
+
+export function isRequestAuthToken(m: unknown): m is RequestAuthTokenMsg {
+  return isObject(m) && m.type === MessageType.RequestAuthToken;
+}
+
+const isOptionalId = (v: unknown) =>
+  v === undefined || v === null || typeof v === "string";
+
+/** A worker's answer; a closed channel's `undefined` is not one. */
+export function isAuthTokenResult(m: unknown): m is AuthTokenResult {
+  return (
+    isObject(m) &&
+    (m.token === null || (typeof m.token === "string" && m.token.length > 0)) &&
+    isOptionalId(m.userId) &&
+    isOptionalId(m.orgId)
   );
 }
 

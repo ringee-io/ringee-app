@@ -47,6 +47,30 @@ contacts, recordings — still go to shared routes.) A recording plays from
 CSP reaches only the API, so it cannot fetch and decrypt the stored copy the way
 the web app does.
 
+Two MV3 constraints shape the panel and the worker (2026-11-05):
+
+- **The panel cannot renew its own session token.** Its Clerk copy holds the
+  ~60 s token it loaded with, and every refresh it asks Clerk for fails, so
+  without help every panel request answers 401 a minute after the panel opens.
+  Saving a call outcome was one of them. The background worker loads a fresh
+  Clerk client per request and always has a current token, so the panel asks it
+  (`REQUEST_AUTH_TOKEN`, `lib/panel-token.ts`) whenever it has no token of its
+  own or the API refused one. The worker answers extension pages only, never a
+  content script. It mints the token for the request and says whose session it
+  is. The panel uses it only for the user and workspace it shows, because the
+  browser may have signed in to another one since the panel loaded.
+- **Chrome stops the worker during a quiet call** (~30 s without an event; the
+  offscreen engine reports only state changes). The call snapshot is therefore
+  mirrored into `chrome.storage.session` (`lib/call-snapshot.ts`). A woken
+  worker reads it back before it handles any message that reads or writes the
+  call; a token request does not wait for it. Anything the wrap-up needs
+  (contact, call id, start and end time) belongs in the snapshot, not in worker
+  memory: without the contact, the post-call view cannot schedule a callback or
+  book a meeting. Because the snapshot outlives the worker, it also records
+  whose call it is: a finished call's wrap-up goes only to that user. A dial
+  that a stopped worker was still authorizing is dropped when the next worker
+  wakes.
+
 ### CLI (`apps/agent-cli`, published as `ringee`)
 
 Drives the MCP tool surface. Commands mirror the tool catalog: activity,
