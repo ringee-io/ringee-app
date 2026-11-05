@@ -18,6 +18,10 @@ import {
   isCallEvent,
   isCallQuality,
   isDialRequest,
+  isEndCall,
+  isRequestAuthToken,
+  isRequestSnapshot,
+  type AuthTokenResult,
   type CallCommandMsg,
   type CallSnapshotMsg,
   type DialResult,
@@ -32,6 +36,7 @@ import {
   failureSnapshot,
   reportsPlacedLeg,
 } from "../lib/call-flow";
+import { createCallSnapshotStore } from "../lib/call-snapshot";
 import { recordCallQuality } from "../lib/call-quality-log";
 import { DEFAULT_REGION } from "../lib/region";
 import { getSelectedCallerId } from "../lib/selected-caller-id";
@@ -68,14 +73,25 @@ async function getIdentity(): Promise<{
 }
 const api = new RingeeApi(getToken);
 
+/**
+ * A page of this extension (the side panel), as opposed to a content script:
+ * that one runs inside a web page, and its messages carry the page's URL.
+ */
+function isExtensionPage(sender: chrome.runtime.MessageSender): boolean {
+  return (
+    sender.id === chrome.runtime.id &&
+    !!sender.url?.startsWith(chrome.runtime.getURL(""))
+  );
+}
+
 // ── Snapshot the side panel rehydrates from ───────────────────────────────────
-let snapshot: CallSnapshotMsg = {
-  type: MessageType.CallSnapshot,
-  state: "idle",
-};
-function setSnapshot(patch: Partial<Omit<CallSnapshotMsg, "type">>) {
-  snapshot = { ...snapshot, ...patch, type: MessageType.CallSnapshot };
+// Mirrored into session storage: Chrome stops this worker during a quiet call,
+// and the one the call's end wakes up must still know whose call it was.
+const calls = createCallSnapshotStore(chrome.storage.session, (snapshot) => {
   chrome.runtime.sendMessage(snapshot).catch(() => {});
+});
+function setSnapshot(patch: Partial<Omit<CallSnapshotMsg, "type">>) {
+  calls.update(patch);
 }
 
 // ── Offscreen lifecycle ───────────────────────────────────────────────────────
@@ -248,39 +264,44 @@ async function placeDial(
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+/** Handles one message once the call snapshot has been read back. */
+function route(
+  msg: unknown,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+): void {
   if (isDialRequest(msg)) {
     // Answer with whether the leg was placed: the side panel's queue completes
     // a callback only once it has actually been called (CALL-013).
-    dial(msg.target, _sender.tab?.id).then(
+    dial(msg.target, sender.tab?.id).then(
       (placed) => sendResponse({ placed } satisfies DialResult),
       () => sendResponse({ placed: false } satisfies DialResult),
     );
-    return true;
+    return;
   }
   if (isCallCommand(msg)) {
     // A hang-up while the backend is still authorizing the dial: there is no
     // leg to end yet, so the dial is called off and never placed.
     if (
       msg.command.action === "hangup" &&
-      snapshot.state === "requesting" &&
+      calls.current.state === "requesting" &&
       currentDial &&
       !currentDial.cancelled
     ) {
       currentDial.cancelled = true;
       currentDial.callOff();
       setSnapshot(NO_CALL);
-      return false;
+      return;
     }
     // From side panel → forward verbatim to the offscreen engine.
     chrome.runtime.sendMessage(msg).catch(() => {});
-    return false;
+    return;
   }
   if (isCallQuality(msg)) {
     // The offscreen engine's record of how the call's outgoing audio flowed;
     // that document closes with the call, so the record is kept here.
     void recordCallQuality(msg.summary);
-    return false;
+    return;
   }
   if (isCallEvent(msg)) {
     // The engine's first report on a dial answers it: a live leg was placed.
@@ -289,7 +310,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.state === "idle") {
       setSnapshot(NO_CALL);
       void closeOffscreen();
-      return false;
+      return;
     }
     // From offscreen → reflect in the snapshot for the side panel. A call that
     // ends/fails carries the Telnyx hangup cause; keep it so an unexpected
@@ -298,25 +319,44 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if ((msg.state === "ended" || msg.state === "failed") && cause) {
       console.warn(`[Ringee] ${msg.state}: ${cause}`);
     }
-    setSnapshot(callEventSnapshotPatch(snapshot, msg));
+    setSnapshot(callEventSnapshotPatch(calls.current, msg));
     // Call finished: release the mic + tear down the WebRTC context. The
     // post-call (outcome/notes) UI lives in the side panel and needs no engine.
     if (msg.state === "ended" || msg.state === "failed") {
       void closeOffscreen();
     }
-    return false;
+    return;
   }
-  if (msg?.type === MessageType.RequestSnapshot) {
-    sendResponse?.(snapshot);
-    chrome.runtime.sendMessage(snapshot).catch(() => {});
-    return false;
+  if (isRequestSnapshot(msg)) {
+    sendResponse(calls.current);
+    chrome.runtime.sendMessage(calls.current).catch(() => {});
+    return;
   }
-  if (msg?.type === MessageType.EndCall) {
+  if (isEndCall(msg)) {
     void closeOffscreen();
     setSnapshot(NO_CALL);
-    return false;
   }
-  return false;
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (isRequestAuthToken(msg)) {
+    // Only this extension's own pages get a token: a content script runs
+    // inside a web page, and a page that took it over would hold the session.
+    if (!isExtensionPage(sender)) return false;
+    // A fresh Clerk client, like a dial's: its token is current even when the
+    // side panel's own copy could not renew one (lib/panel-token.ts).
+    getToken().then(
+      (token) => sendResponse({ token } satisfies AuthTokenResult),
+      () => sendResponse({ token: null } satisfies AuthTokenResult),
+    );
+    return true;
+  }
+  // Everything else reads or writes the call snapshot, which a worker started
+  // mid-call reads back from session storage first. Waiting on the same
+  // promise keeps the messages in the order they arrived.
+  void calls.restored.then(() => route(msg, sender, sendResponse));
+  // The channel stays open for the two messages that get an answer.
+  return isDialRequest(msg) || isRequestSnapshot(msg);
 });
 
 // ── Context menu: "Call with Ringee" on any selected text ─────────────────────

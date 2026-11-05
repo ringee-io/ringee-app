@@ -18,6 +18,7 @@ import {
 } from "@ringee/dialer-core/contracts";
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
 import { RingeeApi, type CurrentUser } from "../lib/ringee-api";
+import { panelTokenProvider, workerTokenSource } from "../lib/panel-token";
 import { ENDING_TEXT, ERROR_COPY, statusTextFor } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import {
@@ -60,6 +61,12 @@ async function requestDial(msg: DialRequestMsg): Promise<boolean> {
   }
 }
 
+/**
+ * A token from the background worker, for when the panel's own Clerk copy has
+ * none (see lib/panel-token.ts). One per panel, so concurrent requests share it.
+ */
+const workerToken = workerTokenSource((msg) => chrome.runtime.sendMessage(msg));
+
 /** What `promise` settles to within `ms`; undefined once that has passed. */
 function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -89,9 +96,7 @@ export function CallExperience() {
 
   const api = useMemo(
     () =>
-      new RingeeApi((opts) =>
-        getToken(opts?.forceRefresh ? { skipCache: true } : undefined),
-      ),
+      new RingeeApi(panelTokenProvider((opts) => getToken(opts), workerToken)),
     [getToken],
   );
 

@@ -349,9 +349,11 @@ export interface CallDetail {
  * token cache — the short-lived session JWT (~60s) goes stale while the side
  * panel sits open, and a cached-but-expired token is exactly what makes the
  * backend answer 401 ("de-authenticated, can't fetch data"). We retry those
- * once with a freshly-minted token before surfacing the error.
+ * once with a freshly-minted token before surfacing the error. The side panel
+ * cannot mint one with its own Clerk copy and gets it from the background
+ * worker instead (`panel-token.ts`).
  */
-type TokenProvider = (opts?: {
+export type TokenProvider = (opts?: {
   forceRefresh?: boolean;
 }) => Promise<string | null>;
 
