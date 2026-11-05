@@ -26,6 +26,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { InboxThread } from '../types';
 import { useNumbers, useThreadActions } from '../hooks/use-inbox';
 import { useTranslations } from 'next-intl';
+import posthog from 'posthog-js';
 import { VoicemailDropSlot } from '@/features/voicemail';
 
 interface Props {
@@ -43,6 +44,10 @@ interface Attachment {
 
 const MAX_ATTACHMENTS = 10;
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|heic)$/i;
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 export function Composer({ thread, onAfterAction }: Props) {
   const t = useTranslations('inbox.composer');
@@ -117,6 +122,7 @@ export function Composer({ thread, onAfterAction }: Props) {
       setSubmitting(true);
       try {
         await actions.addNote(thread.id, trimmed);
+        if (posthogConfigured) posthog.capture('inbox_note_added');
         setText('');
       } finally {
         setSubmitting(false);
@@ -136,6 +142,12 @@ export function Composer({ thread, onAfterAction }: Props) {
         threadId: thread.id,
         contactId: thread.contactId ?? undefined
       });
+      if (posthogConfigured) {
+        posthog.capture('inbox_message_sent', {
+          has_text: Boolean(trimmed),
+          attachment_count: media.length
+        });
+      }
       setText('');
       setMedia([]);
     } finally {
