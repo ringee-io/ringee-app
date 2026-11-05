@@ -263,7 +263,9 @@ export class AiVoiceAgentCallRepository {
     const [updated] = await this.prisma.aiVoiceAgentCall.updateManyAndReturn({
       where: {
         id,
-        ...(protectToolActions ? { call: { automationActions: { none: {} } } } : {}),
+        ...(protectToolActions
+          ? { call: { automationActions: { none: {} } } }
+          : {}),
         OR: [{ outcome: null }, { outcome: { not: outcome } }],
       },
       data: { outcome },

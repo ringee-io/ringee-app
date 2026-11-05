@@ -558,6 +558,7 @@ function tools(w: ReturnType<typeof world>) {
   const agentCallbacks: Row[] = [];
   const legacyCallbacks: Row[] = [];
   const attendance: Row[] = [];
+  const decisions: Row[] = [];
   const moves: Row[] = [];
   const repeats: Row[] = [];
   /**
@@ -611,6 +612,13 @@ function tools(w: ReturnType<typeof world>) {
       },
     } as never,
     {
+      recordAgentDecision: async (_ctx: Row, input: Row) => {
+        decisions.push(input);
+        return {
+          id: "action-1",
+          kind: input.cancel ? "cancelled" : "declined_without_rescheduling",
+        };
+      },
       recordAttendance: async (_ctx: Row, input: Row) => {
         attendance.push(input);
         return {
@@ -713,6 +721,7 @@ function tools(w: ReturnType<typeof world>) {
     agentCallbacks,
     legacyCallbacks,
     attendance,
+    decisions,
     moves,
     repeats,
     move,
@@ -887,7 +896,7 @@ function reminderWorker(
       return true;
     },
     listUnansweredForRetry: async () => [],
-        listPlacedBefore: async (before: Date) =>
+    listPlacedBefore: async (before: Date) =>
       [...w.executions.values()]
         .filter(
           (row) =>
@@ -1653,6 +1662,58 @@ describe("Reminders → scheduling handoff on the same call", () => {
   });
 });
 
+describe("Explicit appointment cancellation", () => {
+  it("retains the reservation for no or unclear, and cancels only on yes", async () => {
+    for (const cancellation of ["no", "unclear", "yes"]) {
+      const t = tools(world());
+      const result = await t.service.finishMeetingResponse(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        {
+          cancellation,
+          rescheduling: "declined",
+          response:
+            cancellation === "yes"
+              ? "Yes, please cancel it."
+              : "Keep it for now.",
+        },
+      );
+      assert.equal(result.ok, true);
+      assert.equal(t.decisions.length, 1);
+      assert.equal(t.decisions[0].cancel, cancellation === "yes");
+      assert.equal(t.decisions[0].meetingId, "meeting-1");
+      assert.equal(t.decisions[0].expectedScheduleVersion, 3);
+    }
+  });
+  it("refuses a malformed answer and a source that already handed over", async () => {
+    const t = tools(world());
+    assert.equal(
+      (
+        await t.service.finishMeetingResponse("agent-rem", REM_SECRET, CC, {
+          cancellation: "yes",
+          rescheduling: "declined",
+          response: 42 as never,
+        })
+      ).ok,
+      false,
+    );
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    assert.equal(
+      (
+        await t.service.finishMeetingResponse("agent-rem", REM_SECRET, CC, {
+          cancellation: "yes",
+          rescheduling: "declined",
+          response: "Yes, cancel.",
+        })
+      ).ok,
+      false,
+    );
+    assert.equal(t.decisions.length, 0);
+  });
+});
+
 describe("Moving the handed meeting on the call (AGENT-021)", () => {
   /** A future time on the hour, so the "already past" guard never trips. */
   const later = () =>
@@ -1737,7 +1798,8 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
   it("moves nothing for an agent nothing was handed to, or that handed the call away", async () => {
     const w = world();
     const t = tools(w);
-    const root = await t.service.moveMeeting("agent-rem", REM_SECRET, CC, { time_confirmed: true,
+    const root = await t.service.moveMeeting("agent-rem", REM_SECRET, CC, {
+      time_confirmed: true,
       start: later().toISOString(),
     });
     assert.equal(root.ok, false);
@@ -1792,7 +1854,10 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { time_confirmed: true, start: new Date(Date.now() - 60_000).toISOString() },
+      {
+        time_confirmed: true,
+        start: new Date(Date.now() - 60_000).toISOString(),
+      },
     );
     assert.equal(result.ok, false);
     assert.deepEqual(t.moves, []);

@@ -339,7 +339,11 @@ describe("MeetingService Ringee-first calendar sync", () => {
     assert.equal(createdMeetings[0]?.calendarId, "cal-sales");
     // Capacity is checked against that calendar only.
     assert.deepEqual(bookingScopes, [
-      { calendarId: "cal-sales", isDefault: false, expectedCalendarUpdatedAt: RESOLVED_CALENDAR.calendar.updatedAt },
+      {
+        calendarId: "cal-sales",
+        isDefault: false,
+        expectedCalendarUpdatedAt: RESOLVED_CALENDAR.calendar.updatedAt,
+      },
     ]);
   });
 
@@ -803,7 +807,10 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
             agentCallId: "agent-call-1",
           },
         },
-        scope: { ...RESOLVED_CALENDAR.scope, expectedCalendarUpdatedAt: RESOLVED_CALENDAR.calendar.updatedAt },
+        scope: {
+          ...RESOLVED_CALENDAR.scope,
+          expectedCalendarUpdatedAt: RESOLVED_CALENDAR.calendar.updatedAt,
+        },
         ruleId: "rule-1",
       },
     ]);
@@ -864,13 +871,30 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
   });
 
   it("replays only the stored action and reports subsequent human changes", async () => {
-    const input = { meetingId: "meeting-1", expectedScheduleVersion: 3, scheduledAt: NEW_TIME, handoffId: "request-1" };
-    const human = moveBuild({ stored: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 } });
+    const input = {
+      meetingId: "meeting-1",
+      expectedScheduleVersion: 3,
+      scheduledAt: NEW_TIME,
+      handoffId: "request-1",
+    };
+    const human = moveBuild({
+      stored: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
+    });
     assert.equal(await human.service.completeRepeatedMove(ctx, input), null);
     for (const version of [4, 5]) {
-      const done = moveBuild({ action: { kind: "rescheduled", scheduledAt: NEW_TIME, scheduleVersion: 4,
-        previousScheduledAt: STORED_MEETING.scheduledAt,
-        meeting: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: version } } });
+      const done = moveBuild({
+        action: {
+          kind: "rescheduled",
+          scheduledAt: NEW_TIME,
+          scheduleVersion: 4,
+          previousScheduledAt: STORED_MEETING.scheduledAt,
+          meeting: {
+            ...STORED_MEETING,
+            scheduledAt: NEW_TIME,
+            scheduleVersion: version,
+          },
+        },
+      });
       const result = await done.service.completeRepeatedMove(ctx, input);
       assert.equal(result?.repeated, true);
       assert.equal(result?.changedSinceAction, version !== 4);

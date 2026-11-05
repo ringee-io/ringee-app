@@ -722,26 +722,26 @@ model DeletedUser {
 
 model Call {
   automationActions MeetingAutomationAction[]
-  id              String     @id @default(uuid()) @db.Uuid
-  userId          String?    @db.Uuid
-  organizationId  String?    @db.Uuid
-  providerCallId  String?    @unique
-  connectionId    String?
-  callControlId   String?    @unique
-  callSessionId   String?
-  callLegId       String?
-  fromNumber      String
-  toNumber        String
-  direction       String?
-  status          CallStatus @default(pending)
-  durationSeconds Int?
-  startedAt       DateTime?
-  answeredAt      DateTime?
-  endedAt         DateTime?
-  totalCost       Float?
-  costMeta        Json?
-  contactId       String?    @db.Uuid
-  contact         Contact?   @relation(fields: [contactId], references: [id])
+  id                String                    @id @default(uuid()) @db.Uuid
+  userId            String?                   @db.Uuid
+  organizationId    String?                   @db.Uuid
+  providerCallId    String?                   @unique
+  connectionId      String?
+  callControlId     String?                   @unique
+  callSessionId     String?
+  callLegId         String?
+  fromNumber        String
+  toNumber          String
+  direction         String?
+  status            CallStatus                @default(pending)
+  durationSeconds   Int?
+  startedAt         DateTime?
+  answeredAt        DateTime?
+  endedAt           DateTime?
+  totalCost         Float?
+  costMeta          Json?
+  contactId         String?                   @db.Uuid
+  contact           Contact?                  @relation(fields: [contactId], references: [id])
 
   callerIdId String?          @db.Uuid
   callerId   NumberPurchased? @relation("callCallerId", fields: [callerIdId], references: [id])
@@ -758,10 +758,10 @@ model Call {
   // outcome = no_answer, since `answeredAt` never gets set in either case.
   hangupCause String?
 
-  outcome     CallOutcome?
-  outcomeNote String?      @db.Text
+  outcome           CallOutcome?
+  outcomeNote       String?      @db.Text
   /// Semantic outcome revision; unrelated call updates never change it.
-  outcomeRevision Int @default(0)
+  outcomeRevision   Int          @default(0)
   /// Human commitments recorded with the outcome (purpose, time, time zone).
   outcomeCommitment Json?
 
@@ -1403,16 +1403,16 @@ model Contact {
 
 model ContactNote {
   /// Stable attribution for tool results; human edits/deletions are never repaired over.
-  automationActionId String? @unique @db.Uuid
-  actorType String @default("human")
-  agentId String? @db.Uuid
-  id        String    @id @default(uuid()) @db.Uuid
-  contactId String    @db.Uuid
-  userId    String    @db.Uuid
-  content   String    @db.Text
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  automationActionId String?   @unique @db.Uuid
+  actorType          String    @default("human")
+  agentId            String?   @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
+  contactId          String    @db.Uuid
+  userId             String    @db.Uuid
+  content            String    @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
 
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1994,18 +1994,18 @@ model ContactListEntry {
 model Meeting {
   automationActions MeetingAutomationAction[]
   /// A recovery booking preserves the historical appointment it replaces.
-  replacesMeetingId String? @db.Uuid
-  id             String        @id @default(uuid()) @db.Uuid
-  userId         String        @db.Uuid
-  organizationId String?       @db.Uuid
-  contactId      String        @db.Uuid
-  callId         String?       @db.Uuid
-  title          String?
-  scheduledAt    DateTime
-  duration       Int           @default(30)
-  location       String?
-  notes          String?       @db.Text
-  status         MeetingStatus @default(scheduled)
+  replacesMeetingId String?                   @db.Uuid
+  id                String                    @id @default(uuid()) @db.Uuid
+  userId            String                    @db.Uuid
+  organizationId    String?                   @db.Uuid
+  contactId         String                    @db.Uuid
+  callId            String?                   @db.Uuid
+  title             String?
+  scheduledAt       DateTime
+  duration          Int                       @default(30)
+  location          String?
+  notes             String?                   @db.Text
+  status            MeetingStatus             @default(scheduled)
 
   /// Which Ringee calendar this meeting was booked on, and therefore whose
   /// availability windows and capacity it consumes. Nullable only so rows that
@@ -4140,8 +4140,8 @@ model PendingActionFollowUp {
   meetingId          String?                @db.Uuid
   meetingScheduledAt DateTime?
   /// Human-outcome objectives pin their authorized configuration without a handoff.
-  automationId       String? @db.Uuid
-  calendarId         String? @db.Uuid
+  automationId       String?                @db.Uuid
+  calendarId         String?                @db.Uuid
   commitment         Json?
   handoffId          String?                @unique @db.Uuid
   mode               FollowUpExecutionMode  @default(automatic)
@@ -5081,40 +5081,40 @@ enum MeetingReminderExecutionStatus {
 model MeetingReminderExecution {
   /// Final dispatch fence, retained while placement is uncertain.
   dispatchCommittedAt DateTime?
-  id              String                         @id @default(uuid()) @db.Uuid
+  id                  String                         @id @default(uuid()) @db.Uuid
   /// The meeting's workspace; the call itself is placed as the agent's owner.
-  userId          String                         @db.Uuid
-  organizationId  String                         @db.Uuid
-  meetingId       String                         @db.Uuid
-  policyId        String?                        @db.Uuid
-  agentId         String                         @db.Uuid
+  userId              String                         @db.Uuid
+  organizationId      String                         @db.Uuid
+  meetingId           String                         @db.Uuid
+  policyId            String?                        @db.Uuid
+  agentId             String                         @db.Uuid
   /// "policy" for an automated offset, "manual" for a call someone asked for.
-  trigger         String                         @default("policy")
+  trigger             String                         @default("policy")
   /// The meeting and policy versions this call was planned for. Either one
   /// moving on makes the execution stale.
-  scheduleVersion Int
-  policyVersion   Int?
-  offsetMinutes   Int?
-  attempt         Int                            @default(1)
+  scheduleVersion     Int
+  policyVersion       Int?
+  offsetMinutes       Int?
+  attempt             Int                            @default(1)
   /// meeting + schedule version + policy/offset (or manual) + attempt.
-  idempotencyKey  String                         @unique
-  fireAt          DateTime
-  status          MeetingReminderExecutionStatus @default(scheduled)
+  idempotencyKey      String                         @unique
+  fireAt              DateTime
+  status              MeetingReminderExecutionStatus @default(scheduled)
   /// Dial tries inside this attempt. Each try gets its own agent-call key, and
   /// a retry is only taken when the previous try provably placed nothing.
-  dialTries       Int                            @default(0)
+  dialTries           Int                            @default(0)
   /// Fences workers after a lease has been reclaimed.
-  claimToken      String?                        @db.Uuid
+  claimToken          String?                        @db.Uuid
   /// Retained across claims; only a proven unplaced attempt clears it.
-  dialReservedAt  DateTime?
-  leaseExpiresAt  DateTime?
-  agentCallId     String?                        @unique @db.Uuid
+  dialReservedAt      DateTime?
+  leaseExpiresAt      DateTime?
+  agentCallId         String?                        @unique @db.Uuid
   /// Machine-readable reason for `skipped`, `failed` or `cancelled`.
-  reason          String?
-  lastError       String?                        @db.Text
-  finishedAt      DateTime?
-  createdAt       DateTime                       @default(now())
-  updatedAt       DateTime                       @updatedAt
+  reason              String?
+  lastError           String?                        @db.Text
+  finishedAt          DateTime?
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
 
   user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -5162,10 +5162,10 @@ enum MeetingEmailDeliveryStatus {
 /// a repeated confirmation a no-op instead of a second email; the provider's
 /// own idempotency only lasts a day, so this row is what is checked first.
 model MeetingEmailDelivery {
-  actionId String? @db.Uuid
-  action MeetingAutomationAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  actionId            String?                    @db.Uuid
+  action              MeetingAutomationAction?   @relation(fields: [actionId], references: [id], onDelete: Cascade)
   /// Legacy workspace policy is preserved. New policy sends independent audiences.
-  audience String @default("legacy")
+  audience            String                     @default("legacy")
   id                  String                     @id @default(uuid()) @db.Uuid
   userId              String                     @db.Uuid
   organizationId      String                     @db.Uuid
@@ -5217,30 +5217,30 @@ model MeetingEmailDelivery {
 /// Immutable tool evidence and its durable maintenance obligation. Owned by
 /// MeetingRepository; the existing reminder tick repairs external projections.
 model MeetingAutomationAction {
-  id String @id @default(uuid()) @db.Uuid
-  actionKey String @unique
-  organizationId String @db.Uuid
-  userId String @db.Uuid
-  meetingId String @db.Uuid
-  contactId String @db.Uuid
-  callId String? @db.Uuid
-  agentCallId String @db.Uuid
-  agentId String @db.Uuid
-  handoffId String? @db.Uuid
-  followUpId String? @db.Uuid
-  callbackId String? @db.Uuid
-  kind String
-  scheduleVersion Int
-  scheduledAt DateTime
-  previousScheduledAt DateTime?
-  language String
-  evidence Json
-  maintenanceReviewAt DateTime @default(now())
+  id                     String                 @id @default(uuid()) @db.Uuid
+  actionKey              String                 @unique
+  organizationId         String                 @db.Uuid
+  userId                 String                 @db.Uuid
+  meetingId              String                 @db.Uuid
+  contactId              String                 @db.Uuid
+  callId                 String?                @db.Uuid
+  agentCallId            String                 @db.Uuid
+  agentId                String                 @db.Uuid
+  handoffId              String?                @db.Uuid
+  followUpId             String?                @db.Uuid
+  callbackId             String?                @db.Uuid
+  kind                   String
+  scheduleVersion        Int
+  scheduledAt            DateTime
+  previousScheduledAt    DateTime?
+  language               String
+  evidence               Json
+  maintenanceReviewAt    DateTime               @default(now())
   maintenanceCompletedAt DateTime?
-  createdAt DateTime @default(now())
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  call Call? @relation(fields: [callId], references: [id], onDelete: SetNull)
-  deliveries MeetingEmailDelivery[]
+  createdAt              DateTime               @default(now())
+  meeting                Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  call                   Call?                  @relation(fields: [callId], references: [id], onDelete: SetNull)
+  deliveries             MeetingEmailDelivery[]
 
   @@index([meetingId])
   @@index([callId])

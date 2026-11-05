@@ -434,11 +434,13 @@ export class CallbackService {
       agentId: callback.agentId,
       contactId: callback.contactId,
       callId: callback.callId,
+      scheduledAt,
     });
     const moved = await this.callbackRepo.rescheduleAgentCallback(
       id,
       scheduledAt,
       CallbackStatus.scheduled,
+      true,
     );
     if (!moved) throw beingPlaced();
     return moved;

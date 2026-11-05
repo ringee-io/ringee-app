@@ -46,11 +46,21 @@ export class MeetingEmailDeliveryRepository {
 
   /** A new address repairs only waiting audiences, never already accepted sends. */
   async requeueAvailableAddresses(organizationIds: string[] | null) {
-    await this.prisma.meetingEmailDelivery.updateMany({ where: {
-      status: D.needs_email, actionId: { not: null }, firstAttemptAt: null,
-      ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
-      meeting: { OR: [{ leadEmail: { not: null } }, { contact: { email: { not: null } } }] },
-    }, data: { status: D.pending } });
+    await this.prisma.meetingEmailDelivery.updateMany({
+      where: {
+        status: D.needs_email,
+        actionId: { not: null },
+        firstAttemptAt: null,
+        ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+        meeting: {
+          OR: [
+            { leadEmail: { not: null } },
+            { contact: { email: { not: null } } },
+          ],
+        },
+      },
+      data: { status: D.pending },
+    });
   }
 
   /**
@@ -107,22 +117,57 @@ export class MeetingEmailDeliveryRepository {
         WHERE "id" = ${delivery.meetingId}::uuid
           AND "organizationId" = ${delivery.organizationId}::uuid FOR UPDATE`;
       if (delivery.actionId) {
-        const action = await tx.meetingAutomationAction.findFirst({ where: {
-          id: delivery.actionId, meetingId: delivery.meetingId, organizationId: delivery.organizationId,
-        } });
+        const action = await tx.meetingAutomationAction.findFirst({
+          where: {
+            id: delivery.actionId,
+            meetingId: delivery.meetingId,
+            organizationId: delivery.organizationId,
+          },
+        });
         if (!action) {
-          await tx.meetingEmailDelivery.updateMany({ where: { id: delivery.id, claimToken: delivery.claimToken, status: D.sending },
-            data: { status: D.cancelled, leaseExpiresAt: null, lastError: "action_missing" } });
+          await tx.meetingEmailDelivery.updateMany({
+            where: {
+              id: delivery.id,
+              claimToken: delivery.claimToken,
+              status: D.sending,
+            },
+            data: {
+              status: D.cancelled,
+              leaseExpiresAt: null,
+              lastError: "action_missing",
+            },
+          });
           return null;
         }
         if (delivery.kind === "recovery_callback") {
-          const callback = action.callbackId ? await tx.callbackTask.findUnique({ where: { id: action.callbackId }, include: { followUp: true } }) : null;
+          const callback = action.callbackId
+            ? await tx.callbackTask.findUnique({
+                where: { id: action.callbackId },
+                include: { followUp: true },
+              })
+            : null;
           const evidence = action.evidence as { scheduledAt?: string };
-          if (!callback || !["scheduled", "due"].includes(callback.status) ||
-              callback.scheduledAt.toISOString() !== evidence.scheduledAt ||
-              (callback.followUp && ["closed", "resolved", "paused", "blocked"].includes(callback.followUp.state))) {
-            await tx.meetingEmailDelivery.updateMany({ where: { id: delivery.id, claimToken: delivery.claimToken, status: D.sending },
-              data: { status: D.cancelled, leaseExpiresAt: null, lastError: "callback_superseded" } });
+          if (
+            !callback ||
+            !["scheduled", "due"].includes(callback.status) ||
+            callback.scheduledAt.toISOString() !== evidence.scheduledAt ||
+            (callback.followUp &&
+              ["closed", "resolved", "paused", "blocked"].includes(
+                callback.followUp.state,
+              ))
+          ) {
+            await tx.meetingEmailDelivery.updateMany({
+              where: {
+                id: delivery.id,
+                claimToken: delivery.claimToken,
+                status: D.sending,
+              },
+              data: {
+                status: D.cancelled,
+                leaseExpiresAt: null,
+                lastError: "callback_superseded",
+              },
+            });
             return null;
           }
         }
@@ -134,20 +179,27 @@ export class MeetingEmailDeliveryRepository {
         leaseExpiresAt: { gt: now },
         meeting: {
           organizationId: delivery.organizationId,
-          scheduleVersion: delivery.actionId && delivery.kind !== "attendance_confirmed" ? delivery.scheduleVersion : expectedMeetingVersion,
+          scheduleVersion:
+            delivery.actionId && delivery.kind !== "attendance_confirmed"
+              ? delivery.scheduleVersion
+              : expectedMeetingVersion,
           ...(delivery.actionId && delivery.kind !== "attendance_confirmed"
             ? {}
             : rescheduled
-            ? {}
-            : {
-                attendanceScheduleVersion: delivery.scheduleVersion,
-                attendanceStatus:
-                  delivery.kind === MeetingEmailKind.attendance_confirmed
-                    ? "confirmed"
-                    : "declined",
-              }),
-          status: delivery.kind === "cancelled" ? "cancelled" :
-            delivery.kind === "recovery_callback" ? undefined : { in: ["scheduled", "rescheduled"] },
+              ? {}
+              : {
+                  attendanceScheduleVersion: delivery.scheduleVersion,
+                  attendanceStatus:
+                    delivery.kind === MeetingEmailKind.attendance_confirmed
+                      ? "confirmed"
+                      : "declined",
+                }),
+          status:
+            delivery.kind === "cancelled"
+              ? "cancelled"
+              : delivery.kind === "recovery_callback"
+                ? undefined
+                : { in: ["scheduled", "rescheduled"] },
         },
       };
       const [row] = await tx.meetingEmailDelivery.updateManyAndReturn({

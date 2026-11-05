@@ -709,10 +709,20 @@ export class ContactRepository {
  * The caller has already locked its meeting (when any), before calling this. */
 export async function automaticContactDispatchAvailable(
   tx: Prisma.TransactionClient,
-  input: { organizationId: string; contactId: string; timezone: string; now: Date;
-    callbackId?: string; reminderId?: string; agreed: boolean; dailyLimit: number },
+  input: {
+    organizationId: string;
+    contactId: string;
+    timezone: string;
+    now: Date;
+    callbackId?: string;
+    reminderId?: string;
+    agreed: boolean;
+    dailyLimit: number;
+  },
 ): Promise<boolean> {
-  const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Contact"
+  const locked = await tx.$queryRaw<
+    Array<{ id: string }>
+  >`SELECT "id" FROM "Contact"
     WHERE "id" = ${input.contactId}::uuid AND "organizationId" = ${input.organizationId}::uuid
       AND "deletedAt" IS NULL FOR NO KEY UPDATE`;
   if (!locked.length) return false;
@@ -723,14 +733,14 @@ export async function automaticContactDispatchAvailable(
       FROM "CallbackTask" cb LEFT JOIN "AiVoiceAgentCall" ac ON ac.id = cb."agentCallId"
       WHERE cb."organizationId" = ${input.organizationId}::uuid AND cb."contactId" = ${input.contactId}::uuid
         AND cb."dispatchCommittedAt" IS NOT NULL
-        AND cb.id <> ${input.callbackId ?? '00000000-0000-0000-0000-000000000000'}::uuid
+        AND cb.id <> ${input.callbackId ?? "00000000-0000-0000-0000-000000000000"}::uuid
       UNION ALL
       SELECT r."dispatchCommittedAt", r."status"::text, ac."status"::text, ac."providerCallControlId"
       FROM "MeetingReminderExecution" r JOIN "Meeting" m ON m.id = r."meetingId"
         LEFT JOIN "AiVoiceAgentCall" ac ON ac.id = r."agentCallId"
       WHERE r."organizationId" = ${input.organizationId}::uuid AND m."contactId" = ${input.contactId}::uuid
         AND r."dispatchCommittedAt" IS NOT NULL
-        AND r.id <> ${input.reminderId ?? '00000000-0000-0000-0000-000000000000'}::uuid
+        AND r.id <> ${input.reminderId ?? "00000000-0000-0000-0000-000000000000"}::uuid
     ) SELECT count(*) FILTER (WHERE at >=
       ((date_trunc('day', ${input.now}::timestamptz AT TIME ZONE ${input.timezone})
         AT TIME ZONE ${input.timezone}) AT TIME ZONE 'UTC'))::int AS count,
@@ -738,5 +748,7 @@ export async function automaticContactDispatchAvailable(
         OR (leg IS NULL AND state IN ('in_progress', 'claimed', 'placed')) )::int AS active
     FROM attempts
   `;
-  return !usage?.active && (input.agreed || (usage?.count ?? 0) < input.dailyLimit);
+  return (
+    !usage?.active && (input.agreed || (usage?.count ?? 0) < input.dailyLimit)
+  );
 }

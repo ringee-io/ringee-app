@@ -99,7 +99,9 @@ export function planReminderCallAt(params: {
   if (ideal.getTime() <= notBefore.getTime()) {
     if (!params.allowNearMeeting) return null;
     const next = nextCallingWindowMoment(notBefore, window, timeZone);
-    return next && meetingAt.getTime() - next.getTime() >= 20 * 60_000 ? next : null;
+    return next && meetingAt.getTime() - next.getTime() >= 20 * 60_000
+      ? next
+      : null;
   }
   if (isWithinCallingWindow(ideal, window, timeZone)) return ideal;
 

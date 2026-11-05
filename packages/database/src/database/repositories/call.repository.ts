@@ -56,9 +56,17 @@ const CALL_USER_SELECT = {
 
 export const CALL_DETAIL_INCLUDE = {
   automationActions: {
-    select: { id: true, kind: true, agentId: true, meetingId: true,
-      scheduleVersion: true, scheduledAt: true, previousScheduledAt: true,
-      createdAt: true, evidence: true },
+    select: {
+      id: true,
+      kind: true,
+      agentId: true,
+      meetingId: true,
+      scheduleVersion: true,
+      scheduledAt: true,
+      previousScheduledAt: true,
+      createdAt: true,
+      evidence: true,
+    },
     orderBy: { createdAt: "asc" },
   },
   contact: {
@@ -1151,7 +1159,11 @@ export class CallRepository {
     });
     if (moved.count === 1) return this.findById(callId);
     const { count } = await this.prisma.call.updateMany({
-      where: { id: callId, answeredByUserId: null, ...(protectToolActions ? { automationActions: { none: {} } } : {}) },
+      where: {
+        id: callId,
+        answeredByUserId: null,
+        ...(protectToolActions ? { automationActions: { none: {} } } : {}),
+      },
       data: { outcome },
     });
     return count === 1 ? this.findById(callId) : null;

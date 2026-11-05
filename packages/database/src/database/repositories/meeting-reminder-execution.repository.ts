@@ -60,12 +60,26 @@ const WITH_MEETING = {
 export class MeetingReminderExecutionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  listUnansweredForRetry(now: Date) {
-    return this.prisma.meetingReminderExecution.findMany({ where: {
-      trigger: "policy", offsetMinutes: 240, attempt: 1, status: S.no_answer,
-      meeting: { scheduledAt: { gt: now }, attendanceStatus: "pending", status: { in: ["scheduled", "rescheduled"] } },
-      policy: { enabled: true },
-    }, include: { meeting: { include: { calendar: true } }, policy: true }, orderBy: { finishedAt: "desc" }, take: 100 });
+  listUnansweredForRetry(now: Date, afterId?: string, organizationIds: string[] | null = null) {
+    return this.prisma.meetingReminderExecution.findMany({
+      where: {
+        ...(afterId ? { id: { gt: afterId } } : {}),
+        ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+        trigger: "policy",
+        offsetMinutes: 240,
+        attempt: 1,
+        status: S.no_answer,
+        meeting: {
+          scheduledAt: { gt: now },
+          attendanceStatus: "pending",
+          status: { in: ["scheduled", "rescheduled"] },
+        },
+        policy: { enabled: true },
+      },
+      include: { meeting: { include: { calendar: true } }, policy: true },
+      orderBy: { id: "asc" },
+      take: 100,
+    });
   }
 
   /**
@@ -203,10 +217,23 @@ export class MeetingReminderExecutionRepository {
       await tx.$queryRaw`SELECT "id" FROM "Meeting"
         WHERE "id" = ${execution.meetingId}::uuid
           AND "organizationId" = ${execution.organizationId}::uuid FOR UPDATE`;
-      const meeting = await tx.meeting.findUnique({ where: { id: execution.meetingId }, include: { calendar: true } });
-      if (!meeting || !(await automaticContactDispatchAvailable(tx, { organizationId: execution.organizationId,
-        contactId: meeting.contactId, timezone: meeting.calendar?.timezone ?? "UTC", now, reminderId: execution.id,
-        agreed: false, dailyLimit: 2 }))) return false;
+      const meeting = await tx.meeting.findUnique({
+        where: { id: execution.meetingId },
+        include: { calendar: true },
+      });
+      if (
+        !meeting ||
+        !(await automaticContactDispatchAvailable(tx, {
+          organizationId: execution.organizationId,
+          contactId: meeting.contactId,
+          timezone: meeting.calendar?.timezone ?? "UTC",
+          now,
+          reminderId: execution.id,
+          agreed: false,
+          dailyLimit: 2,
+        }))
+      )
+        return false;
       if (execution.policyId) {
         await tx.$queryRaw`SELECT "id" FROM "MeetingReminderPolicy"
           WHERE "id" = ${execution.policyId}::uuid FOR UPDATE`;
@@ -306,7 +333,9 @@ export class MeetingReminderExecutionRepository {
         leaseExpiresAt: null,
         claimToken: null,
         reason,
-        ...(unplaced ? { dialReservedAt: null, dispatchCommittedAt: null } : {}),
+        ...(unplaced
+          ? { dialReservedAt: null, dispatchCommittedAt: null }
+          : {}),
       },
     });
     return count === 1;

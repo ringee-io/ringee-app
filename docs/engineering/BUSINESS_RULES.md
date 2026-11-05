@@ -1499,7 +1499,11 @@ pointer in place, so reconnecting restores every calendar that used it at once.
 `Meeting.attendanceStatus` (`pending` / `confirmed` / `declined`) records whether
 the lead said they will attend. It is never `Meeting.status`: a confirmed
 meeting is still `scheduled`, and "I can't make it" cancels nothing without a
-person deciding to.
+person deciding to. `finish_meeting_response` may execute that decision only
+after an explicit yes to cancellation on the currently authorized conversation.
+A no or unclear answer retains the booking and records the actual response.
+Cancellation increments the version, retires uncommitted reminders and releases
+the reservation; an open request for another time survives when requested.
 
 Every meeting carries a `scheduleVersion`, bumped when it moves, is cancelled or
 changes hands. Moving a meeting resets its attendance to `pending` — an answer
@@ -1624,6 +1628,12 @@ extracted fields of the call — it never sets or rewrites its outcome.
 
 - **Source of truth:** `VoiceAgentResultService.applyKnownOutcome`,
   `CallRepository.updateOutcomeUnlessTakenOver`
+
+Tool-backed meeting actions also commit immutable `MeetingAutomationAction`
+evidence with a stable action ID in call detail and an attributed contact note.
+Analysis can supplement the conversation, but conditional writes preserve these
+stored outcomes and subsequent human corrections. A matching time alone never
+proves the AI made a change.
 
 ### AGENT-007 — Company context belongs to the agent, and falls back to the workspace
 
@@ -1848,11 +1858,16 @@ from the provider-filled header, the meeting from the reminder execution that
 placed that call, and the schedule version from the same row: the tool cannot
 reach any other meeting, and a call not placed about one has nothing to record.
 
-The answer, the closing of the execution and the email it owes (AGENT-020) are
+The answer, the closing of the execution, attributed action and any receipt it owes (AGENT-020) are
 one transaction; repeating the answer on the same call is the same result and
 no second email. Only a clear yes counts — "maybe", silence or a voicemail
 greeting is not a confirmation — and the agent may say the email will be sent,
 never that it was.
+
+An intermediate decline records the answer immediately without a final rejection
+receipt. The actual final decision selects that receipt: moved, replaced, cancelled
+or declined without rescheduling. Confirmation is an intention to attend, never
+evidence of actual attendance or a no-show.
 
 A "declined" answer's result says whether the scheduling agent can find another
 time on this call (AGENT-021). Once a handoff completed, the reminders agent's
@@ -1919,8 +1934,8 @@ limits how many agents a workspace creates there.
 
 A `MeetingReminderPolicy` (one per calendar) plans one `MeetingReminderExecution`
 per meeting and offset, keyed `meeting + schedule version + policy + policy
-version + offset + attempt`. Planning is idempotent, never plans an offset that
-is already in the past, and pulls a call that would ring outside the calling
+version + offset + attempt`. Planning is idempotent. Except for the explicitly
+configured four-hour pilot policy below, it never plans an offset already in the past, and pulls a call that would ring outside the calling
 window _earlier_ — to half an hour before the window closed, never before it
 opened, so a late tick, a retry or a deferral still lands inside it — never
 later. An offset that already had a call for the same meeting version is not
@@ -1960,45 +1975,47 @@ cannot be recalled by changing a meeting. The overlap check includes ordinary
 inbound and outbound calls in the same workspace, excluding the pending call
 being prepared.
 
+For an explicitly configured 240-minute policy, a newly planned close meeting
+may receive a reminder at the next authorized window if at least 20 minutes
+remain. One unanswered first attempt may receive one more attempt at least 60
+minutes later, still inside the window and at least 20 minutes before the meeting.
+Both bind the current meeting and policy versions. A contact/workspace row lock
+coordinates reminder and objective callback dispatch, with at most two automatic
+calls per calendar-local day. A stored agreed callback can exceed the daily cap,
+never the active-call reservation. Technical retries proved unplaced clear the
+dispatch marker and reuse the contact attempt. Defaults and broad policy setup
+remain rollout work; no organization is automatically opted in.
+
 - **Source of truth:** `ReminderService.planMeetingCalls` / `planPolicyCalls`,
   `planReminderCallAt`, `MeetingReminderCallService`,
   `MeetingReminderExecutionRepository.claimDue`
 - **Risk if violated:** a lead called twice, at night, or about a time that
   moved
 
-### AGENT-020 — An attendance answer, or an agent's move, owes one email, delivered durably
+### AGENT-020 — Definitive meeting actions owe durable, independently tracked receipts
 
-A confirmation owes one email: the lead and the responsible member — plus the
-person who created the meeting, when that is someone else who is still a member
-— in To, the organization's current admins in CC with every To removed, and
-Reply-To the member, so a reply reaches the person the meeting is with and
-"reply all" keeps everyone on one thread. "Can't attend" goes to the member and
-creator with the admins, never to the lead. A meeting an agent moved
-(`AGENT-021`) owes one too: the lead, when there is an address, the member and
-the creator in To, the admins in CC — without the lead's address it still tells
-the team rather than waiting. It names the new time and the one before, speaks
-with the voice of the agent that moved it — on a call another agent took over,
-that agent's, not the caller's — and starts its own thread, because the lead
-was never on the "can't attend" one before it.
+Bookings, confirmations, moves, linked replacements, explicit cancellations,
+declines without rescheduling, and agreed specialist callbacks commit their
+`MeetingEmailDelivery` obligations with the action. An intermediate attendance
+decline owes no final rejection email. A callback receipt is progress, not success.
 
-Recipients are resolved at send time from the meeting and the organization as
-they are then: a member who left is never written to (`needs_member`), and a
-confirmation with no address for the lead waits (`needs_email`, "Complete
-email") rather than going out without them. The `MeetingEmailDelivery` row is
-created in the attendance transaction under `meeting + schedule version +
-kind`, so a repeated answer never sends twice; the worker sends it under a lease
-with its own id as the provider's idempotency key, and records `sent` only once
-the provider accepted it. A later email about the same meeting threads under
-the previous one's Message-ID. The email carries the meeting's title, time with
-its zone, place and the answer — never a recording, transcript or internal
-summary.
+The scheduling automation's `receiptRecipients` setting adopts either `legacy`
+or `contact_responsible`. Existing workspaces without that setting preserve their
+lead/member/creator and admin recipient policy. New scheduling setups default to
+contact and responsible member, and changing an existing preference requires an
+administrator. Under the adopted policy each audience has a separate durable
+row keyed by action and audience, with reply-to the responsible member. The
+member's receipt never waits for the contact's address. A late usable address
+requeues only the still-valid outstanding audience and never resends to recipients
+already accepted. Legacy rows keep their existing behavior; new legacy-policy
+actions have an outstanding contact-only row for late addresses.
 
-The delivery stores the version of the attendance answer — or, for a move, the
-version the meeting moved to — and the move's email is created in the move's
-transaction. Rescheduling invalidates an answer's email, and moving again
-withdraws the previous move's unsent one; merely changing the responsible member
-preserves the answer and resolves the new recipient. Recording the same answer with a newly supplied lead address
-requeues its existing `needs_email` delivery, never a second delivery.
+Recipients are resolved from current workspace membership. Missing contact email
+is `needs_email`; a missing responsible member is `needs_member`. Business success
+is independent of delivery. The receipt uses the action's effective language and
+contains no internal notes, technical failure, transcript or recording. New
+outcomes start their own thread, preventing exposure of older internal messages.
+A superseded version, withdrawn agreed callback or obsolete result is not sent.
 
 Claims are token-fenced. Before the first send, the worker verifies the answer
 under the meeting lock and persists the exact request and first-attempt time.
@@ -2018,8 +2035,9 @@ When the person on a reminder call cannot attend and agrees to look for another
 time, the reminders agent can hand **the same call** to the organization's
 scheduling agent. It is the pilot's first delivery of
 [PLAN_ORGANIZATION_AI_FOLLOWUP](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md):
-the call ends with the meeting moved to the time the person chose; cancelling
-it is not in it yet.
+the call ends with an authoritative stored result. Stage 3 adds explicit
+cancellation and a linked replacement for an open request after its original
+meeting passed or was validly cancelled.
 
 - **Mechanism.** The provider switches assistants inside the conversation when
   the handing model uses its handoff tool (`VoiceAgentHandoffMode`
@@ -2062,19 +2080,24 @@ it is not in it yet.
   `book_appointment` refuses on such a call — a second meeting beside the first
   is exactly what must not happen.
 - **Moving the meeting.** Once the person says yes to a time, `move_meeting`
-  moves that meeting — the model supplies only the time, with its offset — to
+  moves that meeting — the model supplies the time with its offset and explicit
+  `time_confirmed` consent — to
   one its calendar offers at that moment, under the workspace lock and capacity
   check a booking uses (`MeetingRepository.rescheduleIfAvailable`), only while
   its version is still the one handed and only while the request is pending.
   The time it already has is no move: nothing is written and no email is
-  owed. A repeat of the same move — even after the version moved on — writes
-  nothing, and finishes what the first attempt may not have. The move is a new
+  owed. Replay reads the action keyed by request; a human change to the same time is
+  never credited to the AI. A later human edit is reported as changed, not replayed
+  as current AI success. Durable maintenance repairs reminders and calendar sync. The move is a new
   schedule version (`CAL-003`) and does everything a move from the dashboard
   does: reminder calls are replanned and the external event follows it
   (`CAL-002`). It resolves the request, withdraws its callbacks, and owes one
-  email to the lead and the team (`AGENT-020`). A cancelled meeting, reachable
-  only on a callback, is not moved: the team is asked instead, and the person
-  is told so only once that request went out.
+  receipt under the workspace policy (`AGENT-020`). A callback for an open
+  objective may replace a past or cancelled original once per request. The new
+  meeting keeps the calendar/contact/responsible member and `replacesMeetingId`;
+  the original and its time remain evidence. Competing bookings and moves use
+  the same workspace lock. Offered slots, ownership, capacity, current calendar
+  configuration and version are rechecked in the write transaction.
 - **Failure and doubt.** The source still holding the call and scheduling a
   callback is a confirmed failure — unless the destination's first tool call
   completed the handoff first, and then no callback is promised. A call that
@@ -2102,9 +2125,9 @@ it is not in it yet.
   call is never recovered: their callback was the automated step. Anything
   else that leaves no automated step settles the request as `needs_attention`.
   For new objective-backed requests, AGENT-022 owns the lifecycle: an answered
-  call without a result may still receive the one policy recovery; exhausted
-  contact attempts close without success instead of returning a routine manual
-  call to the salesperson. Availability remains an explicit blocked exception.
+  call without a result retains bounded recovery; exhausted contact attempts close
+  without success instead of returning a routine manual call to the salesperson.
+  Offered availability alone remains progress and no longer blocks an objective.
 - **History and money.** One `Call` and one `AiVoiceAgentCall` root, with
   `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children; `agentId`
   keeps meaning the agent that placed the call. A participation is not a
@@ -2118,7 +2141,8 @@ it is not in it yet.
   does not pick the contact's language from earlier calls; the request
   carries the language, or the one the person asked to switch to. The
   scheduling agent takes the call over only when its own voice speaks that
-  language. A callback speaks the scheduling agent's configured language.
+  language. Callback context and receipts retain the request's effective language,
+  preferences, original meeting and failure reason.
 
 - **Source of truth:** `VoiceAgentHandoffService`,
   `AiVoiceAgentHandoffRepository`, `VoiceAgentToolService`
@@ -2149,10 +2173,9 @@ do not enroll. Historical recommendations and unchanged old outcomes stay manual
   prove nothing. Corrections fence uncommitted dispatch and stale booking tools.
 - A callback is a step, not success. Rescheduling resolves only from an authorized
   newer stored meeting at a different time, checked again under its row lock.
-  Availability blocks for the meeting decision once no call is live and no
-  callback is still to come — the specialist may still move the meeting on that
-  call, and a callback the person agreed to is kept; the original time passing
-  and meeting cancellation alone resolve nothing. A request whose objective
+  A linked replacement or authorized tool action resolves with its stable action
+  ID. Offered availability remains recoverable progress; an agreed callback is
+  retained. The original time passing or its cancellation alone resolves nothing. A request whose objective
   cannot be enrolled is still recorded, without one. Closure explicitly records refusal,
   objective cancellation, expiry or exhausted attempts.
 - Every active objective has a timed next action, an active execution or an
@@ -2160,12 +2183,15 @@ do not enroll. Historical recommendations and unchanged old outcomes stay manual
   action keys deduplicate evidence. The existing callback tick reconciles it;
   there is no second scheduler.
 - Objective counters survive callback creation, retries and specialist changes.
-  Initial bounds are three dispatched contact steps, one policy recovery and
-  seven days. Proven-unplaced retries reuse the step's contact-attempt count.
+  New objectives allow three dispatched contact steps, two policy recoveries and
+  seven days; existing persisted limits are unchanged. Unpromised follow-up and
+  no-answer recovery wait at least a day; an interrupted conversation waits at
+  least an hour, all in the authorized window. Proven-unplaced retries reuse the step's contact-attempt count.
   Uncertain placement must reconcile the original execution, never redial.
 - Pause, takeover, close and resolve lock the same objective as final dispatch.
   They withdraw uncommitted steps; a committed call may finish and settle.
-  Resume revalidates the case and, for rescheduling, its still-active meeting.
+  Resume revalidates the case and its original meeting, including an original
+  eligible for replacement; offered slots do not require human escalation.
   Human booking retains a still-future agreed callback; otherwise resume selects
   a policy window at least an hour ahead. Manual takeover requires explicit
   `return_automatic`.

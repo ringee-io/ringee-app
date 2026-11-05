@@ -8,7 +8,6 @@ import {
 import {
   CallRepository,
   CallbackAgentKind,
-  AiVoiceAgentHandoffRequestStatus,
   type MeetingMoveOutcome,
   CallbackStatus,
   InboundDestinationType,
@@ -996,35 +995,92 @@ export class VoiceAgentToolService {
   }
 
   /** Final decision after an attendance decline. IDs come exclusively from the live participation. */
-  async finishMeetingResponse(agentId: string, secret: string, callControlId: string | null,
-    input: { cancellation?: string; rescheduling?: string; response?: string }) {
+  async finishMeetingResponse(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: { cancellation?: string; rescheduling?: string; response?: string },
+  ) {
     const { agent, ctx } = await this.authorize(agentId, secret);
-    if (!["yes", "no", "unclear"].includes(input.cancellation ?? "") ||
-        !["requested", "declined"].includes(input.rescheduling ?? "") ||
-        (typeof input.response !== "string" || !input.response.trim())) return { ok: false, error: "Record the person's actual response. Cancellation needs an explicit yes to the cancellation question." };
-    if (!callControlId) return { ok: false, error: "The current call could not be identified." };
+    if (
+      !["yes", "no", "unclear"].includes(input.cancellation ?? "") ||
+      !["requested", "declined"].includes(input.rescheduling ?? "") ||
+      typeof input.response !== "string" ||
+      !input.response.trim()
+    )
+      return {
+        ok: false,
+        error:
+          "Record the person's actual response. Cancellation needs an explicit yes to the cancellation question.",
+      };
+    if (!callControlId)
+      return { ok: false, error: "The current call could not be identified." };
     const call = await this.agentCalls.findByCallControlId(callControlId);
-    if (!call) return { ok: false, error: "The current call could not be found." };
+    if (!call)
+      return { ok: false, error: "The current call could not be found." };
     const grant = await this.handoffs.grantFor(agent, call);
     if (grant.kind === "refused") return this.refuse(grant);
-    const execution = grant.kind === "root" ? await this.reminderExecutions.findByAgentCallId(call.id) : null;
-    const meetingId = grant.kind === "participant" ? grant.participant.meetingId : execution?.meetingId;
-    const version = grant.kind === "participant" ? grant.participant.meetingScheduleVersion : execution?.scheduleVersion;
-    if (!meetingId || version == null) return { ok: false, error: "There is no authorized appointment on this call." };
-    if (input.rescheduling === "requested" && input.cancellation !== "yes") return { ok: false,
-      error: "The request for a new time remains open. Continue with the scheduling specialist." };
+    const execution =
+      grant.kind === "root"
+        ? await this.reminderExecutions.findByAgentCallId(call.id)
+        : null;
+    const meetingId =
+      grant.kind === "participant"
+        ? grant.participant.meetingId
+        : execution?.meetingId;
+    const version =
+      grant.kind === "participant"
+        ? grant.participant.meetingScheduleVersion
+        : execution?.scheduleVersion;
+    if (!meetingId || version == null)
+      return {
+        ok: false,
+        error: "There is no authorized appointment on this call.",
+      };
+    if (input.rescheduling === "requested" && input.cancellation !== "yes")
+      return {
+        ok: false,
+        error:
+          "The request for a new time remains open. Continue with the scheduling specialist.",
+      };
     if (input.rescheduling === "requested" && grant.kind === "root") {
-      const prepared = await this.handoffs.prepareReschedule(ctx, agent, call, { personSaid: input.response.trim().slice(0, 1000) });
-      if (!prepared.handoff) return { ok: false, error: "The request for another time could not be stored. No appointment was cancelled." };
+      const prepared = await this.handoffs.prepareReschedule(
+        { userId: ctx.userId, organizationId: ctx.organizationId! },
+        agent,
+        call,
+        { personSaid: input.response.trim().slice(0, 1000) },
+      );
+      if (!prepared.handoff)
+        return {
+          ok: false,
+          error:
+            "The request for another time could not be stored. No appointment was cancelled.",
+        };
     }
-    const action = await this.meetings.recordAgentDecision(ctx, { meetingId, expectedScheduleVersion: version,
-      agentCallId: call.id, actorAgentId: agent.id, cancel: input.cancellation === "yes",
-      continueRescheduling: input.rescheduling === "requested", response: input.response.trim().slice(0, 1000) });
-    if (!action) return { ok: false, error: "The appointment or authority changed; no decision was applied. Read the current context." };
-    return { ok: true, result: action.kind, action_id: action.id,
-      speech_instruction: action.kind === "cancelled"
-        ? "The appointment is cancelled. Confirm this only now. A separate request for another time remains open if the person requested it."
-        : "Their decision not to attend or reschedule is recorded. The reservation is retained; do not call it cancelled." };
+    const action = await this.meetings.recordAgentDecision(ctx, {
+      meetingId,
+      expectedScheduleVersion: version,
+      agentCallId: call.id,
+      actorAgentId: agent.id,
+      cancel: input.cancellation === "yes",
+      continueRescheduling: input.rescheduling === "requested",
+      response: input.response.trim().slice(0, 1000),
+    });
+    if (!action)
+      return {
+        ok: false,
+        error:
+          "The appointment or authority changed; no decision was applied. Read the current context.",
+      };
+    return {
+      ok: true,
+      result: action.kind,
+      action_id: action.id,
+      speech_instruction:
+        action.kind === "cancelled"
+          ? "The appointment is cancelled. Confirm this only now. A separate request for another time remains open if the person requested it."
+          : "Their decision not to attend or reschedule is recorded. The reservation is retained; do not call it cancelled.",
+    };
   }
 
   private async recordAttendanceOutcome(
@@ -1348,7 +1404,12 @@ export class VoiceAgentToolService {
     if (!ctx.organizationId) {
       throw new UnauthorizedException("Unknown agent");
     }
-    if (input.time_confirmed !== true) return { ok: false, error: "Repeat the offered time and obtain an explicit yes before moving this appointment." };
+    if (input.time_confirmed !== true)
+      return {
+        ok: false,
+        error:
+          "Repeat the offered time and obtain an explicit yes before moving this appointment.",
+      };
     const start = this.parseOffsetDate(input.start);
     if (!start) {
       return {
@@ -1403,10 +1464,7 @@ export class VoiceAgentToolService {
       } else {
         // A request the team is handling, or one already settled, is not
         // this agent's to finish.
-        if (
-          grant.handoff.requestStatus !==
-          AiVoiceAgentHandoffRequestStatus.pending
-        ) {
+        if (!(await this.handoffs.mayFinishMeetingRequest(grant.handoff))) {
           return {
             ok: false,
             error: `This request was already settled — the meeting was moved, or the team is handling it — so nothing was moved. ${MOVE_FALLS_TO_TEAM}`,
@@ -1455,11 +1513,16 @@ export class VoiceAgentToolService {
       return {
         ok: false,
         error:
-          "This meeting was changed or cancelled during the call, so it was not moved. Do not offer times; tell the person the team will contact them with the current details.",
+          "This meeting changed during the call, so nothing was moved. Read get_handoff_context for current details. Do not claim a change or promise follow-up; call request_human_support first if a decision requires human authority.",
       };
     }
 
-    if (outcome.changedSinceAction) return { ok: false, error: "Your earlier change was stored, but this appointment was subsequently changed by someone else. Do not attribute the current time to this call or repeat the mutation." };
+    if (outcome.changedSinceAction)
+      return {
+        ok: false,
+        error:
+          "Your earlier change was stored, but this appointment was subsequently changed by someone else. Do not attribute the current time to this call or repeat the mutation.",
+      };
 
     // The request is done. A failure here leaves it for the reconciler,
     // which resolves a request whose meeting moved: the move stands.

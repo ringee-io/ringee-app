@@ -231,8 +231,14 @@ export class AiVoiceAgentToolController {
     @Param("agentId") agentId: string,
     @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
     @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
-    @Body() body: { cancellation?: string; rescheduling?: string; response?: string },
+    @Body()
+    body: { cancellation?: string; rescheduling?: string; response?: string },
   ) {
-    return this.tools.finishMeetingResponse(agentId, secret, callControlId ?? null, body ?? {});
+    return this.tools.finishMeetingResponse(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
   }
 }

@@ -10,7 +10,10 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
-import { buildConfirmAttendanceTool, buildFinishMeetingResponseTool } from "./attendance.tool";
+import {
+  buildConfirmAttendanceTool,
+  buildFinishMeetingResponseTool,
+} from "./attendance.tool";
 import { buildScheduleCallbackTool } from "./callback.tool";
 import { buildHumanSupportTool } from "./human-support.tool";
 import {

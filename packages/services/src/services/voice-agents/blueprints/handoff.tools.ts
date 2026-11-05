@@ -136,7 +136,11 @@ export function buildMoveMeetingTool(
     parameters: {
       type: "object",
       properties: {
-        time_confirmed: { type: "boolean", description: "True only after repeating the specific offered time and receiving an explicit yes in this conversation." },
+        time_confirmed: {
+          type: "boolean",
+          description:
+            "True only after repeating the specific offered time and receiving an explicit yes in this conversation.",
+        },
         start: {
           type: "string",
           description:

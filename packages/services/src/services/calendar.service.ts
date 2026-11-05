@@ -1443,6 +1443,64 @@ export class CalendarService {
     }
   }
 
+  /** Delete the event in its recorded account after a committed cancellation.
+   * A replayed DELETE (including an already absent event) is safe after a crash. */
+  async cancelExternalEvent(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+  ): Promise<{ status: MeetingExternalSyncStatus }> {
+    const current = await this.meetingRepo.findByIdForOwner(ctx, meeting.id);
+    if (
+      !current ||
+      current.status !== "cancelled" ||
+      current.scheduleVersion !== meeting.scheduleVersion
+    )
+      return { status: MeetingExternalSyncStatus.pending };
+    if (!current.externalEventId || !current.externalCalendarIntegrationId)
+      return { status: MeetingExternalSyncStatus.not_required };
+    if (current.externalSyncStatus === "synced")
+      return { status: MeetingExternalSyncStatus.synced };
+    try {
+      const integration = await this.calendarRepo.findByIdForOwner(
+        ctx,
+        current.externalCalendarIntegrationId,
+      );
+      if (!integration)
+        throw new Error("The original calendar account is disconnected.");
+      const token = await this.ensureValidToken(integration);
+      const eventId = encodeURIComponent(current.externalEventId);
+      const calendarId = encodeURIComponent(
+        current.externalCalendarTargetId ?? integration.calendarId ?? "primary",
+      );
+      const url =
+        integration.provider === "google"
+          ? `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}?sendUpdates=all`
+          : `https://graph.microsoft.com/v1.0/me/events/${eventId}`;
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok && response.status !== 404 && response.status !== 410)
+        throw new Error(`Calendar cancellation failed (${response.status})`);
+      const saved = await this.meetingRepo.recordExternalCancellation(
+        ctx,
+        current,
+      );
+      return {
+        status: saved
+          ? MeetingExternalSyncStatus.synced
+          : MeetingExternalSyncStatus.pending,
+      };
+    } catch (error) {
+      await this.meetingRepo.recordExternalCancellation(
+        ctx,
+        current,
+        error instanceof Error ? error.message : "Calendar cancellation failed",
+      );
+      return { status: MeetingExternalSyncStatus.failed };
+    }
+  }
+
   /**
    * Create a calendar event via the provider API and return the external event ID + meet link.
    *

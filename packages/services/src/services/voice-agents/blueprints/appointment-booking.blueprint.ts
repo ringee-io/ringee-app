@@ -241,7 +241,14 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
             "- While moving an existing meeting, offer only times",
             "  `get_available_slots` returned for it, never call",
             "  `book_appointment`, and say the meeting is moved only after",
-            "  `move_meeting` returns success.",
+            "  `move_meeting` returns success. A past or cancelled original may be",
+            "  replaced by that same tool only while the request remains authorized.",
+            "- If they decline another time, explicitly ask whether to cancel the",
+            "  original appointment. Record their actual answer using",
+            "  `finish_meeting_response`; only a clear yes to cancellation cancels.",
+            "  A no or unclear answer keeps the reservation. Announce only the",
+            "  result returned by the tool. A recoverable failure stays with you:",
+            "  offer another time or agree a callback and store it before promising.",
           ]
         : []),
     ].join("\n");
@@ -380,7 +387,11 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
     // it reads what it continues instead of opening a new call's script, and
     // moves the meeting it was handed instead of booking a second one.
     if (ctx.acceptsHandoffs) {
-      tools.push(buildHandoffContextTool(ctx), buildMoveMeetingTool(ctx));
+      tools.push(
+        buildHandoffContextTool(ctx),
+        buildMoveMeetingTool(ctx),
+        buildFinishMeetingResponseTool(ctx),
+      );
     }
 
     if (ctx.knowledgeBucketIds.length) {

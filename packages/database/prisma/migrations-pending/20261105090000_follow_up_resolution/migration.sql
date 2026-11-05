@@ -1,10 +1,6 @@
--- AlterEnum
--- This migration adds more than one value to an enum.
--- With PostgreSQL versions 11 and earlier, this is not possible
--- in a single migration. This can be worked around by creating
--- multiple migrations, each migration adding only one value to
--- the enum.
-
+-- Stage 3: apply before API/worker deployment. PostgreSQL 12+.
+-- Existing-table indexes and FK validation run separately with autocommit
+-- from pending-migrations/20261105090100_follow_up_resolution_indexes.sql.
 
 ALTER TYPE "MeetingEmailKind" ADD VALUE 'booked';
 ALTER TYPE "MeetingEmailKind" ADD VALUE 'replaced';
@@ -72,14 +68,8 @@ CREATE INDEX "MeetingAutomationAction_organizationId_createdAt_idx" ON "MeetingA
 -- CreateIndex
 CREATE INDEX "MeetingAutomationAction_maintenanceCompletedAt_maintenanceR_idx" ON "MeetingAutomationAction"("maintenanceCompletedAt", "maintenanceReviewAt");
 
--- CreateIndex
-CREATE UNIQUE INDEX "ContactNote_automationActionId_key" ON "ContactNote"("automationActionId");
-
--- CreateIndex
-CREATE INDEX "MeetingEmailDelivery_actionId_idx" ON "MeetingEmailDelivery"("actionId");
-
 -- AddForeignKey
-ALTER TABLE "MeetingEmailDelivery" ADD CONSTRAINT "MeetingEmailDelivery_actionId_fkey" FOREIGN KEY ("actionId") REFERENCES "MeetingAutomationAction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MeetingEmailDelivery" ADD CONSTRAINT "MeetingEmailDelivery_actionId_fkey" FOREIGN KEY ("actionId") REFERENCES "MeetingAutomationAction"("id") ON DELETE CASCADE ON UPDATE CASCADE NOT VALID;
 
 -- AddForeignKey
 ALTER TABLE "MeetingAutomationAction" ADD CONSTRAINT "MeetingAutomationAction_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "Meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;

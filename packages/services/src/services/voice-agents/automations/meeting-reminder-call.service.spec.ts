@@ -38,6 +38,7 @@ function build(
     liveHumanCall?: boolean;
     otherActiveForMeeting?: boolean;
     startError?: Error;
+    unanswered?: Row[];
   } = {},
 ) {
   const execution: Row = {
@@ -97,12 +98,12 @@ function build(
         events.push({ settled: agentCallId, status });
         return true;
       },
-      listUnansweredForRetry: async () => [],
+      listUnansweredForRetry: async () => over.unanswered ?? [],
       listPlacedBefore: async () => [],
       hasActiveForMeeting: async () => over.otherActiveForMeeting ?? false,
       countForMeetingVersion: async () => 0,
       findOpenForMeetingVersion: async () => null,
-      createMany: async () => 1,
+      createMany: async (rows: Row[]) => { if (over.unanswered) events.push({ retry: rows }); return 1; },
       findByIdempotencyKey: async () => execution,
       findById: async () => execution,
     } as never,
@@ -568,5 +569,30 @@ describe("reminder placement revalidation", () => {
     await service.processDue(NOW);
     assert.equal(starts.length, 1);
     assert.match(String(starts[0]!.idempotencyKey), /:d1$/);
+  });
+});
+
+
+describe("Four-hour reminder recovery", () => {
+  it("plans one version-bound retry after sixty minutes, with twenty minutes left", async () => {
+    const prior = { id: "first", organizationId: "org-1", userId: "user-1", meetingId: "meeting-1",
+      policyId: "policy-1", agentId: "agent-1", policyVersion: 5, scheduleVersion: 2, offsetMinutes: 240,
+      dispatchCommittedAt: NOW, fireAt: NOW,
+      meeting: { scheduleVersion: 2, scheduledAt: new Date(NOW.getTime() + 4 * 3600000), calendar: { timezone: "America/New_York" } },
+      policy: { version: 5, windowStartMinute: 540, windowEndMinute: 1200, windowDays: [0,1,2,3,4,5,6] } };
+    const first = build({ unanswered: [prior] });
+    await first.service.processDue(NOW);
+    const retry = first.events.find(event => event.retry)?.retry as Row[];
+    assert.equal(retry[0].attempt, 2);
+    assert.equal(retry[0].fireAt.getTime(), NOW.getTime() + 3600000);
+    assert.equal(retry[0].scheduleVersion, 2);
+    assert.equal(retry[0].idempotencyKey, "retry:first:a2");
+    for (const row of [ { ...prior, scheduleVersion: 1 }, { ...prior, policyVersion: 4 },
+      { ...prior, meeting: { ...prior.meeting, scheduledAt: new Date(NOW.getTime() + 79 * 60000) } },
+      { ...prior, policy: { ...prior.policy, windowEndMinute: 15 * 60 + 30 } } ]) {
+      const invalid = build({ unanswered: [row] });
+      await invalid.service.processDue(NOW);
+      assert.equal(invalid.events.some(event => event.retry), false);
+    }
   });
 });

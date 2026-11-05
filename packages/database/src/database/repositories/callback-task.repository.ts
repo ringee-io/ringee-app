@@ -709,10 +709,27 @@ export class CallbackTaskRepository {
           return false;
       }
 
-      const dispatchCalendar = await tx.calendar.findFirst({ where: { id: objective.calendarId ?? handoff?.calendarId ?? "00000000-0000-0000-0000-000000000000", organizationId: action.organizationId! } });
-      if (!(await automaticContactDispatchAvailable(tx, { organizationId: action.organizationId!, contactId: action.contactId!,
-        timezone: dispatchCalendar?.timezone ?? "UTC", now: input.now, callbackId: callback.id,
-        agreed: callback.agentCallbackKind === "agreed", dailyLimit: 2 }))) return false;
+      const dispatchCalendar = await tx.calendar.findFirst({
+        where: {
+          id:
+            objective.calendarId ??
+            handoff?.calendarId ??
+            "00000000-0000-0000-0000-000000000000",
+          organizationId: action.organizationId!,
+        },
+      });
+      if (
+        !(await automaticContactDispatchAvailable(tx, {
+          organizationId: action.organizationId!,
+          contactId: action.contactId!,
+          timezone: dispatchCalendar?.timezone ?? "UTC",
+          now: input.now,
+          callbackId: callback.id,
+          agreed: callback.agentCallbackKind === "agreed",
+          dailyLimit: 2,
+        }))
+      )
+        return false;
       const firstAttempt = callback.objectiveAttempt === null;
       if (
         firstAttempt &&
@@ -993,6 +1010,7 @@ export class CallbackTaskRepository {
     id: string,
     scheduledAt: Date,
     expectedStatus: CallbackStatus,
+    recordAgreedReceipt = false,
   ): Promise<CallbackTask | null> {
     return this.prisma.$transaction(async (tx) => {
       const seed = await tx.callbackTask.findUnique({ where: { id } });
@@ -1036,7 +1054,8 @@ export class CallbackTaskRepository {
             timingBasis: "agreed",
           },
         });
-      if (moved) await recordAgreedCallbackAction(tx, moved);
+      if (moved && recordAgreedReceipt)
+        await recordAgreedCallbackAction(tx, moved);
       return moved ?? null;
     });
   }

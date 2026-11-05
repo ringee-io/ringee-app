@@ -4,8 +4,8 @@ Propuesta de producto e implementación · 1 de noviembre de 2026
 
 Revisión de alcance y experiencia · 2 de noviembre de 2026
 
-Estado (3 de noviembre de 2026): Step 0, Stage 1 y Stage 2 implementados detrás del piloto;
-ver §16, §17 y §18 para el alcance comprobado y la validación real pendiente. La
+Estado (5 de noviembre de 2026): Step 0 y Stages 1–3 implementados detrás del piloto;
+ver §16–§19 para el alcance comprobado y la validación real pendiente. La
 propuesta restante no está implementada. Basado
 en el código actual y en la
 [propuesta de activación rápida](PLAN_IA_VOICE_AGENTS_QUICK_ACTIONS.md), cuyas
@@ -1187,3 +1187,50 @@ Activar `humanFollowUpEnabled` solo en el piloto autorizado. No se hicieron
 migraciones de producción ni llamadas reales. Validación con proveedor, audio,
 contactos de prueba autorizados y liquidación real sigue pendiente. Detalles,
 pruebas y límites están en [FOLLOW_UP.md](../engineering/FOLLOW_UP.md).
+
+## 19. Estado de implementación · Stage 3 (5 de noviembre de 2026)
+
+Se verificó la asignación Stage 2 en `main` y se extendieron sus dueños actuales.
+La reserva resuelve solo el objetivo y ejecución exactos. `move_meeting` exige
+aceptación explícita de una hora ofrecida y revalida calendario, capacidad,
+participación y versión al escribir. Reagenda la misma cita futura; un callback
+con solicitud abierta puede crear un único reemplazo vinculado a una cita pasada
+o cancelada. El replay lee la acción guardada, sin atribuir a IA cambios humanos.
+
+La confirmación conserva su versión. No asistir no cancela: se registra de
+inmediato y se elige el correo tras la decisión final. La nueva herramienta pide
+respuesta explícita a cancelar; solo un sí cancela y libera la reserva. Una
+respuesta negativa o ambigua conserva la cita. Pedir otra hora mantiene abierto
+el objetivo, incluso después de cancelar la original.
+
+La recuperación conserva solicitud, idioma, preferencias y motivo. Disponibilidad
+sin reserva es progreso recuperable. Los límites persistidos se mantienen; nuevos
+objetivos permiten tres intentos, hasta dos recuperaciones y siete días. Sin
+respuesta se espera al menos un día; una interrupción, una hora, dentro de ventana.
+Recordatorios configurados a cuatro horas admiten citas cercanas con 20 minutos
+de margen y un segundo intento sin respuesta al menos 60 minutos después. Una
+reserva común por contacto limita concurrencia y dos llamadas automáticas diarias;
+un horario adicional expresamente acordado conserva su excepción.
+
+Resultado, acción atribuida, nota de contacto y obligaciones de correo se guardan
+atómicamente. El historial de llamada expone el ID estable; análisis tardío y
+reinicios no borran correcciones humanas. El tick existente repara recordatorios
+y calendario externo sin repetir la mutación. Hay recibos para reserva,
+confirmación, cambio/reemplazo, cancelación, rechazo sin reagendar y callback
+acordado. Configuraciones existentes conservan destinatarios; la política adoptada
+contacto/responsable permite entregar al responsable aunque falte email. Una
+dirección posterior entrega solo el recibo válido pendiente. Enviado significa
+aceptado por proveedor, independiente del éxito de negocio.
+
+La evidencia conserva acción/objetivo/llamada, tiempo anterior y nuevo, actor,
+cierre, recuperaciones e intervención. Se reutilizan costos autorizados del ledger;
+no se cuentan costos desconocidos como cero ni confirmación como asistencia real.
+
+**Despliegue:** después de Stage 1/2, migración
+`20261105090000_follow_up_resolution` y SQL concurrente
+`20261105090100_follow_up_resolution_indexes.sql`; regenerar Prisma y desplegar
+API/worker. Mantener el piloto restringido. No se ejecutan migraciones productivas
+ni llamadas reales. Pruebas de transacción, concurrencia, reinicio, recibos,
+permisos y validación pendiente con proveedor se detallan en
+[FOLLOW_UP.md](../engineering/FOLLOW_UP.md#stage-3-authoritative-resolution-and-receipts).
+Stage 4 conserva provisión, onboarding ampliado y rollout general.

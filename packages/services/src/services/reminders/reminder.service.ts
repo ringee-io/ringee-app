@@ -11,7 +11,6 @@ import {
   MeetingStatus,
   Prisma,
   ReminderRepository,
-  ReminderStatus,
   ReminderSubjectType,
   UserRepository,
   ContactRepository,

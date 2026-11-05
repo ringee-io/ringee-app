@@ -78,7 +78,10 @@ schema = schema.replace(/enum CallbackAgentKind \{[^}]*\}/, (block) =>
   block.replace(/^\s*policy\s*$/m, ""),
 );
 schema = schema.replace(/enum MeetingEmailKind \{[^}]*\}/, (block) =>
-  block.replace(/^\s*(booked|replaced|cancelled|declined_without_rescheduling|recovery_callback)\s*$/gm, ""),
+  block.replace(
+    /^\s*(booked|replaced|cancelled|declined_without_rescheduling|recovery_callback)\s*$/gm,
+    "",
+  ),
 );
 const temp = mkdtempSync(join(tmpdir(), "ringee-followup-schema-"));
 try {
@@ -106,6 +109,7 @@ try {
     "pending-migrations/20261103120100_follow_up_objectives_callback_indexes.sql",
     "migrations-pending/20261103140000_human_outcome_follow_up/migration.sql",
     "migrations-pending/20261105090000_follow_up_resolution/migration.sql",
+    "pending-migrations/20261105090100_follow_up_resolution_indexes.sql",
   ])
     sql(read(path));
   console.log(

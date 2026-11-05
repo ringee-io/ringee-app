@@ -633,6 +633,80 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
     return { service, requests, recorded, moves };
   }
 
+  it("deletes a cancelled event from its original account and safely replays absence", async () => {
+    const cancelled = { ...MEETING, status: "cancelled", scheduleVersion: 4 };
+    for (const provider of ["google", "microsoft"]) {
+      for (const status of [204, 404, 410]) {
+        const requests: string[] = [];
+        const saved: unknown[] = [];
+        globalThis.fetch = (async (url: string, init: RequestInit) => {
+          requests.push(url);
+          assert.equal(init.method, "DELETE");
+          return { ok: status === 204, status };
+        }) as never;
+        const service = new CalendarService(
+          {
+            findByIdForOwner: async () => ({
+              id: "integration-1",
+              provider,
+              accessToken: "test",
+              expiresAt: null,
+            }),
+          } as never,
+          {
+            findByIdForOwner: async () => cancelled,
+            recordExternalCancellation: async (...args: unknown[]) => {
+              saved.push(args);
+              return true;
+            },
+          } as never,
+          {} as never,
+          {} as never,
+          {} as never,
+        );
+        assert.equal(
+          (await service.cancelExternalEvent(ctx, cancelled as never)).status,
+          "synced",
+        );
+        assert.equal(saved.length, 1);
+        assert.match(
+          requests[0],
+          provider === "google"
+            ? /team%40group.calendar.google.com\/events\/event-1/
+            : /me\/events\/event-1/,
+        );
+      }
+    }
+  });
+
+  it("never deletes an event for an unowned or stale cancellation", async () => {
+    globalThis.fetch = (async () => {
+      throw new Error("Must not reach the provider");
+    }) as never;
+    for (const current of [
+      null,
+      { ...MEETING, status: "scheduled", scheduleVersion: 5 },
+    ]) {
+      const service = new CalendarService(
+        {} as never,
+        { findByIdForOwner: async () => current } as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+      assert.equal(
+        (
+          await service.cancelExternalEvent(ctx, {
+            ...MEETING,
+            status: "cancelled",
+            scheduleVersion: 4,
+          } as never)
+        ).status,
+        "pending",
+      );
+    }
+  });
+
   const google = {
     id: "integration-1",
     provider: "google",
