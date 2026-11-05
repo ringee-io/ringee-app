@@ -56,14 +56,20 @@ Two MV3 constraints shape the panel and the worker (2026-11-05):
   Clerk client per request and always has a current token, so the panel asks it
   (`REQUEST_AUTH_TOKEN`, `lib/panel-token.ts`) whenever it has no token of its
   own or the API refused one. The worker answers extension pages only, never a
-  content script.
+  content script. It mints the token for the request and says whose session it
+  is. The panel uses it only for the user and workspace it shows, because the
+  browser may have signed in to another one since the panel loaded.
 - **Chrome stops the worker during a quiet call** (~30 s without an event; the
   offscreen engine reports only state changes). The call snapshot is therefore
-  mirrored into `chrome.storage.session` (`lib/call-snapshot.ts`), and a woken
-  worker reads it back before handling any message. Anything the wrap-up needs
-  (contact, call id, start time) belongs in the snapshot, not in worker memory:
-  without the contact, the post-call view cannot schedule a callback or book a
-  meeting.
+  mirrored into `chrome.storage.session` (`lib/call-snapshot.ts`). A woken
+  worker reads it back before it handles any message that reads or writes the
+  call; a token request does not wait for it. Anything the wrap-up needs
+  (contact, call id, start and end time) belongs in the snapshot, not in worker
+  memory: without the contact, the post-call view cannot schedule a callback or
+  book a meeting. Because the snapshot outlives the worker, it also records
+  whose call it is: a finished call's wrap-up goes only to that user. A dial
+  that a stopped worker was still authorizing is dropped when the next worker
+  wakes.
 
 ### CLI (`apps/agent-cli`, published as `ringee`)
 

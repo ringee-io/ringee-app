@@ -19,7 +19,12 @@ import {
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
 import { RingeeApi, type CurrentUser } from "../lib/ringee-api";
 import { panelTokenProvider, workerTokenSource } from "../lib/panel-token";
-import { ENDING_TEXT, ERROR_COPY, statusTextFor } from "../lib/call-flow";
+import {
+  ENDING_TEXT,
+  ERROR_COPY,
+  callDurationSeconds,
+  statusTextFor,
+} from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import {
   ensureMicrophoneAccess,
@@ -77,7 +82,7 @@ function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
 }
 
 export function CallExperience() {
-  const { getToken } = useAuth();
+  const { getToken, userId, orgId } = useAuth();
   const [snap, setSnap] = useState<CallSnapshotMsg>(EMPTY_SNAPSHOT);
   const [muted, setMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
@@ -94,10 +99,18 @@ export function CallExperience() {
     reset: resetCallStore,
   } = useCallStore();
 
+  // A token borrowed from the worker is used only for the user and workspace
+  // this panel shows.
   const api = useMemo(
     () =>
-      new RingeeApi(panelTokenProvider((opts) => getToken(opts), workerToken)),
-    [getToken],
+      new RingeeApi(
+        panelTokenProvider(
+          (opts) => getToken(opts),
+          workerToken,
+          () => ({ userId, orgId }),
+        ),
+      ),
+    [getToken, userId, orgId],
   );
 
   // Identity / admin flag / workspace label for the shell header.
@@ -143,11 +156,10 @@ export function CallExperience() {
   // Drive the shared post-call (outcome/notes) phase when the call ends.
   useEffect(() => {
     if (prevState.current !== "ended" && snap.state === "ended") {
-      const duration = snap.startedAt
-        ? Math.max(0, Math.round((Date.now() - snap.startedAt) / 1000))
-        : 0;
       enterPostCallPhase({
-        duration,
+        // Up to the call's recorded end: a panel opened later on the wrap-up
+        // must not count the time since.
+        duration: callDurationSeconds(snap),
         contactName: snap.contact?.name ?? null,
         contactId: snap.contact?.id ?? null,
         // prepare-call returns no Ringee callId up front (the Call row is created

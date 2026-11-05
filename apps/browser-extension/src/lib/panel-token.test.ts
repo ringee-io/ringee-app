@@ -3,37 +3,46 @@ import { MessageType } from "@ringee/dialer-core/contracts";
 import { panelTokenProvider, workerTokenSource } from "./panel-token";
 import { RingeeApi } from "./ringee-api";
 
+/** Who the panel shows, and a worker token minted for that same session. */
+const SHOWN = { userId: "user_1", orgId: "org_1" };
+const shown = () => SHOWN;
+const borrowed = (token: string) => ({ token, ...SHOWN });
+
 describe("panelTokenProvider", () => {
   it("uses the panel's own token while it has one", async () => {
     const clerk = vi.fn(async () => "own-token");
-    const worker = vi.fn(async () => "worker-token");
+    const worker = vi.fn(async () => borrowed("worker-token"));
 
-    await expect(panelTokenProvider(clerk, worker)()).resolves.toBe(
+    await expect(panelTokenProvider(clerk, worker, shown)()).resolves.toBe(
       "own-token",
     );
     expect(worker).not.toHaveBeenCalled();
   });
 
   it("asks the worker once the panel's own token cannot be renewed", async () => {
-    const worker = vi.fn(async () => "worker-token");
+    const worker = vi.fn(async () => borrowed("worker-token"));
 
-    await expect(panelTokenProvider(async () => null, worker)()).resolves.toBe(
-      "worker-token",
-    );
     await expect(
-      panelTokenProvider(async () => {
-        throw new Error("Clerk could not renew the session token");
-      }, worker)(),
+      panelTokenProvider(async () => null, worker, shown)(),
+    ).resolves.toBe("worker-token");
+    await expect(
+      panelTokenProvider(
+        async () => {
+          throw new Error("Clerk could not renew the session token");
+        },
+        worker,
+        shown,
+      )(),
     ).resolves.toBe("worker-token");
     expect(worker).toHaveBeenCalledTimes(2);
   });
 
   it("goes to the worker first when the API refused the token", async () => {
     const clerk = vi.fn(async () => "own-token");
-    const worker = vi.fn(async () => "worker-token");
+    const worker = vi.fn(async () => borrowed("worker-token"));
 
     await expect(
-      panelTokenProvider(clerk, worker)({ forceRefresh: true }),
+      panelTokenProvider(clerk, worker, shown)({ forceRefresh: true }),
     ).resolves.toBe("worker-token");
     expect(clerk).not.toHaveBeenCalled();
   });
@@ -43,9 +52,9 @@ describe("panelTokenProvider", () => {
       opts?.skipCache ? "refreshed-token" : null,
     );
 
-    await expect(panelTokenProvider(clerk, async () => null)()).resolves.toBe(
-      "refreshed-token",
-    );
+    await expect(
+      panelTokenProvider(clerk, async () => null, shown)(),
+    ).resolves.toBe("refreshed-token");
     expect(clerk).toHaveBeenLastCalledWith({ skipCache: true });
   });
 
@@ -57,10 +66,43 @@ describe("panelTokenProvider", () => {
       async () => {
         throw new Error("no worker");
       },
+      shown,
     );
 
     await expect(provider()).resolves.toBeNull();
     await expect(provider({ forceRefresh: true })).resolves.toBeNull();
+  });
+
+  // The browser's session moved on since the panel loaded: its token would act
+  // for someone the panel does not show.
+  it("refuses a borrowed token for another user or workspace", async () => {
+    const clerk = vi.fn(async (opts?: { skipCache?: boolean }) =>
+      opts?.skipCache ? "panel-refreshed-token" : null,
+    );
+    const others = [
+      { token: "t", userId: "user_2", orgId: "org_1" },
+      { token: "t", userId: "user_1", orgId: "org_2" },
+      { token: "t", userId: "user_1", orgId: null },
+      { token: "t" },
+    ];
+
+    for (const answer of others) {
+      const provider = panelTokenProvider(clerk, async () => answer, shown);
+      await expect(provider()).resolves.toBeNull();
+      await expect(provider({ forceRefresh: true })).resolves.toBeNull();
+    }
+    // Nor does it renew the session the browser left.
+    expect(clerk).not.toHaveBeenCalledWith({ skipCache: true });
+  });
+
+  it("takes a borrowed token in the panel's personal workspace", async () => {
+    const provider = panelTokenProvider(
+      async () => null,
+      async () => ({ token: "worker-token", userId: "user_1", orgId: null }),
+      () => ({ userId: "user_1", orgId: undefined }),
+    );
+
+    await expect(provider()).resolves.toBe("worker-token");
   });
 });
 
@@ -89,7 +131,8 @@ describe("panelTokenProvider with RingeeApi", () => {
     const api = new RingeeApi(
       panelTokenProvider(
         async () => null,
-        async () => "worker-token",
+        async () => borrowed("worker-token"),
+        shown,
       ),
     );
 
@@ -112,7 +155,8 @@ describe("panelTokenProvider with RingeeApi", () => {
     const api = new RingeeApi(
       panelTokenProvider(
         async () => "expired-token",
-        async () => "worker-token",
+        async () => borrowed("worker-token"),
+        shown,
       ),
     );
 
@@ -123,10 +167,12 @@ describe("panelTokenProvider with RingeeApi", () => {
 });
 
 describe("workerTokenSource", () => {
-  it("asks the worker and returns its token", async () => {
-    const send = vi.fn(async () => ({ token: "worker-token" }));
+  it("asks the worker and returns its token, with whose it is", async () => {
+    const send = vi.fn(async () => borrowed("worker-token"));
 
-    await expect(workerTokenSource(send)()).resolves.toBe("worker-token");
+    await expect(workerTokenSource(send)()).resolves.toEqual(
+      borrowed("worker-token"),
+    );
     expect(send).toHaveBeenCalledWith({ type: MessageType.RequestAuthToken });
   });
 
@@ -143,17 +189,17 @@ describe("workerTokenSource", () => {
     const first = token();
     const second = token();
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
-    answer({ token: "worker-token" });
+    answer(borrowed("worker-token"));
 
     await expect(Promise.all([first, second])).resolves.toEqual([
-      "worker-token",
-      "worker-token",
+      borrowed("worker-token"),
+      borrowed("worker-token"),
     ]);
     expect(send).toHaveBeenCalledTimes(1);
 
     // Settled: the next caller asks again.
-    send.mockImplementationOnce(async () => ({ token: "next-token" }));
-    await expect(token()).resolves.toBe("next-token");
+    send.mockImplementationOnce(async () => borrowed("next-token"));
+    await expect(token()).resolves.toEqual(borrowed("next-token"));
     expect(send).toHaveBeenCalledTimes(2);
   });
 

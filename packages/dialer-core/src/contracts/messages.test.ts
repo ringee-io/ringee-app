@@ -179,6 +179,16 @@ describe("isAuthTokenResult", () => {
     expect(isAuthTokenResult({ token: "eyJ.a.b" })).toBe(true);
     expect(isAuthTokenResult({ token: null })).toBe(true);
   });
+  it("accepts whose session the token is, or that it has none", () => {
+    expect(
+      isAuthTokenResult({ token: "eyJ.a.b", userId: "user_1", orgId: "org_1" }),
+    ).toBe(true);
+    expect(
+      isAuthTokenResult({ token: "eyJ.a.b", userId: "user_1", orgId: null }),
+    ).toBe(true);
+    expect(isAuthTokenResult({ token: "eyJ.a.b", userId: 1 })).toBe(false);
+    expect(isAuthTokenResult({ token: "eyJ.a.b", orgId: {} })).toBe(false);
+  });
   it("rejects anything else, a closed channel's undefined included", () => {
     expect(isAuthTokenResult(undefined)).toBe(false);
     expect(isAuthTokenResult({})).toBe(false);

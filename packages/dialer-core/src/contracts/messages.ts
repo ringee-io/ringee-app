@@ -127,6 +127,17 @@ export interface CallSnapshotMsg {
    */
   concurrentCall?: boolean;
   startedAt?: number;
+  /**
+   * When the call ended or failed (epoch ms). The snapshot outlives the call,
+   * so a wrap-up opened later counts the call up to here, not up to now.
+   */
+  endedAt?: number;
+  /**
+   * The Clerk user whose dial this is. The snapshot outlives the worker, and a
+   * finished call's wrap-up goes only to that user — never to whoever signs in
+   * to the same browser after them.
+   */
+  userId?: string;
   muted?: boolean;
   onHold?: boolean;
   error?: string;
@@ -164,9 +175,16 @@ export interface RequestAuthTokenMsg {
   type: typeof MessageType.RequestAuthToken;
 }
 
-/** background → the sender of a REQUEST_AUTH_TOKEN : the token, or null. */
+/**
+ * background → the sender of a REQUEST_AUTH_TOKEN : a token minted for the
+ * request, or null, and whose session it belongs to. The worker's session is
+ * the browser's current one, which can be another user or workspace than the
+ * panel loaded with, so the panel uses the token only when they match.
+ */
 export interface AuthTokenResult {
   token: string | null;
+  userId?: string | null;
+  orgId?: string | null;
 }
 
 export type RingeeMessage =
@@ -270,11 +288,16 @@ export function isRequestAuthToken(m: unknown): m is RequestAuthTokenMsg {
   return isObject(m) && m.type === MessageType.RequestAuthToken;
 }
 
+const isOptionalId = (v: unknown) =>
+  v === undefined || v === null || typeof v === "string";
+
 /** A worker's answer; a closed channel's `undefined` is not one. */
 export function isAuthTokenResult(m: unknown): m is AuthTokenResult {
   return (
     isObject(m) &&
-    (m.token === null || (typeof m.token === "string" && m.token.length > 0))
+    (m.token === null || (typeof m.token === "string" && m.token.length > 0)) &&
+    isOptionalId(m.userId) &&
+    isOptionalId(m.orgId)
   );
 }
 

@@ -71,6 +71,20 @@ async function getIdentity(): Promise<{
   if (!c.user) return null;
   return { userId: c.user.id, orgId: c.organization?.id };
 }
+/**
+ * A token for a side panel whose own lapsed or was refused, minted for it
+ * rather than read from Clerk's cache, and whose session it is: the panel uses
+ * it only for the user and workspace it shows (lib/panel-token.ts).
+ */
+async function getPanelAuth(): Promise<AuthTokenResult> {
+  const c = await clerk();
+  if (!c.session) return { token: null };
+  return {
+    token: await c.session.getToken({ skipCache: true }),
+    userId: c.user?.id ?? null,
+    orgId: c.organization?.id ?? null,
+  };
+}
 const api = new RingeeApi(getToken);
 
 /**
@@ -129,6 +143,8 @@ const NO_CALL: Partial<Omit<CallSnapshotMsg, "type">> = {
   dncBlocked: false,
   concurrentCall: false,
   startedAt: undefined,
+  endedAt: undefined,
+  userId: undefined,
   telnyxSessionId: undefined,
 };
 
@@ -205,6 +221,8 @@ async function placeDial(
     dncBlocked: false,
     concurrentCall: false,
     startedAt: undefined,
+    endedAt: undefined,
+    userId: undefined,
     // Never let a previous call's Telnyx id leak into this call. Once the new
     // id arrives, callEventSnapshotPatch keeps it through the final SDK event.
     telnyxSessionId: undefined,
@@ -239,7 +257,10 @@ async function placeDial(
     // authorizes it, so there is nothing to dial with on its failure.
     const code = e instanceof ApiError ? e.code : "UNKNOWN";
     const serverMessage = e instanceof ApiError ? e.message : null;
-    setSnapshot(failureSnapshot(code, serverMessage));
+    setSnapshot({
+      ...failureSnapshot(code, serverMessage),
+      userId: identity.userId,
+    });
     return false;
   }
 
@@ -253,6 +274,7 @@ async function placeDial(
     contact: prepared.contact,
     callId: prepared.callId ?? undefined,
     startedAt: Date.now(),
+    userId: identity.userId,
   });
 
   await ensureOffscreen();
@@ -264,6 +286,38 @@ async function placeDial(
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
+/**
+ * Settles once a woken worker has the call snapshot back. A dial the backend
+ * was still authorizing died with the worker that placed it: nothing moves it
+ * past "requesting" (no leg exists, and the backend's dial lease lapses on its
+ * own), and the panel would wait on it for good. It is no call.
+ */
+const restored = calls.restored.then(() => {
+  if (!currentDial && calls.current.state === "requesting") {
+    setSnapshot(NO_CALL);
+  }
+});
+
+/**
+ * A finished call's wrap-up names its contact and outlives the worker, so it
+ * goes only to the user who placed the call: once someone else is signed in
+ * to this browser, or no one is, it is forgotten before it is shown.
+ */
+async function forgetAnotherUsersWrapUp(): Promise<void> {
+  const snapshot = calls.current;
+  if (snapshot.state !== "ended" || !snapshot.userId) return;
+  let identity;
+  try {
+    identity = await getIdentity();
+  } catch {
+    // Clerk could not be asked: keep it, rather than lose the user's own.
+    return;
+  }
+  // A dial, or the wrap-up's close, replaced it meanwhile.
+  if (calls.current !== snapshot) return;
+  if (identity?.userId !== snapshot.userId) setSnapshot(NO_CALL);
+}
+
 /** Handles one message once the call snapshot has been read back. */
 function route(
   msg: unknown,
@@ -328,8 +382,10 @@ function route(
     return;
   }
   if (isRequestSnapshot(msg)) {
-    sendResponse(calls.current);
-    chrome.runtime.sendMessage(calls.current).catch(() => {});
+    void forgetAnotherUsersWrapUp().then(() => {
+      sendResponse(calls.current);
+      chrome.runtime.sendMessage(calls.current).catch(() => {});
+    });
     return;
   }
   if (isEndCall(msg)) {
@@ -345,8 +401,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!isExtensionPage(sender)) return false;
     // A fresh Clerk client, like a dial's: its token is current even when the
     // side panel's own copy could not renew one (lib/panel-token.ts).
-    getToken().then(
-      (token) => sendResponse({ token } satisfies AuthTokenResult),
+    getPanelAuth().then(
+      (auth) => sendResponse(auth),
       () => sendResponse({ token: null } satisfies AuthTokenResult),
     );
     return true;
@@ -354,7 +410,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Everything else reads or writes the call snapshot, which a worker started
   // mid-call reads back from session storage first. Waiting on the same
   // promise keeps the messages in the order they arrived.
-  void calls.restored.then(() => route(msg, sender, sendResponse));
+  void restored.then(() => route(msg, sender, sendResponse));
   // The channel stays open for the two messages that get an answer.
   return isDialRequest(msg) || isRequestSnapshot(msg);
 });

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { MessageType } from "@ringee/dialer-core/contracts";
+import {
+  MessageType,
+  type CallSnapshotMsg,
+} from "@ringee/dialer-core/contracts";
 import {
   ERROR_COPY,
   buildStartCall,
+  callDurationSeconds,
   callEventSnapshotPatch,
   createCommandFilter,
   failureSnapshot,
@@ -69,6 +73,59 @@ describe("callEventSnapshotPatch", () => {
     );
 
     expect(patch.telnyxSessionId).toBe("telnyx-session-2");
+  });
+
+  it("records when the call ended, once", () => {
+    const live: CallSnapshotMsg = {
+      type: MessageType.CallSnapshot,
+      state: "active",
+    };
+    expect(
+      callEventSnapshotPatch(
+        live,
+        { type: MessageType.CallEvent, state: "held" },
+        5_000,
+      ),
+    ).not.toHaveProperty("endedAt");
+
+    const ended = callEventSnapshotPatch(
+      live,
+      { type: MessageType.CallEvent, state: "ended" },
+      5_000,
+    );
+    expect(ended.endedAt).toBe(5_000);
+    // A repeated end report keeps the first one.
+    expect(
+      callEventSnapshotPatch(
+        { ...live, ...ended },
+        { type: MessageType.CallEvent, state: "ended" },
+        9_000,
+      ).endedAt,
+    ).toBe(5_000);
+    expect(
+      callEventSnapshotPatch(
+        live,
+        { type: MessageType.CallEvent, state: "failed" },
+        6_000,
+      ).endedAt,
+    ).toBe(6_000);
+  });
+});
+
+describe("callDurationSeconds", () => {
+  it("counts up to the recorded end, however late the wrap-up opens", () => {
+    expect(
+      callDurationSeconds({ startedAt: 1_000, endedAt: 66_000 }, 3_600_000),
+    ).toBe(65);
+  });
+
+  it("counts up to now when no end was recorded", () => {
+    expect(callDurationSeconds({ startedAt: 1_000 }, 31_400)).toBe(30);
+  });
+
+  it("is zero without a start, and never negative", () => {
+    expect(callDurationSeconds({}, 10_000)).toBe(0);
+    expect(callDurationSeconds({ startedAt: 10_000 }, 5_000)).toBe(0);
   });
 });
 
