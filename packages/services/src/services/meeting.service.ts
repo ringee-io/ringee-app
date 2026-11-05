@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import {
   MeetingRepository,
+  MeetingAutomationAction,
   CallRepository,
   Meeting,
   MeetingAttendanceInput,
@@ -25,6 +26,7 @@ import {
   OrganizationRepository,
   ReminderSubjectType,
 } from "@ringee/database";
+import { automationOrganizationFilter } from "./voice-agents/automations/automation-access";
 import { OwnershipContext } from "@ringee/platform";
 import {
   CalendarService,
@@ -152,6 +154,7 @@ export class MeetingService {
       bookingTimeZone?: string;
       /** Voice-agent call claimed atomically with this protected booking. */
       agentCallId?: string;
+      actorAgentId?: string;
       /**
        * The member the meeting is with. Omitted, it is whoever is booking —
        * "the member who scheduled it is proposed automatically" (CAL-003). The
@@ -223,6 +226,7 @@ export class MeetingService {
       notes: dto.notes,
       calendarId: resolvedCalendar.calendar.id,
       agentCallId: dto.agentCallId,
+      actorAgentId: dto.actorAgentId,
       responsibleUserId: dto.responsibleUserId ?? ctx.userId,
       leadEmail: normalizeEmail(dto.attendeeEmail),
     };
@@ -260,7 +264,7 @@ export class MeetingService {
       ? await this.meetingRepo.createIfAvailable(
           ctx,
           meetingData,
-          resolvedCalendar.scope,
+          { ...resolvedCalendar.scope, expectedCalendarUpdatedAt: resolvedCalendar.calendar.updatedAt },
           availabilityRuleId,
         )
       : await this.meetingRepo.create(ctx, meetingData);
@@ -519,6 +523,7 @@ export class MeetingService {
       durationMinutes: number;
       /** The agent call that moves it: the email speaks with its voice. */
       agentCallId: string;
+      actorAgentId?: string;
     },
   ): Promise<MeetingMoveOutcome> {
     // The same re-check a booking makes: the time must be one the calendar
@@ -545,6 +550,7 @@ export class MeetingService {
         meetingId: input.meetingId,
         expectedScheduleVersion: input.expectedScheduleVersion,
         scheduledAt: input.scheduledAt,
+        actorAgentId: input.actorAgentId,
         email: {
           // One email per move: a repeat of the same move is the same email.
           idempotencyKey: `meeting:${input.meetingId}:v${
@@ -553,7 +559,7 @@ export class MeetingService {
           agentCallId: input.agentCallId,
         },
       },
-      input.resolvedCalendar.scope,
+      { ...input.resolvedCalendar.scope, expectedCalendarUpdatedAt: input.resolvedCalendar.calendar.updatedAt },
       slot.availabilityRuleId,
     );
     // A repeat finishes what the first attempt may not have: every step is
@@ -571,31 +577,43 @@ export class MeetingService {
    */
   async completeRepeatedMove(
     ctx: OwnershipContext,
-    input: {
-      meetingId: string;
-      expectedScheduleVersion: number;
-      scheduledAt: Date;
-    },
+    input: { meetingId: string; expectedScheduleVersion: number; scheduledAt: Date; handoffId?: string },
   ): Promise<Extract<MeetingMoveOutcome, { result: "moved" }> | null> {
-    const meeting = (await this.getMeetingById(ctx, input.meetingId).catch(
-      () => null,
-    )) as Extract<MeetingMoveOutcome, { result: "moved" }>["meeting"] | null;
-    if (
-      !meeting ||
-      (meeting.status !== MeetingStatus.scheduled &&
-        meeting.status !== MeetingStatus.rescheduled) ||
-      meeting.scheduleVersion !== input.expectedScheduleVersion + 1 ||
-      new Date(meeting.scheduledAt).getTime() !== input.scheduledAt.getTime()
-    ) {
-      return null;
+    if (!input.handoffId) return null;
+    const action = await this.meetingRepo.findAgentAction(ctx, `reschedule:${input.handoffId}`);
+    if (!action) return null;
+    return { result: "moved", meeting: action.meeting, previousScheduledAt: action.previousScheduledAt,
+      repeated: true, replacement: action.kind === "replaced",
+      changedSinceAction: action.meeting.scheduleVersion !== action.scheduleVersion || action.meeting.scheduledAt.getTime() !== action.scheduledAt.getTime() };
+  }
+
+  recordAgentDecision(ctx: OwnershipContext, input: Parameters<MeetingRepository["recordAgentDecision"]>[1]): Promise<MeetingAutomationAction | null> {
+    return this.meetingRepo.recordAgentDecision(ctx, input);
+  }
+
+  /** Durable repair, on the existing reminder tick, with no dial side effect. */
+  async repairAutomationActions(): Promise<void> {
+    const actions = await this.meetingRepo.listPendingMaintenance(automationOrganizationFilter());
+    for (const action of actions) {
+      await this.meetingRepo.deferMaintenance(action.id);
+      const meeting = action.meeting;
+      const ctx = { userId: meeting.userId, organizationId: meeting.organizationId };
+      try {
+        if (meeting.status === "cancelled") {
+          await this.reminderService.cancelForSubject(ReminderSubjectType.meeting, meeting.id);
+          await this.reminderService.cancelMeetingCalls(meeting.id, "meeting_cancelled");
+        } else if (["booked", "rescheduled", "replaced"].includes(action.kind)) {
+          await this.reminderService.replanMeetingCalls(meeting);
+          await this.reminderService.rescheduleForSubject({ subjectType: ReminderSubjectType.meeting,
+            subjectId: meeting.id, userId: meeting.userId, organizationId: meeting.organizationId, fireAt: meeting.scheduledAt });
+          const synced = await this.retryExternalSync(ctx, meeting.id);
+          if (!["synced", "not_required"].includes(synced.externalSyncStatus)) continue;
+        }
+        await this.meetingRepo.completeMaintenance(action.id);
+      } catch {
+        this.logger.warn(`Meeting action ${action.id} is awaiting projection repair`);
+      }
     }
-    await this.afterMove(ctx, meeting);
-    return {
-      result: "moved",
-      meeting,
-      previousScheduledAt: null,
-      repeated: true,
-    };
   }
 
   /**

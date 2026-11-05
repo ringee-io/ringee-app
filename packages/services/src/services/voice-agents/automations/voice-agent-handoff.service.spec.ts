@@ -886,7 +886,8 @@ function reminderWorker(
       Object.assign(row, { status, finishedAt: clock, leaseExpiresAt: null });
       return true;
     },
-    listPlacedBefore: async (before: Date) =>
+    listUnansweredForRetry: async () => [],
+        listPlacedBefore: async (before: Date) =>
       [...w.executions.values()]
         .filter(
           (row) =>
@@ -1682,7 +1683,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: start.toISOString() },
+      { time_confirmed: true, start: start.toISOString() },
     );
     assert.equal(result.ok, true);
     assert.equal(t.moves.length, 1);
@@ -1725,7 +1726,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, true);
     if (!result.ok) return;
@@ -1736,7 +1737,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
   it("moves nothing for an agent nothing was handed to, or that handed the call away", async () => {
     const w = world();
     const t = tools(w);
-    const root = await t.service.moveMeeting("agent-rem", REM_SECRET, CC, {
+    const root = await t.service.moveMeeting("agent-rem", REM_SECRET, CC, { time_confirmed: true,
       start: later().toISOString(),
     });
     assert.equal(root.ok, false);
@@ -1747,7 +1748,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-rem",
       REM_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(source.ok, false);
     assert.match(source.ok ? "" : source.error, /handed to another assistant/);
@@ -1762,7 +1763,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /get_available_slots again/);
@@ -1777,7 +1778,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /was not moved/);
@@ -1791,7 +1792,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: new Date(Date.now() - 60_000).toISOString() },
+      { time_confirmed: true, start: new Date(Date.now() - 60_000).toISOString() },
     );
     assert.equal(result.ok, false);
     assert.deepEqual(t.moves, []);
@@ -1813,11 +1814,12 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: start.toISOString() },
+      { time_confirmed: true, start: start.toISOString() },
     );
     assert.equal(result.ok, true);
     assert.deepEqual(t.repeats, [
       {
+        handoffId: [...w.handoffs.values()][0]!.id,
         meetingId: "meeting-1",
         expectedScheduleVersion: 3,
         scheduledAt: start,
@@ -1835,7 +1837,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /already settled/);
@@ -1854,7 +1856,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /no email was sent/);
@@ -1869,7 +1871,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
         "agent-sched",
         SCHED_SECRET,
         CC,
-        { start },
+        { time_confirmed: true, start },
       );
       assert.equal(result.ok, false);
       assert.match(result.ok ? "" : result.error, /timezone offset/);

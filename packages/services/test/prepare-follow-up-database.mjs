@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 // Test-only bootstrap, never a production migration runner. Start with an empty
-// local database; derive the preceding schema and apply the real Stage 1/2 SQL.
+// local database; derive the preceding schema and apply the real Stage 1/2/3 SQL.
 const url = new URL(process.env.FOLLOWUP_DATABASE_URL);
 if (
   !["localhost", "127.0.0.1"].includes(url.hostname) ||
@@ -40,6 +40,7 @@ const prismaDir = join(root, "packages/database/prisma");
 const read = (path) => readFileSync(join(prismaDir, path), "utf8");
 let schema = read("schema.prisma");
 for (const name of [
+  "MeetingAutomationAction",
   "PendingActionFollowUp",
   "PendingActionFollowUpEvent",
   "FollowUpState",
@@ -51,8 +52,13 @@ for (const name of [
   schema = schema.replace(block, "");
 }
 schema = schema.replace(/^.*\bPendingActionFollowUp\??\s*.*$/gm, "");
+schema = schema.replace(/^.*\bMeetingAutomationAction\??\s*.*$/gm, "");
 for (const [model, fields] of [
   ["Call", ["outcomeRevision", "outcomeCommitment"]],
+  ["Meeting", ["replacesMeetingId"]],
+  ["ContactNote", ["automationActionId", "actorType", "agentId"]],
+  ["MeetingEmailDelivery", ["actionId", "audience"]],
+  ["MeetingReminderExecution", ["dispatchCommittedAt"]],
   [
     "CallbackTask",
     ["followUpId", "sourceRevision", "objectiveAttempt", "dispatchCommittedAt"],
@@ -70,6 +76,9 @@ for (const [model, fields] of [
 }
 schema = schema.replace(/enum CallbackAgentKind \{[^}]*\}/, (block) =>
   block.replace(/^\s*policy\s*$/m, ""),
+);
+schema = schema.replace(/enum MeetingEmailKind \{[^}]*\}/, (block) =>
+  block.replace(/^\s*(booked|replaced|cancelled|declined_without_rescheduling|recovery_callback)\s*$/gm, ""),
 );
 const temp = mkdtempSync(join(tmpdir(), "ringee-followup-schema-"));
 try {
@@ -96,6 +105,7 @@ try {
     "migrations-pending/20261103120000_follow_up_objectives/migration.sql",
     "pending-migrations/20261103120100_follow_up_objectives_callback_indexes.sql",
     "migrations-pending/20261103140000_human_outcome_follow_up/migration.sql",
+    "migrations-pending/20261105090000_follow_up_resolution/migration.sql",
   ])
     sql(read(path));
   console.log(

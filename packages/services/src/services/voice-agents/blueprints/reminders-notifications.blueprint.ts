@@ -10,7 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
-import { buildConfirmAttendanceTool } from "./attendance.tool";
+import { buildConfirmAttendanceTool, buildFinishMeetingResponseTool } from "./attendance.tool";
 import { buildScheduleCallbackTool } from "./callback.tool";
 import { buildHumanSupportTool } from "./human-support.tool";
 import {
@@ -161,6 +161,11 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  confirmation by email, ask for the address, read it back, and only",
       "  after they confirm it pass it as `email`.",
       ...this.moveMeetingInstructions(ctx.handoffDestinationName ?? null),
+      "- If they decline another time, ask explicitly whether they want to cancel",
+      "  this appointment. Call `finish_meeting_response` with their actual answer.",
+      "  Only an unambiguous yes to cancellation permits cancellation. A no or",
+      "  unclear answer retains the booking. Attendance decline alone never cancels.",
+      "  Announce the stored decision only after that tool succeeds.",
       "",
       "## Ending the call",
       "",
@@ -178,12 +183,12 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
   private moveMeetingInstructions(destination: string | null): string[] {
     if (!destination) {
       return [
-        "- You cannot move or cancel the meeting. If they want another time,",
+        "- You cannot move the meeting. If they want another time,",
         '  record "declined" with that in the note; the team will follow up.',
       ];
     }
     return [
-      "- You cannot move or cancel the meeting yourself. When they cannot",
+      "- You cannot move the meeting yourself. When they cannot",
       '  attend, record "declined" first, then follow that tool\'s',
       `  speech_instruction: it tells you whether ${destination}, the`,
       "  scheduling assistant, can find another time with them on this call.",
@@ -261,6 +266,7 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {
     const tools: VoiceAgentTool[] = [
       buildConfirmAttendanceTool(ctx),
+      buildFinishMeetingResponseTool(ctx),
       buildScheduleCallbackTool(ctx),
       buildHumanSupportTool(ctx),
       {

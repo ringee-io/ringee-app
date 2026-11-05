@@ -721,6 +721,7 @@ model DeletedUser {
 }
 
 model Call {
+  automationActions MeetingAutomationAction[]
   id              String     @id @default(uuid()) @db.Uuid
   userId          String?    @db.Uuid
   organizationId  String?    @db.Uuid
@@ -1401,6 +1402,10 @@ model Contact {
 }
 
 model ContactNote {
+  /// Stable attribution for tool results; human edits/deletions are never repaired over.
+  automationActionId String? @unique @db.Uuid
+  actorType String @default("human")
+  agentId String? @db.Uuid
   id        String    @id @default(uuid()) @db.Uuid
   contactId String    @db.Uuid
   userId    String    @db.Uuid
@@ -1987,6 +1992,9 @@ model ContactListEntry {
 }
 
 model Meeting {
+  automationActions MeetingAutomationAction[]
+  /// A recovery booking preserves the historical appointment it replaces.
+  replacesMeetingId String? @db.Uuid
   id             String        @id @default(uuid()) @db.Uuid
   userId         String        @db.Uuid
   organizationId String?       @db.Uuid
@@ -4148,7 +4156,7 @@ model PendingActionFollowUp {
   attemptCount       Int                    @default(0)
   maxAttempts        Int                    @default(3)
   recoveryCount      Int                    @default(0)
-  maxRecoveries      Int                    @default(1)
+  maxRecoveries      Int                    @default(2)
   expiresAt          DateTime
   reviewAt           DateTime               @default(now())
   lastActionAt       DateTime               @default(now())
@@ -5071,6 +5079,8 @@ enum MeetingReminderExecutionStatus {
 /// atomically when due, and re-validated against the meeting right before the
 /// dial (AGENT-019).
 model MeetingReminderExecution {
+  /// Final dispatch fence, retained while placement is uncertain.
+  dispatchCommittedAt DateTime?
   id              String                         @id @default(uuid()) @db.Uuid
   /// The meeting's workspace; the call itself is placed as the agent's owner.
   userId          String                         @db.Uuid
@@ -5122,6 +5132,11 @@ model MeetingReminderExecution {
 }
 
 enum MeetingEmailKind {
+  booked
+  replaced
+  cancelled
+  declined_without_rescheduling
+  recovery_callback
   /// The shared confirmation: lead and member in To, admins in CC.
   attendance_confirmed
   /// The lead cannot attend: the member and admins hear about it.
@@ -5147,6 +5162,10 @@ enum MeetingEmailDeliveryStatus {
 /// a repeated confirmation a no-op instead of a second email; the provider's
 /// own idempotency only lasts a day, so this row is what is checked first.
 model MeetingEmailDelivery {
+  actionId String? @db.Uuid
+  action MeetingAutomationAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  /// Legacy workspace policy is preserved. New policy sends independent audiences.
+  audience String @default("legacy")
   id                  String                     @id @default(uuid()) @db.Uuid
   userId              String                     @db.Uuid
   organizationId      String                     @db.Uuid
@@ -5192,6 +5211,41 @@ model MeetingEmailDelivery {
   @@index([meetingId])
   @@index([organizationId, updatedAt])
   @@index([userId])
+  @@index([actionId])
+}
+
+/// Immutable tool evidence and its durable maintenance obligation. Owned by
+/// MeetingRepository; the existing reminder tick repairs external projections.
+model MeetingAutomationAction {
+  id String @id @default(uuid()) @db.Uuid
+  actionKey String @unique
+  organizationId String @db.Uuid
+  userId String @db.Uuid
+  meetingId String @db.Uuid
+  contactId String @db.Uuid
+  callId String? @db.Uuid
+  agentCallId String @db.Uuid
+  agentId String @db.Uuid
+  handoffId String? @db.Uuid
+  followUpId String? @db.Uuid
+  callbackId String? @db.Uuid
+  kind String
+  scheduleVersion Int
+  scheduledAt DateTime
+  previousScheduledAt DateTime?
+  language String
+  evidence Json
+  maintenanceReviewAt DateTime @default(now())
+  maintenanceCompletedAt DateTime?
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  call Call? @relation(fields: [callId], references: [id], onDelete: SetNull)
+  deliveries MeetingEmailDelivery[]
+
+  @@index([meetingId])
+  @@index([callId])
+  @@index([organizationId, createdAt])
+  @@index([maintenanceCompletedAt, maintenanceReviewAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

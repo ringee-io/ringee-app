@@ -97,6 +97,7 @@ function build(
         events.push({ settled: agentCallId, status });
         return true;
       },
+      listUnansweredForRetry: async () => [],
       listPlacedBefore: async () => [],
       hasActiveForMeeting: async () => over.otherActiveForMeeting ?? false,
       countForMeetingVersion: async () => 0,

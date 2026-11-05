@@ -258,10 +258,12 @@ export class AiVoiceAgentCallRepository {
   async updateOutcomeIfChanged(
     id: string,
     outcome: AiVoiceAgentOutcome,
+    protectToolActions = false,
   ): Promise<AiVoiceAgentCall | null> {
     const [updated] = await this.prisma.aiVoiceAgentCall.updateManyAndReturn({
       where: {
         id,
+        ...(protectToolActions ? { call: { automationActions: { none: {} } } } : {}),
         OR: [{ outcome: null }, { outcome: { not: outcome } }],
       },
       data: { outcome },

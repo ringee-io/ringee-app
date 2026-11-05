@@ -540,13 +540,14 @@ export class VoiceAgentAutomationService {
     input: QuickAgentInput & {
       callerNumberId?: string;
       calendarId?: string;
+      receiptRecipients?: "legacy" | "contact_responsible";
       humanFollowUpEnabled?: boolean;
       interestedObjective?: "booking" | "information";
     },
   ): Promise<AutomationCard> {
     assertVoiceAgentAutomations(ctx);
     if (
-      (input.humanFollowUpEnabled !== undefined ||
+      (input.receiptRecipients !== undefined || input.humanFollowUpEnabled !== undefined ||
         input.interestedObjective !== undefined) &&
       !(
         await this.organizations.listAdminUserIds(ctx.organizationId, [
@@ -592,18 +593,19 @@ export class VoiceAgentAutomationService {
         return {
           agentId: agent.id,
           enabled: true,
-          ...(input.humanFollowUpEnabled !== undefined
+          ...((input.humanFollowUpEnabled !== undefined || input.receiptRecipients !== undefined || !previous)
             ? {
                 settings: {
                   ...settings,
-                  humanFollowUp: {
+                  receiptRecipients: input.receiptRecipients ?? settings.receiptRecipients ?? (previous ? "legacy" : "contact_responsible"),
+                  ...(input.humanFollowUpEnabled !== undefined ? { humanFollowUp: {
                     enabled: input.humanFollowUpEnabled,
                     interestedObjective:
                       input.interestedObjective ??
                       settings.humanFollowUp?.interestedObjective ??
                       "booking",
                     authorizedByUserId: ctx.userId,
-                  },
+                  } } : {}),
                 },
               }
             : {}),

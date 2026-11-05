@@ -123,6 +123,10 @@ export class ReceptionistAutomationSetupDto extends QuickAgentChoiceDto {
 
 export class SchedulingAutomationSetupDto extends QuickAgentChoiceDto {
   @IsOptional()
+  @IsIn(["legacy", "contact_responsible"])
+  receiptRecipients?: "legacy" | "contact_responsible";
+
+  @IsOptional()
   @IsBoolean()
   humanFollowUpEnabled?: boolean;
 

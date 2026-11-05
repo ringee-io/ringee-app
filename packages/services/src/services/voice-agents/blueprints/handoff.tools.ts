@@ -129,20 +129,21 @@ export function buildMoveMeetingTool(
     kind: "webhook",
     name: "move_meeting",
     description:
-      "Move the meeting you are finding a new time for — never a new one — to the date and time the person explicitly agreed to, from the times get_available_slots just returned for it. Ringee moves it on its own calendar and emails everyone in the meeting the new time. Only say the meeting is moved after this returns success.",
+      "Commit the offered time the person explicitly accepted. Ringee moves the same future appointment or creates one linked replacement if the original is historical or cancelled and the request remains open. Only say it is booked or moved after success.",
     url: `${ctx.toolBaseUrl}/${ctx.agentId}/move-meeting`,
     method: "POST",
     headers: voiceAgentWebhookHeaders(ctx),
     parameters: {
       type: "object",
       properties: {
+        time_confirmed: { type: "boolean", description: "True only after repeating the specific offered time and receiving an explicit yes in this conversation." },
         start: {
           type: "string",
           description:
             "The agreed new start, exactly as get_available_slots returned it: an ISO 8601 timestamp with an explicit offset, e.g. 2026-09-04T14:30:00-04:00.",
         },
       },
-      required: ["start"],
+      required: ["start", "time_confirmed"],
     },
   };
 }

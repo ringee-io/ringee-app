@@ -851,7 +851,7 @@ export class PendingActionService {
           calendar.id,
         );
         const at = nextCallingWindowMoment(
-          new Date(now.getTime() + 60 * 60_000),
+          new Date(Math.max(now.getTime(), ...row.callbacks.filter(step => step.dispatchCommittedAt).map(step => step.dispatchCommittedAt!.getTime() + 24 * 60 * 60_000))),
           policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW,
           calendar.timezone,
         );

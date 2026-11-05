@@ -1,3 +1,4 @@
+import { buildFinishMeetingResponseTool } from "./attendance.tool";
 import { Injectable } from "@nestjs/common";
 import { AiVoiceAgentOutcome, AiVoiceAgentType } from "@ringee/database";
 import type { VoiceAgentTool } from "@ringee/platform";
@@ -147,13 +148,14 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "5. Before booking, repeat the date and time back and get an explicit yes.",
       `6. The meeting is ${duration} minutes long.`,
       "7. Only after `book_appointment` returns success may you say the meeting",
-      "   is booked. If it fails, call `request_human_support`; only after that",
-      "   succeeds may you say someone will follow up. Never claim a booking",
+      "   is booked. For a recoverable failure, try another offered time or agree",
+      "   a callback and use `schedule_callback`. Never claim a booking",
       "   that did not happen.",
       "   `book_appointment` books on the same calendar `get_available_slots`",
       "   read. You do not choose the calendar and cannot name one — if either",
       "   tool reports the calendar is unavailable, say you cannot check the",
-      "   diary right now and call `request_human_support`.",
+      "   diary right now and offer a scheduling callback. Request human support only",
+      "   when the person asks or a specific decision exceeds your authority.",
       "8. If `Email on file` is not empty, ask only whether that exact address",
       "   is correct. Do not ask the person to dictate or spell it. After they",
       "   confirm it, pass {{email}} to `book_appointment` exactly as written",

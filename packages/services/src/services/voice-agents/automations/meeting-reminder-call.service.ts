@@ -133,6 +133,7 @@ export class MeetingReminderCallService {
   /** Worker entry point, on the reminder schedule's tick. */
   async processDue(now = new Date()): Promise<number> {
     await this.settleStalePlacements(now);
+    await this.planUnansweredRetry(now);
     const claimAt = this.now();
     const claimed = await this.executions.claimDue(
       claimAt,
@@ -619,6 +620,21 @@ export class MeetingReminderCallService {
           error instanceof Error ? error.message : String(error)
         }`,
       );
+    }
+  }
+
+  private async planUnansweredRetry(now: Date): Promise<void> {
+    const rows = await this.executions.listUnansweredForRetry(now);
+    for (const prior of rows) {
+      if (!voiceAgentAutomationsEnabled(prior.organizationId) || !prior.policy ||
+          prior.policyVersion !== prior.policy.version || prior.scheduleVersion !== prior.meeting.scheduleVersion) continue;
+      const fireAt = new Date(Math.max(now.getTime(), (prior.dispatchCommittedAt ?? prior.fireAt).getTime() + 60 * 60_000));
+      if (prior.meeting.scheduledAt.getTime() - fireAt.getTime() < 20 * 60_000 ||
+          !isWithinCallingWindow(fireAt, readCallingWindow(prior.policy), prior.meeting.calendar?.timezone ?? "UTC")) continue;
+      await this.executions.createMany([{ userId: prior.userId, organizationId: prior.organizationId,
+        meetingId: prior.meetingId, policyId: prior.policyId, agentId: prior.agentId, trigger: "policy",
+        scheduleVersion: prior.scheduleVersion, policyVersion: prior.policyVersion, offsetMinutes: prior.offsetMinutes,
+        attempt: 2, fireAt, idempotencyKey: `retry:${prior.id}:a2` }]);
     }
   }
 

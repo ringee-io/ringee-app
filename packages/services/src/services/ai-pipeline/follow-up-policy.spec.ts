@@ -43,8 +43,8 @@ describe("persistent follow-up business results", () => {
       meeting,
       now,
     );
-    assert.equal(plan?.state, "blocked");
-    assert.equal(plan?.reason, "reschedule_commit_pending");
+    assert.equal(plan?.state, "recovering");
+    assert.equal(plan?.reason, "recovery_review_pending");
   });
   it("offered times wait for a person only once no call is live", () => {
     const offered = {
@@ -116,8 +116,8 @@ describe("persistent follow-up business results", () => {
       meeting,
       now,
     );
-    assert.equal(after?.state, "blocked");
-    assert.equal(after?.reason, "reschedule_commit_pending");
+    assert.equal(after?.state, "recovering");
+    assert.equal(after?.reason, "recovery_review_pending");
   });
   it("only a newer active meeting at a different time proves rescheduling, even while paused", () => {
     const changed = {

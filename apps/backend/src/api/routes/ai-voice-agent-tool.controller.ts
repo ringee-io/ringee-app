@@ -214,7 +214,7 @@ export class AiVoiceAgentToolController {
     @Param("agentId") agentId: string,
     @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
     @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
-    @Body() body: { start?: string },
+    @Body() body: { start?: string; time_confirmed?: boolean },
   ) {
     return this.tools.moveMeeting(
       agentId,
@@ -222,5 +222,17 @@ export class AiVoiceAgentToolController {
       callControlId ?? null,
       body ?? {},
     );
+  }
+
+  /** Agent secret plus provider-bound live participation authorizes this decision. */
+  @Public()
+  @Post(":agentId/finish-meeting-response")
+  finishMeetingResponse(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { cancellation?: string; rescheduling?: string; response?: string },
+  ) {
+    return this.tools.finishMeetingResponse(agentId, secret, callControlId ?? null, body ?? {});
   }
 }

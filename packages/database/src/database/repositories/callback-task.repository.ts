@@ -1,3 +1,5 @@
+import { automaticContactDispatchAvailable } from "./contact.repository";
+import { recordAgreedCallbackAction } from "./meeting-action.persistence";
 import {
   lockFollowUp,
   observeFollowUp,
@@ -188,6 +190,7 @@ export class CallbackTaskRepository {
             agentCallbackKey: data.agentCallbackKey,
           },
         });
+        await recordAgreedCallbackAction(tx, created);
         await observeFollowUp(tx, data.handoffId, {
           key: `callback:${created.id}:scheduled`,
           kind:
@@ -509,6 +512,8 @@ export class CallbackTaskRepository {
         where: { id: input.followUpId },
         include: { handoff: true, action: true },
       });
+      if (seed?.action.contactId)
+        await tx.$queryRaw`SELECT "id" FROM "Contact" WHERE "id" = ${seed.action.contactId}::uuid FOR NO KEY UPDATE`;
       if (seed?.sourceType === "human_call_outcome") {
         if (seed.action.contactId)
           await tx.$queryRaw`SELECT "id" FROM "Contact" WHERE "id" = ${seed.action.contactId}::uuid FOR UPDATE`;
@@ -704,6 +709,10 @@ export class CallbackTaskRepository {
           return false;
       }
 
+      const dispatchCalendar = await tx.calendar.findFirst({ where: { id: objective.calendarId ?? handoff?.calendarId ?? "00000000-0000-0000-0000-000000000000", organizationId: action.organizationId! } });
+      if (!(await automaticContactDispatchAvailable(tx, { organizationId: action.organizationId!, contactId: action.contactId!,
+        timezone: dispatchCalendar?.timezone ?? "UTC", now: input.now, callbackId: callback.id,
+        agreed: callback.agentCallbackKind === "agreed", dailyLimit: 2 }))) return false;
       const firstAttempt = callback.objectiveAttempt === null;
       if (
         firstAttempt &&
@@ -1027,6 +1036,7 @@ export class CallbackTaskRepository {
             timingBasis: "agreed",
           },
         });
+      if (moved) await recordAgreedCallbackAction(tx, moved);
       return moved ?? null;
     });
   }
