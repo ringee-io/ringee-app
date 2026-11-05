@@ -421,6 +421,10 @@ function createWorld(
       const a = attempts.get(id);
       return a ? copyAttempt(a) : null;
     },
+    findByIdWithRelations: async (id: string) => {
+      const a = attempts.get(id);
+      return a ? { ...a, campaignLead: leads.get(a.campaignLeadId) } : null;
+    },
     findByIdWithCampaignOrganization: async (id: string) => {
       await roundTrip();
       const a = attempts.get(id);
@@ -523,7 +527,13 @@ function createWorld(
   };
   /** What the attempt's disposition wrote onto its Call. */
   const outcomeWrites: unknown[][] = [];
-  const complianceService = { isWithinCallingWindow: () => true };
+  const dncWrites: unknown[] = [];
+  const complianceService = {
+    isWithinCallingWindow: () => true,
+    addToDNC: async (input: unknown) => {
+      dncWrites.push(input);
+    },
+  };
   const userService = { getCachedUserById: async () => ({ ...user }) };
 
   const agentSessionService = new AgentSessionService(
@@ -560,6 +570,22 @@ function createWorld(
     guard as never,
     { enqueueCallOutcomeUpdated: async () => undefined } as never,
     { addCallNote: async () => null } as never,
+    {
+      recordHumanOutcome: async (
+        _ctx: unknown,
+        id: string,
+        input: { outcome: string; note?: string; disposition?: unknown },
+      ) => {
+        outcomeWrites.push([
+          "recordOutcome",
+          id,
+          input.outcome,
+          input.note,
+          input.disposition,
+        ]);
+        return { call: { id, outcomeRevision: 1 }, changed: false };
+      },
+    } as never,
   );
   const orchestrator = new DialerOrchestrationService(
     {
@@ -590,6 +616,7 @@ function createWorld(
     campaign,
     failures,
     outcomeWrites,
+    dncWrites,
     liveCalls,
     guard,
     rotation,
@@ -1185,6 +1212,88 @@ describe("CallAttemptService lifecycle", () => {
         hangupCause: "normal_clearing",
       }),
     );
+
+  it("rejects invalid callback dates before accepting any callback-triggering outcome", async () => {
+    for (const outcome of ["interested", "follow_up", "callback_scheduled"]) {
+      const { world, attemptId } = await dialedAndAnswered();
+      await hangup(world, attemptId);
+      await assert.rejects(
+        world.callAttemptService.submitDisposition({
+          callAttemptId: attemptId,
+          disposition: {
+            ...notInterested,
+            code: outcome,
+            canonicalOutcome: outcome,
+            triggersCallback: true,
+          } as never,
+          callback: { scheduledAt: new Date(NaN) },
+          campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+          organizationId: "org-1",
+        }),
+        BadRequestException,
+      );
+      assert.deepEqual(world.outcomeWrites, []);
+      assert.equal(world.attempts.get(attemptId)!.status, "ended");
+    }
+  });
+  it("makes a stop request DNC even when the disposition would otherwise schedule or complete", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    const result = await world.callAttemptService.submitDisposition({
+      callAttemptId: attemptId,
+      disposition: {
+        ...notInterested,
+        code: "interested",
+        canonicalOutcome: "interested",
+        triggersCallback: true,
+        triggersCompletion: true,
+      } as never,
+      callback: { scheduledAt: new Date(Date.now() + 86400000) },
+      stopRequested: true,
+      campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+      organizationId: "org-1",
+    });
+    assert.equal(result.action, "dnc");
+    assert.equal(world.lead("lead-1").status, "dnc");
+    assert.equal(
+      world.dncWrites.length,
+      0,
+      "accepted outcome owns the DNC write",
+    );
+  });
+
+  it("persists a stop request when there is no linked call or canonical outcome", async () => {
+    for (const without of ["call", "outcome"]) {
+      const { world, attemptId } = await dialedAndAnswered();
+      await hangup(world, attemptId);
+      if (without === "call") world.attempts.get(attemptId)!.callId = null;
+      const result = await world.callAttemptService.submitDisposition({
+        callAttemptId: attemptId,
+        disposition: {
+          ...notInterested,
+          ...(without === "outcome"
+            ? { code: "custom_result", canonicalOutcome: null }
+            : {}),
+          triggersCompletion: true,
+        } as never,
+        stopRequested: true,
+        campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+        organizationId: "org-1",
+      });
+      assert.equal(result.action, "dnc");
+      assert.equal(world.lead("lead-1").status, "dnc");
+      assert.deepEqual(world.dncWrites, [
+        {
+          phoneNumber: world.lead("lead-1").contact.phoneNumber,
+          userId: "user-1",
+          organizationId: "org-1",
+          reason: "Disposition: Not interested",
+          source: "disposition",
+          addedByUserId: "user-1",
+        },
+      ]);
+    }
+  });
 
   it("counts the attempt once and sends the agent on when the disposition and the hangup webhook race", async () => {
     for (const order of ["together", "hangup-first", "dispose-first"]) {

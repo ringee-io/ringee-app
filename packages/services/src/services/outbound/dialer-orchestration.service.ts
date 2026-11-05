@@ -536,6 +536,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         category: d.category,
         color: d.color,
         triggersCallback: d.triggersCallback,
+        automaticFollowUp: d.automaticFollowUp,
       })),
     });
   }

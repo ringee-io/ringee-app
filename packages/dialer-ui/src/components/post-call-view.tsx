@@ -182,8 +182,10 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     if (!outcome) return;
     setIsSaving(true);
     try {
+      let acceptance: Awaited<ReturnType<typeof data.saveCallOutcome>> =
+        undefined;
       if (callId || callSessionId) {
-        await data.saveCallOutcome({
+        acceptance = await data.saveCallOutcome({
           callId: callId || undefined,
           callSessionId: callSessionId || undefined,
           outcome,
@@ -191,7 +193,23 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           dispositionId: dispositionId ?? undefined,
         });
       }
-      notify("success", "Call outcome saved");
+      const followUp = acceptance?.followUp;
+      if (followUp) {
+        const blocked = followUp.state === "blocked";
+        const active = [
+          "scheduled",
+          "recovering",
+          "waiting",
+          "in_progress",
+        ].includes(followUp.state);
+        const next = followUp.nextActionAt
+          ? `${followUp.timingBasis === "agreed" ? labels.followUpAgreedTime : labels.followUpPolicyTime}: ${new Date(followUp.nextActionAt).toLocaleString()}`
+          : (followUp.reason ?? "").replace(/_/g, " ");
+        notify(
+          blocked ? "error" : "success",
+          `Call outcome saved. ${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,
+        );
+      } else notify("success", "Call outcome saved");
       onClose();
     } catch {
       notify("error", "Failed to save outcome");
@@ -531,7 +549,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           {isSaving ? (
             <>
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              Saving...
+              {labels.followUpPreparing}
             </>
           ) : (
             "Save & Close"

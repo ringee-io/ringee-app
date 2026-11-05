@@ -77,6 +77,7 @@ export interface AutomationCard {
     }>;
   };
   scheduling?: {
+    humanFollowUpEnabled?: boolean;
     calendar: AutomationCalendarRef | null;
     callerNumber: string | null;
   };

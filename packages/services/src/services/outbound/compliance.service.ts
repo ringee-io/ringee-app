@@ -3,6 +3,8 @@ import {
   DNCEntryRepository,
   DNCOwnerScope,
   DNCCreateInput,
+  DNCEntry,
+  Prisma,
 } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { buildDncEventData } from "../custom-integrations/custom-integration-event-builders";
@@ -32,8 +34,16 @@ export class ComplianceService {
     return this.dncRepo.findByPhone(owner, phoneNumber);
   }
 
-  async addToDNC(data: DNCCreateInput) {
-    const entry = await this.dncRepo.create(data);
+  async addToDNC(data: DNCCreateInput, tx?: Prisma.TransactionClient) {
+    const entry = tx
+      ? await this.dncRepo.createOnce(data, tx)
+      : await this.dncRepo.create(data);
+    // A transaction caller publishes only after the outcome and DNC commit.
+    if (!tx) this.publishDncCreated(entry);
+    return entry;
+  }
+
+  publishDncCreated(entry: DNCEntry) {
     void this.customIntegrationOutbound.enqueue({
       ctx: {
         userId: entry.userId,
@@ -43,7 +53,6 @@ export class ComplianceService {
       subjectId: entry.id,
       data: buildDncEventData(entry),
     });
-    return entry;
   }
 
   async bulkAddToDNC(entries: DNCCreateInput[]) {

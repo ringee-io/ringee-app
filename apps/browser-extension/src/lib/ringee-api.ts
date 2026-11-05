@@ -511,7 +511,7 @@ export class RingeeApi {
     callSessionId?: string | null;
     outcome?: CallOutcome;
     outcomeNote?: string;
-  }): Promise<void> {
+  }): Promise<import("@ringee/dialer-ui/data/types").OutcomeAcceptance> {
     return this.saveCallOutcomeWithWebhookRetry(input);
   }
 
@@ -520,7 +520,7 @@ export class RingeeApi {
     callSessionId?: string | null;
     outcome?: CallOutcome;
     outcomeNote?: string;
-  }): Promise<void> {
+  }): Promise<import("@ringee/dialer-ui/data/types").OutcomeAcceptance> {
     // A browser call is created from Telnyx's call.initiated webhook. WebRTC
     // can reach its terminal state a fraction before that webhook transaction
     // is visible, so retry only that precise resolution race. Other 4xx/5xx
@@ -530,16 +530,21 @@ export class RingeeApi {
 
     for (let attempt = 0; ; attempt += 1) {
       try {
-        await this.request<void>("/meetings/call-outcome", {
+        return await this.request<
+          import("@ringee/dialer-ui/data/types").OutcomeAcceptance
+        >("/meetings/call-outcome", {
           method: "POST",
           body: JSON.stringify({
             callId: input.callId || undefined,
             callSessionId: input.callSessionId || undefined,
             outcome: input.outcome || undefined,
+            callbackTimezone:
+              input.outcome === "callback_scheduled"
+                ? Intl.DateTimeFormat().resolvedOptions().timeZone
+                : undefined,
             outcomeNote: input.outcomeNote || undefined,
           }),
         });
-        return;
       } catch (error) {
         const isWebhookRace =
           error instanceof ApiError &&

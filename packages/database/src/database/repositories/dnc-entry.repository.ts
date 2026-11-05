@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { DNCEntry, Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 
 export interface DNCOwnerScope {
   userId: string;
@@ -42,6 +43,27 @@ export class DNCEntryRepository {
         addedByUserId: data.addedByUserId,
       },
     });
+  }
+
+  /** Only a duplicate on this workspace's phone key is accepted. Using the
+   * partial index as the conflict target keeps a surrounding transaction usable. */
+  async createOnce(
+    data: DNCCreateInput,
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<DNCEntry> {
+    const conflict = data.organizationId
+      ? Prisma.sql`("organizationId", "phoneNumber") WHERE "organizationId" IS NOT NULL`
+      : Prisma.sql`("userId", "phoneNumber") WHERE "organizationId" IS NULL`;
+    const [entry] = await tx.$queryRaw<DNCEntry[]>`
+      INSERT INTO "DNCEntry"
+        ("id", "phoneNumber", "userId", "organizationId", "reason", "source", "addedByUserId", "createdAt")
+      VALUES (${randomUUID()}::uuid, ${data.phoneNumber}, ${data.userId}::uuid,
+        ${data.organizationId ?? null}::uuid, ${data.reason ?? null},
+        ${data.source ?? "manual"}, ${data.addedByUserId ?? null}::uuid, NOW())
+      ON CONFLICT ${conflict} DO UPDATE SET "phoneNumber" = EXCLUDED."phoneNumber"
+      RETURNING *
+    `;
+    return entry;
   }
 
   async createMany(entries: DNCCreateInput[]): Promise<number> {

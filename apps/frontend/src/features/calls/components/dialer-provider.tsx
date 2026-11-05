@@ -56,6 +56,7 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
   const api = useApi();
   const { settings: recordingSettings } = useRecordingSettings();
   const t = useTranslations('calls.callbacks');
+  const tFollow = useTranslations('calls.automaticFollowUp');
 
   const slots = useMemo<DialerSlots>(
     () => ({
@@ -166,15 +167,20 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
         outcomeNote?: string;
         dispositionId?: string | null;
       }) =>
-        api
-          .post('/meetings/call-outcome', {
+        api.post<import('@ringee/dialer-ui/data/types').OutcomeAcceptance>(
+          '/meetings/call-outcome',
+          {
             callId: input.callId || undefined,
             callSessionId: input.callSessionId || undefined,
             outcome: input.outcome || undefined,
+            callbackTimezone:
+              input.outcome === 'callback_scheduled'
+                ? Intl.DateTimeFormat().resolvedOptions().timeZone
+                : undefined,
             outcomeNote: input.outcomeNote || undefined,
             dispositionId: input.dispositionId || undefined
-          })
-          .then(() => undefined),
+          }
+        ),
       listDispositions: () => {
         const cached = dispositions.current;
         if (cached && Date.now() - cached.at < DISPOSITIONS_TTL_MS) {
@@ -216,6 +222,12 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
       }}
       slots={slots}
       labels={{
+        followUpPreparing: tFollow('preparing'),
+        followUpAccepted: tFollow('accepted'),
+        followUpBlocked: tFollow('blocked'),
+        followUpStopped: tFollow('stopped'),
+        followUpPolicyTime: tFollow('policyTime'),
+        followUpAgreedTime: tFollow('agreedTime'),
         callbackBadge: t('badge'),
         callbackDisposition: t('disposition')
       }}

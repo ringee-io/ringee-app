@@ -147,6 +147,8 @@ enum CallbackStatus {
 
 /// Why an AI voice agent places a callback (AGENT-021).
 enum CallbackAgentKind {
+  /// First step selected by an authorized enrollment policy, not an agreed time.
+  policy
   /// A time the person agreed to on the call.
   agreed
   /// Planned by policy after a call ended before a time was agreed. Never
@@ -757,6 +759,10 @@ model Call {
 
   outcome     CallOutcome?
   outcomeNote String?      @db.Text
+  /// Semantic outcome revision; unrelated call updates never change it.
+  outcomeRevision Int @default(0)
+  /// Human commitments recorded with the outcome (purpose, time, time zone).
+  outcomeCommitment Json?
 
   // The workspace disposition the user picked ("Demo booked"), when one was.
   // `outcome` stays the canonical meaning every consumer reads; the name is a
@@ -2333,6 +2339,7 @@ model CallbackTask {
 
   /// Stage 1 objective; null on all pre-existing/manual callbacks.
   followUpId          String?                @db.Uuid
+  sourceRevision      Int?
   objectiveAttempt    Int?
   /// Atomic dispatch commit point, serialized with objective control changes.
   dispatchCommittedAt DateTime?
@@ -4124,6 +4131,10 @@ model PendingActionFollowUp {
   agentId            String?                @db.Uuid
   meetingId          String?                @db.Uuid
   meetingScheduledAt DateTime?
+  /// Human-outcome objectives pin their authorized configuration without a handoff.
+  automationId       String? @db.Uuid
+  calendarId         String? @db.Uuid
+  commitment         Json?
   handoffId          String?                @unique @db.Uuid
   mode               FollowUpExecutionMode  @default(automatic)
   state              FollowUpState          @default(waiting)

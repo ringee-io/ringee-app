@@ -654,8 +654,8 @@ function tools(w: ReturnType<typeof world>) {
       },
     } as never,
     {
-      scheduleFromVoiceAgent: async (input: Row) => {
-        legacyCallbacks.push(input);
+      scheduleFromVoiceAgent: async (ctx: Row, input: Row) => {
+        legacyCallbacks.push({ ...ctx, ...input });
         return {
           id: input.agentCallId,
           scheduledAt: input.scheduledAt,

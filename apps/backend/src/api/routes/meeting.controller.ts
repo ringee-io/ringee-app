@@ -257,6 +257,10 @@ export class MeetingController {
       outcome?: string;
       outcomeNote?: string;
       dispositionId?: string;
+      followUpPurpose?: "booking" | "information";
+      callbackScheduledAt?: string;
+      callbackTimezone?: string;
+      stopRequested?: boolean;
     },
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -278,6 +282,11 @@ export class MeetingController {
     }
 
     if (!dto.outcome && !dto.dispositionId) {
+      if (dto.stopRequested !== undefined) {
+        throw new BadRequestException(
+          "An outcome or dispositionId is required with stopRequested",
+        );
+      }
       return this.meetingService.finalizeCall(ctx, callId);
     }
     if (dto.dispositionId && !isUUID(dto.dispositionId)) {
@@ -288,6 +297,10 @@ export class MeetingController {
       outcome: dto.outcome,
       outcomeNote: dto.outcomeNote,
       dispositionId: dto.dispositionId,
+      followUpPurpose: dto.followUpPurpose,
+      callbackScheduledAt: dto.callbackScheduledAt,
+      callbackTimezone: dto.callbackTimezone,
+      stopRequested: dto.stopRequested,
     });
   }
 }

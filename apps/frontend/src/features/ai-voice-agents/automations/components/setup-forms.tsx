@@ -1157,6 +1157,7 @@ export function ReceptionistSetup({
 
 interface SchedulingDraft extends AgentDraft {
   /** Null until the person touches it: the known default applies. */
+  humanFollowUpEnabled: boolean;
   calendarId: string | null;
   callerNumberId: string | null;
 }
@@ -1177,6 +1178,7 @@ export function SchedulingSetup({
     calendars: true
   });
   const [draft, patch, clear] = useDraft<SchedulingDraft>('scheduling', () => ({
+    humanFollowUpEnabled: card.scheduling?.humanFollowUpEnabled ?? false,
     choice: card.candidates.length === 1 ? card.candidates[0]!.id : '',
     name: card.agent?.name ?? t('defaultNames.scheduling'),
     calendarId: card.agent?.calendarId ?? card.scheduling?.calendar?.id ?? null,
@@ -1203,6 +1205,7 @@ export function SchedulingSetup({
       const next = await api.setupScheduling({
         ...agent.body(),
         callerNumberId,
+        humanFollowUpEnabled: draft.humanFollowUpEnabled,
         calendarId
       });
       clear();
@@ -1305,6 +1308,20 @@ export function SchedulingSetup({
         </>
       }
     >
+      <div className='space-y-2'>
+        <Label className='flex min-h-11 items-center gap-3'>
+          <Checkbox
+            checked={draft.humanFollowUpEnabled}
+            onCheckedChange={(checked) =>
+              patch({ humanFollowUpEnabled: checked === true })
+            }
+          />
+          {t('humanFollowUp')}
+        </Label>
+        <p className='text-muted-foreground text-xs'>
+          {t('humanFollowUpHint')}
+        </p>
+      </div>
       {agent.asked ? (
         <AgentChoice
           card={card}

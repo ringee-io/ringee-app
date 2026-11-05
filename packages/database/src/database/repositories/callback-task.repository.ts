@@ -385,7 +385,18 @@ export class CallbackTaskRepository {
       select: { contactId: true },
       distinct: ["contactId"],
     });
-    return new Set(rows.map((row) => row.contactId));
+    const assigned = await this.prisma.pendingAction.findMany({
+      where: {
+        ...workspace,
+        contactId: { in: contactIds },
+        followUp: { is: { state: { notIn: ["resolved", "closed"] } } },
+      },
+      select: { contactId: true },
+    });
+    return new Set([
+      ...rows.map((row) => row.contactId),
+      ...assigned.flatMap((row) => (row.contactId ? [row.contactId] : [])),
+    ]);
   }
 
   /**
@@ -484,21 +495,28 @@ export class CallbackTaskRepository {
     followUpId: string;
     expectedRevision: number;
     agentId: string;
-    meetingId: string;
-    meetingVersion: number;
+    meetingId?: string;
+    meetingVersion?: number;
     contactUpdatedAt?: Date;
     to: string;
     placement: { agentCallId: string; callId: string };
     now: Date;
   }): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${input.meetingId}::uuid FOR UPDATE`;
+      if (input.meetingId)
+        await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${input.meetingId}::uuid FOR UPDATE`;
       const seed = await tx.pendingActionFollowUp.findUnique({
         where: { id: input.followUpId },
-        include: { handoff: true },
+        include: { handoff: true, action: true },
       });
-      if (seed?.handoff?.automationId)
-        await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentAutomation" WHERE "id" = ${seed.handoff.automationId}::uuid FOR UPDATE`;
+      if (seed?.sourceType === "human_call_outcome") {
+        if (seed.action.contactId)
+          await tx.$queryRaw`SELECT "id" FROM "Contact" WHERE "id" = ${seed.action.contactId}::uuid FOR UPDATE`;
+        await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${seed.sourceId}::uuid FOR UPDATE`;
+      }
+      const automationId = seed?.handoff?.automationId ?? seed?.automationId;
+      if (automationId)
+        await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentAutomation" WHERE "id" = ${automationId}::uuid FOR UPDATE`;
       const objective = await lockFollowUp(tx, input.followUpId);
       // Read after the lock: an objective that expired while this waited for
       // it is not dispatched on the time the caller read before.
@@ -524,23 +542,27 @@ export class CallbackTaskRepository {
             where: { id: objective.handoffId },
           })
         : null;
+      const human = objective.sourceType === "human_call_outcome";
       if (
-        !handoff ||
-        handoff.requestStatus !== "pending" ||
-        handoff.organizationId !== action.organizationId
+        !human &&
+        (!handoff ||
+          handoff.requestStatus !== "pending" ||
+          handoff.organizationId !== action.organizationId)
       )
         return false;
-      const meeting = await tx.meeting.findFirst({
-        where: {
-          id: input.meetingId,
-          organizationId: action.organizationId,
-          contactId: action.contactId!,
-          scheduleVersion: input.meetingVersion,
-        },
-      });
+      const meeting = input.meetingId
+        ? await tx.meeting.findFirst({
+            where: {
+              id: input.meetingId,
+              organizationId: action.organizationId,
+              contactId: action.contactId!,
+              scheduleVersion: input.meetingVersion,
+            },
+          })
+        : null;
       const automation = await tx.aiVoiceAgentAutomation.findFirst({
         where: {
-          id: handoff.automationId ?? "00000000-0000-0000-0000-000000000000",
+          id: automationId ?? "00000000-0000-0000-0000-000000000000",
           organizationId: action.organizationId!,
           enabled: true,
           agentId: input.agentId,
@@ -587,7 +609,7 @@ export class CallbackTaskRepository {
         select: { id: true },
       });
       if (
-        !meeting ||
+        (!human && !meeting) ||
         !automation ||
         !agent ||
         !contact ||
@@ -607,7 +629,7 @@ export class CallbackTaskRepository {
         where: {
           id: input.callbackId,
           followUpId: objective.id,
-          handoffId: handoff.id,
+          handoffId: handoff?.id ?? null,
           agentId: input.agentId,
           claimToken: input.claimToken,
           status: "in_progress",
@@ -615,6 +637,73 @@ export class CallbackTaskRepository {
         },
       });
       if (!callback || callback.dispatchCommittedAt) return false;
+      if (human) {
+        const source = await tx.call.findFirst({
+          where: {
+            id: objective.sourceId,
+            organizationId: action.organizationId,
+            userId: objective.responsibleUserId,
+            contactId: action.contactId,
+            outcomeRevision: objective.sourceRevision,
+            OR: [{ source: null }, { source: { not: "ai_voice_agent" } }],
+          },
+        });
+        const settings = automation.settings as {
+          humanFollowUp?: { enabled?: boolean };
+        } | null;
+        const calendar = objective.calendarId
+          ? await tx.calendar.findFirst({
+              where: {
+                id: objective.calendarId,
+                organizationId: action.organizationId,
+                archivedAt: null,
+              },
+            })
+          : null;
+        if (
+          !source ||
+          !calendar ||
+          settings?.humanFollowUp?.enabled !== true ||
+          callback.sourceRevision !== objective.sourceRevision ||
+          objective.objectiveType !== "book_meeting"
+        )
+          return false;
+        // Other committed executions retain contact ownership even when a newer
+        // source revision supersedes their objective.
+        const active = await tx.callbackTask.findFirst({
+          where: {
+            id: { not: callback.id },
+            organizationId: action.organizationId,
+            contactId: action.contactId!,
+            dispatchCommittedAt: { not: null },
+            agentCall: {
+              is: {
+                OR: [
+                  {
+                    status: {
+                      in: ["created", "initiating", "ringing", "in_progress"],
+                    },
+                  },
+                  { providerCallControlId: null, status: { not: "failed" } },
+                ],
+              },
+            },
+          },
+        });
+        if (
+          active ||
+          (await tx.campaignLead.count({
+            where: {
+              contactId: action.contactId!,
+              campaign: { organizationId: action.organizationId },
+              lockedBy: { not: null },
+              status: { in: ["locked", "dialing", "in_call", "wrap_up"] },
+            },
+          }))
+        )
+          return false;
+      }
+
       const firstAttempt = callback.objectiveAttempt === null;
       if (
         firstAttempt &&
@@ -630,10 +719,16 @@ export class CallbackTaskRepository {
           organizationId: action.organizationId,
           userId: objective.configuredByUserId,
           agentId: input.agentId,
+          ...(human ? { contactId: action.contactId } : {}),
           toNumber: input.to,
         },
       });
       if (!placedRow) return false;
+      if (human)
+        await tx.aiVoiceAgentCall.update({
+          where: { id: placedRow.id },
+          data: { calendarId: objective.calendarId },
+        });
       // Claims can be reclaimed without locking the objective. Fence the write
       // itself, not just the preceding read, against that newer worker.
       const committed = await tx.callbackTask.updateMany({

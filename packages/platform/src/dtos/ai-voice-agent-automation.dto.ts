@@ -123,6 +123,14 @@ export class ReceptionistAutomationSetupDto extends QuickAgentChoiceDto {
 
 export class SchedulingAutomationSetupDto extends QuickAgentChoiceDto {
   @IsOptional()
+  @IsBoolean()
+  humanFollowUpEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn(["booking", "information"])
+  interestedObjective?: "booking" | "information";
+
+  @IsOptional()
   @IsUUID("all", { message: "Choose a number to call from." })
   callerNumberId?: string;
 

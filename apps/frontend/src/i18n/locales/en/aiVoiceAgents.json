@@ -590,7 +590,9 @@
       "summary": {
         "reminders": "{name} will call each lead {when} before their meeting to confirm they will attend.",
         "scheduling": "When you press “Call to schedule” on a lead, {name} calls them and books the meeting. Switching it on calls nobody."
-      }
+      },
+      "humanFollowUp": "Automatically follow up on new human call outcomes",
+      "humanFollowUpHint": "Interested starts appointment booking. Informational commitments remain blocked until supported. Existing tasks stay unchanged. Calls consume the usual tokens and minutes."
     },
     "upcoming": {
       "title": "{count, plural, =0 {No calls planned} one {# call planned} other {# calls planned}}",

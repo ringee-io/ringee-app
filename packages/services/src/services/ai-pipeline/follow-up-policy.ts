@@ -28,14 +28,18 @@ export function planFollowUp(
     nextActionAt: null,
     evidence: { reason, sourceRevision: row.sourceRevision },
   });
+  const human = row.sourceType === "human_call_outcome";
   if (
-    !meeting ||
-    meeting.organizationId !== row.action.organizationId ||
-    meeting.contactId !== row.action.contactId
+    !human &&
+    (!meeting ||
+      meeting.organizationId !== row.action.organizationId ||
+      meeting.contactId !== row.action.contactId)
   ) {
     return end("source_meeting_unavailable", "cancelled");
   }
   if (
+    !human &&
+    meeting &&
     meeting.scheduleVersion > row.sourceRevision &&
     ["scheduled", "rescheduled"].includes(meeting.status) &&
     row.meetingScheduledAt &&
@@ -65,7 +69,7 @@ export function planFollowUp(
     nextAction: "exceptional_decision",
     nextActionAt: null,
   });
-  if (!handoff) return blocked("handoff_unavailable");
+  if (!human && !handoff) return blocked("handoff_unavailable");
   const live = (
     call: { status: string; endedAt: Date | null } | null | undefined,
   ) => call && !call.endedAt && !["completed", "failed"].includes(call.status);
@@ -75,7 +79,7 @@ export function planFollowUp(
   // the next step, as the handoff's own review has it. Blocking would settle
   // the request under either, and withdraw a callback already promised.
   if (
-    handoff.offeredAt &&
+    handoff?.offeredAt &&
     !live(handoff.agentCall.call) &&
     !row.callbacks.some(
       (step) =>
@@ -84,8 +88,9 @@ export function planFollowUp(
     )
   )
     return blocked("reschedule_commit_pending");
+
   if (
-    handoff.requestStatus === "needs_attention" &&
+    handoff?.requestStatus === "needs_attention" &&
     handoff.resolution !== "placement_pending_reconciliation"
   ) {
     const reason = handoff.resolution ?? "exceptional_decision_required";
@@ -150,7 +155,7 @@ export function planFollowUp(
       activeCallbackId: null,
     };
   }
-  if (live(handoff.agentCall.call)) {
+  if (handoff && live(handoff.agentCall.call)) {
     return {
       state: handoff.status === "completed" ? "waiting" : "in_progress",
       reason:
@@ -162,6 +167,14 @@ export function planFollowUp(
       activeCallbackId: null,
     };
   }
+  if (human && row.state === "blocked") return null;
+  if (
+    human &&
+    latest &&
+    ["missed", "cancelled"].includes(latest.status) &&
+    !["not_placed", "retry_before_placement"].includes(latest.reason ?? "")
+  )
+    return blocked(latest.reason ?? "callback_execution_unavailable");
   if (
     row.attemptCount >= row.maxAttempts ||
     row.recoveryCount >= row.maxRecoveries
@@ -174,7 +187,7 @@ export function planFollowUp(
     state: "recovering",
     reason: "recovery_review_pending",
     nextAction: "review_recovery",
-    nextActionAt: handoff.reviewAt,
+    nextActionAt: handoff?.reviewAt ?? new Date(now.getTime() + 60 * 60_000),
     activeCallbackId: null,
   };
 }

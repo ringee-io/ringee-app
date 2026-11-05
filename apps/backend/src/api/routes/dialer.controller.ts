@@ -231,6 +231,9 @@ export class DialerController {
       note?: string;
       callbackScheduledAt?: string;
       callbackNote?: string;
+      callbackTimezone?: string;
+      followUpPurpose?: "booking" | "information";
+      stopRequested?: boolean;
       /** Agent ticked "close session after this lead" before wrapping up. */
       closeSession?: boolean;
     },
@@ -289,6 +292,7 @@ export class DialerController {
           ? {
               scheduledAt: new Date(body.callbackScheduledAt),
               note: body.callbackNote,
+              timezone: body.callbackTimezone,
             }
           : undefined,
       campaignDefaults: {
@@ -297,6 +301,8 @@ export class DialerController {
       },
       organizationId: orgId,
       closeSession: body.closeSession === true,
+      followUpPurpose: body.followUpPurpose,
+      stopRequested: body.stopRequested,
     });
 
     // Where the session went — on to the next lead, or offline because the

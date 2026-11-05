@@ -168,7 +168,7 @@ export function CallExperience() {
         callSessionId?: string | null;
         outcome?: Parameters<RingeeApi["saveCallOutcome"]>[0]["outcome"];
         outcomeNote?: string;
-      }) => api.saveCallOutcome(input).then(() => undefined),
+      }) => api.saveCallOutcome(input),
     }),
     [api],
   );
