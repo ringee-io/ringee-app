@@ -1481,7 +1481,10 @@ applied (`MeetingRepository.recordExternalMove`); a meeting moved again
 meanwhile gets the latest time applied instead. `retryExternalSync` retries a
 move that failed or never ran as a move — setting an absolute time is safe to
 repeat. A retried push that finds Google's event (`409`) at a time the meeting
-has since moved from moves it before recording it.
+has since moved from moves it before recording it. An event whose creation lands
+after the meeting was cancelled or moved is recorded `pending` (its pointer kept,
+never `synced`) and then deleted or moved; a cancellation does not settle while
+an event is still being created.
 
 The destination is stored **on the meeting**, not read back from the calendar, so
 re-pointing a calendar at a different Google account never rewrites where an
@@ -1504,6 +1507,9 @@ after an explicit yes to cancellation on the currently authorized conversation.
 A no or unclear answer retains the booking and records the actual response.
 Cancellation increments the version, retires uncommitted reminders and releases
 the reservation; an open request for another time survives when requested.
+Keeping the booking withdraws none of its unsent emails. A different answer on
+the same call is recorded as a correction: it never changes the appointment
+again, a refusal still closes the objective, and a closed one is not reopened.
 
 Every meeting carries a `scheduleVersion`, bumped when it moves, is cancelled or
 changes hands. Moving a meeting resets its attendance to `pending` — an answer
@@ -2016,6 +2022,11 @@ is independent of delivery. The receipt uses the action's effective language and
 contains no internal notes, technical failure, transcript or recording. New
 outcomes start their own thread, preventing exposure of older internal messages.
 A superseded version, withdrawn agreed callback or obsolete result is not sent.
+An agreed callback's receipt is about the callback, not the meeting version: a
+cancellation that keeps rescheduling leaves it to go out. A person cannot move an
+agreed callback that has a receipt (only a call can record a new one); it is
+cancelled and scheduled again. A late contact-only row is withdrawn once the team
+receipt it waits for has failed or been cancelled.
 
 Claims are token-fenced. Before the first send, the worker verifies the answer
 under the meeting lock and persists the exact request and first-attempt time.

@@ -850,7 +850,8 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
           result: Record<string, unknown>,
         ) => {
           recorded.push(result);
-          return {};
+          // The meeting is still at the version the event was created for.
+          return { ...MEETING, externalSyncStatus: result.status };
         },
       } as never,
       {} as never,
@@ -882,5 +883,116 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
     });
     assert.equal(recorded[0]!.status, "synced");
     assert.equal(recorded[0]!.externalEventId, "ringeeevent");
+  });
+
+  // The meeting was cancelled while its event was being created: the event
+  // that lands late is deleted, never left on the calendar as `synced`.
+  it("deletes an event whose creation finished after the meeting was cancelled", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      requests.push({ url, init });
+      if (init?.method === "POST")
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: "late-event",
+            start: { dateTime: "2099-01-06T16:00:00.000Z" },
+            end: { dateTime: "2099-01-06T16:30:00.000Z" },
+          }),
+        };
+      return { ok: true, status: 204, json: async () => ({}) };
+    }) as unknown as typeof fetch;
+    const cancelled = {
+      ...MEETING,
+      status: "cancelled",
+      scheduleVersion: 3,
+      externalEventId: "late-event",
+      externalSyncStatus: "pending",
+    };
+    const fences: unknown[] = [];
+    const saved: unknown[] = [];
+    const service = new CalendarService(
+      { findByIdForOwner: async () => google } as never,
+      {
+        markExternalSyncPending: async () => true,
+        // The version moved: the pointer is kept, never `synced`.
+        recordExternalSync: async (
+          _id: string,
+          _result: unknown,
+          expected: unknown,
+        ) => {
+          fences.push(expected);
+          return cancelled;
+        },
+        findByIdForOwner: async () => cancelled,
+        recordExternalCancellation: async (...args: unknown[]) => {
+          saved.push(args);
+          return true;
+        },
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.syncMeetingToExternalCalendar(
+      ctx,
+      {
+        ...MEETING,
+        status: "scheduled",
+        scheduleVersion: 2,
+        externalEventId: null,
+        externalSyncStatus: "not_required",
+      } as never,
+      {
+        destination: {
+          integrationId: "integration-1",
+          externalCalendarId: null,
+        },
+      },
+    );
+
+    assert.deepEqual(fences, [{ scheduleVersion: 2 }]);
+    assert.ok(
+      requests.some(
+        (request) =>
+          request.init?.method === "DELETE" &&
+          /events\/late-event/.test(request.url),
+      ),
+    );
+    assert.equal(saved.length, 1);
+    assert.equal(result.status, "synced");
+  });
+
+  it("does not settle a cancellation while the meeting's event is still being created", async () => {
+    globalThis.fetch = (async () => {
+      throw new Error("Must not reach the provider");
+    }) as never;
+    const creating = {
+      ...MEETING,
+      status: "cancelled",
+      scheduleVersion: 4,
+      externalEventId: null,
+      externalSyncStatus: "pending",
+    };
+    for (const [updatedAt, status] of [
+      [new Date(), "pending"],
+      // An attempt that evidently died does not hold the cancellation forever.
+      [new Date(Date.now() - 60 * 60_000), "not_required"],
+    ] as const) {
+      const current = { ...creating, updatedAt };
+      const service = new CalendarService(
+        {} as never,
+        { findByIdForOwner: async () => current } as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+      assert.equal(
+        (await service.cancelExternalEvent(ctx, current as never)).status,
+        status,
+      );
+    }
   });
 });

@@ -595,7 +595,7 @@ export class MeetingService {
       ctx,
       `reschedule:${input.handoffId}`,
     );
-    if (!action) return null;
+    if (!action || !isSameMove(action, input)) return null;
     return {
       result: "moved",
       meeting: action.meeting,
@@ -968,6 +968,32 @@ export class MeetingService {
     }
     return call;
   }
+}
+
+/**
+ * Whether a stored agent move is the one asked for again: the same meeting,
+ * from the same version, to the same time. Another time on the same request
+ * is a new move, never a repeat of the earlier one.
+ */
+export function isSameMove(
+  action: Pick<MeetingAutomationAction, "meetingId" | "scheduledAt"> & {
+    evidence: unknown;
+  },
+  input: {
+    meetingId: string;
+    expectedScheduleVersion: number;
+    scheduledAt: Date;
+  },
+): boolean {
+  const evidence = action.evidence as {
+    originalMeetingId?: string;
+    expectedScheduleVersion?: number;
+  } | null;
+  return (
+    (evidence?.originalMeetingId ?? action.meetingId) === input.meetingId &&
+    evidence?.expectedScheduleVersion === input.expectedScheduleVersion &&
+    action.scheduledAt.getTime() === input.scheduledAt.getTime()
+  );
 }
 
 /**

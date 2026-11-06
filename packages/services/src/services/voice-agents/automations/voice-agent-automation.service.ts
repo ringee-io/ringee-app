@@ -577,6 +577,11 @@ export class VoiceAgentAutomationService {
         );
       }
     }
+    // Read before the agent is resolved: a first setup's claim creates the
+    // row, and only a workspace that had one keeps the legacy receipts.
+    const existed = Boolean(
+      await this.automations.findForOwner(ctx, AGENT_TYPE.scheduling),
+    );
     const agent = await this.resolveAgent(ctx, "scheduling", input, {
       callerNumberId: input.callerNumberId,
       calendarId: input.calendarId,
@@ -596,14 +601,14 @@ export class VoiceAgentAutomationService {
           enabled: true,
           ...(input.humanFollowUpEnabled !== undefined ||
           input.receiptRecipients !== undefined ||
-          !previous
+          !existed
             ? {
                 settings: {
                   ...settings,
                   receiptRecipients:
                     input.receiptRecipients ??
                     settings.receiptRecipients ??
-                    (previous ? "legacy" : "contact_responsible"),
+                    (existed ? "legacy" : "contact_responsible"),
                   ...(input.humanFollowUpEnabled !== undefined
                     ? {
                         humanFollowUp: {

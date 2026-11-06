@@ -553,6 +553,23 @@ describe("reminder placement revalidation", () => {
     assert.equal(starts.length, 0);
     assert(events.some((event) => event.reason === "outside_window"));
   });
+  it("keeps twenty minutes before the meeting for a 240-minute policy's call", async () => {
+    for (const [offsetMinutes, dials] of [
+      [240, 0],
+      [1440, 1],
+    ] as const) {
+      const { service, starts, events } = build({
+        execution: { offsetMinutes },
+      });
+      const internal = service as unknown as Row;
+      const meeting = await internal.meetings.findById("meeting-1");
+      meeting.scheduledAt = new Date(NOW.getTime() + 18 * 60_000);
+      internal.meetings.findById = async () => meeting;
+      await service.processDue(NOW);
+      assert.equal(starts.length, dials);
+      if (!dials) assert.equal(events.at(-1)!.reason, "too_late");
+    }
+  });
   it("does not overlap a human call to the lead", async () => {
     const { service, starts, events } = build({ liveHumanCall: true });
     await service.processDue(NOW);

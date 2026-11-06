@@ -606,7 +606,13 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
 
     // Once it is back to scheduled, a new time is a new dial with new keys.
     const scheduled = build({
-      callbacks: [agentCallback({ dialTries: 2, notBefore: new Date() })],
+      callbacks: [
+        agentCallback({
+          agentCallbackKind: CallbackAgentKind.recovery,
+          dialTries: 2,
+          notBefore: new Date(),
+        }),
+      ],
     });
     const at = new Date(Date.now() + 86_400_000);
     await scheduled.service.reschedule("cb-1", at);
@@ -619,7 +625,11 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
 
   it("does not overwrite a claim the worker took after the person's read", async () => {
     for (const change of ["cancel", "reschedule", "complete"] as const) {
-      const h = build();
+      const h = build({
+        callbacks: [
+          agentCallback({ agentCallbackKind: CallbackAgentKind.recovery }),
+        ],
+      });
       const read = h.repo.findById;
       // The worker claims the row between the read and the write.
       h.repo.findById = async (id: string) => {
@@ -644,7 +654,11 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
   });
 
   it("does not revive an agent callback cancelled after the reschedule read", async () => {
-    const h = build();
+    const h = build({
+      callbacks: [
+        agentCallback({ agentCallbackKind: CallbackAgentKind.recovery }),
+      ],
+    });
     const read = h.repo.findById;
     h.repo.findById = async (id: string) => {
       const row = await read(id);
@@ -656,6 +670,26 @@ describe("CallbackService — agent callbacks for a handoff request (AGENT-021)"
       /placing this callback right now/,
     );
     assert.equal(h.store.get("cb-1")!.status, CallbackStatus.cancelled);
+    assert.equal(h.store.get("cb-1")!.scheduledAt, SCHEDULED_AT);
+  });
+
+  it("does not let a person move a time the contact agreed on a call", async () => {
+    // Its receipt names the agreed time; only a call can record a new one.
+    const h = build();
+    await assert.rejects(
+      h.service.reschedule("cb-1", new Date(Date.now() + 86_400_000)),
+      /contact agreed to this callback time/,
+    );
+    assert.equal(h.store.get("cb-1")!.scheduledAt, SCHEDULED_AT);
+    // The repository refuses it as well, whoever calls it.
+    assert.equal(
+      await h.repo.rescheduleAgentCallback(
+        "cb-1",
+        new Date(Date.now() + 86_400_000),
+        CallbackStatus.scheduled,
+      ),
+      null,
+    );
     assert.equal(h.store.get("cb-1")!.scheduledAt, SCHEDULED_AT);
   });
 

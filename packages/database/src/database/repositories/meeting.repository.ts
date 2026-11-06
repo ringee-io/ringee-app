@@ -536,6 +536,18 @@ export class MeetingRepository {
           })
         : null;
       if (prior && prior.organizationId === ctx.organizationId) {
+        const decided = prior.evidence as {
+          originalMeetingId?: string;
+          expectedScheduleVersion?: number;
+        } | null;
+        // Another time on the same request is not this move repeated: the
+        // request already moved the meeting once.
+        if (
+          (decided?.originalMeetingId ?? prior.meetingId) !== input.meetingId ||
+          decided?.expectedScheduleVersion !== input.expectedScheduleVersion ||
+          prior.scheduledAt.getTime() !== input.scheduledAt.getTime()
+        )
+          return { result: "stale" as const };
         const meeting = await tx.meeting.findUniqueOrThrow({
           where: { id: prior.meetingId },
           include: { contact: true },
@@ -928,6 +940,8 @@ export class MeetingRepository {
                 kind: "cancelled",
                 scheduleVersion: meeting.scheduleVersion,
               },
+              // The decision itself, before any correction of it.
+              orderBy: { createdAt: "asc" },
             })
           : null);
       const handoffSeed = actor.participant
@@ -937,6 +951,7 @@ export class MeetingRepository {
         : await tx.aiVoiceAgentHandoff.findFirst({
             where: { agentCallId: actor.call.id, meetingId: meeting.id },
           });
+      let handoff = handoffSeed;
       if (handoffSeed) {
         await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${handoffSeed.id}::uuid FOR UPDATE`;
         if (
@@ -946,6 +961,9 @@ export class MeetingRepository {
           }))
         )
           return null;
+        handoff = await tx.aiVoiceAgentHandoff.findUnique({
+          where: { id: handoffSeed.id },
+        });
       }
       if (
         actor.participant?.role === "handoff" ||
@@ -968,28 +986,110 @@ export class MeetingRepository {
         });
         if (!execution) return null;
       }
-      if (prior)
-        return prior.agentCallId === actor.call.id &&
-          prior.scheduleVersion === meeting.scheduleVersion &&
-          (prior.kind !== "cancelled" || meeting.status === "cancelled")
-          ? prior
-          : null;
-      if (
-        meeting.scheduleVersion !== input.expectedScheduleVersion ||
-        !ACTIVE_MEETING_STATUSES.includes(meeting.status) ||
-        meeting.scheduledAt <= new Date()
-      )
-        return null;
       const seed = handoffSeed
         ? await tx.pendingActionFollowUp.findUnique({
             where: { handoffId: handoffSeed.id },
           })
         : null;
       const objective = seed ? await lockFollowUp(tx, seed.id) : null;
+      const closeObjective = (
+        open: NonNullable<typeof objective>,
+        decision: { id: string; kind: string },
+      ) =>
+        applyFollowUpPlan(
+          tx,
+          open,
+          {
+            state: "closed",
+            reason: decision.kind,
+            closureReason: "refusal",
+            nextAction: null,
+            nextActionAt: null,
+            evidence: { actionId: decision.id, decision: decision.kind },
+          },
+          {
+            key: `action:${decision.id}`,
+            kind: "objective_closed",
+            actorType: "agent",
+            actorId: actor.agent.id,
+            evidence: { actionId: decision.id },
+          },
+          new Date(),
+        );
+      if (prior) {
+        if (
+          prior.agentCallId !== actor.call.id ||
+          prior.scheduleVersion !== meeting.scheduleVersion ||
+          (prior.kind === "cancelled" && meeting.status !== "cancelled")
+        )
+          return null;
+        // The last answer this call gave: the decision, or its last correction.
+        const answers = await tx.meetingAutomationAction.findMany({
+          where: {
+            organizationId: ctx.organizationId!,
+            OR: [
+              { actionKey: prior.actionKey },
+              { actionKey: { startsWith: `${prior.actionKey}:correction:` } },
+            ],
+          },
+          orderBy: [{ createdAt: "asc" }, { actionKey: "asc" }],
+        });
+        const latest = answers.at(-1) ?? prior;
+        const said = latest.evidence as {
+          response?: string;
+          continueRescheduling?: boolean;
+        } | null;
+        // The same answer again is a retry of it.
+        if (
+          said?.response === input.response &&
+          said?.continueRescheduling === input.continueRescheduling
+        )
+          return latest;
+        // A changed answer is recorded as a correction. The appointment is
+        // not changed again, but a refusal still ends the request.
+        const open =
+          objective?.mode === "automatic" &&
+          !["blocked", "closed", "resolved"].includes(objective.state);
+        // An objective already closed is not reopened by a new answer.
+        if (input.continueRescheduling && !open) return null;
+        const correction = await recordMeetingAction(tx, {
+          key: `${prior.actionKey}:correction:${answers.length}`,
+          meeting,
+          actor,
+          kind: prior.kind,
+          handoffId: handoffSeed?.id,
+          followUpId: objective?.id,
+          language: handoffSeed?.language,
+          evidence: {
+            explicitCancellation: input.cancel,
+            response: input.response,
+            continueRescheduling: input.continueRescheduling,
+            expectedScheduleVersion: input.expectedScheduleVersion,
+            correctsActionId: latest.id,
+          },
+        });
+        if (objective && open && !input.continueRescheduling)
+          await closeObjective(objective, correction);
+        return correction;
+      }
+      if (
+        meeting.scheduleVersion !== input.expectedScheduleVersion ||
+        !ACTIVE_MEETING_STATUSES.includes(meeting.status) ||
+        meeting.scheduledAt <= new Date()
+      )
+        return null;
       if (
         objective &&
         (objective.mode !== "automatic" ||
           ["blocked", "closed", "resolved"].includes(objective.state))
+      )
+        return null;
+      // A request already settled, or left to the team, is not this call's to
+      // decide — unless it is paused, like every other participant action.
+      if (
+        handoff &&
+        handoff.requestStatus !== "pending" &&
+        objective?.state !== "paused"
       )
         return null;
       if (
@@ -1030,10 +1130,19 @@ export class MeetingRepository {
           claimToken: null,
         },
       });
-      await tx.meetingEmailDelivery.updateMany({
-        where: { meetingId: meeting.id, status: { in: UNSENT_EMAIL_STATUSES } },
-        data: { status: "cancelled", leaseExpiresAt: null },
-      });
+      // Only a cancellation makes what is waiting to go out untrue. The
+      // callback a continuing request keeps is still owed its receipt.
+      if (input.cancel)
+        await tx.meetingEmailDelivery.updateMany({
+          where: {
+            meetingId: meeting.id,
+            status: { in: UNSENT_EMAIL_STATUSES },
+            ...(input.continueRescheduling
+              ? { kind: { not: MeetingEmailKind.recovery_callback } }
+              : {}),
+          },
+          data: { status: "cancelled", leaseExpiresAt: null },
+        });
       const action = await recordMeetingAction(tx, {
         key,
         meeting: updated,
@@ -1064,28 +1173,8 @@ export class MeetingRepository {
           data: { meetingScheduleVersion: updated.scheduleVersion },
         });
       }
-      if (objective && !input.continueRescheduling) {
-        await applyFollowUpPlan(
-          tx,
-          objective,
-          {
-            state: "closed",
-            reason: action.kind,
-            closureReason: "refusal",
-            nextAction: null,
-            nextActionAt: null,
-            evidence: { actionId: action.id, decision: action.kind },
-          },
-          {
-            key: `action:${action.id}`,
-            kind: "objective_closed",
-            actorType: "agent",
-            actorId: actor.agent.id,
-            evidence: { actionId: action.id },
-          },
-          new Date(),
-        );
-      }
+      if (objective && !input.continueRescheduling)
+        await closeObjective(objective, action);
       return action;
     });
   }
@@ -1268,7 +1357,44 @@ export class MeetingRepository {
           targetCalendarId: string | null;
           error: string;
         },
+    /**
+     * The version the event was created for. A meeting cancelled or moved
+     * while it was being created keeps the event's pointer, never `synced`,
+     * so the event can still be deleted or moved.
+     */
+    expected?: { scheduleVersion: number },
   ): Promise<Meeting> {
+    if (result.status === "synced" && expected) {
+      const pointer = {
+        externalEventId: result.externalEventId,
+        externalCalendarIntegrationId: result.integrationId,
+        externalCalendarTargetId: result.targetCalendarId,
+        ...(result.location ? { location: result.location } : {}),
+        externalSyncAttempts: { increment: 1 },
+      } satisfies Prisma.MeetingUncheckedUpdateManyInput;
+      const { count } = await this.prisma.meeting.updateMany({
+        where: {
+          id,
+          scheduleVersion: expected.scheduleVersion,
+          status: { in: ACTIVE_MEETING_STATUSES },
+        },
+        data: {
+          ...pointer,
+          externalSyncStatus: MeetingExternalSyncStatus.synced,
+          externalSyncError: null,
+          externalSyncedAt: new Date(),
+        },
+      });
+      if (count)
+        return this.prisma.meeting.findUniqueOrThrow({ where: { id } });
+      return this.prisma.meeting.update({
+        where: { id },
+        data: {
+          ...pointer,
+          externalSyncStatus: MeetingExternalSyncStatus.pending,
+        },
+      });
+    }
     return this.prisma.meeting.update({
       where: { id },
       data:

@@ -94,7 +94,11 @@ export class MeetingEmailService {
   async drain(now = new Date()): Promise<number> {
     const organizations = automationOrganizationFilter();
     if (organizations?.length === 0) return 0;
-    await this.deliveries.requeueAvailableAddresses(organizations);
+    // The same address rule `deliver` reads the lead's address with.
+    await this.deliveries.requeueAvailableAddresses(
+      organizations,
+      (address) => normalizeEmail(address) !== null,
+    );
     await this.backfillMessageIds(now);
     const claimAt = this.now();
     const claimed = await this.deliveries.claimDue(
@@ -199,8 +203,12 @@ export class MeetingEmailService {
       MeetingEmailKind.replaced,
     ].includes(delivery.kind as "rescheduled" | "replaced");
     if (action) {
+      // A callback receipt is about the callback, not the meeting: a
+      // cancellation that keeps rescheduling moves the version, and the
+      // callback (its time, its objective) is checked in `prepareSend`.
       const valid =
-        meeting.scheduleVersion === delivery.scheduleVersion &&
+        (delivery.kind === "recovery_callback" ||
+          meeting.scheduleVersion === delivery.scheduleVersion) &&
         (delivery.kind === "cancelled"
           ? meeting.status === "cancelled"
           : delivery.kind === "recovery_callback" ||
@@ -282,14 +290,19 @@ export class MeetingEmailService {
     }
     if (action && ["contact", "contact_late"].includes(delivery.audience)) {
       const siblings = await this.deliveries.listActionDeliveries(action.id);
-      if (
-        delivery.audience === "contact_late" &&
-        !siblings.some(
-          (row) => row.audience === "legacy" && row.status === "sent",
-        )
-      ) {
-        await release(D.pending, "awaiting_team_delivery");
-        return false;
+      if (delivery.audience === "contact_late") {
+        const team = siblings.filter((row) => row.audience === "legacy");
+        if (!team.some((row) => row.status === "sent")) {
+          // A team email that will never go out would hold this one forever.
+          const settled = team.some(
+            (row) => row.status === D.failed || row.status === D.cancelled,
+          );
+          await release(
+            settled ? D.cancelled : D.pending,
+            settled ? "team_delivery_not_sent" : "awaiting_team_delivery",
+          );
+          return false;
+        }
       }
       if (!leadEmail) {
         await release(D.needs_email, "contact_address_unavailable");

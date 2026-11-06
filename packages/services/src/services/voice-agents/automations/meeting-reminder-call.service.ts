@@ -62,6 +62,8 @@ const CLAIM_BATCH = 20;
 const MAX_DIAL_TRIES = 3;
 /** A reminder never rings this close to the meeting. */
 const MIN_LEAD_MS = REMINDER_OFFSET_MIN_MINUTES * 60_000;
+/** A 240-minute policy's calls (close bookings, its retry) keep 20 minutes. */
+const FOUR_HOUR_POLICY_MIN_LEAD_MS = 20 * 60_000;
 /** How long a reminder waits when the lead is already on a call with us. */
 const OVERLAP_DEFER_MS = 10 * 60_000;
 /** A claim or placement younger than this may still be a live call. */
@@ -346,7 +348,8 @@ export class MeetingReminderCallService {
     if (meeting.attendanceStatus !== "pending") {
       return end(S.skipped, "already_answered");
     }
-    if (meeting.scheduledAt.getTime() - now.getTime() < MIN_LEAD_MS) {
+    const minLead = minLeadMs(execution);
+    if (meeting.scheduledAt.getTime() - now.getTime() < minLead) {
       return end(S.skipped, "too_late");
     }
 
@@ -409,7 +412,7 @@ export class MeetingReminderCallService {
     ) {
       const later = new Date(now.getTime() + OVERLAP_DEFER_MS);
       if (
-        meeting.scheduledAt.getTime() - later.getTime() >= MIN_LEAD_MS &&
+        meeting.scheduledAt.getTime() - later.getTime() >= minLead &&
         isWithinCallingWindow(later, window, timeZone)
       ) {
         await this.executions.defer(
@@ -511,7 +514,7 @@ export class MeetingReminderCallService {
             await reject("lead_on_a_call", S.skipped);
           }
           const atDial = this.now();
-          if (current!.scheduledAt.getTime() - atDial.getTime() < MIN_LEAD_MS)
+          if (current!.scheduledAt.getTime() - atDial.getTime() < minLead)
             await reject("too_late", S.skipped);
           if (
             !isWithinCallingWindow(
@@ -528,7 +531,7 @@ export class MeetingReminderCallService {
             !(await this.executions.authorizeDial(
               dialing,
               atDial,
-              new Date(atDial.getTime() + MIN_LEAD_MS),
+              new Date(atDial.getTime() + minLead),
               new Date(atDial.getTime() + LEASE_MS),
             ))
           ) {
@@ -566,7 +569,7 @@ export class MeetingReminderCallService {
           failedAt.getTime() + 2 ** dialing.dialTries * 60_000,
         );
         if (
-          meeting.scheduledAt.getTime() - retryAt.getTime() >= MIN_LEAD_MS &&
+          meeting.scheduledAt.getTime() - retryAt.getTime() >= minLead &&
           isWithinCallingWindow(retryAt, window, timeZone)
         ) {
           await this.executions.defer(
@@ -788,6 +791,13 @@ export class MeetingReminderCallService {
       additional_context: context,
     };
   }
+}
+
+/** How close to the meeting this execution may still ring. */
+function minLeadMs(execution: MeetingReminderExecution): number {
+  return execution.offsetMinutes === 240
+    ? FOUR_HOUR_POLICY_MIN_LEAD_MS
+    : MIN_LEAD_MS;
 }
 
 /** One key per dial try: `<execution key>:d<try>`. */

@@ -44,14 +44,24 @@ export class MeetingEmailDeliveryRepository {
     return this.prisma.meetingEmailDelivery.findMany({ where: { actionId } });
   }
 
-  /** A new address repairs only waiting audiences, never already accepted sends. */
-  async requeueAvailableAddresses(organizationIds: string[] | null) {
-    await this.prisma.meetingEmailDelivery.updateMany({
+  /**
+   * A new address repairs only waiting audiences, never already accepted sends.
+   * `usable` is the caller's address rule: a malformed address would only be
+   * claimed and parked again on every tick.
+   */
+  async requeueAvailableAddresses(
+    organizationIds: string[] | null,
+    usable: (address: string | null) => boolean,
+  ) {
+    const waiting = {
+      status: D.needs_email,
+      actionId: { not: null },
+      firstAttemptAt: null,
+      ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+    } satisfies Prisma.MeetingEmailDeliveryWhereInput;
+    const candidates = await this.prisma.meetingEmailDelivery.findMany({
       where: {
-        status: D.needs_email,
-        actionId: { not: null },
-        firstAttemptAt: null,
-        ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+        ...waiting,
         meeting: {
           OR: [
             { leadEmail: { not: null } },
@@ -59,6 +69,22 @@ export class MeetingEmailDeliveryRepository {
           ],
         },
       },
+      select: {
+        id: true,
+        meeting: {
+          select: { leadEmail: true, contact: { select: { email: true } } },
+        },
+      },
+    });
+    const ids = candidates
+      .filter(
+        ({ meeting }) =>
+          usable(meeting.leadEmail) || usable(meeting.contact?.email ?? null),
+      )
+      .map(({ id }) => id);
+    if (ids.length === 0) return;
+    await this.prisma.meetingEmailDelivery.updateMany({
+      where: { ...waiting, id: { in: ids } },
       data: { status: D.pending },
     });
   }
@@ -179,10 +205,13 @@ export class MeetingEmailDeliveryRepository {
         leaseExpiresAt: { gt: now },
         meeting: {
           organizationId: delivery.organizationId,
+          // A callback receipt was checked against its callback above.
           scheduleVersion:
-            delivery.actionId && delivery.kind !== "attendance_confirmed"
-              ? delivery.scheduleVersion
-              : expectedMeetingVersion,
+            delivery.kind === "recovery_callback"
+              ? undefined
+              : delivery.actionId && delivery.kind !== "attendance_confirmed"
+                ? delivery.scheduleVersion
+                : expectedMeetingVersion,
           ...(delivery.actionId && delivery.kind !== "attendance_confirmed"
             ? {}
             : rescheduled

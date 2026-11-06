@@ -853,11 +853,16 @@ export class PendingActionService {
           new Date(
             Math.max(
               now.getTime(),
+              // A day after the call ended; its dispatch when that is unknown.
               ...row.callbacks
                 .filter((step) => step.dispatchCommittedAt)
                 .map(
                   (step) =>
-                    step.dispatchCommittedAt!.getTime() + 24 * 60 * 60_000,
+                    Math.max(
+                      step.dispatchCommittedAt!.getTime(),
+                      step.agentCall?.call?.endedAt?.getTime() ?? 0,
+                    ) +
+                    24 * 60 * 60_000,
                 ),
             ),
           ),

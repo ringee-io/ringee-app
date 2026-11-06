@@ -885,6 +885,11 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
       const done = moveBuild({
         action: {
           kind: "rescheduled",
+          meetingId: "meeting-1",
+          evidence: {
+            originalMeetingId: "meeting-1",
+            expectedScheduleVersion: 3,
+          },
           scheduledAt: NEW_TIME,
           scheduleVersion: 4,
           previousScheduledAt: STORED_MEETING.scheduledAt,
@@ -899,6 +904,35 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
       assert.equal(result?.repeated, true);
       assert.equal(result?.changedSinceAction, version !== 4);
       assert.deepEqual(done.events, []);
+    }
+  });
+
+  it("does not report another time asked on the same request as the move already made", async () => {
+    const action = {
+      kind: "rescheduled",
+      meetingId: "meeting-1",
+      evidence: { originalMeetingId: "meeting-1", expectedScheduleVersion: 3 },
+      scheduledAt: NEW_TIME,
+      scheduleVersion: 4,
+      previousScheduledAt: STORED_MEETING.scheduledAt,
+      meeting: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
+    };
+    const input = {
+      meetingId: "meeting-1",
+      expectedScheduleVersion: 3,
+      scheduledAt: NEW_TIME,
+      handoffId: "request-1",
+    };
+    for (const other of [
+      { scheduledAt: new Date(NEW_TIME.getTime() + 60 * 60_000) },
+      { expectedScheduleVersion: 4 },
+      { meetingId: "meeting-2" },
+    ]) {
+      const { service } = moveBuild({ action });
+      assert.equal(
+        await service.completeRepeatedMove(ctx, { ...input, ...other }),
+        null,
+      );
     }
   });
 

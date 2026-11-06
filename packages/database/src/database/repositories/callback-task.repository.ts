@@ -1014,6 +1014,14 @@ export class CallbackTaskRepository {
   ): Promise<CallbackTask | null> {
     return this.prisma.$transaction(async (tx) => {
       const seed = await tx.callbackTask.findUnique({ where: { id } });
+      // An agreed time has a receipt; moving it must record the new one.
+      if (
+        !recordAgreedReceipt &&
+        seed?.agentCallbackKind === "agreed" &&
+        seed.handoffId &&
+        seed.callId
+      )
+        return null;
       const objective = seed?.followUpId
         ? await lockFollowUp(tx, seed.followUpId)
         : null;

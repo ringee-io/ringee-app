@@ -284,6 +284,11 @@ function formatInZone(instant: Date, timeZone: string): string {
 
 /** How many times a move re-applies a newer time before leaving it pending. */
 const MAX_EXTERNAL_MOVE_ATTEMPTS = 3;
+/**
+ * How long a cancellation waits for an event that was still being created
+ * when the meeting was cancelled, so the event lands where it can be deleted.
+ */
+const EXTERNAL_CREATE_GRACE_MS = 10 * 60_000;
 
 const DEFAULT_CALENDAR_NAME = "Global calendar";
 const MAX_CALENDAR_NAME_LENGTH = 80;
@@ -1314,13 +1319,33 @@ export class CalendarService {
         targetCalendarId,
         idempotencyId: googleEventIdFor(meeting.id),
       });
-      await this.meetingRepo.recordExternalSync(meeting.id, {
-        status: "synced",
-        externalEventId: event.id,
-        integrationId: integration.id,
-        targetCalendarId,
-        location: event.meetLink || undefined,
-      });
+      const recorded = await this.meetingRepo.recordExternalSync(
+        meeting.id,
+        {
+          status: "synced",
+          externalEventId: event.id,
+          integrationId: integration.id,
+          targetCalendarId,
+          location: event.meetLink || undefined,
+        },
+        { scheduleVersion: meeting.scheduleVersion },
+      );
+      if (
+        recorded &&
+        recorded.externalSyncStatus !== MeetingExternalSyncStatus.synced
+      ) {
+        // Cancelled or moved while the event was being created: the event
+        // follows the meeting as it is now, never left at the old time.
+        const followed =
+          recorded.status === "cancelled"
+            ? await this.cancelExternalEvent(ctx, recorded)
+            : await this.moveExternalEvent(ctx, recorded);
+        return {
+          status: followed.status,
+          externalEventId: event.id,
+          meetLink: event.meetLink,
+        };
+      }
       return {
         status: MeetingExternalSyncStatus.synced,
         externalEventId: event.id,
@@ -1456,8 +1481,20 @@ export class CalendarService {
       current.scheduleVersion !== meeting.scheduleVersion
     )
       return { status: MeetingExternalSyncStatus.pending };
-    if (!current.externalEventId || !current.externalCalendarIntegrationId)
-      return { status: MeetingExternalSyncStatus.not_required };
+    if (!current.externalEventId || !current.externalCalendarIntegrationId) {
+      // An event still being created is recorded after this read. The
+      // cancellation is not settled until it can be deleted (or the attempt
+      // has evidently died).
+      const creating =
+        !current.externalEventId &&
+        current.externalSyncStatus === MeetingExternalSyncStatus.pending &&
+        Date.now() - current.updatedAt.getTime() < EXTERNAL_CREATE_GRACE_MS;
+      return {
+        status: creating
+          ? MeetingExternalSyncStatus.pending
+          : MeetingExternalSyncStatus.not_required,
+      };
+    }
     if (current.externalSyncStatus === "synced")
       return { status: MeetingExternalSyncStatus.synced };
     try {
