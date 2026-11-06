@@ -1663,6 +1663,26 @@ describe("Reminders → scheduling handoff on the same call", () => {
 });
 
 describe("Explicit appointment cancellation", () => {
+  it("keeps cancellation behind the workspace pilot", async () => {
+    const t = tools(world());
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-2"];
+    try {
+      assert.equal(
+        (
+          await t.service.finishMeetingResponse("agent-rem", REM_SECRET, CC, {
+            cancellation: "yes",
+            rescheduling: "declined",
+            response: "Yes, cancel.",
+          })
+        ).ok,
+        false,
+      );
+      assert.equal(t.decisions.length, 0);
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1", "org-2"];
+    }
+  });
+
   it("retains the reservation for no or unclear, and cancels only on yes", async () => {
     for (const cancellation of ["no", "unclear", "yes"]) {
       const t = tools(world());

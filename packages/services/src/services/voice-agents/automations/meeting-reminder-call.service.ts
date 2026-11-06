@@ -627,48 +627,53 @@ export class MeetingReminderCallService {
   private async planUnansweredRetry(now: Date): Promise<void> {
     let afterId: string | undefined;
     do {
-      const rows = await this.executions.listUnansweredForRetry(now, afterId, automationOrganizationFilter());
-      afterId = rows.length === 100 ? rows[rows.length - 1].id : undefined;
-    for (const prior of rows) {
-      if (
-        !voiceAgentAutomationsEnabled(prior.organizationId) ||
-        !prior.policy ||
-        prior.policyVersion !== prior.policy.version ||
-        prior.scheduleVersion !== prior.meeting.scheduleVersion
-      )
-        continue;
-      const fireAt = new Date(
-        Math.max(
-          now.getTime(),
-          (prior.dispatchCommittedAt ?? prior.fireAt).getTime() + 60 * 60_000,
-        ),
+      const rows = await this.executions.listUnansweredForRetry(
+        now,
+        afterId,
+        automationOrganizationFilter(),
       );
-      if (
-        prior.meeting.scheduledAt.getTime() - fireAt.getTime() < 20 * 60_000 ||
-        !isWithinCallingWindow(
-          fireAt,
-          readCallingWindow(prior.policy),
-          prior.meeting.calendar?.timezone ?? "UTC",
+      afterId = rows.length === 100 ? rows[rows.length - 1].id : undefined;
+      for (const prior of rows) {
+        if (
+          !voiceAgentAutomationsEnabled(prior.organizationId) ||
+          !prior.policy ||
+          prior.policyVersion !== prior.policy.version ||
+          prior.scheduleVersion !== prior.meeting.scheduleVersion
         )
-      )
-        continue;
-      await this.executions.createMany([
-        {
-          userId: prior.userId,
-          organizationId: prior.organizationId,
-          meetingId: prior.meetingId,
-          policyId: prior.policyId,
-          agentId: prior.agentId,
-          trigger: "policy",
-          scheduleVersion: prior.scheduleVersion,
-          policyVersion: prior.policyVersion,
-          offsetMinutes: prior.offsetMinutes,
-          attempt: 2,
-          fireAt,
-          idempotencyKey: `retry:${prior.id}:a2`,
-        },
-      ]);
-    }
+          continue;
+        const fireAt = new Date(
+          Math.max(
+            now.getTime(),
+            (prior.dispatchCommittedAt ?? prior.fireAt).getTime() + 60 * 60_000,
+          ),
+        );
+        if (
+          prior.meeting.scheduledAt.getTime() - fireAt.getTime() <
+            20 * 60_000 ||
+          !isWithinCallingWindow(
+            fireAt,
+            readCallingWindow(prior.policy),
+            prior.meeting.calendar?.timezone ?? "UTC",
+          )
+        )
+          continue;
+        await this.executions.createMany([
+          {
+            userId: prior.userId,
+            organizationId: prior.organizationId,
+            meetingId: prior.meetingId,
+            policyId: prior.policyId,
+            agentId: prior.agentId,
+            trigger: "policy",
+            scheduleVersion: prior.scheduleVersion,
+            policyVersion: prior.policyVersion,
+            offsetMinutes: prior.offsetMinutes,
+            attempt: 2,
+            fireAt,
+            idempotencyKey: `retry:${prior.id}:a2`,
+          },
+        ]);
+      }
     } while (afterId);
   }
 

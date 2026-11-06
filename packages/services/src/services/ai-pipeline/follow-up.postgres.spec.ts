@@ -21,6 +21,8 @@ import {
   AiVoiceAgentAutomationRepository,
   AiVoiceAgentRepository,
   CalendarRepository,
+  CalendarIntegrationRepository,
+  CalendarAvailabilityRepository,
   DNCEntryRepository,
   MeetingReminderPolicyRepository,
   AiVoiceAgentCallRepository,
@@ -29,6 +31,7 @@ import {
 } from "@ringee/database";
 import { MeetingEmailService } from "../meeting-email.service";
 import { MeetingService } from "../meeting.service";
+import { CalendarService } from "../calendar.service";
 import type { EmailMessage } from "@ringee/platform";
 import { ComplianceService } from "../outbound/compliance.service";
 import { PendingActionService } from "./pending-action.service";
@@ -80,7 +83,13 @@ describe(
       executions,
       policies,
       calendars,
-      {} as never,
+      new CalendarService(
+        new CalendarIntegrationRepository(db),
+        meetings,
+        new CalendarAvailabilityRepository(db),
+        calendars,
+        {} as never,
+      ),
       contacts,
       {
         findById: async () => ({
@@ -707,6 +716,56 @@ describe(
         ),
       );
       await close(f.objective.id);
+    });
+
+    it("Stage 3: explicit cancellation can continue to one replacement on the same call", async () => {
+      const f = await seed();
+      const decision = await meetings.recordAgentDecision(ctx, {
+        meetingId: f.meeting.id,
+        expectedScheduleVersion: 1,
+        agentCallId: f.agentCall.id,
+        actorAgentId: sourceAgentId,
+        cancel: true,
+        continueRescheduling: true,
+        response: "Yes, cancel the original and find another time now.",
+      });
+      assert.ok(decision);
+      const grant = await handoffs.grantFor(
+        (await agents.findByIdForOwner(ctx, agentId))!,
+        f.agentCall,
+      );
+      assert.equal(grant.kind, "participant");
+      if (grant.kind !== "participant") return;
+      assert.equal(grant.participant.meetingScheduleVersion, 2);
+      assert.equal((await handoffs.availabilityFor(ctx, grant)).ok, true);
+      const start = new Date("2098-02-04T12:00:00Z");
+      await handoffRepo.recordOffer(f.handoff.id, {
+        agentCallId: f.agentCall.id,
+        slots: [{ start: start.toISOString(), label: "Accepted" }],
+        now: new Date(),
+      });
+      const result = await meetings.rescheduleIfAvailable(
+        ctx,
+        {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: 2,
+          scheduledAt: start,
+          actorAgentId: agentId,
+          email: { idempotencyKey: f.handoff.id, agentCallId: f.agentCall.id },
+        },
+        { calendarId, isDefault: false },
+        null,
+      );
+      assert.equal(result.result, "moved");
+      assert.ok(result.result === "moved" && result.replacement);
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.status,
+        "cancelled",
+      );
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "resolved",
+      );
     });
 
     it("Stage 3: stale versions, outgoing participants and foreign workspaces cannot cancel", async () => {

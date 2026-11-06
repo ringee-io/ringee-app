@@ -916,9 +916,20 @@ export class MeetingRepository {
       if (!meeting || !actor || meeting.contactId !== actor.call.contactId)
         return null;
       const key = `decision:${meeting.id}:v${input.expectedScheduleVersion}:${input.cancel ? "cancel" : "keep"}`;
-      const prior = await tx.meetingAutomationAction.findUnique({
-        where: { actionKey: key },
-      });
+      const prior =
+        (await tx.meetingAutomationAction.findUnique({
+          where: { actionKey: key },
+        })) ??
+        (input.cancel
+          ? await tx.meetingAutomationAction.findFirst({
+              where: {
+                meetingId: meeting.id,
+                agentCallId: actor.call.id,
+                kind: "cancelled",
+                scheduleVersion: meeting.scheduleVersion,
+              },
+            })
+          : null);
       const handoffSeed = actor.participant
         ? await tx.aiVoiceAgentHandoff.findUnique({
             where: { id: actor.participant.handoffId },
@@ -978,7 +989,20 @@ export class MeetingRepository {
       if (
         objective &&
         (objective.mode !== "automatic" ||
-          ["closed", "resolved"].includes(objective.state))
+          ["blocked", "closed", "resolved"].includes(objective.state))
+      )
+        return null;
+      if (
+        actor.participant?.role === "callback" &&
+        !(await tx.callbackTask.count({
+          where: {
+            agentCallId: actor.call.id,
+            handoffId: handoffSeed?.id,
+            organizationId: ctx.organizationId!,
+            ...(objective ? { followUpId: objective.id } : {}),
+            dispatchCommittedAt: { not: null },
+          },
+        }))
       )
         return null;
       if (input.continueRescheduling && !objective) return null;
@@ -1026,6 +1050,20 @@ export class MeetingRepository {
           expectedScheduleVersion: input.expectedScheduleVersion,
         },
       });
+      if (input.cancel && input.continueRescheduling && handoffSeed) {
+        // Only this authorized cancellation advances the live request's binding.
+        // A concurrent human edit never grants a participant a newer version.
+        await tx.aiVoiceAgentCallParticipant.updateMany({
+          where: {
+            handoffId: handoffSeed.id,
+            agentCallId: actor.call.id,
+            status: "active",
+            meetingId: meeting.id,
+            meetingScheduleVersion: input.expectedScheduleVersion,
+          },
+          data: { meetingScheduleVersion: updated.scheduleVersion },
+        });
+      }
       if (objective && !input.continueRescheduling) {
         await applyFollowUpPlan(
           tx,

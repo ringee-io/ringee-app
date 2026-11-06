@@ -76,4 +76,3 @@ ALTER TABLE "MeetingAutomationAction" ADD CONSTRAINT "MeetingAutomationAction_me
 
 -- AddForeignKey
 ALTER TABLE "MeetingAutomationAction" ADD CONSTRAINT "MeetingAutomationAction_callId_fkey" FOREIGN KEY ("callId") REFERENCES "Call"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-

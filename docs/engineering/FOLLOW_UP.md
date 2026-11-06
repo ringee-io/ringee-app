@@ -1,6 +1,6 @@
 # Persistent follow-up objectives
 
-Stages 1–3, updated 5 November 2026. The pilot flag remains
+Stages 1–3, updated 6 November 2026. The pilot flag remains
 `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. Human-outcome enrollment additionally
 requires an administrator's explicit scheduling-automation policy. Purchasing
 Organization does not enable it.
@@ -33,7 +33,7 @@ new work.
 Step 0 reschedule handoffs and newly saved eligible human outcomes can enroll
 objectives. Recommendations retain their own activation and execution mode.
 See [PLAN_ORGANIZATION_AI_FOLLOWUP.md](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md)
-§17–18 for implementation status.
+§17–19 for implementation status.
 
 ## Lifecycle and evidence
 
@@ -296,7 +296,7 @@ FOLLOWUP_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ringee_follo
 The test-only script refuses nonlocal, differently named or nonempty databases.
 It derives the schema preceding follow-up from the current Prisma schema, adds
 the SQL-only DNC partial indexes, then applies the actual Stage 1 migration,
-callback index/foreign-key validation and Stage 2 migration. This includes the
+callback index/foreign-key validation and Stage 2/3 migrations. This includes the
 lifecycle checks that `prisma db push` omits. The generated baseline already
 includes the Step 0 callback uniqueness indexes. The Test step alone receives
 `RINGEE_FOLLOWUP_TEST_DATABASE_URL` pointing at this prepared database, so both
@@ -360,7 +360,10 @@ creates history immediately and no final rejection email. `finish_meeting_respon
 accepts the actual answer to an explicit cancellation question, derives IDs from
 the live participation/execution, and rechecks authority/version. Only `yes`
 cancels; `no`/`unclear` retains the reservation. If another time is still requested,
-the objective remains open. Declining further scheduling closes it as refusal.
+the objective remains open. Its authorized cancellation advances only the current
+call's participation binding, so the specialist can commit a replacement on that
+same call. A human edit never advances that binding. Declining further scheduling
+closes the objective as refusal.
 
 An explicitly configured 240-minute reminder policy supports close bookings only
 when the next window leaves at least 20 minutes. An unanswered first reminder can
@@ -411,6 +414,45 @@ repair after restart, preserved edited notes, provider acceptance with lost DB
 acknowledgment, late addresses and competing reminder/callback reservations.
 The source-controlled business-rule changes are CAL-003, AGENT-006/017/019/020/021/022;
 tariffs, ledger keys and public enums remain additive.
+
+Verified on 6 November 2026:
+
+- Full services suite: **1,595 passed**, zero failures or skips, with both
+  `DATABASE_URL` and `RINGEE_FOLLOWUP_TEST_DATABASE_URL` set to disposable local
+  PostgreSQL. After the final same-call cancellation fix, both PostgreSQL suites
+  and the handoff suite were rerun: **108 passed**, including the added replacement
+  regression. These are overlapping runs, not additive totals.
+- Database suite: **73 passed**, two unrelated opt-in tests skipped. Platform:
+  **426 passed**. Providers were mocked throughout.
+- Prisma generation and database, backend and orchestrator Nest builds passed;
+  all three builds were repeated after the final participation-binding change.
+- An `OrchestratorModule` application context resolved the meeting, email,
+  reminder, callback, objective, handoff and tool owners against disposable
+  PostgreSQL, with inert Redis and external HTTP blocked. No backend bootstrap,
+  Temporal worker, reminder loop or dialing loop was started.
+- Repository ESLint: **zero errors, 153 existing warnings**. Final changed-file
+  ESLint: no warnings. Repository Prettier and diff whitespace checks passed.
+- The actual Stage 1/2/3 SQL and concurrent indexes applied successfully to a
+  separate empty local PostgreSQL 17 database using the preparation script.
+  No production migration, real call or external receipt was sent.
+
+The full services run used the installed package-script tools directly from
+`packages/services`, avoiding package-manager dependency refresh during checks:
+
+```bash
+TS_NODE_PROJECT=tsconfig.json node --env-file-if-exists=../../.env \
+  --require ts-node/register --require tsconfig-paths/register \
+  --test --test-concurrency=4 "src/**/*.spec.ts"
+```
+
+Set both database environment variables explicitly to the disposable database
+before that command. The final focused run used concurrency two and the paths
+`src/services/ai-pipeline/follow-up.postgres.spec.ts`,
+`src/services/ai-pipeline/human-follow-up.postgres.spec.ts` and
+`src/services/voice-agents/automations/voice-agent-handoff.service.spec.ts`.
+Builds used each workspace's installed `node_modules/.bin/nest build`; repository
+checks used `node_modules/.bin/eslint .`, `node_modules/.bin/prettier --check .`
+and `git diff --check` against the task's base revision.
 
 Controlled provider validation remains required: actual assistant switching and
 consent speech, effective-language callback audio, real invitation/cancellation

@@ -1,3 +1,4 @@
+import { voiceAgentAutomationsEnabled } from "./automations/automation-access";
 import {
   BadRequestException,
   ConflictException,
@@ -750,7 +751,7 @@ export class VoiceAgentToolService {
         return {
           ok: false,
           error:
-            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back; tell the person the team will follow up.",
+            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back or human follow-up. Report the stored state and use request_human_support only if a person must decide.",
         };
       }
       // A specialist continuing a request calls back about that request — not
@@ -934,7 +935,7 @@ export class VoiceAgentToolService {
       return {
         ok: false,
         error:
-          "The answer could not be recorded right now. Do not say it was recorded; tell the person the team will follow up.",
+          "The answer could not be recorded right now. Retry the tool once; do not say it was recorded or promise human follow-up. If a person must intervene, call request_human_support first.",
       };
     }
 
@@ -944,7 +945,7 @@ export class VoiceAgentToolService {
         error:
           recorded.result === "past"
             ? "This meeting has already started, so there is nothing to confirm. Apologize for the confusion."
-            : "This meeting was moved or cancelled after the call started. Do not confirm it; tell the person the team will contact them with the current details.",
+            : "This meeting was moved or cancelled after the call started. Do not confirm it or promise follow-up. Read the current details; use request_human_support if a person must decide.",
       };
     }
 
@@ -1002,6 +1003,12 @@ export class VoiceAgentToolService {
     input: { cancellation?: string; rescheduling?: string; response?: string },
   ) {
     const { agent, ctx } = await this.authorize(agentId, secret);
+    if (!voiceAgentAutomationsEnabled(ctx.organizationId))
+      return {
+        ok: false,
+        error:
+          "Automatic appointment decisions are not enabled for this workspace.",
+      };
     if (
       !["yes", "no", "unclear"].includes(input.cancellation ?? "") ||
       !["requested", "declined"].includes(input.rescheduling ?? "") ||
@@ -1513,7 +1520,7 @@ export class VoiceAgentToolService {
       return {
         ok: false,
         error:
-          "This meeting changed during the call, so nothing was moved. Read get_handoff_context for current details. Do not claim a change or promise follow-up; call request_human_support first if a decision requires human authority.",
+          "This meeting changed during the call, so it was not moved. Read get_handoff_context for current details. Do not claim a change or promise follow-up; call request_human_support first if a decision requires human authority.",
       };
     }
 
@@ -1669,7 +1676,7 @@ export class VoiceAgentToolService {
         return {
           ok: false,
           error:
-            "The call back arranged on this call can no longer be changed. Do not promise another time; tell the person the team will follow up.",
+            "The call back arranged on this call can no longer be changed. Do not promise another time or human follow-up. Report the stored state; use request_human_support if a person must decide.",
         };
       }
       if (callback.scheduledAt.getTime() !== input.scheduledAt.getTime()) {
@@ -1692,7 +1699,7 @@ export class VoiceAgentToolService {
         return {
           ok: false,
           error:
-            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back; tell the person the team will follow up.",
+            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back or human follow-up. Report the stored state and use request_human_support only if a person must decide.",
         };
       }
       await this.recordCallbackOutcome(input.agentCall);
@@ -1830,7 +1837,7 @@ export class VoiceAgentToolService {
           ok: false,
           fallback: "human_support",
           error:
-            "Finding a new time is not available right now. Tell the person their answer is recorded and that the team will follow up; if they want a person, call request_human_support. Do not hand the call over.",
+            "Finding a new time is not available right now. Tell the person their answer is recorded. This scheduling decision requires human intervention: call request_human_support with the specific reason, and promise follow-up only after it succeeds. Do not hand the call over.",
         };
     }
   }

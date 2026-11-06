@@ -4,7 +4,7 @@ Propuesta de producto e implementación · 1 de noviembre de 2026
 
 Revisión de alcance y experiencia · 2 de noviembre de 2026
 
-Estado (5 de noviembre de 2026): Step 0 y Stages 1–3 implementados detrás del piloto;
+Estado (6 de noviembre de 2026): Step 0 y Stages 1–3 implementados detrás del piloto;
 ver §16–§19 para el alcance comprobado y la validación real pendiente. La
 propuesta restante no está implementada. Basado
 en el código actual y en la
@@ -1188,14 +1188,14 @@ migraciones de producción ni llamadas reales. Validación con proveedor, audio,
 contactos de prueba autorizados y liquidación real sigue pendiente. Detalles,
 pruebas y límites están en [FOLLOW_UP.md](../engineering/FOLLOW_UP.md).
 
-## 19. Estado de implementación · Stage 3 (5 de noviembre de 2026)
+## 19. Estado de implementación · Stage 3 (6 de noviembre de 2026)
 
 Se verificó la asignación Stage 2 en `main` y se extendieron sus dueños actuales.
 La reserva resuelve solo el objetivo y ejecución exactos. `move_meeting` exige
 aceptación explícita de una hora ofrecida y revalida calendario, capacidad,
-participación y versión al escribir. Reagenda la misma cita futura; un callback
+participación y versión al escribir. Reagenda la misma cita futura; una participación autorizada
 con solicitud abierta puede crear un único reemplazo vinculado a una cita pasada
-o cancelada. El replay lee la acción guardada, sin atribuir a IA cambios humanos.
+o cancelada, en la misma llamada o mediante callback. El replay lee la acción guardada, sin atribuir a IA cambios humanos.
 
 La confirmación conserva su versión. No asistir no cancela: se registra de
 inmediato y se elige el correo tras la decisión final. La nueva herramienta pide

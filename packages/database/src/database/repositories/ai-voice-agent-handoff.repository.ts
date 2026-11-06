@@ -222,6 +222,14 @@ export class AiVoiceAgentHandoffRepository {
             : {}),
         },
       });
+      const source = await tx.aiVoiceAgentCallParticipant.findUnique({
+        where: {
+          agentCallId_agentId: {
+            agentCallId: handoff.agentCallId,
+            agentId: handoff.sourceAgentId,
+          },
+        },
+      });
       await tx.aiVoiceAgentCallParticipant.updateMany({
         where: {
           agentCallId: handoff.agentCallId,
@@ -241,6 +249,9 @@ export class AiVoiceAgentHandoffRepository {
             role: AiVoiceAgentParticipantRole.handoff,
             sequence: 2,
             ...destination.binding,
+            meetingScheduleVersion:
+              source?.meetingScheduleVersion ??
+              destination.binding.meetingScheduleVersion,
             startedAt: destination.now,
           },
         ],

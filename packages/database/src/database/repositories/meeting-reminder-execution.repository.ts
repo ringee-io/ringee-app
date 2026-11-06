@@ -60,7 +60,11 @@ const WITH_MEETING = {
 export class MeetingReminderExecutionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  listUnansweredForRetry(now: Date, afterId?: string, organizationIds: string[] | null = null) {
+  listUnansweredForRetry(
+    now: Date,
+    afterId?: string,
+    organizationIds: string[] | null = null,
+  ) {
     return this.prisma.meetingReminderExecution.findMany({
       where: {
         ...(afterId ? { id: { gt: afterId } } : {}),

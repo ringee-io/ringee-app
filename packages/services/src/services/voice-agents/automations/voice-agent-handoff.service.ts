@@ -896,10 +896,9 @@ export class VoiceAgentHandoffService {
           "This meeting no longer exists. Do not offer times or promise follow-up. Use request_human_support if a person must decide.",
       };
     }
-    const sameCall = participant.role === AiVoiceAgentParticipantRole.handoff;
     const bound =
       participant.meetingScheduleVersion ?? handoff.meetingScheduleVersion;
-    if (meeting.scheduleVersion !== bound || (sameCall && !isActive(meeting))) {
+    if (meeting.scheduleVersion !== bound) {
       return {
         ok: false,
         error:
@@ -1315,12 +1314,6 @@ export class VoiceAgentHandoffService {
     if (objective) await this.pendingActions.reconcileFollowUp(objective.id);
   }
 
-  /**
-   * Whether a callback for this request may still be promised. These are the
-   * conditions `decideCallback` withdraws a due callback on — the request no
-   * longer pending, its meeting gone or already moved by someone — read
-   * before the person is told the call will happen.
-   */
   /** Pausing prevents new dispatch; a participant already speaking may finish. */
   async mayFinishMeetingRequest(
     handoff: AiVoiceAgentHandoff,
@@ -1330,6 +1323,12 @@ export class VoiceAgentHandoffService {
     return objective?.mode === "automatic" && objective.state === "paused";
   }
 
+  /**
+   * Whether a callback for this request may still be promised. These are the
+   * conditions `decideCallback` withdraws a due callback on — the request no
+   * longer pending, its meeting gone or already moved by someone — read
+   * before the person is told the call will happen.
+   */
   async callbackStillWanted(
     handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId">,
     now = new Date(),
