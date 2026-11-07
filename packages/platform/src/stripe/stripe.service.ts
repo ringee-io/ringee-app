@@ -148,6 +148,8 @@ export class StripeService {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      currency: "usd",
+      adaptive_pricing: { enabled: false },
       customer: customerId,
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -686,6 +688,8 @@ export class StripeService {
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      currency: "usd",
+      adaptive_pricing: { enabled: false },
       customer: customerId,
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -768,6 +772,8 @@ export class StripeService {
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      currency: "usd",
+      adaptive_pricing: { enabled: false },
       customer: customerId,
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -824,6 +830,8 @@ export class StripeService {
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      currency: "usd",
+      adaptive_pricing: { enabled: false },
       customer: customerId,
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -1187,6 +1195,8 @@ export class StripeService {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      currency: "usd",
+      adaptive_pricing: { enabled: false },
       customer: customerId,
       success_url: successUrl,
       cancel_url: cancelUrl,
