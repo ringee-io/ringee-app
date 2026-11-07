@@ -36,12 +36,22 @@ export type MeetingEmailDeliveryWithMeeting = MeetingEmailDelivery & {
 export class MeetingEmailDeliveryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAction(id: string) {
-    return this.prisma.meetingAutomationAction.findUnique({ where: { id } });
+  /** The action a delivery is the receipt of, in the delivery's own
+   * workspace and meeting — the same predicate `prepareSend` holds it to. */
+  findAction(id: string, owner: { organizationId: string; meetingId: string }) {
+    return this.prisma.meetingAutomationAction.findFirst({
+      where: {
+        id,
+        organizationId: owner.organizationId,
+        meetingId: owner.meetingId,
+      },
+    });
   }
 
-  listActionDeliveries(actionId: string) {
-    return this.prisma.meetingEmailDelivery.findMany({ where: { actionId } });
+  listActionDeliveries(actionId: string, organizationId: string) {
+    return this.prisma.meetingEmailDelivery.findMany({
+      where: { actionId, organizationId },
+    });
   }
 
   /**

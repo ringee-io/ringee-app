@@ -621,7 +621,7 @@ export class MeetingService {
       automationOrganizationFilter(),
     );
     for (const action of actions) {
-      await this.meetingRepo.deferMaintenance(action.id);
+      await this.meetingRepo.deferMaintenance(action.id, action.organizationId);
       const meeting = action.meeting;
       const ctx = {
         userId: meeting.userId,
@@ -657,7 +657,10 @@ export class MeetingService {
           if (!["synced", "not_required"].includes(synced.externalSyncStatus))
             continue;
         }
-        await this.meetingRepo.completeMaintenance(action.id);
+        await this.meetingRepo.completeMaintenance(
+          action.id,
+          action.organizationId,
+        );
       } catch {
         this.logger.warn(
           `Meeting action ${action.id} is awaiting projection repair`,

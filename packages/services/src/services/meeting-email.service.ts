@@ -196,8 +196,17 @@ export class MeetingEmailService {
       return false;
     }
     const action = delivery.actionId
-      ? await this.deliveries.findAction(delivery.actionId)
+      ? await this.deliveries.findAction(delivery.actionId, {
+          organizationId: delivery.organizationId,
+          meetingId: delivery.meetingId,
+        })
       : null;
+    // A receipt is never composed from an action outside its own workspace
+    // and meeting (`prepareSend` refuses it the same way).
+    if (delivery.actionId && !action) {
+      await release(D.cancelled, "action_missing");
+      return false;
+    }
     const rescheduled = [
       MeetingEmailKind.rescheduled,
       MeetingEmailKind.replaced,
@@ -289,7 +298,10 @@ export class MeetingEmailService {
       cc = [];
     }
     if (action && ["contact", "contact_late"].includes(delivery.audience)) {
-      const siblings = await this.deliveries.listActionDeliveries(action.id);
+      const siblings = await this.deliveries.listActionDeliveries(
+        action.id,
+        delivery.organizationId,
+      );
       if (delivery.audience === "contact_late") {
         const team = siblings.filter((row) => row.audience === "legacy");
         if (!team.some((row) => row.status === "sent")) {

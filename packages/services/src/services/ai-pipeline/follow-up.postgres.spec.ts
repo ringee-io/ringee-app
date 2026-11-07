@@ -1009,7 +1009,10 @@ describe(
       };
       await worker().drain();
       await worker().drain();
-      let rows = await deliveries.listActionDeliveries(action.id);
+      let rows = await deliveries.listActionDeliveries(
+        action.id,
+        organizationId,
+      );
       assert.equal(
         rows.find((row) => row.audience === "responsible")?.status,
         "sent",
@@ -1027,7 +1030,7 @@ describe(
       });
       await worker().drain();
       await worker().drain();
-      rows = await deliveries.listActionDeliveries(action.id);
+      rows = await deliveries.listActionDeliveries(action.id, organizationId);
       assert.ok(rows.every((row) => row.status === "sent"));
       assert.equal(accepted.size, 2);
       assert.equal(requests.length, 3);
@@ -1088,9 +1091,9 @@ describe(
         } as never,
         handoffRepo,
       ).drain();
-      const late = (await deliveries.listActionDeliveries(action.id)).find(
-        (row) => row.audience === "contact_late",
-      );
+      const late = (
+        await deliveries.listActionDeliveries(action.id, organizationId)
+      ).find((row) => row.audience === "contact_late");
       assert.equal(late?.status, "cancelled");
       assert.equal(late?.lastError, "team_delivery_not_sent");
       assert.equal(requests.length, 0);
@@ -1119,7 +1122,8 @@ describe(
       );
       const deliveryRepo = new MeetingEmailDeliveryRepository(db);
       assert.equal(
-        (await deliveryRepo.listActionDeliveries(action.id)).length,
+        (await deliveryRepo.listActionDeliveries(action.id, organizationId))
+          .length,
         2,
       );
       await close(f.objective.id);
@@ -1136,9 +1140,9 @@ describe(
         null,
       );
       assert.equal(
-        (await deliveryRepo.listActionDeliveries(action.id)).find(
-          (item) => item.id === row.id,
-        )?.status,
+        (
+          await deliveryRepo.listActionDeliveries(action.id, organizationId)
+        ).find((item) => item.id === row.id)?.status,
         "cancelled",
       );
     });
@@ -1170,7 +1174,10 @@ describe(
         }),
       );
       const deliveryRepo = new MeetingEmailDeliveryRepository(db);
-      const receipts = await deliveryRepo.listActionDeliveries(action.id);
+      const receipts = await deliveryRepo.listActionDeliveries(
+        action.id,
+        organizationId,
+      );
       assert.ok(receipts.length > 0);
       assert.ok(receipts.every((row) => row.status === "pending"));
       // The meeting's version moved with the cancellation; the receipt is

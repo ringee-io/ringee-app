@@ -1203,16 +1203,16 @@ export class MeetingRepository {
     });
   }
 
-  deferMaintenance(id: string) {
-    return this.prisma.meetingAutomationAction.update({
-      where: { id },
+  deferMaintenance(id: string, organizationId: string) {
+    return this.prisma.meetingAutomationAction.updateMany({
+      where: { id, organizationId },
       data: { maintenanceReviewAt: new Date(Date.now() + 60_000) },
     });
   }
 
-  completeMaintenance(id: string) {
-    return this.prisma.meetingAutomationAction.update({
-      where: { id },
+  completeMaintenance(id: string, organizationId: string) {
+    return this.prisma.meetingAutomationAction.updateMany({
+      where: { id, organizationId },
       data: { maintenanceCompletedAt: new Date() },
     });
   }
