@@ -610,8 +610,6 @@ export class StripeController {
       return res.status(400).send(`Webhook Error: ${message}`);
     }
 
-    console.log("✅ Webhook signature verification successful: " + event.type);
-
     try {
       switch (event.type) {
         // A delayed payment method completes the Checkout before the money

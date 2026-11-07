@@ -2,7 +2,6 @@ import { NewsletterInterface } from "../newsletter.interface";
 
 export class EmailEmptyProvider implements NewsletterInterface {
   name = "empty";
-  async register(email: string) {
-    console.log("Could have registered to newsletter:", email);
-  }
+  // No newsletter configured: a no-op, and the subscriber's email is not logged.
+  async register(_email: string) {}
 }

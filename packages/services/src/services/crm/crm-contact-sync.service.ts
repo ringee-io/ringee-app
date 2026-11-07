@@ -187,24 +187,9 @@ export class CrmContactSyncService {
     // NOT invent one. A placeholder here ("unknown") produces an uncallable
     // row that can never match an inbound call event, and thousands of them
     // bury the real contacts in search. The person stays in the CRM; once it
-    // gains a phone number the next sync pass creates it for real.
+    // gains a phone number the next sync pass creates it for real. Not logged
+    // per person: the bulk sync reports the total as skippedNoPhone.
     if (!primaryPhone) {
-      this.logger.debug(
-        `skipping ${connection.provider} person ${result.contact.externalId} on connection ${connection.id}: no dialable phone number`,
-      );
-      // TEMP DEBUG: dump the whole provider payload for skipped people so we
-      // can see where the phone number actually lives (and why the mapper did
-      // not pick it up). Remove once the mapping is fixed.
-      console.log(
-        `[crm-sync:no_phone] ${connection.provider} person ${result.contact.externalId} ` +
-          `phones=${JSON.stringify(result.phones)} ` +
-          `emails=${JSON.stringify(result.emails)} ` +
-          `displayName=${JSON.stringify(result.displayName)}`,
-      );
-      console.log(
-        `[crm-sync:no_phone] raw ${result.contact.externalId} =`,
-        JSON.stringify(result.raw, null, 2),
-      );
       return { contactId: null, created: false, skipped: "no_phone" };
     }
 

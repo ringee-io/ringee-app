@@ -46,7 +46,6 @@ export class WhatsappController {
       mode === "subscribe" &&
       token === apiConfiguration.WHATSAPP_VERIFY_TOKEN
     ) {
-      console.log("✅ Webhook verified!");
       return res.status(HttpStatus.OK).send(challenge);
     }
 
@@ -62,10 +61,6 @@ export class WhatsappController {
       const value = change?.value;
 
       if (value?.statuses?.length) {
-        const status = value.statuses[0];
-        console.log(
-          `📬 Status update ignored: ${status.status} for ${status.id}`,
-        );
         return res.sendStatus(HttpStatus.OK);
       }
 
@@ -78,13 +73,11 @@ export class WhatsappController {
 
       const myBusinessId = value?.metadata?.phone_number_id;
       if (message.from === myBusinessId) {
-        console.log("🟢 Ignored self-sent message");
         return res.sendStatus(HttpStatus.OK);
       }
 
       const ignoredTypes = ["reaction", "call_log", "sticker"];
       if (ignoredTypes.includes(message.type)) {
-        console.log(`🟡 Ignored ${message.type} message`);
         return res.sendStatus(HttpStatus.OK);
       }
 

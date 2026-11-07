@@ -22,8 +22,6 @@ export class TagService {
   ) {}
 
   async createTag(ctx: OwnershipContext, dto: CreateTagDto): Promise<Tag> {
-    console.log("[TagService] createTag called with ctx:", JSON.stringify(ctx));
-
     if (!ctx.userId) {
       throw new BadRequestException("User ID is required to create a tag");
     }
@@ -33,13 +31,6 @@ export class TagService {
     const dbOrgId = ctx.organizationId
       ? await this.resolveOrgId(ctx.organizationId)
       : null;
-
-    console.log(
-      "[TagService] Resolved IDs - userId:",
-      dbUserId,
-      "orgId:",
-      dbOrgId,
-    );
 
     return this.repo.create(
       { userId: dbUserId, organizationId: dbOrgId },

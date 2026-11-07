@@ -193,7 +193,11 @@ export class CalendarController {
 
       res.redirect(calendarOAuthReturnUrl("connected", "google", calendarId));
     } catch (err) {
-      console.log(JSON.stringify(err));
+      // The message only: a Google client error serializes its request
+      // config, which carries the client secret and the authorization code.
+      console.warn(
+        `Google Calendar OAuth callback failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
       res.redirect(calendarOAuthReturnUrl("error", "google", calendarId));
     }
   }
