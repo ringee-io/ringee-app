@@ -979,3 +979,70 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     assert.deepEqual(synced.events, []);
   });
 });
+
+describe("MeetingService.repairAutomationActions", () => {
+  it("retries a repair that keeps failing twice as far apart each time, from a minute up to half an hour", async () => {
+    const now = new Date("2099-01-05T12:00:00.000Z");
+    const minute = 60_000;
+    const ages = [10_000, 10 * minute, 6 * 60 * minute];
+    const deferred: Array<{
+      id: string;
+      organizationId: string;
+      wait: number;
+    }> = [];
+    const completed: string[] = [];
+    const service = new MeetingService(
+      {
+        listPendingMaintenance: async () =>
+          ages.map((age, index) => ({
+            id: `action-${index}`,
+            organizationId: "org-1",
+            kind: "cancelled",
+            createdAt: new Date(now.getTime() - age),
+            meeting: { ...STORED_MEETING, status: "cancelled" },
+          })),
+        deferMaintenance: async (
+          id: string,
+          organizationId: string,
+          until: Date,
+        ) => {
+          deferred.push({
+            id,
+            organizationId,
+            wait: until.getTime() - now.getTime(),
+          });
+        },
+        completeMaintenance: async (id: string) => {
+          completed.push(id);
+        },
+      } as never,
+      {} as never,
+      // The calendar account is disconnected: the event cannot be deleted yet.
+      { cancelExternalEvent: async () => ({ status: "failed" }) } as never,
+      {} as never,
+      {
+        cancelForSubject: async () => undefined,
+        cancelMeetingCalls: async () => undefined,
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.repairAutomationActions(now);
+
+    assert.deepEqual(deferred, [
+      { id: "action-0", organizationId: "org-1", wait: minute },
+      { id: "action-1", organizationId: "org-1", wait: 10 * minute },
+      { id: "action-2", organizationId: "org-1", wait: 30 * minute },
+    ]);
+    // Still pending, so it resumes once the calendar is reachable again.
+    assert.deepEqual(completed, []);
+  });
+});

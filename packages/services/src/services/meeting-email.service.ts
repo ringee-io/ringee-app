@@ -309,8 +309,14 @@ export class MeetingEmailService {
           const settled = team.some(
             (row) => row.status === D.failed || row.status === D.cancelled,
           );
+          // One waiting on a person waits beside it, unclaimed, and goes back
+          // to `pending` with it once they act (`requeueForMeeting`).
+          const waiting = team.find(
+            (row) =>
+              row.status === D.needs_member || row.status === D.needs_email,
+          );
           await release(
-            settled ? D.cancelled : D.pending,
+            settled ? D.cancelled : (waiting?.status ?? D.pending),
             settled ? "team_delivery_not_sent" : "awaiting_team_delivery",
           );
           return false;

@@ -1203,10 +1203,10 @@ export class MeetingRepository {
     });
   }
 
-  deferMaintenance(id: string, organizationId: string) {
+  deferMaintenance(id: string, organizationId: string, until: Date) {
     return this.prisma.meetingAutomationAction.updateMany({
       where: { id, organizationId },
-      data: { maintenanceReviewAt: new Date(Date.now() + 60_000) },
+      data: { maintenanceReviewAt: until },
     });
   }
 

@@ -1099,6 +1099,84 @@ describe(
       assert.equal(requests.length, 0);
     });
 
+    it("Stage 3: a late contact receipt waits unclaimed while its team receipt waits on a person", async () => {
+      const f = await seed();
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId, capability: "appointment_booking" },
+        data: { settings: {} },
+      });
+      const result = await offerAndMove(f, new Date("2098-02-12T12:00:00Z"));
+      assert.equal(result.result, "moved");
+      const action = await prisma.meetingAutomationAction.findUniqueOrThrow({
+        where: { actionKey: `reschedule:${f.handoff.id}` },
+      });
+      await prisma.meetingEmailDelivery.updateMany({
+        where: {
+          organizationId,
+          OR: [{ actionId: null }, { actionId: { not: action.id } }],
+        },
+        data: { status: "cancelled" },
+      });
+      // The team receipt waits for an admin to hand the meeting to a member.
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { actionId: action.id, audience: "legacy" },
+        data: { status: "needs_member" },
+      });
+      const requests: EmailMessage[] = [];
+      const deliveries = new MeetingEmailDeliveryRepository(db);
+      const drain = () =>
+        new MeetingEmailService(
+          deliveries,
+          meetings,
+          {
+            findById: async (id: string) => ({
+              id,
+              firstName: "Member",
+              emails: [{ email: `${id}@member.test`, isPrimary: true }],
+            }),
+          } as never,
+          organizations,
+          agentCalls,
+          agents,
+          calendars,
+          { resolveForAgent: async () => ({ name: "Tests" }) } as never,
+          {
+            idempotencyWindowMs: 86400000,
+            send: async (message: EmailMessage) => {
+              requests.push(message);
+              return { accepted: true, providerEmailId: "test" };
+            },
+            getMessageId: async () => null,
+          } as never,
+          handoffRepo,
+        ).drain();
+      const late = async () =>
+        (await deliveries.listActionDeliveries(action.id, organizationId)).find(
+          (row) => row.audience === "contact_late",
+        )!;
+      await drain();
+      assert.equal((await late()).status, "needs_member");
+      assert.equal((await late()).lastError, "awaiting_team_delivery");
+      // Later ticks leave it alone, so its tries are not spent waiting.
+      await drain();
+      assert.equal((await late()).attempts, 1);
+      assert.equal(requests.length, 0);
+      // The admin's fix requeues both, with fresh tries.
+      await deliveries.requeueForMeeting(action.meetingId, ["needs_member"]);
+      const rows = await deliveries.listActionDeliveries(
+        action.id,
+        organizationId,
+      );
+      assert.equal(rows.length, 2);
+      assert.ok(
+        rows.every((row) => row.status === "pending" && row.attempts === 0),
+      );
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { actionId: action.id },
+        data: { status: "cancelled" },
+      });
+    });
+
     it("Stage 3: an agreed callback stores its receipt atomically and withdraws it after closure", async () => {
       const f = await seed();
       const { callback } = await callbacks.createAgentCallbackOnce({
@@ -1145,6 +1223,60 @@ describe(
         ).find((item) => item.id === row.id)?.status,
         "cancelled",
       );
+    });
+
+    it("Stage 3: a callback receipt stands only on its own request's callback", async () => {
+      const f = await seed();
+      const other = await seed();
+      const agreed = (g: typeof f, scheduledAt: Date) =>
+        callbacks.createAgentCallbackOnce({
+          ...ctx,
+          contactId: g.contact.id,
+          callId: g.call.id,
+          handoffId: g.handoff.id,
+          agentId,
+          agentCallbackKind: "agreed",
+          agentCallbackKey: randomUUID(),
+          scheduledAt,
+        });
+      const { callback } = await agreed(f, new Date(Date.now() + 3600000));
+      // Another request's callback, still scheduled, at the very same time.
+      const { callback: foreign } = await agreed(other, callback.scheduledAt);
+      const action = await prisma.meetingAutomationAction.findFirstOrThrow({
+        where: { callbackId: callback.id },
+      });
+      await prisma.meetingAutomationAction.update({
+        where: { id: action.id },
+        data: { callbackId: foreign.id },
+      });
+      const deliveryRepo = new MeetingEmailDeliveryRepository(db);
+      const claimed = await deliveryRepo.claimDue(
+        new Date(),
+        new Date(Date.now() + 300000),
+        500,
+        [organizationId],
+      );
+      const row = claimed.find((item) => item.actionId === action.id)!;
+      assert.ok(row);
+      assert.equal(
+        await deliveryRepo.prepareSend(row, 1, new Date(), {}),
+        null,
+      );
+      assert.equal(
+        (
+          await deliveryRepo.listActionDeliveries(action.id, organizationId)
+        ).find((item) => item.id === row.id)?.lastError,
+        "callback_superseded",
+      );
+      for (const item of claimed.filter((c) => c.id !== row.id))
+        await deliveryRepo.release(
+          item.id,
+          "cancelled",
+          "test_finished",
+          item.claimToken!,
+        );
+      await close(f.objective.id);
+      await close(other.objective.id);
     });
 
     it("Stage 3: a cancellation that keeps rescheduling keeps the agreed callback's receipt", async () => {

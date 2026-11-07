@@ -373,7 +373,9 @@ billing gates remain. No broad default policy or new organization is enabled.
 
 The existing reminder activity repairs pending action projections before delivering
 receipts: reminders, external creation/move and cancellation. Retry review times
-prevent failed projections from starving later actions. External cancellation uses
+prevent failed projections from starving later actions; a repair that keeps
+failing is retried twice as far apart each time, from one minute up to thirty, and
+stays pending until it succeeds. External cancellation uses
 the original owned account/event; accepted DELETE or already-absent results are
 safe to replay. The provider calls follow the existing CalendarService owner:
 [Google events delete](https://developers.google.com/workspace/calendar/api/v3/reference/events/delete)

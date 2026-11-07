@@ -1,8 +1,15 @@
-# Seguimiento automático completo en Organization
+# Seguimiento automático completo para freelancers y organizaciones
 
 Propuesta de producto e implementación · 1 de noviembre de 2026
 
 Revisión de alcance y experiencia · 2 de noviembre de 2026
+
+Decisión de alcance · 7 de noviembre de 2026: freelancers y organizaciones tendrán
+**las mismas capacidades de AI Voice Agents y el mismo onboarding**. El workspace
+personal no requiere contratar Organization. Este cambio está planificado, todavía
+no habilitado en el código; ver §20 y el
+[plan actualizado de Stage 4 con PostHog](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md).
+El nombre del archivo se conserva para mantener sus enlaces.
 
 Estado (6 de noviembre de 2026): Step 0 y Stages 1–3 implementados detrás del piloto;
 ver §16–§19 para el alcance comprobado y la validación real pendiente. La
@@ -27,12 +34,14 @@ No tiene que elegir un agente, crear otro callback ni comprobar cada intento.
 
 La experiencia se presenta como **Seguimiento automático**. Los dos agentes
 son especialistas editables dentro de esa capacidad. La promesa visible es:
-«Tu equipo encuentra oportunidades. Ringee se encarga de darles seguimiento».
+«Tú consigues oportunidades. Ringee se encarga de darles seguimiento».
 
-Al activar el plan Organization, un workspace nuevo recibe dos capacidades encendidas
-por defecto: **Recordatorios y confirmaciones** y **Agendar citas**. Los agentes
+Al completar el onboarding común, un workspace personal o de organización recibe
+dos capacidades habilitadas en los defaults adoptados: **Recordatorios y
+confirmaciones** y **Agendar citas**. Personal usa sus contactos, número, calendario
+y saldo; organización usa sus recursos y permisos compartidos. Los agentes
 trabajan sobre los mismos contactos, llamadas, notas, callbacks y reuniones que
-el equipo humano. Cada intervención queda identificada como realizada por IA.
+las personas de ese workspace. Cada intervención queda identificada como IA.
 
 | Responsabilidad                                                                                           | Quién la ejecuta                                                     |
 | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -49,6 +58,9 @@ y compromisos que la empresa no haya autorizado requieren una decisión excepcio
 
 Decisiones del usuario:
 
+- Ofrecer las mismas capacidades y el mismo onboarding a freelancers y organizaciones.
+  El propietario personal autoriza su configuración; en organización lo hace un
+  administrador vigente. Organization conserva su contexto de colaboración.
 - Mantener el cobro actual por **tokens y minutos consumidos**, con los mecanismos
   de facturación y créditos existentes. No introducir una bolsa de minutos ni
   cambiar tarifas como parte de esta entrega.
@@ -67,7 +79,7 @@ Decisiones del usuario:
 - Mantener a la IA como ejecutora durante fallos recuperables; las excepciones
   reales se dirigen a quien pueda resolverlas, con contexto y una acción concreta.
 
-**Ajustes de esta revisión:** activación explícita para organizaciones existentes;
+**Ajustes de esta revisión:** activación explícita para workspaces existentes;
 traspaso breve sin cambio de voz obligatorio; callback que sobrevive a la cita
 original; cancelación por autorización del contacto; visibilidad del responsable;
 métricas desde el piloto; correo sin CC masivo; continuidad al devolver una llamada.
@@ -79,6 +91,10 @@ deben estar listos el número, calendario, agente, permisos y saldo. Si falta al
 la tarjeta muestra **Necesita configuración** y una acción concreta para resolverlo.
 
 ## 2. Base existente y brechas comprobadas
+
+Esta sección conserva el diagnóstico inicial previo a las entregas 0–3. Su estado
+de implementación posterior está en §16–§19. El alcance personal incorporado el
+7 de noviembre y sus brechas específicas se detallan en §20 y Stage 4.
 
 | Área          | Qué existe hoy                                                                            | Qué completar                                                                                                       |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -114,13 +130,15 @@ pero no al contacto, cuando este no asistirá.
 El [plan específico de Stage 4 con PostHog](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md)
 detalla aprovisionamiento, onboarding, eventos, medición y despliegue gradual.
 
-1. Reconciliar la suscripción Organization y su asociación al workspace. Hoy
-   intervienen los webhooks de Stripe y Clerk: deben soportarse ambos órdenes
-   de llegada y sus reintentos.
+1. Iniciar la preparación desde el alta/primer acceso personal o desde la creación
+   y compra de Organization. En organización, reconciliar suscripción y workspace
+   entre Stripe y Clerk en ambos órdenes y con reintentos. En personal no exigir
+   una suscripción Organization ni crear una organización ficticia.
 2. Extender `VoiceAgentAutomationService` para crear o reutilizar los dos agentes
-   y sus triggers una sola vez por organización. Reutilizar los claims existentes.
+   y sus triggers una sola vez por workspace/versión. Adaptar ownership, constraints
+   y claims existentes para personal y organización antes de habilitar el acceso.
 3. Resolver el calendario global mediante `CalendarService`; usar las políticas
-   existentes por calendario. En organizaciones nuevas, cubrir los calendarios
+   existentes por calendario. En workspaces nuevos, cubrir los calendarios
    activos actuales y futuros compatibles con la empresa/número configurados,
    permitiendo exclusiones explícitas por calendario. Si uno pertenece a otra marca
    o necesita otra configuración, mostrar el dato faltante antes de llamar; no
@@ -131,17 +149,19 @@ detalla aprovisionamiento, onboarding, eventos, medición y despliegue gradual.
    Mantener el editor avanzado para instrucciones, saludo, voz y demás opciones.
 6. Mostrar en el onboarding qué resultados humanos iniciarán seguimiento, qué
    calendario/número se usarán, la confirmación a cuatro horas y el consumo por
-   tokens/minutos. Usar `OrganizationUpgradePanel` para la presentación del plan.
+   tokens/minutos. Usar el mismo onboarding para ambos segmentos y conservar
+   `OrganizationUpgradePanel` para la presentación del plan de colaboración.
 7. Mostrar alcance, horario y estado en una sola pantalla; pedir solo los datos
    que faltan. Voz, prompt, modelo y preferencias avanzadas viven en Personalizar.
    La preparación de agentes no obliga al usuario a permanecer en esa pantalla.
 
 Persistir el origen y la versión de aprovisionamiento, además de la decisión del
-administrador. Una renovación, reconexión, retry o reconciliación **no vuelve a
-encender** un trigger apagado ni recrea uno que se eliminó deliberadamente.
+propietario personal o administrador. Una renovación, reconexión, retry o
+reconciliación **no vuelve a encender** un trigger apagado ni recrea uno que se
+eliminó deliberadamente.
 La eliminación necesita conservar esa preferencia aunque desaparezca la tarjeta.
 
-Para organizaciones existentes: ofrecer **Activar seguimiento automático** con
+Para workspaces existentes: ofrecer **Activar seguimiento automático** con
 una vista previa de alcance y consumo. No iniciar llamadas retroactivamente por
 desplegar una migración. Tras esa elección, migrar por lotes idempotentes,
 reutilizando configuraciones y agentes sin sobrescribir nombres, instrucciones,
@@ -161,18 +181,19 @@ Separar pausa global, pausa del especialista y pausa de un contacto. Una toma de
 control humana detiene atómicamente la continuación IA de ese caso; no se reanuda
 hasta que se devuelva explícitamente a IA o un resultado válido cierre la tarea.
 
-El aprovisionamiento nativo requiere la suscripción correspondiente. La política
-de suspensión debe seguir el estado y vigencia efectivos del plan; programar una
-cancelación a fin de período no equivale a perder el acceso inmediatamente. No
-cambiar silenciosamente el acceso histórico de agentes avanzados por introducir
-este aprovisionamiento. Conservar historial y preferencias al terminar el plan.
+En organización, la preparación nativa y la suspensión siguen la suscripción y
+vigencia aplicables; cancelar a fin de período respeta el acceso pagado. Personal
+usa su elegibilidad y saldo propios sin depender de ese plan. El fin de una
+suscripción Organization no deshabilita el workspace personal financiado por
+separado. No cambiar silenciosamente contratos históricos de agentes avanzados.
+Conservar historial y preferencias cuando deje de haber elegibilidad.
 
 ## 4. De la llamada fría al seguimiento resuelto
 
 ### 4.1. Entrega automática en el cierre habitual de la llamada
 
 Usar la transición persistida del resultado canónico, no el nombre editable de una
-disposition. La política de Organization y la evidencia de la conversación deciden
+disposition. La política del workspace y la evidencia de la conversación deciden
 el siguiente paso. No pedir que el vendedor vuelva a configurarlo en otra pantalla.
 
 | Resultado humano                               | Trabajo que toma la IA                                                                                                         | Texto al guardar                              |
@@ -362,8 +383,8 @@ operación dentro de `@ringee/platform` mediante una capacidad neutral del adapt
 Ringee persiste antes del traspaso: llamada raíz, contacto, reunión y versión,
 agente origen, destino autorizado, razón, idioma, responsable, preferencias de
 horario, resumen y acciones ya realizadas. El destino se resuelve en servidor a
-partir del trigger de agendamiento de esa organización; no lo decide un ID libre
-producido por el modelo.
+partir del trigger de agendamiento autorizado del workspace efectivo, con ownership
+personal completo cuando corresponda; no lo decide un ID libre producido por el modelo.
 
 Estados observables del traspaso: solicitado, preparando, completado, fallido o
 pendiente de conciliación. El especialista solo puede usar herramientas de escritura
@@ -449,8 +470,9 @@ resumen, usar los hechos almacenados y marcar la información ausente.
 
 Aplicar ownership, filtros de miembro y separación de marca en cada consulta,
 incluidas notas y transcripciones. La automatización actúa con autoridad persistida
-de la organización; una acción de miembro no obtiene historial de otros miembros
-por el hecho de invocar un agente. Los datos históricos no son instrucciones.
+del workspace; personal exige propietario y `organizationId: null`. Una acción de
+miembro no obtiene historial de otros miembros por el hecho de invocar un agente.
+Los datos históricos no son instrucciones.
 
 Selección del idioma:
 
@@ -548,6 +570,10 @@ comercial del seguimiento. Este último puede observar sus resultados sin recibi
 una tarea manual por cada paso. Definir la propiedad de nuevas ejecuciones en
 servidor desde la tarea autorizada; no atribuirlas todas al administrador que
 configuró el trigger ni aceptar un propietario enviado por el modelo.
+
+En personal, el propietario es responsable de sus casos y recibe sus excepciones;
+en organización se conservan los responsables y permisos actuales. La paridad de
+funciones no comparte recursos ni historiales entre los dos workspaces.
 
 El servidor devuelve una vista del seguimiento propio con resultado, próxima
 acción y enlaces solo a recursos autorizados. Mantener `resolveMemberFilter` en
@@ -726,7 +752,10 @@ participaciones y callbacks sin destino explícito.
   identidad IA como requisito de la nueva experiencia, sin fingir ser el vendedor.
   Añadir los modos Seguimiento/Agendar/Reagendar con finalización por evidencia;
   resolver una consulta no debe convertirse en una reserva inexistente.
-- **AGENT-018:** activación nativa para Organization, control de defaults/opt-out,
+- **AGENT-011:** habilitar agentes en personal y organización mediante el mismo
+  dueño de acceso. Personal conserva `userId` y `organizationId: null`; adaptar
+  persistencia, herramientas y consumidores antes de retirar la restricción actual.
+- **AGENT-018:** activación nativa para ambos tipos de workspace, defaults/opt-out,
   cobertura de calendarios y evolución del flag piloto. Separar pausar nuevos
   trabajos de entregar correos ya debidos por resultados válidos.
 - **AGENT-014:** permitir callback hacia el especialista autorizado, conservando
@@ -757,21 +786,23 @@ participaciones y callbacks sin destino explícito.
   y aceptar el objetivo IA con su siguiente paso durable. Mantener la exigencia de
   fecha para callbacks acordados; no saltarse validaciones de contratos antiguos.
 
-Mantener AGENT-002/003/004/007/008/011, ownership, permisos de miembro
+Mantener AGENT-002/003/004/007/008, ownership, permisos de miembro
 y las reglas de créditos. Personalizar el prompt no permite saltarse herramientas,
 disponibilidad ni permisos. Actualizar documentación y pruebas junto a cada cambio
 implementado; este plan no cambia todavía las reglas vigentes.
+Conservar CALL-001/002 y CALL-003: la IA no ocupa la única llamada humana personal,
+para que el freelancer siga prospectando mientras se ejecuta el seguimiento.
 
 ## 13. Entregas y criterios de aceptación
 
-| Orden | Entrega                                                 | Criterio para terminar                                                                                                                  |
-| ----- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | Prueba técnica de continuidad e idioma                  | Traspaso saliente y devolución entrante sobre la ruta elegida; identidad de tools, contexto, costos e idiomas concurrentes comprobables |
-| 1     | Resultado humano → tarea IA, contexto y medición mínima | Un solo ejecutor; próxima acción durable; llamadas antiguas compatibles; evidencia y costos desde el primer recorrido                   |
-| 2     | Seguimiento, agenda, reagenda y recuperación            | Se completa el objetivo sin coordinación rutinaria humana; callback posterior a la cita y fallos inciertos cubiertos                    |
-| 3     | Cancelación autorizada, notas y correos                 | Reserva liberada solo por decisión explícita; resultados en contacto/llamada; mensajes finales y estados de entrega reales              |
-| 4     | Experiencia completa y piloto acotado                   | Onboarding, cierre de llamada, vista del responsable, excepciones, pausa y recorrido frío→seguimiento→resolución comprobados            |
-| 5     | Activación general y dashboard ampliado                 | Defaults para nuevas organizaciones; elección explícita para existentes; resultados y consumo conciliados antes de ampliar              |
+| Orden | Entrega                                                 | Criterio para terminar                                                                                                                           |
+| ----- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0     | Prueba técnica de continuidad e idioma                  | Traspaso saliente y devolución entrante sobre la ruta elegida; identidad de tools, contexto, costos e idiomas concurrentes comprobables          |
+| 1     | Resultado humano → tarea IA, contexto y medición mínima | Un solo ejecutor; próxima acción durable; llamadas antiguas compatibles; evidencia y costos desde el primer recorrido                            |
+| 2     | Seguimiento, agenda, reagenda y recuperación            | Se completa el objetivo sin coordinación rutinaria humana; callback posterior a la cita y fallos inciertos cubiertos                             |
+| 3     | Cancelación autorizada, notas y correos                 | Reserva liberada solo por decisión explícita; resultados en contacto/llamada; mensajes finales y estados de entrega reales                       |
+| 4     | Experiencia completa y piloto acotado                   | Onboarding, cierre de llamada, vista del responsable, excepciones, pausa y recorrido frío→seguimiento→resolución comprobados                     |
+| 5     | Activación general y dashboard ampliado                 | Defaults y mismo onboarding para ambos tipos de workspace; adopción explícita para existentes; resultados y consumo conciliados antes de ampliar |
 
 Mantener los defaults generales detrás del despliegue gradual hasta que el flujo
 completo esté verificado. No habilitar masivamente llamadas nuevas antes de tener
@@ -807,8 +838,9 @@ Pruebas prioritarias:
 - Excepción administrativa llega al administrador y el vendedor sigue prospectando;
   un responsable ve su seguimiento sin acceder a transcripciones ajenas; pausa y
   reanudación conservan preferencias y no generan una ráfaga de llamadas vencidas.
-- Datos de otra organización, contacto, marca o miembro rechazados en contexto,
-  herramientas, notas, agenda, callbacks y métricas.
+- Datos de otro workspace, contacto, marca o miembro rechazados en contexto,
+  herramientas, notas, agenda, callbacks y métricas; incluir dos freelancers y
+  personal/organización del mismo usuario, con concurrencia y saldos separados.
 
 En implementación: pruebas de services/platform/database y frontend según lo
 tocado; Postgres real para capacidad, locks y deduplicación; builds de backend,
@@ -835,13 +867,16 @@ este plan.
 
 ## 14. Experiencia de usuario: sencilla, visible y sin coordinación rutinaria
 
-### 14.1. Onboarding de Organization
+### 14.1. Mismo onboarding para freelancers y organizaciones
 
 Una sola pantalla presenta **Seguimiento automático**, con los dos especialistas
-habilitados por defecto para organizaciones nuevas. Texto principal:
+habilitados en los defaults para workspaces nuevos de ambos tipos. Misma pantalla,
+preguntas y capacidades: propietario personal precargado o responsables autorizados
+de organización. La acción **Activar seguimiento automático** adopta el alcance.
+Texto principal:
 
-> Tu equipo encuentra oportunidades. Ringee devuelve llamadas, agenda, confirma
-> y reagenda por ti. Los tokens y minutos se cobran por consumo.
+> Tú consigues oportunidades. Ringee devuelve llamadas, agenda, confirma y
+> reagenda. Los tokens y minutos se cobran por consumo.
 
 Mostrar empresa, número, destino de devoluciones, calendario, responsable y zona/
 horario. Precargar lo conocido; solicitar solo una elección que no se pueda hacer
@@ -856,7 +891,7 @@ configuración guardada no equivale a estar listo para llamar. El siguiente paso
 debe ser concreto: **Elegir número**, **Configurar devolución**, **Completar empresa**
 o **Añadir saldo**, según la causa real.
 
-Para organizaciones existentes, la misma pantalla explica qué se activará y permite
+Para workspaces existentes, la misma pantalla explica qué se activará y permite
 elegirlo. No aplica cambios a contactos antiguos ni a rutas de teléfono sin esa
 elección. La configuración avanzada y cada trigger conservan sus controles de
 Personalizar y pausa, con el editor de agentes ya existente.
@@ -966,7 +1001,7 @@ carga, vacío, error y recuperación, sin saltos bruscos de contenido. Una adver
 que requiere acción permanece visible; un éxito rutinario no necesita un modal.
 
 Mantener una sola superficie auxiliar a la derecha: abrir seguimiento no termina
-ni desmonta una llamada en curso. Al cambiar de organización, limpiar el estado
+ni desmonta una llamada en curso. Al cambiar de workspace, limpiar el estado
 visible y descartar respuestas tardías del workspace anterior.
 
 ## 15. Comprobación de las observaciones aplicadas
@@ -1237,3 +1272,37 @@ ni llamadas reales. Pruebas de transacción, concurrencia, reinicio, recibos,
 permisos y validación pendiente con proveedor se detallan en
 [FOLLOW_UP.md](../engineering/FOLLOW_UP.md#stage-3-authoritative-resolution-and-receipts).
 Stage 4 conserva provisión, onboarding ampliado y rollout general.
+
+## 20. Alcance confirmado · freelancers y conversión con PostHog (7 de noviembre de 2026)
+
+El usuario confirmó acceso personal con las mismas capacidades y el mismo onboarding
+que Organization. La propuesta de §1–§14 incorpora esta decisión. §16–§19 conserva
+el historial de lo implementado para el piloto de organización; no demuestra que
+el alcance personal o PostHog ya estén disponibles.
+
+El [plan de Stage 4 actualizado](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md) es el detalle
+de la siguiente entrega. Su secuencia es:
+
+1. Generalizar acceso, ownership, persistencia, claims, herramientas, callbacks,
+   correos y consumidores actuales para personal/organización, con aislamiento real.
+2. Instrumentar adquisición, onboarding, financiación y resultados en PostHog,
+   agrupando por workspace, con identidad humana consistente y actores IA separados.
+   Este trabajo puede avanzar en paralelo con el alcance personal.
+3. Reconciliar preparación nativa y preferencias, presentar el onboarding común y
+   conservar autorización del propietario o administrador, requisitos y saldo.
+4. Validar el recorrido completo en ambos tipos de workspace con contactos de prueba,
+   medir línea base y conciliar eventos, resultados y ledger.
+5. Optimizar y ampliar con cohortes estables y experimentos medibles.
+
+Medir por separado **primera resolución real**, **primera recarga pagada** y
+**continuidad de resultados**. La financiación puede preceder al primer resultado.
+Un grant no cuenta como compra; un callback no cuenta como resolución; una cita no
+cuenta como nuevo cliente. La compra de Organization es una conversión adicional
+del segmento colaborativo y no un requisito del freelancer.
+
+Los primeros experimentos comparan claridad del siguiente paso, ayuda contextual
+tras «Interesado», explicación de saldo y resumen del valor conseguido. Cada prueba
+tiene una métrica primaria, población, exposición, ventana y controles de costo,
+errores e intervención. Los 50.000 USD de PostHog financian aprendizaje con límites
+y datos mínimos; no cambian la facturación por consumo ni convierten la analítica
+en fuente de autorización o verdad de negocio.

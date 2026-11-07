@@ -176,12 +176,19 @@ export class MeetingEmailDeliveryRepository {
           return null;
         }
         if (delivery.kind === "recovery_callback") {
-          const callback = action.callbackId
-            ? await tx.callbackTask.findUnique({
-                where: { id: action.callbackId },
-                include: { followUp: true },
-              })
-            : null;
+          // Only the callback of the action's own request, in the delivery's
+          // workspace, decides whether its receipt still stands.
+          const callback =
+            action.callbackId && action.handoffId
+              ? await tx.callbackTask.findFirst({
+                  where: {
+                    id: action.callbackId,
+                    organizationId: delivery.organizationId,
+                    handoffId: action.handoffId,
+                  },
+                  include: { followUp: true },
+                })
+              : null;
           const evidence = action.evidence as { scheduledAt?: string };
           if (
             !callback ||

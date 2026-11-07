@@ -1,334 +1,498 @@
-# Stage 4 — Activación nativa de Organization y medición con PostHog
+# Stage 4 — Activación nativa para freelancers y organizaciones con PostHog
 
 Propuesta de implementación · 7 de noviembre de 2026
 
 Complementa [el plan de seguimiento completo](PLAN_ORGANIZATION_AI_FOLLOWUP.md).
-La etapa solicitada corresponde a aprovisionamiento, onboarding, preferencias y
-despliegue gradual. El objetivo sigue siendo que el equipo prospecte y que IA
-ejecute el seguimiento cotidiano hasta resolverlo o cerrarlo con evidencia.
+El nombre del archivo se conserva para mantener los enlaces existentes. Esta
+revisión incorpora la decisión del usuario: **mismas capacidades de AI Voice Agents
+y mismo onboarding para freelancers y organizaciones**. Es planificación; el acceso
+personal y la integración PostHog todavía requieren implementación.
 
-## 1. Resultado para el cliente
+La meta es que las personas prospecten y capten clientes, mientras la IA ejecuta
+el seguimiento cotidiano hasta resolverlo o cerrarlo con evidencia. La etapa 4
+debe convertir esa capacidad en una experiencia fácil de adoptar, financiar y
+usar de nuevo, con aprendizaje medible desde el primer piloto.
 
-Una organización nueva que contrata el plan recibe **Seguimiento automático**
-preparado con Recordatorios y confirmaciones y Agendar citas. Al abrir el workspace,
-su administrador ve los datos precargados y completa únicamente lo que falta.
-Después, el vendedor registra su resultado de llamada y continúa prospectando.
+## 1. Decisiones de producto
 
-Texto propuesto en la presentación del plan y el onboarding:
+- **Paridad funcional:** Recordatorios y confirmaciones y Agendar citas, con
+  seguimiento, contexto, idioma, handoff, callbacks, agenda, reagenda, cancelación
+  autorizada, notas, correos y medición, en ambos tipos de workspace.
+- **Un onboarding:** mismas preguntas, defaults, controles y promesa de valor.
+  En personal, el propietario es el responsable; en organización, se usan los
+  roles y responsables existentes. Los datos disponibles se precargan.
+- **Cobro vigente:** tokens y minutos consumidos, con los créditos del workspace
+  que realiza el trabajo. Esta entrega no crea tarifas, bolsas ni créditos gratis.
+- **Disponibilidad personal:** el freelancer accede desde su workspace personal
+  sin contratar Organization. El plan Organization conserva su contexto de
+  colaboración, administración, miembros y recursos compartidos.
+- **Defaults:** ambos especialistas preparados y habilitados en la configuración
+  propuesta, con confirmación a 240 minutos. La adopción habitual del onboarding
+  autoriza el alcance; solo se despacha con requisitos y saldo válidos.
+- **Control:** editar agentes, apagar capacidades, pausar casos y tomar control.
+  Los workspaces existentes adoptan explícitamente el nuevo comportamiento;
+  conservar personalizaciones, exclusiones y trabajos humanos anteriores.
 
-> Tu equipo encuentra oportunidades. Ringee devuelve llamadas, agenda, confirma
-> y reagenda. Los tokens y minutos se cobran por consumo.
+Texto propuesto para ambos segmentos:
 
-Una pantalla muestra empresa, número, calendario, responsable, zona y horario,
-con las funciones habilitadas por defecto y la confirmación a cuatro horas. La
-acción principal es **Continuar** cuando están completos los requisitos. El
-administrador conserva Personalizar, pausa por capacidad y controles por caso.
+> Tú consigues oportunidades. Ringee devuelve llamadas, agenda, confirma y
+> reagenda. Los tokens y minutos se cobran por consumo.
 
-Para organizaciones existentes, presentar **Activar seguimiento automático** con
-una vista previa de su alcance y próxima acción. La aceptación conserva los agentes,
-textos, horarios, exclusiones y tareas ya configurados. Una renovación consulta las
-preferencias guardadas y respeta las capacidades que el administrador haya apagado.
+La diferencia de organización se explica donde ayude a colaborar. No se exige
+crear un equipo ni comprar su plan para terminar el onboarding personal.
 
-## 2. Punto de partida comprobado
+## 2. Punto de partida y cambio de alcance necesario
 
-- `SubscriptionService.createFromStripe` registra la suscripción. Clerk crea la
-  organización y `assignToOrganization` intenta asociarle una suscripción pendiente.
-  El aprovisionamiento debe reconciliar ambas partes y recuperar el orden inverso.
-- `VoiceAgentAutomationService` posee setup, selección/reutilización de agentes,
-  configuración `humanFollowUp.enabled` y autorización administrativa, además de
-  readiness de las tarjetas. Los claims del repositorio protegen el alta concurrente.
-- El formulario de recordatorios todavía propone 24 horas. La etapa 4 establece
-  240 minutos para nuevos defaults y conserva offsets personalizados existentes.
-- El acceso piloto depende de `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. Preparación,
-  elegibilidad, preferencias y estado efectivo deben seguir calculándose en backend.
-- La copia revisada documenta Stage 2 y pruebas locales. La prueba del flujo real
-  de Stage 3, proveedor, audio y liquidación es un requisito de salida del piloto.
-  Confirmar la rama y las migraciones que contienen esas entregas antes de ampliarlo.
-- Hay analítica cliente mediante `useAnalytics`, gtag y Ahrefs. La búsqueda de código
-  revisada no encontró una integración PostHog. Extender el dueño de analítica
-  existente y centralizar su envío para evitar capturas duplicadas.
+El código revisado conserva restricciones de organización. Cambiar solo la pantalla
+o el guard de acceso no habilita correctamente el recorrido personal.
 
-## 3. Aprovisionamiento y preferencias
+| Responsabilidad          | Implementación existente y adaptación necesaria                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Acceso                   | `hasVoiceAgentAccess` y AGENT-011 exigen organización. Extender el dueño canónico y sus consumidores REST, MCP, CLI y frontend a ambos scopes                                  |
+| Piloto                   | `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` y `automation-access.ts` rechazan personal. Evolucionar una única política de admisión para ambos scopes y workers                        |
+| Persistencia             | Automatizaciones, políticas/ejecuciones de recordatorios, correos, handoffs y participantes requieren `organizationId`. Generalizar ownership, unicidad, claims y recuperación |
+| Autorización             | Hay comparaciones y callbacks basados en organización. Autorizar cada llamada, contacto, reunión y destino mediante el contexto completo del workspace                         |
+| Configuración            | `VoiceAgentAutomationService` posee setup, selección/reutilización, readiness y `humanFollowUp.enabled`. Extenderlo con propietario personal o administrador autorizado        |
+| Preparación Organization | `SubscriptionService.createFromStripe` y Clerk/`assignToOrganization` deben reconciliar compra y organización en ambos órdenes                                                 |
+| Correos y excepciones    | `MeetingEmailService` busca organización y administradores. Personal usa propietario/responsable autorizado y sus recursos                                                     |
+| Defaults                 | El formulario de recordatorios propone 24 horas. Usar 240 minutos para nuevos defaults sin sobrescribir configuraciones previas                                                |
+| Analítica                | Existe `useAnalytics` con gtag/Ahrefs; la búsqueda revisada no encontró PostHog. Extender el dueño existente y evitar clientes o capturas paralelos                            |
 
-Extender el dueño de automatizaciones con una operación idempotente de preparación
-nativa por organización y versión de configuración. Stripe, Clerk y la reparación
-de un alta incompleta solicitan la misma reconciliación. Los controllers autentican
-y delegan. Las operaciones del proveedor se ejecutan mediante los adapters actuales.
+Las entregas 0–3 están documentadas detrás del piloto de organización. Validar
+rama, migraciones y recorrido real antes de ampliarlas. Sus pruebas existentes no
+demuestran todavía aislamiento, audio ni liquidación en workspaces personales.
 
-El proceso comprueba la suscripción aplicable y su asociación al workspace,
-prepara ambos especialistas con los claims existentes, crea o reutiliza el calendario
-global y guarda la configuración propuesta. El dato `isFirstEver` del comprador
-sirve al aviso de bienvenida actual. La clave de aprovisionamiento pertenece a la
-organización y la versión, con recuperación de un paso interrumpido.
+### 2.1. Ownership y compatibilidad
 
-Asociar la compra a la organización prevista mediante la intención de checkout y
-sus registros autorizados. Si el comprador administra varias organizaciones,
-conservar esa selección o pedirla en el onboarding. La pestaña activa del navegador
-o la primera organización encontrada no deciden qué workspace recibe la suscripción.
+Usar `createOwnershipContext`/`buildOwnershipFilter`: personal filtra por `userId`
+y `organizationId: null`; organización, por `organizationId` y los permisos de
+miembro aplicables. Dos propietarios personales no comparten alcance porque ambos
+tengan `organizationId` nulo. Tampoco se mezclan el personal y la organización del
+mismo usuario. No crear organizaciones ficticias ni una arquitectura paralela.
 
-Persistir al menos versión/origen de preparación, progreso, decisión administrativa,
-fecha efectiva de adopción, capacidades excluidas y siguiente requisito pendiente.
-La decisión de apagar o eliminar un trigger sobrevive a la eliminación de su fila.
-El reconciliador puede reparar preparación incompleta sin recrear un opt-out.
+La preparación necesita una clave estable por workspace y versión. Si hace falta
+una representación externa, derivarla del contexto canónico con espacios disjuntos,
+por ejemplo `personal:<ownerId>` y `organization:<organizationId>`. Esa clave sirve
+para correlación y deduplicación; no es una prueba de autorización.
 
-La habilitación de entrega desde llamadas humanas se guarda mediante la política
-actual `humanFollowUp.enabled`, con identidad y rol administrativos comprobados.
-La pantalla habitual de onboarding adopta sus defaults y registra quién lo hizo.
-El comprador, el creador de la organización y el administrador vigente pueden ser
-personas distintas. La compra por sí sola no aporta una autorización administrativa
-verificada para rellenar `authorizedByUserId`.
+Hacer nullable una columna no conserva por sí solo la unicidad existente sobre
+`organizationId`. Definir constraints e índices para una configuración por
+workspace/capacidad/contexto, y extender los repositorios, transacciones y locks
+actuales. Autorizar también todos los IDs que enlacen herramientas, callbacks,
+participaciones, notas, correos y objetivos.
 
-Reglas de elección de datos:
+Los trabajos diferidos reconstruyen su contexto desde el ownership persistido y
+revalidan su autorización vigente. Cambiar la organización activa del usuario en
+otra sesión no cambia el scope de un callback, handoff, correo o débito pendiente.
 
-| Dato                           | Default y comportamiento                                                                                                               |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Empresa                        | Perfil existente y nombre real del workspace, editable                                                                                 |
-| Número saliente                | Asignación válida existente o único número utilizable. Varios candidatos requieren selección                                           |
-| Calendario                     | Global autorizado, con disponibilidad existente y responsable explícito                                                                |
-| Zona/horario                   | Valores del calendario y las reglas existentes, visibles antes de activar                                                              |
-| Idioma/voz                     | Configuración compatible de los especialistas y contexto efectivo de conversación                                                      |
-| Recordatorio                   | 240 minutos para el nuevo default. Conservar personalizaciones                                                                         |
-| Entrega desde llamadas humanas | Habilitada en los defaults que adopta el administrador. Objetivo de «Interesado» visible y editable, con agenda como propuesta inicial |
-| Calendarios futuros            | Incorporarlos según el alcance adoptado si su marca, número y responsable son compatibles                                              |
-| Devolución de llamadas         | Mostrar destino entrante efectivo y configurar continuidad mediante routing existente                                                  |
+Actualizar deliberadamente AGENT-011 y AGENT-018 al implementar, junto con reglas
+de correos y pruebas. Conservar CALL-001/002 y la exclusión IA de CALL-003: el
+freelancer puede prospectar con su llamada humana mientras la IA sigue trabajando.
+Comprobar concurrencia, historial y consumo sin ampliar el cupo humano ni duplicar
+llamadas o débitos. Revisar contratos y consumidores enumerados en `AGENTS.md`.
 
-Los números con rutas humanas mantienen esa elección hasta que el administrador
-adopte otra. Una ruta incompatible o un dato de marca faltante aparece como
-requisito concreto. Los workers despachan únicamente los trabajos que tengan
-requisitos completos y autorización vigente.
+## 3. Preparación nativa, elegibilidad y preferencias
 
-La suscripción efectiva determina la preparación nativa y la admisión de trabajo
-nuevo. Una cancelación a fin de período conserva la vigencia pagada. El mapeo de
-estados de impago y cualquier período de gracia se toma de la política de billing
-documentada. Al terminar la vigencia, conservar historial, consumo y preferencias,
-y detener la admisión automática según esa política. Las capacidades históricas
-de agentes se migran conforme a sus contratos actuales.
+Extender el dueño de automatizaciones con reconciliación idempotente por workspace
+y versión. El alta personal, Stripe/Clerk para Organization y la reparación de un
+setup incompleto solicitan esa misma operación. Reutilizar claims, servicios de
+calendario y adapters de proveedor existentes.
 
-## 4. Onboarding y uso cotidiano
+| Workspace    | Entrada y autorización                                                           | Elegibilidad y consumo                                                                                                            |
+| ------------ | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Personal     | Registro/primer acceso; el propietario autenticado adopta la configuración       | Acceso personal habilitado, requisitos completos y saldo personal conforme a billing; sin dependencia de suscripción Organization |
+| Organización | Alta/compra asociada a la organización prevista; adopta un administrador vigente | Suscripción y vigencia aplicables, permisos, requisitos y saldo de esa organización                                               |
 
-| Momento                       | Experiencia                                                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Regreso de checkout           | «Estamos preparando tu seguimiento» con progreso y recuperación en segundo plano                              |
-| Datos completos               | Resumen breve de número, calendario, horarios y funciones. Una acción para continuar                          |
-| Dato faltante                 | «Elige el número desde el que llamará la IA», «Configura devolución de llamadas» u otra acción específica     |
-| Primera llamada fría elegible | Resultado guardado, objetivo aceptado y próximo paso de IA visibles en el cierre habitual                     |
-| Primera resolución real       | Confirmación discreta con enlace al historial del contacto y al resultado                                     |
-| Supervisión                   | Vistas actuales de seguimiento, resultados y excepciones con permisos del responsable                         |
-| Pausa                         | Cantidad y próximos compromisos afectados visibles. Reanudación conserva límites y recalcula horarios válidos |
+Una compra puede preceder o seguir al alta de Organization. Conservar la intención
+de checkout y sus registros autorizados; no asignar a la primera organización del
+comprador ni a la pestaña activa. Una cancelación a fin de período respeta la vigencia
+pagada; impago y gracia siguen la política de billing existente. El fin de un plan
+Organization no deshabilita el workspace personal financiado por separado.
 
-Estados de preparación visibles **Preparando**, **Necesita configuración**, **Listo**,
-**Pausado** y **Detenido por una causa concreta**. La API devuelve estado, razón y
-próxima acción. El frontend presenta datos de servidor y mantiene la llamada en
-curso al abrir o cerrar el panel. Reutilizar componentes, traducciones y foco de Ringee.
+Persistir versión/origen de preparación, progreso, decisión del propietario o
+administrador, fecha de adopción, capacidades excluidas y siguiente requisito.
+Pausas y eliminación deliberada de un trigger sobreviven a la eliminación de su
+fila y a futuras reconciliaciones. Renovar, reintentar o reconectar no las revierte.
 
-El vendedor recibe el trabajo excepcional que le corresponda. Saldo, número y
-credenciales se dirigen al administrador apropiado. Los errores recuperables siguen
-en el flujo automático. Un contacto que devuelve una llamada continúa mediante el
-recorrido autorizado configurado para ese número.
+La política `humanFollowUp.enabled` conserva autorización verificable. El comprador,
+creador de una organización y administrador pueden ser personas distintas. Derivar
+`authorizedByUserId` de la identidad autorizada; no inventarlo desde el webhook de
+compra. En personal autoriza su propietario, mediante el mismo onboarding.
 
-## 5. PostHog y el crédito disponible
+| Dato                   | Default y comportamiento común                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| Identidad comercial    | Perfil y marca reales; editable, sin inventar una empresa para el freelancer       |
+| Número saliente        | Asignación válida o único número utilizable. Varios candidatos requieren selección |
+| Calendario             | Autorizado, con disponibilidad y responsable; propietario personal precargado      |
+| Zona y horario         | Valores actuales visibles y corregibles antes de activar                           |
+| Idioma/voz             | Configuración compatible; idioma efectivo por conversación y contexto del contacto |
+| Recordatorio           | 240 minutos como nuevo default; conservar offsets previos                          |
+| Entrega humana         | Defaults habilitados al adoptar; mostrar qué resultados inician IA y su objetivo   |
+| Calendarios futuros    | Cubrir solo los compatibles con marca, número, responsable y alcance adoptado      |
+| Devolución de llamadas | Mostrar destino efectivo y resolver continuidad con routing existente              |
 
-Usar los **50.000 USD de crédito indicados por el usuario** para aprender qué
-organizaciones activan, dónde abandonan y qué resultados obtienen. La oferta pública
-actual dura 12 meses. Confirmar inicio, vencimiento y cobertura del grant aplicado
-a la cuenta antes de fijar su presupuesto. Algunas herramientas de IA de PostHog
-quedan excluidas, mientras AI Observability sí figura como cubierta. [Programa oficial](https://posthog.com/startups).
+Las rutas humanas conservan su elección hasta que la persona autorizada adopte
+otra. Un recurso incompatible aparece como requisito concreto. Los workers
+comprueban alcance, autorización, preferencias y readiness antes de despachar.
+Saldo insuficiente es una causa visible; no se presenta como preparación completada
+con capacidad de llamar. Conservar historial y preferencias cuando deje de haber
+elegibilidad, y aplicar las reglas de pausa al trabajo pendiente.
 
-Prioridades propuestas:
+## 4. Un onboarding orientado al primer resultado
 
-| Producto                            | Aplicación en esta etapa                                                                                  |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Product Analytics + Group Analytics | Funnel y retención por organización, adopción por miembros y resultados por cohorte                       |
-| Feature Flags                       | Selección estable de cohortes y variantes de onboarding, evaluadas con contexto de organización           |
-| Error Tracking                      | Errores de preparación/onboarding correlacionados con versión y causa normalizada                         |
-| Session Replay                      | Diagnóstico del onboarding sobre una muestra inicial propuesta del 20% de sesiones elegibles              |
-| Surveys                             | Encuesta breve sobre claridad y esfuerzo después de observar resultados reales                            |
-| AI Observability                    | Segunda ampliación para operaciones instrumentables en Ringee, con metadatos mínimos y consumo disponible |
+Una pantalla presenta **Seguimiento automático** con resumen y requisitos. La acción
+principal **Activar seguimiento automático** adopta los defaults y explica el consumo.
+Personalizar permite cambios avanzados. Ambos segmentos recorren las mismas etapas;
+los campos resueltos se muestran completos, sin hacer repetir su configuración.
 
-Group Analytics permite medir y seleccionar empresas como grupo. Es un add-on
-pagado y su facturación alcanza los eventos identificados del proyecto, incluso
-aquellos sin grupo. Incluir ese volumen en la previsión. [Documentación de grupos](https://posthog.com/docs/product-analytics/group-analytics).
+El propietario personal o administrador habilitado adopta la configuración. Un
+miembro sin ese permiso ve el progreso y el requisito dirigido al administrador;
+no recibe una acción que el servidor le rechazará. Los experimentos de adopción
+definen su población con esta autoridad y cuentan workspaces, sin duplicar miembros.
 
-Revisar semanalmente consumo y proyección por producto, con un límite mensual
-inicial aprobado al configurar la cuenta. Presupuestar con eventos/objetivo,
-organizaciones activas y sesiones elegibles. Ajustar la muestra de replay al volumen
-observado. Los límites de PostHog pueden detener ingestión, por lo que las métricas
-operativas y la ejecución deben tolerar períodos sin telemetría. [Límites y alertas](https://posthog.com/docs/billing/limits-alerts).
+| Momento                      | Experiencia y siguiente acción                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| Primera entrada              | Promesa concreta y ambos especialistas preparados; progreso recuperable                   |
+| Configuración                | Número, calendario, marca, horario, responsable y confirmación a cuatro horas precargados |
+| Dato faltante                | Una instrucción específica: elegir número, dar disponibilidad o configurar devolución     |
+| Falta saldo                  | Explicar qué operación está pendiente y ofrecer la recarga vigente con costos claros      |
+| Preparado                    | Resumen adoptado y próxima acción; el usuario vuelve a prospectar                         |
+| Primer «Interesado» elegible | El cierre habitual muestra objetivo aceptado y qué hará la IA, sin otro formulario        |
+| Primer resultado real        | Aviso discreto con resultado, historial y consumo liquidado o pendiente                   |
+| Uso posterior                | Resumen verificable de resultados, próximos pasos y excepciones; acción contextual        |
+| Pausa                        | Compromisos afectados visibles; reanudación conserva límites y ventanas                   |
+
+La preparación puede completarse antes de financiar el uso. Distinguir **Configuración
+completa; falta saldo** de **Listo para llamar**. No inventar una prueba gratis ni
+exigir obtener un resultado antes de la primera compra cuando requiere saldo.
+
+La API devuelve estado, razón y siguiente acción desde backend. Reutilizar UI,
+traducciones, accesibilidad y navegación de Ringee; abrir el panel mantiene la
+llamada en curso. La experiencia no requiere seleccionar agentes o coordinar
+callbacks en cada llamada. Errores recuperables siguen en IA; las excepciones van
+al propietario personal o responsable autorizado de organización.
+
+Una vista previa del recorrido puede ayudar a entenderlo. Si se incorpora, marcarla
+como demostración y excluir sus datos de resultados reales, costos y activación.
+No usar una llamada real a un contacto como requisito para completar una demo.
+
+## 5. Qué conversión queremos mejorar
+
+Medir dos resultados de Ringee: **primer valor real** y **primera recarga pagada**.
+Luego comprobar continuidad. Completar configuración o pulsar un botón son señales
+intermedias. El objetivo comercial del cliente se mide por separado: una cita o
+confirmación no demuestra que haya adquirido un cliente.
+
+| Recorrido                  | Secuencia y unidad                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adquisición                | Visita atribuida → registro completado. Unidad persona, con canal de adquisición permitido                                                                         |
+| Adopción                   | Workspace creado/elegible → onboarding expuesto → configuración adoptada → requisitos completos. Unidad workspace                                                  |
+| Valor desde llamada humana | Workspace listo → resultado humano elegible → objetivo IA aceptado → resultado real. Unidad workspace; desglosar también por objetivo                              |
+| Valor desde reunión        | Workspace listo → reunión autorizada cubierta → recordatorio ejecutado → confirmación o cambio autorizado real. No exige una nueva llamada fría                    |
+| Financiación inicial       | Sin saldo suficiente → checkout de recarga iniciado → pago confirmado y crédito registrado → primera ejecución → primer resultado. No requiere un resultado previo |
+| Saldo ya disponible        | Listo → ejecución → resultado; distinguir saldo comprado, saldo anterior y grants existentes. Medir después primera compra o recarga posterior según corresponda   |
+| Continuidad                | Primer resultado → nuevos objetivos y resultados en semanas posteriores → consumo y nuevas recargas                                                                |
+| Organization               | Intención de equipo → checkout de plan → suscripción efectiva asociada. Conversión adicional del segmento, separada de recargas                                    |
+
+**Definiciones iniciales para el piloto:**
+
+- Activación de producto: primer resultado real atribuible a IA con evidencia dentro
+  de siete días desde la exposición al onboarding. Admite entrega humana y reuniones
+  ya existentes; una confirmación puede probarse desde su registro autorizado aunque
+  no tenga objetivo `PendingAction`. Mostrar cada tipo de resultado. Un callback,
+  consulta de disponibilidad o cierre sin éxito no cuenta.
+- Cohortes de valor: para nuevos medir primer resultado de por vida; para quienes
+  ya tenían resultados medir el primero posterior a la adopción/exposición de esta
+  versión. Separar estos indicadores y conservar el historial, sin reiniciar una
+  métrica de primera vez al volver a mostrar onboarding.
+- Configuración: proporción que queda lista y tiempo hasta readiness en 24 horas.
+  Publicar el bloqueo de saldo por separado para distinguir setup de financiación.
+- Conversión pagada: primera recarga comprada, confirmada por pago y ledger, dentro
+  de 14 días desde la exposición entre workspaces que nunca habían pagado recargas.
+  Reembolsos y disputas se muestran aparte. Una concesión no cuenta como compra.
+- Retención de valor: workspaces con nuevos resultados en semanas 1 y 4 desde su
+  primera resolución, con ventanas y cohortes maduras explícitas. Abrir una página
+  o recibir un evento automático no demuestra continuidad de valor.
+- Resultado comercial del cliente: reservas, asistencia cuando exista evidencia,
+  y ventas registradas por su fuente autorizada. No inferir ventas desde citas.
+
+Estas ventanas son propuestas de medición, no benchmarks. Fijarlas antes de cada
+experimento y revisarlas con la línea base. Los funnels muestran también tiempos,
+pendientes y la pérdida de cada paso, incluyendo workspaces sin contactos elegibles.
+Medir tanto el recorrido total como la conversión condicionada a tener una oportunidad;
+publicar solo esta última ocultaría problemas de adquisición o activación.
+
+Segmentar por `workspace_type`, nuevos/existentes, canal, estado de financiación al
+entrar, idioma de interfaz y volumen de oportunidades. Separar pilotos, demos,
+cuentas internas y datos de prueba. Una persona con varios workspaces puede producir
+varias activaciones de workspace, pero sigue siendo una persona en adquisición.
 
 ## 6. Identidad y contrato de eventos
 
-Usar una identidad de producto consistente para el mismo usuario en cliente y
-servidor y un grupo **organization** con ID interno estable del workspace. El
-contexto de grupo se incluye en cada evento, también después de cambiar de
-organización. El logout y cambio de cuenta limpian la identidad cliente apropiada.
-Los eventos de trabajo automático llevan actor de sistema y se excluyen de las
-métricas de actividad humana. Los contactos telefónicos permanecen como entidades
-de Ringee.
+Usar la misma identidad interna de usuario en cliente y servidor. Asociar adquisición
+anónima al registro mediante la resolución de identidad elegida, sin unir cuentas de
+personas distintas. Capturar solo parámetros de atribución permitidos; evitar URLs
+completas, textos libres o identificadores sensibles en parámetros de campaña.
 
-Propiedades mínimas propuestas **schema_version**, **event_id**, **occurred_at**,
-**organization_id**, **actor_type**, **environment**, **release_version** y
-**rollout_cohort**. Agregar tipo de objetivo, capacidad, resultado, causa normalizada,
-intentos y latencia cuando correspondan. Correlacionar objetivos con un identificador
-opaco dedicado. Los eventos de consumo incluyen importe/unidad y estado de
-liquidación, conservando la distinción entre desconocido y cero.
+El grupo de PostHog es **workspace**, con claves disjuntas personal/organización y
+propiedad `workspace_type`. No crear una organización ficticia para agrupar personal.
+Cada evento de producto con scope incluye su workspace efectivo, incluso después
+de cambiarlo en la interfaz. Visitas anónimas anteriores al alta no tienen grupo;
+no inventar uno. Logout/cambio de cuenta limpian la identidad cliente correspondiente.
+Group Analytics admite entidades definidas por el producto y experimentos por grupo.
+[Documentación oficial](https://posthog.com/docs/product-analytics/group-analytics).
 
-| Evento propuesto                  | Fuente y momento                                            |
-| --------------------------------- | ----------------------------------------------------------- |
-| `organization_plan_activated`     | Backend tras comprobar suscripción y organización asociadas |
-| `followup_onboarding_viewed`      | Cliente al mostrar la pantalla, con versión                 |
-| `followup_configuration_saved`    | Backend tras aceptar la configuración administrativa        |
-| `followup_provisioning_started`   | Transición persistida de preparación                        |
-| `followup_provisioning_completed` | Backend al completar los recursos de esa versión            |
-| `followup_readiness_changed`      | Cambio real de requisitos/estado efectivo                   |
-| `followup_enrollment_authorized`  | Adopción persistida de la política desde llamadas humanas   |
-| `followup_objective_started`      | Objetivo guardado con fuente y próxima acción               |
-| `followup_objective_resolved`     | Evidencia autorizada de resultado de negocio                |
-| `followup_objective_closed`       | Cierre con su motivo, separado de resolución exitosa        |
-| `followup_exception_changed`      | Apertura/resolución de una excepción accionable             |
-| `followup_control_applied`        | Pausa, reanudación o toma de control aceptada               |
-| `followup_charge_settled`         | Débito confirmado, correlacionado con llamada/objetivo      |
-| `followup_receipt_status_changed` | Cambio persistido de entrega de comprobante                 |
+Los eventos automáticos tienen actor IA/sistema y una identidad técnica separada;
+cuentan como resultados del workspace y se excluyen de DAU humano y adquisición.
+La autorización original puede correlacionarse con ID interno mínimo sin atribuir
+actividad de pantalla a quien configuró el trigger. Los contactos son entidades de
+Ringee y no se convierten en personas de PostHog.
 
-Los eventos de resultado se originan en servicios y registros autoritativos de
-Ringee. La telemetría cliente registra interacción, visitas y exposición de UX.
-Cada nombre tiene un dueño de captura para que un clic y su respuesta no cuenten
-dos éxitos.
+Propiedades mínimas: `schema_version`, `event_id`, `occurred_at`, `actor_type`,
+`environment`, `release_version`; eventos con scope agregan `workspace_key`,
+`workspace_type` y `rollout_cohort` cuando esté asignada.
+Añadir `organization_id` solo cuando corresponda, causa normalizada, capacidad,
+objetivo, resultado e intentos/latencia según el evento. IDs de correlación opacos;
+consumo con unidad, importe y estado de liquidación, distinguiendo desconocido de cero.
 
-Exportar en lotes desde evidencia durable y transiciones persistidas, con cursor,
-reintentos y control de entrega. Preservar ID, fecha original, actor y contenido
-del evento al reintentar. El adapter se incorpora en `@ringee/platform`, mediante
-DI y configuración, y se utiliza desde backend/orchestrator. La búsqueda de dueños
-precede a cualquier nuevo mecanismo de exportación. La entrega de analítica queda
-fuera de las transacciones y del tiempo crítico de las llamadas.
-Si el adapter añade una dependencia de runtime compartida, declararla también en
-backend y orchestrator conforme a `packages/services/AGENTS.md` y comprobar su
-resolución desde los builds.
+Los siguientes nombres son propuestas. Buscar y reutilizar el evento canónico de
+registro, pago o dominio que exista antes de crear uno equivalente.
 
-PostHog deduplica eventualmente según UUID, evento, timestamp y distinct ID.
-Validar el contrato del SDK elegido y mantener esa identidad en el exportador.
-El conteo por ID estable y la conciliación contra Ringee cubren reintentos e ingestión
-tardía. [Modelo y deduplicación de eventos](https://posthog.com/docs/data/events).
+| Evento propuesto                              | Dueño y momento                                                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `signup_completed`                            | Backend al completar el alta de usuario, una vez                                                                                       |
+| `workspace_created`                           | Alta persistida; scope y origen explícitos                                                                                             |
+| `organization_plan_activated`                 | Backend tras suscripción efectiva y asociación verificadas                                                                             |
+| `followup_onboarding_viewed`                  | Cliente al mostrar la experiencia, versión y exposición                                                                                |
+| `followup_onboarding_step_completed`          | Paso válido completado; IDs de campo/paso acotados                                                                                     |
+| `followup_configuration_saved`                | Backend al aceptar configuración autorizada                                                                                            |
+| `followup_provisioning_started` / `completed` | Transiciones persistidas por workspace/versión                                                                                         |
+| `followup_readiness_changed`                  | Cambio real del estado o de su causa normalizada                                                                                       |
+| `followup_enrollment_authorized`              | Adopción persistida de entrega desde llamadas humanas                                                                                  |
+| `credit_checkout_started`                     | Creación aceptada de checkout, ligada al workspace previsto                                                                            |
+| `credit_topup_confirmed`                      | Compra confirmada y crédito registrado por el dueño de billing; ID estable del pago/ledger                                             |
+| `followup_source_eligible`                    | Primer resultado humano aceptado que cumple el criterio; deduplicado por llamada/revisión                                              |
+| `followup_objective_started`                  | Objetivo durable con fuente y próxima acción                                                                                           |
+| `followup_objective_resolved`                 | Resolución del objetivo con evidencia; diagnóstico de ese recorrido                                                                    |
+| `followup_business_result_recorded`           | Proyección analítica desde evidencia autoritativa de resultado IA, incluido recordatorio sin objetivo; clave estable del hecho/versión |
+| `followup_objective_closed`                   | Cierre con motivo, separado de éxito                                                                                                   |
+| `followup_exception_changed`                  | Apertura o resolución de una excepción accionable                                                                                      |
+| `followup_control_applied`                    | Pausa, reanudación o toma de control aceptada                                                                                          |
+| `followup_charge_settled`                     | Débito confirmado vinculado a llamada/objetivo                                                                                         |
+| `followup_receipt_status_changed`             | Estado persistido de entrega del comprobante                                                                                           |
+| `followup_value_summary_viewed`               | Cliente al mostrar resultados verificados y próxima acción                                                                             |
 
-## 7. Datos y replays
+Cada nombre tiene un dueño. Cliente captura interacción/exposición; backend,
+aceptación y resultados. El éxito de un pago no nace de su página de retorno.
+Las métricas de primera vez se derivan de hechos completos o de marcadores durables;
+un retry, nuevo dispositivo o reactivación no los reinicia.
+La métrica global de valor usa resultados de negocio únicos. Un hecho que resuelve
+un objetivo y confirma una reunión cuenta una vez mediante su clave de evidencia;
+no sumar ambos eventos como dos resultados. Reutilizar la evidencia actual, sin
+crear objetivos o mutaciones de negocio únicamente para producir analítica.
 
-El contrato externo admite metadatos acotados, códigos de resultado y métricas.
-Teléfonos, correos de contactos, nombres, notas libres, transcripciones, grabaciones,
-tokens, credenciales y URLs con identificadores sensibles quedan fuera de captura.
-Sanitizar también rutas, query strings, atributos del DOM y mensajes de error.
+Exportar eventos autoritativos desde evidencia durable con cursor/reintentos y
+control de entrega, extendiendo el mecanismo existente que corresponda. Conservar
+ID, fecha original, actor y payload al reintentar. PostHog deduplica eventualmente
+por UUID, evento, timestamp y distinct ID: validar ese contrato en el SDK y conciliar
+conteos por ID contra Ringee. [Modelo de eventos](https://posthog.com/docs/data/events).
 
-Replay se limita inicialmente a las pantallas de onboarding/configuración aprobadas,
-con texto y entradas enmascarados y contenido seguro permitido explícitamente.
-Excluir superficies de contactos, grabaciones, transcripciones y conversación.
-Mantener captura de cuerpos de red, audio, canvas y consola fuera de esta
-instrumentación inicial. Así la muestra permite detectar pasos abandonados y
-errores de navegación con la información necesaria para esa pregunta. [Privacidad de replay](https://posthog.com/docs/session-replay/privacy).
+El adapter pertenece a `@ringee/platform`, con DI y configuración; no se instala
+un SDK proveedor en servicios de negocio. Declarar cualquier dependencia compartida
+de runtime también donde la requieran backend/orchestrator y comprobar builds.
+La entrega de analítica queda fuera de transacciones y del tiempo crítico de llamada.
+Ringee conserva la verdad de reuniones, resultados, créditos y autorizaciones.
 
-El equipo puede aprovechar AI Observability cuando el adapter o proceso de Ringee
-exponga la operación y su consumo. El motor de voz del proveedor exige sus propias
-evidencias para explicar la conversación y facturación. Registrar únicamente las
-etapas observables, con el mismo criterio de datos mínimos.
+## 7. Dashboards y ciclo de aprendizaje
 
-## 8. Flags y funcionamiento ante fallos
+| Dashboard                  | Decisión que permite tomar                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Adquisición y financiación | Qué canales traen registros que pagan y obtienen valor; recargas confirmadas separadas del plan y de grants |
+| Onboarding                 | Qué requisito frena a cada segmento, tiempo por paso, errores y abandono                                    |
+| Primer valor               | Tiempo hasta resolución, proporción total y condicionada a oportunidades, bloqueos y casos aún abiertos     |
+| Continuidad                | Resultados nuevos, recargas y pausas por cohorte; retención de valor W1/W4                                  |
+| Autonomía y operación      | Resoluciones sin intervención, fallos por etapa, callbacks vencidos y antigüedad de objetivos               |
+| Economía                   | Consumo liquidado por resultado, saldo/compra/consumo por workspace y costos pendientes                     |
 
-Extender un único dueño backend del estado efectivo. Combinar elegibilidad de
-suscripción, control de despliegue, decisión administrativa, requisitos y versión
-de preparación. PostHog puede seleccionar una cohorte de lanzamiento por organización
-y variantes de UX. Guardar la admisión/variante relevante con la organización para
-que todos sus miembros y los workers reciban una decisión estable.
+Una recarga es financiación; consumo de créditos y costos de proveedor son otras
+magnitudes. No presentar créditos consumidos como nueva caja ni costo cero cuando
+la liquidación está pendiente. Conciliar diariamente eventos con dominio y ledger,
+y marcar ventanas incompletas de ingestión. El dashboard del cliente sigue usando
+consultas autorizadas de Ringee con enlaces a evidencia; PostHog sirve al análisis.
 
-Nombres propuestos **native_followup_rollout_v1** para selección backend y
-**followup_onboarding_v1** para la variante de experiencia. El estado efectivo que
-usa la UI se obtiene del backend. La evaluación se realiza por organización.
+Revisión semanal propuesta: localizar una caída relevante del funnel, observar
+replays permitidos de ese paso, contrastar una encuesta breve, priorizar una mejora
+y decidir un experimento o corrección. Registrar hipótesis, responsable y resultado
+de la decisión. Corregir fallos de funcionamiento para todos; reservar experimentos
+para incertidumbre de producto. Con poco volumen, priorizar evidencia cualitativa
+y no declarar ganadores con muestras insuficientes.
 
-Durante el piloto, la allowlist existente sigue siendo el techo de despliegue.
-La elección de PostHog se evalúa en servidor al admitir el workspace o trabajo
-nuevo y atraviesa los permisos y límites actuales de Ringee. Una preferencia de
-pausa del administrador siempre prevalece sobre una selección de cohorte.
+Surveys iniciales con respuestas acotadas: «¿Qué te impidió continuar?» tras un
+bloqueo y «¿Quedó claro qué haría la IA?» después de un resultado o período de uso.
+No interrumpir llamadas ni pedir datos de contactos. Aplicar límite de frecuencia.
 
-Si PostHog está inaccesible, diferir nuevas admisiones que no tengan una decisión
-válida almacenada. El trabajo previamente autorizado sigue sus políticas persistidas
-y los gates de Ringee. Un control operativo del backend puede retirar nuevos
-despachos. Una pausa mantiene trazabilidad, compromisos y resultados de lo que ya
-fue despachado. Los costos incurridos se liquidan y los comprobantes ya debidos por
-resultados vigentes conservan su entrega.
+## 8. Experimentos de conversión, en orden
 
-Esta separación requiere revisar el gate actual que detiene correos al retirar
-una organización del flag piloto. Actualizar AGENT-018/020 y sus pruebas al
-implementar el comportamiento adoptado.
+El onboarding continúa siendo uno para ambos segmentos. Las variantes comparan
+presentación y ayuda sobre las mismas funciones, autorizaciones y tarifas.
 
-## 9. Dashboards y decisiones
+| Orden | Hipótesis y comparación                                                                                                                          | Métrica primaria propuesta                                                                     | Seguimiento y límites                                                                                               |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1     | Una promesa centrada en el próximo resultado y checklist con requisitos precargados facilita activar, frente a descripción centrada en funciones | Workspaces con configuración completa en 24 h / expuestos elegibles                            | Readiness con saldo, resultado real en 7 días por cohorte de valor, errores, correcciones y comprensión del consumo |
+| 2     | Una guía contextual al guardar el primer «Interesado» facilita llegar al resultado, frente al aviso habitual                                     | Workspaces con resultado real vinculado a esa fuente en 7 días / expuestos con fuente elegible | Objetivos bloqueados, intervenciones, contactos repetidos y costo por resolución                                    |
+| 3     | Explicar qué acción habilita recargar y cómo se cobra facilita financiar el uso, frente al aviso genérico de saldo                               | Workspaces con primera recarga confirmada en 14 días / expuestos sin compras previas           | Tarifas constantes, reembolsos/disputas, comprensión y ejecución posterior                                          |
+| 4     | Un resumen de resultados con próxima acción pertinente facilita repetir, frente a confirmación genérica                                          | Workspaces con nuevos resultados en la semana siguiente / expuestos tras primer valor          | Pausas, exceso de avisos, nuevas oportunidades y costo por resultado                                                |
 
-| Vista              | Pregunta y definición inicial                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Activación         | Organizaciones con plan vigente → configuración adoptada → listas → primer objetivo → primera resolución en 7 días       |
-| Tiempo hasta valor | Mediana y percentil 90 desde adopción hasta primer resultado real, mostrando los casos aún abiertos                      |
-| Autonomía          | Objetivos resueltos sin intervención / elegibles iniciados por cohorte, con pendientes y cierres sin éxito visibles      |
-| Operación          | Bloqueos, antigüedad, callbacks vencidos, recuperaciones, fallos por etapa y entregas de correo                          |
-| Economía           | Consumo liquidado por objetivo resuelto y gasto por organización, con costos pendientes identificados                    |
-| Retención          | Organizaciones elegibles que repiten uso semanal y obtienen nuevos resultados, separadas de actividad humana en pantalla |
+Si no se entiende el recorrido, priorizar una vista previa identificada como demo
+antes de añadir más campos. Evaluar comprensión y primer valor real; los resultados
+simulados nunca entran en los numeradores de éxito.
 
-PostHog presenta análisis internos por cohortes. El dashboard operativo del cliente
-usa las consultas autorizadas de Ringee y enlaza evidencia de sus casos. Conciliar
-diariamente los agregados analíticos con objetivos y ledger. Declarar períodos con
-ingestión incompleta para interpretar correctamente las tasas.
+Para cada prueba fijar antes de lanzarla: población, una métrica primaria, denominador,
+ventana de conversión, guardrails, tamaño de muestra a partir de la línea base,
+duración y criterio de finalización. La ventana propuesta no es la duración mínima
+del experimento: debe permitir madurar los resultados de cada cohorte. PostHog
+permite métricas primarias/secundarias y exposición configurable. Elegir exposición
+cuando la experiencia se haya mostrado realmente, para no contar un prefetch de
+flag como visita. [Creación de experimentos](https://posthog.com/docs/experiments/creating-an-experiment).
 
-Los primeros experimentos comparan claridad del texto, orden de campos y explicación
-del próximo paso. Distribuir por organización y guardar versión/exposición. Hacerlos
-después de estabilizar el flujo y contar con volumen suficiente. El número saliente,
-los permisos y las decisiones del contacto se rigen por su configuración operativa.
+Asignar por workspace con variante estable para todos sus miembros y workers.
+Conservar versión/exposición, separar experimentos que compiten por la misma etapa
+y empezar con uno activo en el onboarding. Revisar reparto y calidad de datos antes
+de interpretar efectos. Segmentar personal/organización ayuda al diagnóstico, pero
+una diferencia entre esos segmentos no demuestra causalidad. Declarar inconcluso
+un experimento sin muestra suficiente y retirar flags obsoletos tras decidir.
 
-Propuesta de encuesta de dos preguntas tras la primera semana de uso o varios
-resultados reales. Preguntar si quedó claro qué haría la IA y si el equipo tuvo que
-intervenir en tareas rutinarias. Evitar interrumpir una llamada activa.
+Los guardrails incluyen costo por resolución, tiempo sin próximo paso, intervención
+manual, llamadas no deseadas/solicitudes DNC, fallos, reembolsos y pausas tempranas.
+Una mejora en clics que empeore resultados o estos controles no se publica como éxito.
 
-## 10. Entregas y salida del piloto
+## 9. PostHog, crédito y datos
 
-| Entrega                 | Trabajo verificable                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| 4A — Medición mínima    | Configurar PostHog, identidad/grupos, contrato de eventos, datos protegidos y dashboards de activación |
-| 4B — Preparación nativa | Reconciliar Stripe/Clerk, claims, preferencias durables, defaults y política humana autorizada         |
-| 4C — Onboarding         | Pantalla única, requisitos claros, preview para existentes, pausa y estados efectivos                  |
-| 4D — Piloto             | Validación real del flujo completo, telemetría conciliada y revisión de costo/experiencia              |
-| 4E — Ampliación         | Cohortes estables por organización con seguimiento de resultados y límites operativos                  |
+Los **50.000 USD de crédito indicados por el usuario** permiten instrumentar y
+aprender con continuidad. El programa público anuncia 12 meses; confirmar inicio,
+vencimiento y cobertura del grant real antes de presupuestarlo. No todas sus
+herramientas están cubiertas; AI Observability sí figura como incluida.
+[Programa oficial](https://posthog.com/startups).
 
-Comenzar con organizaciones internas y contactos de prueba, continuar con un grupo
-pequeño de clientes que adopten la función y ampliar por cohortes observadas. Una
-secuencia propuesta después del piloto es 10%, 25%, 50% y 100% de organizaciones
-elegibles nuevas. Las existentes mantienen adopción explícita. El avance requiere
-un período que cubra el ciclo real de citas y suficiente volumen para interpretar
-sus resultados, además de cerrar las incidencias del grupo anterior.
+| Prioridad              | Producto y uso                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| Inicial                | Product Analytics + Group Analytics para funnels, cohortes y retención por workspace                      |
+| Inicial                | Feature Flags + Experiments para admisión gradual y pruebas por workspace                                 |
+| Inicial                | Error Tracking para fallos de onboarding y preparación con causas normalizadas                            |
+| Acotada                | Session Replay en onboarding/configuración; muestra inicial propuesta del 20% de sesiones elegibles       |
+| Tras detectar fricción | Surveys breves vinculadas al paso o resultado                                                             |
+| Ampliación posterior   | AI Observability de operaciones que Ringee puede instrumentar, con metadatos mínimos y consumo disponible |
+
+Group Analytics es un add-on pagado cuya facturación alcanza todos los eventos
+identificados del proyecto. Incluir ese volumen, incluso eventos sin grupo, en la
+previsión. [Facturación de grupos](https://posthog.com/docs/product-analytics/group-analytics).
+Estimar eventos por objetivo/workspace y sesiones elegibles, revisar gasto y
+proyección semanal, y configurar presupuestos y alertas por producto. Ajustar replay
+al volumen observado. Los límites pueden detener ingestión; Ringee debe operar y
+mostrar su estado aunque falte telemetría. [Límites](https://posthog.com/docs/billing/limits-alerts).
+
+No asignar cuotas arbitrarias del crédito ni perseguir agotarlo. Priorizar medición
+del funnel completo y experimentos que permitan decisiones. Exportar definiciones,
+diccionario de eventos y resultados para conservar aprendizaje al terminar el grant.
+
+El contrato externo excluye teléfonos/correos de contactos, nombres, notas libres,
+transcripciones, grabaciones, tokens, credenciales y URLs sensibles. Sanitizar también
+rutas, atributos del DOM, query strings y mensajes de error. El identificador técnico
+interno es suficiente para correlacionar sin copiar el contenido del CRM.
+
+Replay se limita inicialmente a onboarding/configuración aprobados con entradas y
+texto enmascarados; permitir contenido seguro explícitamente. Excluir contactos,
+grabaciones, transcripciones y conversación; desactivar captura de cuerpos de red,
+audio, canvas y consola en esta entrega. Verificar payloads y grabaciones de muestra.
+[Privacidad de replay](https://posthog.com/docs/session-replay/privacy).
+
+AI Observability registra las operaciones realmente observables de Ringee y su
+consumo disponible. La conversación/audio del proveedor tiene sus propias evidencias;
+no enviar contenido sensible a PostHog para explicar su facturación.
+
+## 10. Flags y comportamiento ante fallos
+
+El backend conserva un único dueño del estado efectivo: elegibilidad según tipo de
+workspace, admisión de piloto, decisión autorizada, preferencias, preparación y
+requisitos. PostHog selecciona cohortes/variantes; el backend aplica permisos y
+guarda la decisión relevante por workspace. Un flag no autoriza recursos ni gasto.
+
+Nombres propuestos: `native_followup_rollout_v1` para admisión backend y
+`followup_onboarding_v1` para variante de UX. Evolucionar el piloto existente para
+personal/organización antes de incorporar nuevos scopes; mantener su techo de
+admisión durante las pruebas. La pausa del propietario/administrador prevalece.
+
+Si PostHog falla, diferir admisiones sin decisión válida persistida. El trabajo ya
+autorizado sigue sus políticas y los gates de Ringee. Un control operativo backend
+puede detener nuevos despachos sin depender de PostHog. Mantener trazabilidad,
+liquidación del consumo incurrido y correos ya debidos por resultados vigentes.
+Revisar el gate actual que detiene correos al retirar el flag y actualizar
+AGENT-018/020 con el comportamiento implementado.
+
+## 11. Entregas y criterios de aceptación
+
+| Entrega                        | Resultado verificable                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 4A — Alcance personal          | Ownership, reglas, persistencia, claims, herramientas, correos, callbacks y consumidores preparados para ambos scopes, detrás del piloto  |
+| 4B — Medición base             | PostHog, identidad/grupo workspace, contrato de eventos, exportación fiable, datos protegidos y funnels; puede avanzar en paralelo con 4A |
+| 4C — Preparación y onboarding  | Reconciliación por workspace, defaults, adopción autorizada, opt-outs durables y misma pantalla para ambos segmentos                      |
+| 4D — Piloto completo           | Recorrido real y telemetría conciliados, con freelancers y organizaciones; línea base de financiación, valor y continuidad                |
+| 4E — Optimización y ampliación | Un experimento priorizado, cohortes estables y expansión sujeta a resultados/operación                                                    |
+
+Comenzar con workspaces personales y organizaciones internos y contactos de prueba;
+continuar con clientes que adopten la función y ampliar gradualmente ambos scopes.
+La secuencia 10%, 25%, 50% y 100% de workspaces elegibles nuevos es una propuesta,
+condicionada al ciclo de citas, volumen observado e incidencias cerradas. Los
+existentes mantienen adopción explícita. No fijar fechas que sustituyan estos gates.
+
+Antes de admitir trabajo personal, desplegar la migración aditiva y sus índices,
+regenerar Prisma y actualizar los consumidores API/repositorios/workers que asumen
+organización obligatoria. Durante despliegues mixtos, ningún worker antiguo puede
+reclamar filas personales. Mantener cerrada su admisión hasta comprobar compatibilidad
+y un mecanismo de rollback que no deje datos nuevos a cargo de un worker incompatible.
+Conservar el flujo organizacional vigente durante esa transición.
 
 Criterios de aceptación:
 
-- Stripe/Clerk repetidos o en orden inverso producen una preparación por workspace.
-- Una preparación interrumpida se recupera y conserva las elecciones del administrador.
-- Renovar o reconectar respeta pausa, eliminación de trigger y personalización.
-- Los nuevos defaults usan 240 minutos y los agentes operan con número, marca,
-  calendario y responsable válidos.
-- La política desde llamadas humanas conserva autorización administrativa verificable.
-- El piloto comprueba llamada fría → entrega a IA → reserva → recordatorio →
-  confirmación/reagenda/cancelación → notas → correo → consumo. Incluye callback
-  posterior a la cita original, devolución entrante y fallo de traspaso.
-- Pausa, revocación y fin de vigencia llegan a workers y nuevos despachos.
-  Resultados y cargos ya incurridos siguen recuperables.
-- PostHog caído o limitado deja los flujos autorizados en un estado operativo definido.
-- Usuarios que cambian de workspace conservan el grupo correcto por evento.
-- Eventos duplicados y entregas tardías se reconcilian con los hechos de Ringee.
-- Los replays y payloads de muestra cumplen el contrato de datos protegido.
+- Ambos segmentos completan el mismo onboarding y obtienen las mismas capacidades;
+  personal no recibe un checkout de Organization como requisito de acceso.
+- Ningún scope lee o enlaza contactos, llamadas, calendarios, handoffs o saldos
+  ajenos; incluir dos freelancers y personal/organización del mismo usuario.
+- La llamada humana personal puede continuar mientras IA sigue otro caso, según
+  CALL-001/003, con consumo e historial correctos e idempotentes.
+- Un seguimiento creado en personal conserva recursos, autorización y saldo de ese
+  workspace al ejecutarse después de que el usuario cambie a una organización.
+- Alta, Stripe/Clerk repetidos/invertidos y reparación concurrente producen una
+  preparación por workspace/versión, sin revertir pausa, eliminación ni ediciones.
+- Los nuevos defaults usan 240 minutos. Número, marca, calendario, responsable,
+  política de entrega y routing tienen autorización y configuración válidas.
+- El piloto comprueba llamada fría → IA → reserva → recordatorio → confirmación/
+  reagenda/cancelación → notas → correo → consumo. Incluye fallo de handoff,
+  callback posterior a la cita original y devolución entrante, en ambos scopes.
+- Pausa, pérdida de elegibilidad y reanudación llegan a workers; resultados y cargos
+  incurridos conservan recuperación. Fin de Organization no afecta personal.
+- PostHog caído o limitado no rompe llamadas, pagos, liquidación ni trabajo admitido.
+- Cambiar de workspace conserva identidad humana y grupo correcto por evento;
+  demos no cuentan como valor, actores IA/sistema no cuentan como adquisición o
+  actividad humana, y grants no cuentan como compras. Los resultados IA reales
+  sí cuentan como valor del workspace, una vez por hecho autorizado.
+- Eventos duplicados/tardíos y primeras compras se concilian con dominio/ledger.
+  Datos incompletos y costos pendientes se identifican en los dashboards.
+- Replays y eventos de muestra cumplen el contrato. Cada experimento tiene métrica,
+  exposición y población definidas, sin confundir clic, intento y resultado.
 
-La salida exige revisar duplicación de llamadas, reservas y débitos contra evidencia
-real, además de resultados y tiempos de preparación. Los objetivos de conversión
-se fijan con la línea base del piloto. Tests y métricas de clics por sí solos no
-prueban continuidad de audio, interoperabilidad ni exactitud de liquidación.
+Ejecutar las verificaciones de las capas modificadas según sus `AGENTS.md` y scripts
+reales. La salida del piloto requiere evidencia real de continuidad, aislamiento,
+reservas y liquidación; los tests por sí solos no prueban audio ni proveedor.
 
-## 11. Pendientes de configuración y decisiones adoptadas
+## 12. Configuración pendiente y alcance de este documento
 
-Confirmar proyecto/región PostHog, grant aplicado y vencimiento, productos incluidos,
-presupuestos, responsables de dashboards y organizaciones/contactos del piloto.
-Estas decisiones pueden cerrarse durante la implementación sin cambiar las tarifas
-de consumo de Ringee.
+Durante la implementación se concretan proyecto/región PostHog, grant y vencimiento,
+presupuestos, responsables de dashboards y workspaces/contactos de prueba. Medir
+línea base antes de proponer porcentajes de mejora o tamaños de muestra.
 
-Las propuestas iniciales de muestra del 20%, ventana de activación de siete días,
-secuencia de cohortes y encuesta semanal son decisiones de diseño de este plan.
-Se ajustan con la evidencia del piloto. Este trabajo preparó documentación y no
-instaló SDKs, cambió flags, aprovisionó proveedores ni publicó datos de clientes.
+Las ventanas 24 h/7 días/14 días, retención W1/W4, muestra replay del 20% y secuencia
+de cohortes son decisiones iniciales de diseño ajustables con evidencia. Las mismas
+capacidades, el mismo onboarding y el cobro actual por consumo son decisiones de
+producto confirmadas. Este documento no instala SDKs, cambia permisos, migra bases,
+activa flags, aprovisiona proveedores ni envía datos de clientes.

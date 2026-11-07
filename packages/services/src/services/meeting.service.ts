@@ -48,6 +48,10 @@ import {
   isCallOutcome,
 } from "./outbound/disposition.service";
 
+/** How far apart a failing automation-action repair is retried. */
+const MAINTENANCE_RETRY_MIN_MS = 60_000;
+const MAINTENANCE_RETRY_MAX_MS = 30 * 60_000;
+
 @Injectable()
 export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
@@ -615,13 +619,30 @@ export class MeetingService {
     return this.meetingRepo.recordAgentDecision(ctx, input);
   }
 
-  /** Durable repair, on the existing reminder tick, with no dial side effect. */
-  async repairAutomationActions(): Promise<void> {
+  /**
+   * Durable repair, on the existing reminder tick, with no dial side effect.
+   * Each try first moves the next one out by as long as the action has
+   * existed, so a repair that keeps failing — a disconnected calendar, a
+   * provider error — is tried twice as far apart each time, from a minute up
+   * to half an hour, and stays pending until it succeeds.
+   */
+  async repairAutomationActions(now = new Date()): Promise<void> {
     const actions = await this.meetingRepo.listPendingMaintenance(
       automationOrganizationFilter(),
     );
     for (const action of actions) {
-      await this.meetingRepo.deferMaintenance(action.id, action.organizationId);
+      const wait = Math.min(
+        MAINTENANCE_RETRY_MAX_MS,
+        Math.max(
+          MAINTENANCE_RETRY_MIN_MS,
+          now.getTime() - action.createdAt.getTime(),
+        ),
+      );
+      await this.meetingRepo.deferMaintenance(
+        action.id,
+        action.organizationId,
+        new Date(now.getTime() + wait),
+      );
       const meeting = action.meeting;
       const ctx = {
         userId: meeting.userId,
