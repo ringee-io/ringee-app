@@ -111,6 +111,9 @@ pero no al contacto, cuando este no asistirá.
 
 ## 3. Activación nativa y control del usuario
 
+El [plan específico de Stage 4 con PostHog](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md)
+detalla aprovisionamiento, onboarding, eventos, medición y despliegue gradual.
+
 1. Reconciliar la suscripción Organization y su asociación al workspace. Hoy
    intervienen los webhooks de Stripe y Clerk: deben soportarse ambos órdenes
    de llegada y sus reintentos.
