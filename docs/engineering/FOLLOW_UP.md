@@ -1,6 +1,6 @@
 # Persistent follow-up objectives
 
-Stages 1 and 2, 3 November 2026. The pilot flag remains
+Stages 1–3, updated 6 November 2026. The pilot flag remains
 `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. Human-outcome enrollment additionally
 requires an administrator's explicit scheduling-automation policy. Purchasing
 Organization does not enable it.
@@ -33,7 +33,7 @@ new work.
 Step 0 reschedule handoffs and newly saved eligible human outcomes can enroll
 objectives. Recommendations retain their own activation and execution mode.
 See [PLAN_ORGANIZATION_AI_FOLLOWUP.md](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md)
-§17–18 for implementation status.
+§17–19 for implementation status.
 
 ## Lifecycle and evidence
 
@@ -56,11 +56,9 @@ placement, call completion, attendance decline or availability response resolves
 nothing. Passing the original meeting time or cancelling that meeting alone
 also resolves nothing.
 
-Offered slots block the objective with `reschedule_commit_pending` once no call
-is live and no callback is still to come: while the call that offered them is
-on, the specialist may still move the meeting with `move_meeting`, and a callback
-the person agreed to is the next step, as in the handoff's own review. Blocking
-would settle the request under either and withdraw a promised callback.
+Offered slots are progress. With no live call or agreed callback, an objective
+retains bounded specialist recovery; legacy handoffs without an objective keep
+their prior exception behavior. An agreed callback never resolves the request.
 An explicit human-support request is recorded separately, including whether
 notification succeeded; a failed write is retried a few times within the tool
 call, since until it lands the request's callbacks are not suspended. A later meeting
@@ -68,14 +66,16 @@ change can resolve either exception. Closure distinguishes refusal, objective
 cancellation, expiration and exhausted contact attempts. No response is never
 success and does not create a routine call for the salesperson.
 
-The initial policy is stored per objective: three dispatched contact steps,
-one policy recovery and seven days from enrollment. These are Stage 1 bounds,
-not the full cadence proposed for later stages. Technical retries proved
-unplaced retain their callback's contact-attempt number. Another callback or
-specialist does not reset the objective's counters. The existing Step 0 recovery
-planner still allows one recovery at the next allowed window at least an hour
-after the previous call. Exhaustion closes the new objective without success;
-legacy handoffs keep their previous `needs_attention` behavior.
+The policy is stored per objective: new objectives allow three dispatched contact
+steps, two policy recoveries and seven days from enrollment. Existing limits are
+not rewritten. Unpromised human follow-up starts the next calendar day in an
+allowed window; no-answer recovery waits at least 24 hours. An interrupted
+conversation waits at least 60 minutes. Technical retries proved unplaced retain
+the contact-attempt number. Another callback or specialist does not reset counters.
+A shared contact row lock coordinates objective callbacks and reminder dispatch,
+reserving one active automatic conversation and at most two automatic calls in
+the calendar-local day. A stored agreed callback is an explicit daily-cap exception,
+never an exception to active-call exclusion. Exhaustion closes without success.
 
 ## Dispatch, pause and recovery
 
@@ -93,14 +93,15 @@ The service also rechecks pilot access, language, calling window and overlapping
 calls. The common voice-agent path rechecks its calling gates after preparation.
 A database wait longer than 30 seconds invalidates the final window decision.
 
-Lock order is meeting, automation, handoff, objective, callback; operations that
+Lock order is meeting, contact (when reserving dispatch), automation, handoff,
+objective, callback; operations that
 need only the last resources use that suffix. Controls and dispatch share the
 objective lock. Pause, manual takeover, closure and resolution withdraw every
 uncommitted step, including claimed steps in provider preparation. A committed
 call can finish, append results and settle consumption. Its callback remains
 recoverable even after the objective is paused or closed.
 
-Resume revalidates the meeting (still `scheduled` or `rescheduled`),
+Resume revalidates the original meeting (including one eligible for replacement),
 membership, contact/DNC, specialist, calendar and remaining policy. It restores at most one uncommitted step, at a valid window at least an
 hour in the future; other old steps stay withdrawn. The new time is policy
 selected and represented as a recovery, never falsely described as agreed.
@@ -295,7 +296,7 @@ FOLLOWUP_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ringee_follo
 The test-only script refuses nonlocal, differently named or nonempty databases.
 It derives the schema preceding follow-up from the current Prisma schema, adds
 the SQL-only DNC partial indexes, then applies the actual Stage 1 migration,
-callback index/foreign-key validation and Stage 2 migration. This includes the
+callback index/foreign-key validation and Stage 2/3 migrations. This includes the
 lifecycle checks that `prisma db push` omits. The generated baseline already
 includes the Step 0 callback uniqueness indexes. The Test step alone receives
 `RINGEE_FOLLOWUP_TEST_DATABASE_URL` pointing at this prepared database, so both
@@ -327,3 +328,137 @@ Stage 2 verification (4 November 2026):
   no warnings.
 - Stage 2 SQL applied to a separate disposable database constructed from the
   preceding Stage 1 schema; Prisma schema comparison reported no difference.
+
+## Stage 3: authoritative resolution and receipts
+
+The Stage 2 path is present on `main`: human outcome → semantic source revision →
+objective → dispatched callback → exact reservation. Stage 3 extends those owners;
+it does not create a second task scheduler or enable organization provisioning.
+
+`MeetingRepository` commits a `MeetingAutomationAction`, an attributed contact
+note and receipt obligations with each definitive tool result. Call detail exposes
+stable action IDs through `automationActions`, under existing member scope. Notes
+carry `actorType`, `agentId` and `automationActionId`; replay never overwrites or
+recreates a human-edited/deleted note. Actions retain the meeting/version, old and
+new time, call, acting agent, request/objective/execution and actual decision.
+Analysis is supplementary and conditionally cannot overwrite tool-backed outcomes.
+Existing objective events and authorized call-cost reads supply recoveries,
+closure, interventions, resolution time and settled/unknown cost without another
+usage ledger. Replacement and attendance intent are distinct result kinds; neither
+implies a new prospect booking, sale, actual attendance or no-show.
+
+The existing `move_meeting` tool requires `time_confirmed: true`, an offered time
+from that live participation, and a fresh slot/capacity/version check. A future
+modifiable meeting moves in place. A still-open objective may replace its past or
+cancelled original once per request, preserving it through `replacesMeetingId`.
+Replay reads the stored action; matching a human edit to the proposed time is not
+AI success. A human edit after the action is reported as changed. Participation
+activation and meeting writes share the meeting-before-handoff lock order.
+
+`confirm_meeting_attendance` records the current version. Intermediate decline
+creates history immediately and no final rejection email. `finish_meeting_response`
+accepts the actual answer to an explicit cancellation question, derives IDs from
+the live participation/execution, and rechecks authority/version. Only `yes`
+cancels; `no`/`unclear` retains the reservation. If another time is still requested,
+the objective remains open. Its authorized cancellation advances only the current
+call's participation binding, so the specialist can commit a replacement on that
+same call. A human edit never advances that binding. Declining further scheduling
+closes the objective as refusal.
+
+An explicitly configured 240-minute reminder policy supports close bookings only
+when the next window leaves at least 20 minutes. An unanswered first reminder can
+have one more contact attempt at least 60 minutes later, inside the same authorized
+window with 20 minutes remaining. Version, lease, dial key, DNC, membership and
+billing gates remain. No broad default policy or new organization is enabled.
+
+The existing reminder activity repairs pending action projections before delivering
+receipts: reminders, external creation/move and cancellation. Retry review times
+prevent failed projections from starving later actions; a repair that keeps
+failing is retried twice as far apart each time, from one minute up to thirty, and
+stays pending until it succeeds. External cancellation uses
+the original owned account/event; accepted DELETE or already-absent results are
+safe to replay. The provider calls follow the existing CalendarService owner:
+[Google events delete](https://developers.google.com/workspace/calendar/api/v3/reference/events/delete)
+and [Microsoft event delete](https://learn.microsoft.com/graph/api/event-delete?view=graph-rest-1.0).
+The Ringee cancellation remains authoritative during provider failure.
+
+Receipts cover booking, attendance confirmation, move/replacement, authorized
+cancellation, declined without rescheduling and agreed specialist callback.
+Scheduling setup accepts administrator-only `receiptRecipients`: existing workspaces
+preserve `legacy`; new setup defaults to `contact_responsible`. Separate audience
+rows let the member receive the result without the contact's email. A later usable
+address sends only the still-valid outstanding receipt. Legacy audience preferences
+are preserved, including a contact-only late-address obligation for new actions.
+Provider acceptance marks sent; frozen payloads, claim fencing and bounded provider
+idempotency protect restarts. External messages use the effective language and
+omit internal notes, transcript and technical errors. Email failure never changes
+the business result. Cancellation does not wait for email delivery.
+
+### Stage 3 deployment and validation
+
+After Stage 1/2 prerequisites, apply
+`migrations-pending/20261105090000_follow_up_resolution/migration.sql`, then run
+`pending-migrations/20261105090100_follow_up_resolution_indexes.sql` with psql in
+autocommit (concurrent indexes and FK validation). These are tracked in
+`packages/database/prisma`; the ignored `migrations` directory and the broken root
+migrate alias are not used. No Call-table index or data backfill is introduced.
+Regenerate Prisma and deploy database/backend/orchestrator after the schema.
+Provider tool drift includes the new endpoint, so configured assistants are
+re-synced through the existing dial/handoff owner before use. Keep the pilot
+allowlist and existing administrator enrollment consent.
+
+`prepare-follow-up-database.mjs` bootstraps disposable local PostgreSQL using the
+actual Stage 1/2/3 SQL, including lifecycle constraints and concurrent indexes.
+Stage 3 tests cover exact booking evidence, same-call moves, one replacement under
+replay, human edits, competing reservations, current-version attendance, explicit
+cancellation, foreign/outgoing participants, atomic history/receipts, projection
+repair after restart, preserved edited notes, provider acceptance with lost DB
+acknowledgment, late addresses and competing reminder/callback reservations.
+The source-controlled business-rule changes are CAL-003, AGENT-006/017/019/020/021/022;
+tariffs, ledger keys and public enums remain additive.
+
+Verified on 6 November 2026:
+
+- Full services suite: **1,595 passed**, zero failures or skips, with both
+  `DATABASE_URL` and `RINGEE_FOLLOWUP_TEST_DATABASE_URL` set to disposable local
+  PostgreSQL. After the final same-call cancellation fix, both PostgreSQL suites
+  and the handoff suite were rerun: **108 passed**, including the added replacement
+  regression. These are overlapping runs, not additive totals.
+- Database suite: **73 passed**, two unrelated opt-in tests skipped. Platform:
+  **426 passed**. Providers were mocked throughout.
+- Prisma generation and database, backend and orchestrator Nest builds passed;
+  all three builds were repeated after the final participation-binding change.
+- An `OrchestratorModule` application context resolved the meeting, email,
+  reminder, callback, objective, handoff and tool owners against disposable
+  PostgreSQL, with inert Redis and external HTTP blocked. No backend bootstrap,
+  Temporal worker, reminder loop or dialing loop was started.
+- Repository ESLint: **zero errors, 153 existing warnings**. Final changed-file
+  ESLint: no warnings. Repository Prettier and diff whitespace checks passed.
+- The actual Stage 1/2/3 SQL and concurrent indexes applied successfully to a
+  separate empty local PostgreSQL 17 database using the preparation script.
+  No production migration, real call or external receipt was sent.
+
+The full services run used the installed package-script tools directly from
+`packages/services`, avoiding package-manager dependency refresh during checks:
+
+```bash
+TS_NODE_PROJECT=tsconfig.json node --env-file-if-exists=../../.env \
+  --require ts-node/register --require tsconfig-paths/register \
+  --test --test-concurrency=4 "src/**/*.spec.ts"
+```
+
+Set both database environment variables explicitly to the disposable database
+before that command. The final focused run used concurrency two and the paths
+`src/services/ai-pipeline/follow-up.postgres.spec.ts`,
+`src/services/ai-pipeline/human-follow-up.postgres.spec.ts` and
+`src/services/voice-agents/automations/voice-agent-handoff.service.spec.ts`.
+Builds used each workspace's installed `node_modules/.bin/nest build`; repository
+checks used `node_modules/.bin/eslint .`, `node_modules/.bin/prettier --check .`
+and `git diff --check` against the task's base revision.
+
+Controlled provider validation remains required: actual assistant switching and
+consent speech, effective-language callback audio, real invitation/cancellation
+behavior, mailbox receipt/reply-to, uncertain provider acknowledgment and final
+voice/AI settlement with explicitly authorized test contacts. Automated mock tests
+do not establish those provider facts. Stage 4 provisioning, broader onboarding
+and rollout remain out of scope.

@@ -1,3 +1,4 @@
+import { voiceAgentAutomationsEnabled } from "./automations/automation-access";
 import {
   BadRequestException,
   ConflictException,
@@ -8,7 +9,6 @@ import {
 import {
   CallRepository,
   CallbackAgentKind,
-  AiVoiceAgentHandoffRequestStatus,
   type MeetingMoveOutcome,
   CallbackStatus,
   InboundDestinationType,
@@ -630,6 +630,7 @@ export class VoiceAgentToolService {
         requireAvailableSlot: true,
         bookingTimeZone: timezone,
         agentCallId: agentCall?.id,
+        actorAgentId: agent.id,
         // Who the meeting is with: the member "Call to schedule" named, or
         // whoever started the call (CAL-003).
         responsibleUserId:
@@ -750,7 +751,7 @@ export class VoiceAgentToolService {
         return {
           ok: false,
           error:
-            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back; tell the person the team will follow up.",
+            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back or human follow-up. Report the stored state and use request_human_support only if a person must decide.",
         };
       }
       // A specialist continuing a request calls back about that request — not
@@ -920,6 +921,7 @@ export class VoiceAgentToolService {
         expectedScheduleVersion: execution.scheduleVersion,
         status: attendance,
         agentCallId: agentCall.id,
+        actorAgentId: agent.id,
         note: this.supportText(input.note, ATTENDANCE_NOTE_MAX) || null,
         leadEmail: offeredEmail,
         executionId: execution.id,
@@ -933,7 +935,7 @@ export class VoiceAgentToolService {
       return {
         ok: false,
         error:
-          "The answer could not be recorded right now. Do not say it was recorded; tell the person the team will follow up.",
+          "The answer could not be recorded right now. Retry the tool once; do not say it was recorded or promise human follow-up. If a person must intervene, call request_human_support first.",
       };
     }
 
@@ -943,7 +945,7 @@ export class VoiceAgentToolService {
         error:
           recorded.result === "past"
             ? "This meeting has already started, so there is nothing to confirm. Apologize for the confusion."
-            : "This meeting was moved or cancelled after the call started. Do not confirm it; tell the person the team will contact them with the current details.",
+            : "This meeting was moved or cancelled after the call started. Do not confirm it or promise follow-up. Read the current details; use request_human_support if a person must decide.",
       };
     }
 
@@ -972,8 +974,8 @@ export class VoiceAgentToolService {
         attendance,
         email: "not_applicable",
         speech_instruction: destination?.ok
-          ? `Tell the person their answer is recorded. Then ask once whether they would like to find another time now; ${destination.agent.name} can do it on this call. If they agree, ask what days or times suit them if they have not said, then call prepare_reschedule_handoff. If they would rather not, respect it and end the call. Do not promise a new time yourself.`
-          : "Tell the person their answer is recorded and that the team will be told. Do not promise a new time or a response time.",
+          ? `Tell the person their answer is recorded. Then ask once whether they would like to find another time now; ${destination.agent.name} can do it on this call. If they agree, ask what days or times suit them if they have not said, then call prepare_reschedule_handoff. If they decline rescheduling, explicitly ask whether they want this appointment cancelled. Call finish_meeting_response with their actual cancellation answer and only confirm cancellation after it succeeds. Do not promise a new time yourself.`
+          : "Their attendance answer is recorded. Ask whether they want another time; if yes, call schedule_reschedule_callback for an agreed time. If they decline rescheduling, explicitly ask whether to cancel this appointment and call finish_meeting_response with the actual answer. Do not claim cancellation before success.",
       };
     }
 
@@ -990,6 +992,101 @@ export class VoiceAgentToolService {
       speech_instruction: hasEmail
         ? "Tell the person their attendance is confirmed and that a confirmation email will be sent to everyone in the meeting. Do not say it has already been sent."
         : "Tell the person their attendance is confirmed. There is no email address on file, so do not promise an email; if they want one, ask for the address, read it back, and call this tool again with `email` once they confirm it.",
+    };
+  }
+
+  /** Final decision after an attendance decline. IDs come exclusively from the live participation. */
+  async finishMeetingResponse(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: { cancellation?: string; rescheduling?: string; response?: string },
+  ) {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    if (!voiceAgentAutomationsEnabled(ctx.organizationId))
+      return {
+        ok: false,
+        error:
+          "Automatic appointment decisions are not enabled for this workspace.",
+      };
+    if (
+      !["yes", "no", "unclear"].includes(input.cancellation ?? "") ||
+      !["requested", "declined"].includes(input.rescheduling ?? "") ||
+      typeof input.response !== "string" ||
+      !input.response.trim()
+    )
+      return {
+        ok: false,
+        error:
+          "Record the person's actual response. Cancellation needs an explicit yes to the cancellation question.",
+      };
+    if (!callControlId)
+      return { ok: false, error: "The current call could not be identified." };
+    const call = await this.agentCalls.findByCallControlId(callControlId);
+    if (!call)
+      return { ok: false, error: "The current call could not be found." };
+    const grant = await this.handoffs.grantFor(agent, call);
+    if (grant.kind === "refused") return this.refuse(grant);
+    const execution =
+      grant.kind === "root"
+        ? await this.reminderExecutions.findByAgentCallId(call.id)
+        : null;
+    const meetingId =
+      grant.kind === "participant"
+        ? grant.participant.meetingId
+        : execution?.meetingId;
+    const version =
+      grant.kind === "participant"
+        ? grant.participant.meetingScheduleVersion
+        : execution?.scheduleVersion;
+    if (!meetingId || version == null)
+      return {
+        ok: false,
+        error: "There is no authorized appointment on this call.",
+      };
+    if (input.rescheduling === "requested" && input.cancellation !== "yes")
+      return {
+        ok: false,
+        error:
+          "The request for a new time remains open. Continue with the scheduling specialist.",
+      };
+    if (input.rescheduling === "requested" && grant.kind === "root") {
+      const prepared = await this.handoffs.prepareReschedule(
+        { userId: ctx.userId, organizationId: ctx.organizationId! },
+        agent,
+        call,
+        { personSaid: input.response.trim().slice(0, 1000) },
+      );
+      if (!prepared.handoff)
+        return {
+          ok: false,
+          error:
+            "The request for another time could not be stored. No appointment was cancelled.",
+        };
+    }
+    const action = await this.meetings.recordAgentDecision(ctx, {
+      meetingId,
+      expectedScheduleVersion: version,
+      agentCallId: call.id,
+      actorAgentId: agent.id,
+      cancel: input.cancellation === "yes",
+      continueRescheduling: input.rescheduling === "requested",
+      response: input.response.trim().slice(0, 1000),
+    });
+    if (!action)
+      return {
+        ok: false,
+        error:
+          "The appointment or authority changed; no decision was applied. Read the current context.",
+      };
+    return {
+      ok: true,
+      result: action.kind,
+      action_id: action.id,
+      speech_instruction:
+        action.kind === "cancelled"
+          ? "The appointment is cancelled. Confirm this only now. A separate request for another time remains open if the person requested it."
+          : "Their decision not to attend or reschedule is recorded. The reservation is retained; do not call it cancelled.",
     };
   }
 
@@ -1308,12 +1405,18 @@ export class VoiceAgentToolService {
     agentId: string,
     secret: string,
     callControlId: string | null,
-    input: { start?: string },
+    input: { start?: string; time_confirmed?: boolean },
   ): Promise<ToolResult<MoveMeetingResult>> {
     const { agent, ctx } = await this.authorize(agentId, secret);
     if (!ctx.organizationId) {
       throw new UnauthorizedException("Unknown agent");
     }
+    if (input.time_confirmed !== true)
+      return {
+        ok: false,
+        error:
+          "Repeat the offered time and obtain an explicit yes before moving this appointment.",
+      };
     const start = this.parseOffsetDate(input.start);
     if (!start) {
       return {
@@ -1361,16 +1464,14 @@ export class VoiceAgentToolService {
         meetingId,
         expectedScheduleVersion,
         scheduledAt: start,
+        handoffId: grant.handoff.id,
       });
       if (repeat) {
         outcome = repeat;
       } else {
         // A request the team is handling, or one already settled, is not
         // this agent's to finish.
-        if (
-          grant.handoff.requestStatus !==
-          AiVoiceAgentHandoffRequestStatus.pending
-        ) {
+        if (!(await this.handoffs.mayFinishMeetingRequest(grant.handoff))) {
           return {
             ok: false,
             error: `This request was already settled — the meeting was moved, or the team is handling it — so nothing was moved. ${MOVE_FALLS_TO_TEAM}`,
@@ -1378,22 +1479,15 @@ export class VoiceAgentToolService {
         }
         const scope = await this.handoffs.availabilityFor(orgCtx, grant);
         if (!scope.ok) return { ok: false, error: scope.error };
-        if (!scope.excludeMeetingId) {
-          // Only a callback reaches a cancelled meeting: bringing it back is
-          // a person's decision.
-          return {
-            ok: false,
-            error: `This meeting was cancelled, so it cannot be moved on this call. ${MOVE_FALLS_TO_TEAM}`,
-          };
-        }
         timeZone = scope.resolved.timezone;
         outcome = await this.meetings.moveForAgent(orgCtx, {
-          meetingId: scope.excludeMeetingId,
+          meetingId,
           expectedScheduleVersion,
           scheduledAt: start,
           resolvedCalendar: scope.resolved,
           durationMinutes: scope.durationMinutes,
           agentCallId: agentCall.id,
+          actorAgentId: agent.id,
         });
       }
     } catch (error) {
@@ -1404,7 +1498,7 @@ export class VoiceAgentToolService {
       );
       return {
         ok: false,
-        error: `The meeting could not be moved right now. ${MOVE_FALLS_TO_TEAM}`,
+        error: `The meeting could not be moved right now. Offer to agree a specialist callback with schedule_callback; promise it only after the tool succeeds.`,
       };
     }
 
@@ -1426,9 +1520,16 @@ export class VoiceAgentToolService {
       return {
         ok: false,
         error:
-          "This meeting was changed or cancelled during the call, so it was not moved. Do not offer times; tell the person the team will contact them with the current details.",
+          "This meeting changed during the call, so it was not moved. Read get_handoff_context for current details. Do not claim a change or promise follow-up; call request_human_support first if a decision requires human authority.",
       };
     }
+
+    if (outcome.changedSinceAction)
+      return {
+        ok: false,
+        error:
+          "Your earlier change was stored, but this appointment was subsequently changed by someone else. Do not attribute the current time to this call or repeat the mutation.",
+      };
 
     // The request is done. A failure here leaves it for the reconciler,
     // which resolves a request whose meeting moved: the move stands.
@@ -1460,7 +1561,7 @@ export class VoiceAgentToolService {
         time_zone: timeZone,
       },
       email: hasEmail ? "will_be_sent" : "no_email_on_file",
-      speech_instruction: `Tell the person the meeting is moved to the day and time they chose, said in words as you offered it. ${
+      speech_instruction: `Tell the person ${outcome.replacement ? "a replacement appointment is booked" : "the meeting is moved"} for the day and time they chose, said in words as you offered it. ${
         hasEmail
           ? "Say an email with the new time is on its way to everyone in the meeting; do not say it has already been sent."
           : "There is no email address on file for them, so do not promise them an email."
@@ -1575,7 +1676,7 @@ export class VoiceAgentToolService {
         return {
           ok: false,
           error:
-            "The call back arranged on this call can no longer be changed. Do not promise another time; tell the person the team will follow up.",
+            "The call back arranged on this call can no longer be changed. Do not promise another time or human follow-up. Report the stored state; use request_human_support if a person must decide.",
         };
       }
       if (callback.scheduledAt.getTime() !== input.scheduledAt.getTime()) {
@@ -1598,7 +1699,7 @@ export class VoiceAgentToolService {
         return {
           ok: false,
           error:
-            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back; tell the person the team will follow up.",
+            "There is nothing left to call back about: the meeting was already moved or the team is handling the request. Do not promise a call back or human follow-up. Report the stored state and use request_human_support only if a person must decide.",
         };
       }
       await this.recordCallbackOutcome(input.agentCall);
@@ -1736,7 +1837,7 @@ export class VoiceAgentToolService {
           ok: false,
           fallback: "human_support",
           error:
-            "Finding a new time is not available right now. Tell the person their answer is recorded and that the team will follow up; if they want a person, call request_human_support. Do not hand the call over.",
+            "Finding a new time is not available right now. Tell the person their answer is recorded. This scheduling decision requires human intervention: call request_human_support with the specific reason, and promise follow-up only after it succeeds. Do not hand the call over.",
         };
     }
   }

@@ -311,7 +311,7 @@ describe("RemindersNotificationsBlueprint", () => {
     const tools = blueprint.buildTools(toolContext);
     assert.deepEqual(
       tools.map((t) => t.kind),
-      ["webhook", "webhook", "webhook", "hangup"],
+      ["webhook", "webhook", "webhook", "webhook", "hangup"],
     );
     assert.deepEqual(
       tools
@@ -319,6 +319,7 @@ describe("RemindersNotificationsBlueprint", () => {
         .map((tool) => tool.kind === "webhook" && tool.name),
       [
         "confirm_meeting_attendance",
+        "finish_meeting_response",
         "schedule_callback",
         "request_human_support",
       ],
@@ -429,6 +430,7 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
       ),
       [
         "confirm_meeting_attendance",
+        "finish_meeting_response",
         "schedule_callback",
         "request_human_support",
         "hangup",
@@ -525,7 +527,10 @@ describe("Handing a call from reminders to scheduling (AGENT-021)", () => {
       (tool) => tool.kind === "webhook" && tool.name === "move_meeting",
     );
     assert.ok(move && move.kind === "webhook");
-    assert.deepEqual(Object.keys(move.parameters?.properties ?? {}), ["start"]);
+    assert.deepEqual(Object.keys(move.parameters?.properties ?? {}), [
+      "time_confirmed",
+      "start",
+    ]);
     assert.ok(
       move.headers?.some((header) => header.value === "{{call_control_id}}"),
     );

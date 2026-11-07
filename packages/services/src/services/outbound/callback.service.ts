@@ -434,11 +434,13 @@ export class CallbackService {
       agentId: callback.agentId,
       contactId: callback.contactId,
       callId: callback.callId,
+      scheduledAt,
     });
     const moved = await this.callbackRepo.rescheduleAgentCallback(
       id,
       scheduledAt,
       CallbackStatus.scheduled,
+      true,
     );
     if (!moved) throw beingPlaced();
     return moved;
@@ -448,6 +450,17 @@ export class CallbackService {
     const callback = await this.callbackRepo.findById(id);
     if (!callback) throw new NotFoundException("Callback not found");
     this.assertNotBeingPlaced(callback);
+
+    // The contact agreed this time on a call and was sent a receipt for it.
+    // Only a call can record a new receipt, so a person cannot move it here.
+    if (
+      callback.agentCallbackKind === CallbackAgentKind.agreed &&
+      callback.handoffId &&
+      callback.callId
+    )
+      throw new ConflictException(
+        "The contact agreed to this callback time. Cancel it and schedule a new one to change it.",
+      );
 
     if (callback.agentCallbackKind) {
       // Conditional in the write: the row may have been claimed or cancelled

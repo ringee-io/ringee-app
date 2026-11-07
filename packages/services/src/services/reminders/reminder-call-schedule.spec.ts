@@ -22,6 +22,38 @@ const MADRID = "Europe/Madrid";
 const LONG_AGO = new Date("2026-01-01T00:00:00Z");
 
 describe("planReminderCallAt", () => {
+  it("allows a close four-hour pilot meeting only inside the window with twenty minutes left", () => {
+    const params = {
+      offsetMinutes: 240,
+      timeZone: NY,
+      window: DEFAULT_CALLING_WINDOW,
+      notBefore: new Date("2026-11-05T13:00:00Z"),
+      allowNearMeeting: true,
+    };
+    assert.equal(
+      planReminderCallAt({
+        ...params,
+        meetingAt: new Date("2026-11-05T15:00:00Z"),
+      })?.toISOString(),
+      "2026-11-05T14:00:00.000Z",
+    );
+    assert.equal(
+      planReminderCallAt({
+        ...params,
+        meetingAt: new Date("2026-11-05T14:19:00Z"),
+      }),
+      null,
+    );
+    assert.equal(
+      planReminderCallAt({
+        ...params,
+        meetingAt: new Date("2026-11-05T15:00:00Z"),
+        allowNearMeeting: false,
+      }),
+      null,
+    );
+  });
+
   it("calls exactly at the offset when that moment is inside the window", () => {
     // Wed 2026-10-14 15:00 New York (EDT, UTC-4) → 24 h before is Tue 15:00.
     const at = planReminderCallAt({

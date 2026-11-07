@@ -55,6 +55,20 @@ const CALL_USER_SELECT = {
 } satisfies Prisma.UserDefaultArgs;
 
 export const CALL_DETAIL_INCLUDE = {
+  automationActions: {
+    select: {
+      id: true,
+      kind: true,
+      agentId: true,
+      meetingId: true,
+      scheduleVersion: true,
+      scheduledAt: true,
+      previousScheduledAt: true,
+      createdAt: true,
+      evidence: true,
+    },
+    orderBy: { createdAt: "asc" },
+  },
   contact: {
     select: {
       id: true,
@@ -1127,11 +1141,13 @@ export class CallRepository {
   async updateOutcomeUnlessTakenOver(
     callId: string,
     outcome: CallOutcome,
+    protectToolActions = false,
   ): Promise<Call | null> {
     const moved = await this.prisma.call.updateMany({
       where: {
         id: callId,
         answeredByUserId: null,
+        ...(protectToolActions ? { automationActions: { none: {} } } : {}),
         OR: [{ outcome: null }, { outcome: { not: outcome } }],
       },
       data: {
@@ -1143,7 +1159,11 @@ export class CallRepository {
     });
     if (moved.count === 1) return this.findById(callId);
     const { count } = await this.prisma.call.updateMany({
-      where: { id: callId, answeredByUserId: null },
+      where: {
+        id: callId,
+        answeredByUserId: null,
+        ...(protectToolActions ? { automationActions: { none: {} } } : {}),
+      },
       data: { outcome },
     });
     return count === 1 ? this.findById(callId) : null;

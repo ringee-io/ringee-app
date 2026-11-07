@@ -15,16 +15,24 @@ import {
   ContactRepository,
   CallRepository,
   MeetingRepository,
+  MeetingEmailDeliveryRepository,
+  automaticContactDispatchAvailable,
   OrganizationRepository,
   AiVoiceAgentAutomationRepository,
   AiVoiceAgentRepository,
   CalendarRepository,
+  CalendarIntegrationRepository,
+  CalendarAvailabilityRepository,
   DNCEntryRepository,
   MeetingReminderPolicyRepository,
   AiVoiceAgentCallRepository,
   MeetingReminderExecutionRepository,
   type CallbackTask,
 } from "@ringee/database";
+import { MeetingEmailService } from "../meeting-email.service";
+import { MeetingService } from "../meeting.service";
+import { CalendarService } from "../calendar.service";
+import type { EmailMessage } from "@ringee/platform";
 import { ComplianceService } from "../outbound/compliance.service";
 import { PendingActionService } from "./pending-action.service";
 import { CallbackService } from "../outbound/callback.service";
@@ -75,7 +83,13 @@ describe(
       executions,
       policies,
       calendars,
-      {} as never,
+      new CalendarService(
+        new CalendarIntegrationRepository(db),
+        meetings,
+        new CalendarAvailabilityRepository(db),
+        calendars,
+        {} as never,
+      ),
       contacts,
       {
         findById: async () => ({
@@ -277,14 +291,6 @@ describe(
       await handoffs.failToCallback(ctx, f.source, f.agentCall, {
         why: "provider_handoff_failed",
       });
-      await prisma.call.update({
-        where: { id: f.call.id },
-        data: { endedAt: new Date(), status: "completed" },
-      });
-      await prisma.aiVoiceAgentCall.update({
-        where: { id: f.agentCall.id },
-        data: { status: "completed" },
-      });
       const created = await callbacks.createAgentCallbackOnce({
         ...ctx,
         contactId: f.contact.id,
@@ -294,6 +300,14 @@ describe(
         agentCallbackKind: "agreed",
         agentCallbackKey: key,
         scheduledAt: new Date(Date.now() - 1000),
+      });
+      await prisma.call.update({
+        where: { id: f.call.id },
+        data: { endedAt: new Date(), status: "completed" },
+      });
+      await prisma.aiVoiceAgentCall.update({
+        where: { id: f.agentCall.id },
+        data: { status: "completed" },
       });
       await service.reconcileFollowUp(f.objective.id);
       return created.callback;
@@ -366,6 +380,1082 @@ describe(
         reason: "Test finished",
       });
     }
+
+    async function offerAndMove(
+      f: Awaited<ReturnType<typeof seed>>,
+      start: Date,
+    ) {
+      const destination = (await agents.findByIdForOwner(ctx, agentId))!;
+      const grant = await handoffs.grantFor(destination, f.agentCall);
+      assert.equal(grant.kind, "participant");
+      await handoffRepo.recordOffer(f.handoff.id, {
+        agentCallId: f.agentCall.id,
+        slots: [{ start: start.toISOString(), label: "Offered time" }],
+        now: new Date(),
+      });
+      return meetings.rescheduleIfAvailable(
+        ctx,
+        {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: f.meeting.scheduleVersion,
+          scheduledAt: start,
+          actorAgentId: agentId,
+          email: {
+            idempotencyKey: `test:${f.handoff.id}`,
+            agentCallId: f.agentCall.id,
+          },
+        },
+        { calendarId, isDefault: false },
+        null,
+      );
+    }
+
+    it("Stage 3: commits a same-call move, exact objective evidence, both histories and receipt once", async () => {
+      const f = await seed();
+      const start = new Date("2098-01-01T12:00:00Z");
+      const first = await offerAndMove(f, start);
+      assert.equal(first.result, "moved");
+      const repeats = await Promise.all(
+        Array.from({ length: 4 }, () => offerAndMove(f, start)),
+      );
+      assert.ok(
+        repeats.every((result) => result.result === "moved" && result.repeated),
+      );
+      const stored = await meetings.findById(f.meeting.id);
+      assert.equal(stored?.scheduleVersion, 2);
+      assert.equal(stored?.attendanceStatus, "pending");
+      assert.equal(
+        await prisma.meeting.count({ where: { contactId: f.contact.id } }),
+        1,
+      );
+      const [action] = await prisma.meetingAutomationAction.findMany({
+        where: { handoffId: f.handoff.id },
+      });
+      assert.equal(action.kind, "rescheduled");
+      assert.equal(
+        action.previousScheduledAt?.getTime(),
+        f.meeting.scheduledAt.getTime(),
+      );
+      assert.equal(action.callId, f.call.id);
+      assert.equal(action.agentId, agentId);
+      assert.equal(action.followUpId, f.objective.id);
+      assert.equal(
+        await prisma.contactNote.count({
+          where: { automationActionId: action.id },
+        }),
+        1,
+      );
+      assert.equal(
+        await prisma.meetingEmailDelivery.count({
+          where: { actionId: action.id },
+        }),
+        2,
+      );
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "resolved",
+      );
+      assert.equal(
+        (
+          (await actions.followUpSnapshot(f.objective.id))
+            ?.resolutionEvidence as { actionId: string }
+        ).actionId,
+        action.id,
+      );
+      const detail = await calls.findById(f.call.id);
+      assert.ok(detail);
+    });
+
+    it("Stage 3: a participant already speaking may commit after pause, without another dispatch", async () => {
+      const f = await seed();
+      await handoffs.grantFor(
+        (await agents.findByIdForOwner(ctx, agentId))!,
+        f.agentCall,
+      );
+      const row = (await actions.followUpSnapshot(f.objective.id))!;
+      await service.controlFollowUp(ctx, row.pendingActionId, {
+        operation: "pause",
+        expectedRevision: row.revision,
+        reason: "Pause future attempts",
+      });
+      assert.equal(
+        await handoffs.mayFinishMeetingRequest(
+          (await handoffRepo.findById(f.handoff.id))!,
+        ),
+        true,
+      );
+      const result = await offerAndMove(f, new Date("2098-02-03T12:00:00Z"));
+      assert.equal(result.result, "moved");
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "resolved",
+      );
+      assert.equal(
+        await prisma.callbackTask.count({
+          where: {
+            followUpId: f.objective.id,
+            dispatchCommittedAt: { not: null },
+          },
+        }),
+        0,
+      );
+    });
+
+    it("Stage 3: a human move to the proposed time is stale, never attributed to the agent", async () => {
+      const f = await seed();
+      const start = new Date("2098-01-02T12:00:00Z");
+      const destination = (await agents.findByIdForOwner(ctx, agentId))!;
+      await handoffs.grantFor(destination, f.agentCall);
+      await meetings.reschedule(f.meeting.id, { scheduledAt: start });
+      const result = await offerAndMove(f, start);
+      assert.equal(result.result, "stale");
+      assert.equal(
+        await prisma.meetingAutomationAction.count({
+          where: { handoffId: f.handoff.id },
+        }),
+        0,
+      );
+      await service.reconcileFollowUp(f.objective.id);
+      const objective = await actions.followUpSnapshot(f.objective.id);
+      assert.equal(objective?.state, "resolved");
+      assert.equal(
+        (objective?.resolutionEvidence as { attribution: string }).attribution,
+        "authoritative_meeting_record",
+      );
+    });
+
+    it("Stage 3: a callback after the original appointment creates one linked replacement", async () => {
+      const f = await seed();
+      const callback = await schedule(f);
+      const dispatch = await placement(callback);
+      const callbackCall = await prisma.aiVoiceAgentCall.update({
+        where: { id: dispatch.placement.agentCallId },
+        data: {
+          status: "in_progress",
+          providerCallControlId: `test-${callback.id}`,
+        },
+      });
+      await prisma.call.update({
+        where: { id: dispatch.placement.callId },
+        data: { status: "answered", answeredAt: new Date() },
+      });
+      const past = new Date(Date.now() - 60_000);
+      await prisma.meeting.update({
+        where: { id: f.meeting.id },
+        data: { scheduledAt: past },
+      });
+      await handoffRepo.createCallbackParticipant({
+        organizationId,
+        handoffId: f.handoff.id,
+        agentCallId: callbackCall.id,
+        agentId,
+        binding: {
+          meetingId: f.meeting.id,
+          meetingScheduleVersion: 1,
+          calendarId,
+        },
+      });
+      await prisma.callbackTask.update({
+        where: { id: callback.id },
+        data: { agentCallId: callbackCall.id, dispatchCommittedAt: new Date() },
+      });
+      const start = new Date("2098-01-03T12:00:00Z");
+      await handoffRepo.recordOffer(f.handoff.id, {
+        agentCallId: callbackCall.id,
+        slots: [{ start: start.toISOString(), label: "Accepted" }],
+        now: new Date(),
+      });
+      const move = () =>
+        meetings.rescheduleIfAvailable(
+          ctx,
+          {
+            meetingId: f.meeting.id,
+            expectedScheduleVersion: 1,
+            scheduledAt: start,
+            actorAgentId: agentId,
+            email: {
+              idempotencyKey: f.handoff.id,
+              agentCallId: callbackCall.id,
+            },
+          },
+          { calendarId, isDefault: false },
+          null,
+        );
+      const results = await Promise.all([move(), move(), move()]);
+      assert.ok(
+        results.every(
+          (result) => result.result === "moved" && result.replacement,
+        ),
+      );
+      const rows = await prisma.meeting.findMany({
+        where: { contactId: f.contact.id },
+      });
+      assert.equal(rows.length, 2);
+      assert.equal(
+        rows.find((row) => row.id === f.meeting.id)?.scheduledAt.getTime(),
+        past.getTime(),
+      );
+      assert.equal(
+        rows.find((row) => row.id !== f.meeting.id)?.replacesMeetingId,
+        f.meeting.id,
+      );
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "resolved",
+      );
+    });
+
+    it("Stage 3: a reservation and a move cannot both take the last calendar place", async () => {
+      const f = await seed();
+      const start = new Date("2098-01-04T12:00:00Z");
+      const [moved, booked] = await Promise.all([
+        offerAndMove(f, start),
+        meetings.createIfAvailable(
+          ctx,
+          {
+            contactId: f.contact.id,
+            scheduledAt: start,
+            calendarId,
+          },
+          { calendarId, isDefault: false },
+          null,
+        ),
+      ]);
+      assert.equal(
+        Number(moved.result === "moved") + Number(Boolean(booked)),
+        1,
+      );
+      assert.equal(
+        await prisma.meeting.count({
+          where: { calendarId, scheduledAt: start },
+        }),
+        1,
+      );
+      await close(f.objective.id);
+    });
+
+    it("Stage 3: attendance decline alone keeps the booking and creates no final rejection receipt", async () => {
+      const f = await seed();
+      const execution = (await executions.findByAgentCallId(f.agentCall.id))!;
+      const result = await meetings.recordAttendance(ctx, {
+        meetingId: f.meeting.id,
+        expectedScheduleVersion: 1,
+        status: "declined",
+        agentCallId: f.agentCall.id,
+        actorAgentId: sourceAgentId,
+        executionId: execution.id,
+        email: null,
+      });
+      assert.equal(result.result, "recorded");
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.status,
+        "scheduled",
+      );
+      assert.equal(
+        await prisma.meetingEmailDelivery.count({
+          where: { meetingId: f.meeting.id },
+        }),
+        0,
+      );
+      // Keeping the appointment leaves what is waiting to go out about it.
+      const waiting = await prisma.meetingEmailDelivery.create({
+        data: {
+          ...ctx,
+          meetingId: f.meeting.id,
+          kind: "booked",
+          idempotencyKey: randomUUID(),
+        },
+      });
+      const kept = await meetings.recordAgentDecision(ctx, {
+        meetingId: f.meeting.id,
+        expectedScheduleVersion: 1,
+        agentCallId: f.agentCall.id,
+        actorAgentId: sourceAgentId,
+        cancel: false,
+        continueRescheduling: false,
+        response: "I do not want another time. Please keep it for now.",
+      });
+      assert.equal(kept?.kind, "declined_without_rescheduling");
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.status,
+        "scheduled",
+      );
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "closed",
+      );
+      assert.equal(
+        (
+          await prisma.meetingEmailDelivery.findUniqueOrThrow({
+            where: { id: waiting.id },
+          })
+        ).status,
+        "pending",
+      );
+      await prisma.meetingEmailDelivery.update({
+        where: { id: waiting.id },
+        data: { status: "cancelled" },
+      });
+    });
+
+    it("Stage 3: explicit cancellation releases the slot while retaining an open request for another time", async () => {
+      const f = await seed();
+      const decide = () =>
+        meetings.recordAgentDecision(ctx, {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: 1,
+          agentCallId: f.agentCall.id,
+          actorAgentId: sourceAgentId,
+          cancel: true,
+          continueRescheduling: true,
+          response: "Yes, cancel that appointment; I still want another time.",
+        });
+      const results = await Promise.all([decide(), decide()]);
+      assert.ok(results[0]);
+      assert.equal(results[0]?.id, results[1]?.id);
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.status,
+        "cancelled",
+      );
+      assert.equal((await meetings.findById(f.meeting.id))?.scheduleVersion, 2);
+      assert.ok(
+        !["resolved", "closed"].includes(
+          (await actions.followUpSnapshot(f.objective.id))!.state,
+        ),
+      );
+      const slot = new Date("2098-01-05T12:00:00Z");
+      await prisma.meeting.update({
+        where: { id: f.meeting.id },
+        data: { scheduledAt: slot },
+      });
+      assert.ok(
+        await meetings.createIfAvailable(
+          ctx,
+          { contactId: f.contact.id, scheduledAt: slot, calendarId },
+          { calendarId, isDefault: false },
+          null,
+        ),
+      );
+      await close(f.objective.id);
+    });
+
+    it("Stage 3: a changed answer on the same call is recorded as a correction, retried once", async () => {
+      const f = await seed();
+      const decide = (continueRescheduling: boolean, response: string) =>
+        meetings.recordAgentDecision(ctx, {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: 1,
+          agentCallId: f.agentCall.id,
+          actorAgentId: sourceAgentId,
+          cancel: true,
+          continueRescheduling,
+          response,
+        });
+      const keepGoing = "Yes, cancel it; I still want another time.";
+      const stop = "Actually, no other time. Just cancel it.";
+      const first = await decide(true, keepGoing);
+      assert.ok(first);
+      assert.equal((await decide(true, keepGoing))?.id, first.id);
+      const corrected = await decide(false, stop);
+      assert.ok(corrected);
+      assert.notEqual(corrected.id, first.id);
+      assert.equal(corrected.kind, "cancelled");
+      assert.equal(
+        (corrected.evidence as { correctsActionId?: string }).correctsActionId,
+        first.id,
+      );
+      // The refusal ends the request; the appointment is not changed again.
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "closed",
+      );
+      assert.equal((await meetings.findById(f.meeting.id))?.scheduleVersion, 2);
+      assert.equal((await decide(false, stop))?.id, corrected.id);
+      // A closed request is not reopened by changing the answer again.
+      assert.equal(await decide(true, "Wait, find me another time."), null);
+      // Only the decision itself owed a receipt.
+      assert.equal(
+        await prisma.meetingEmailDelivery.count({
+          where: { actionId: corrected.id },
+        }),
+        0,
+      );
+    });
+
+    it("Stage 3: explicit cancellation can continue to one replacement on the same call", async () => {
+      const f = await seed();
+      const decision = await meetings.recordAgentDecision(ctx, {
+        meetingId: f.meeting.id,
+        expectedScheduleVersion: 1,
+        agentCallId: f.agentCall.id,
+        actorAgentId: sourceAgentId,
+        cancel: true,
+        continueRescheduling: true,
+        response: "Yes, cancel the original and find another time now.",
+      });
+      assert.ok(decision);
+      const grant = await handoffs.grantFor(
+        (await agents.findByIdForOwner(ctx, agentId))!,
+        f.agentCall,
+      );
+      assert.equal(grant.kind, "participant");
+      if (grant.kind !== "participant") return;
+      assert.equal(grant.participant.meetingScheduleVersion, 2);
+      assert.equal((await handoffs.availabilityFor(ctx, grant)).ok, true);
+      const start = new Date("2098-02-04T12:00:00Z");
+      await handoffRepo.recordOffer(f.handoff.id, {
+        agentCallId: f.agentCall.id,
+        slots: [{ start: start.toISOString(), label: "Accepted" }],
+        now: new Date(),
+      });
+      const result = await meetings.rescheduleIfAvailable(
+        ctx,
+        {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: 2,
+          scheduledAt: start,
+          actorAgentId: agentId,
+          email: { idempotencyKey: f.handoff.id, agentCallId: f.agentCall.id },
+        },
+        { calendarId, isDefault: false },
+        null,
+      );
+      assert.equal(result.result, "moved");
+      assert.ok(result.result === "moved" && result.replacement);
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.status,
+        "cancelled",
+      );
+      assert.equal(
+        (await actions.followUpSnapshot(f.objective.id))?.state,
+        "resolved",
+      );
+    });
+
+    it("Stage 3: stale versions, outgoing participants and foreign workspaces cannot cancel", async () => {
+      const f = await seed();
+      const decide = (scope = ctx, version = 1) =>
+        meetings.recordAgentDecision(scope, {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: version,
+          agentCallId: f.agentCall.id,
+          actorAgentId: sourceAgentId,
+          cancel: true,
+          continueRescheduling: false,
+          response: "Yes, cancel.",
+        });
+      assert.equal(
+        await decide({ userId: adminId, organizationId: randomUUID() }),
+        null,
+      );
+      assert.equal(await decide(ctx, 9), null);
+      await handoffs.grantFor(
+        (await agents.findByIdForOwner(ctx, agentId))!,
+        f.agentCall,
+      );
+      assert.equal(await decide(), null);
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.status,
+        "scheduled",
+      );
+      await close(f.objective.id);
+    });
+
+    it("Stage 3: confirmation is bound to the current version and stores atomic AI evidence", async () => {
+      const f = await seed();
+      const execution = (await executions.findByAgentCallId(f.agentCall.id))!;
+      const result = await meetings.recordAttendance(ctx, {
+        meetingId: f.meeting.id,
+        expectedScheduleVersion: 1,
+        status: "confirmed",
+        agentCallId: f.agentCall.id,
+        actorAgentId: sourceAgentId,
+        executionId: execution.id,
+        email: { kind: "attendance_confirmed", idempotencyKey: randomUUID() },
+      });
+      assert.equal(result.result, "recorded");
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.attendanceScheduleVersion,
+        1,
+      );
+      await meetings.reschedule(f.meeting.id, {
+        scheduledAt: new Date("2098-01-06T12:00:00Z"),
+      });
+      const stale = await meetings.recordAttendance(ctx, {
+        meetingId: f.meeting.id,
+        expectedScheduleVersion: 1,
+        status: "confirmed",
+        agentCallId: f.agentCall.id,
+        actorAgentId: sourceAgentId,
+        executionId: execution.id,
+        email: null,
+      });
+      assert.equal(stale.result, "stale");
+      assert.equal(
+        (await meetings.findById(f.meeting.id))?.attendanceStatus,
+        "pending",
+      );
+      await service.reconcileFollowUp(f.objective.id);
+    });
+
+    it("Stage 3: restart repairs projections, preserves edited notes, and sends only the outstanding late-address receipt", async () => {
+      const f = await seed();
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId, capability: "appointment_booking" },
+        data: { settings: { receiptRecipients: "contact_responsible" } },
+      });
+      const result = await offerAndMove(f, new Date("2098-02-01T12:00:00Z"));
+      assert.equal(result.result, "moved");
+      const action = await prisma.meetingAutomationAction.findUniqueOrThrow({
+        where: { actionKey: `reschedule:${f.handoff.id}` },
+      });
+      await prisma.contactNote.update({
+        where: { automationActionId: action.id },
+        data: { content: "Human correction: preserve this note." },
+      });
+      const replanned: string[] = [];
+      const repairs = new MeetingService(
+        meetings,
+        calls,
+        {
+          cancelExternalEvent: async () => ({ status: "not_required" }),
+        } as never,
+        {} as never,
+        {
+          replanMeetingCalls: async (meeting: { id: string }) => {
+            replanned.push(meeting.id);
+          },
+          rescheduleForSubject: async () => undefined,
+          cancelForSubject: async () => undefined,
+          cancelMeetingCalls: async () => undefined,
+        } as never,
+        contacts,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        new MeetingEmailDeliveryRepository(db),
+        organizations,
+        service,
+      );
+      repairs.retryExternalSync = async () =>
+        ({ externalSyncStatus: "not_required" }) as never;
+      await repairs.repairAutomationActions();
+      await repairs.repairAutomationActions();
+      assert.equal(replanned.filter((id) => id === f.meeting.id).length, 1);
+      assert.equal((await meetings.findById(f.meeting.id))?.scheduleVersion, 2);
+      assert.equal(
+        (
+          await prisma.contactNote.findUniqueOrThrow({
+            where: { automationActionId: action.id },
+          })
+        ).content,
+        "Human correction: preserve this note.",
+      );
+      assert.equal(
+        await prisma.contactNote.count({
+          where: { automationActionId: action.id },
+        }),
+        1,
+      );
+
+      // Other fixtures' queued receipts are outside this scenario.
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { organizationId, actionId: { not: action.id } },
+        data: { status: "cancelled" },
+      });
+      const accepted = new Map<string, EmailMessage>();
+      const requests: EmailMessage[] = [];
+      const deliveries = new MeetingEmailDeliveryRepository(db);
+      const worker = () =>
+        new MeetingEmailService(
+          deliveries,
+          meetings,
+          {
+            findById: async (id: string) => ({
+              id,
+              firstName: "Member",
+              emails: [{ email: `${id}@member.test`, isPrimary: true }],
+            }),
+          } as never,
+          organizations,
+          agentCalls,
+          agents,
+          calendars,
+          { resolveForAgent: async () => ({ name: "Tests" }) } as never,
+          {
+            idempotencyWindowMs: 86400000,
+            send: async (message: EmailMessage) => {
+              requests.push(message);
+              accepted.set(message.idempotencyKey!, message);
+              return {
+                accepted: true,
+                providerEmailId: `test-${message.idempotencyKey}`,
+              };
+            },
+            getMessageId: async () => "<test@receipt.test>",
+          } as never,
+          handoffRepo,
+        );
+      const markSent = deliveries.markSent.bind(deliveries);
+      let loseAcknowledgement = true;
+      deliveries.markSent = async (...args) => {
+        if (loseAcknowledgement) {
+          loseAcknowledgement = false;
+          throw new Error("Test process failed after provider acceptance");
+        }
+        return markSent(...args);
+      };
+      await worker().drain();
+      await worker().drain();
+      let rows = await deliveries.listActionDeliveries(
+        action.id,
+        organizationId,
+      );
+      assert.equal(
+        rows.find((row) => row.audience === "responsible")?.status,
+        "sent",
+      );
+      assert.equal(
+        rows.find((row) => row.audience === "contact")?.status,
+        "needs_email",
+      );
+      assert.equal(accepted.size, 1);
+      assert.equal(requests.length, 2);
+      assert.deepEqual(requests[0], requests[1]);
+      await prisma.contact.update({
+        where: { id: f.contact.id },
+        data: { email: "late@contact.test" },
+      });
+      await worker().drain();
+      await worker().drain();
+      rows = await deliveries.listActionDeliveries(action.id, organizationId);
+      assert.ok(rows.every((row) => row.status === "sent"));
+      assert.equal(accepted.size, 2);
+      assert.equal(requests.length, 3);
+      assert.deepEqual(requests[2].to, ["late@contact.test"]);
+      assert.deepEqual(requests[2].cc, []);
+      assert.equal(requests[2].replyTo, `${memberId}@member.test`);
+      assert.doesNotMatch(requests[2].text!, /Human correction|Test process/);
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId, capability: "appointment_booking" },
+        data: { settings: {} },
+      });
+    });
+
+    it("Stage 3: a late contact receipt is withdrawn when the team receipt will never go out", async () => {
+      const f = await seed();
+      // A workspace on the legacy policy: team first, the contact after it.
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId, capability: "appointment_booking" },
+        data: { settings: {} },
+      });
+      const result = await offerAndMove(f, new Date("2098-02-10T12:00:00Z"));
+      assert.equal(result.result, "moved");
+      const action = await prisma.meetingAutomationAction.findUniqueOrThrow({
+        where: { actionKey: `reschedule:${f.handoff.id}` },
+      });
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { organizationId, actionId: { not: action.id } },
+        data: { status: "cancelled" },
+      });
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { actionId: action.id, audience: "legacy" },
+        data: { status: "failed" },
+      });
+      const requests: EmailMessage[] = [];
+      const deliveries = new MeetingEmailDeliveryRepository(db);
+      await new MeetingEmailService(
+        deliveries,
+        meetings,
+        {
+          findById: async (id: string) => ({
+            id,
+            firstName: "Member",
+            emails: [{ email: `${id}@member.test`, isPrimary: true }],
+          }),
+        } as never,
+        organizations,
+        agentCalls,
+        agents,
+        calendars,
+        { resolveForAgent: async () => ({ name: "Tests" }) } as never,
+        {
+          idempotencyWindowMs: 86400000,
+          send: async (message: EmailMessage) => {
+            requests.push(message);
+            return { accepted: true, providerEmailId: "test" };
+          },
+          getMessageId: async () => null,
+        } as never,
+        handoffRepo,
+      ).drain();
+      const late = (
+        await deliveries.listActionDeliveries(action.id, organizationId)
+      ).find((row) => row.audience === "contact_late");
+      assert.equal(late?.status, "cancelled");
+      assert.equal(late?.lastError, "team_delivery_not_sent");
+      assert.equal(requests.length, 0);
+    });
+
+    it("Stage 3: a late contact receipt waits unclaimed while its team receipt waits on a person", async () => {
+      const f = await seed();
+      await prisma.aiVoiceAgentAutomation.updateMany({
+        where: { organizationId, capability: "appointment_booking" },
+        data: { settings: {} },
+      });
+      const result = await offerAndMove(f, new Date("2098-02-12T12:00:00Z"));
+      assert.equal(result.result, "moved");
+      const action = await prisma.meetingAutomationAction.findUniqueOrThrow({
+        where: { actionKey: `reschedule:${f.handoff.id}` },
+      });
+      await prisma.meetingEmailDelivery.updateMany({
+        where: {
+          organizationId,
+          OR: [{ actionId: null }, { actionId: { not: action.id } }],
+        },
+        data: { status: "cancelled" },
+      });
+      // The team receipt waits for an admin to hand the meeting to a member.
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { actionId: action.id, audience: "legacy" },
+        data: { status: "needs_member" },
+      });
+      const requests: EmailMessage[] = [];
+      const deliveries = new MeetingEmailDeliveryRepository(db);
+      const drain = () =>
+        new MeetingEmailService(
+          deliveries,
+          meetings,
+          {
+            findById: async (id: string) => ({
+              id,
+              firstName: "Member",
+              emails: [{ email: `${id}@member.test`, isPrimary: true }],
+            }),
+          } as never,
+          organizations,
+          agentCalls,
+          agents,
+          calendars,
+          { resolveForAgent: async () => ({ name: "Tests" }) } as never,
+          {
+            idempotencyWindowMs: 86400000,
+            send: async (message: EmailMessage) => {
+              requests.push(message);
+              return { accepted: true, providerEmailId: "test" };
+            },
+            getMessageId: async () => null,
+          } as never,
+          handoffRepo,
+        ).drain();
+      const late = async () =>
+        (await deliveries.listActionDeliveries(action.id, organizationId)).find(
+          (row) => row.audience === "contact_late",
+        )!;
+      await drain();
+      assert.equal((await late()).status, "needs_member");
+      assert.equal((await late()).lastError, "awaiting_team_delivery");
+      // Later ticks leave it alone, so its tries are not spent waiting.
+      await drain();
+      assert.equal((await late()).attempts, 1);
+      assert.equal(requests.length, 0);
+      // The admin's fix requeues both, with fresh tries.
+      await deliveries.requeueForMeeting(action.meetingId, ["needs_member"]);
+      const rows = await deliveries.listActionDeliveries(
+        action.id,
+        organizationId,
+      );
+      assert.equal(rows.length, 2);
+      assert.ok(
+        rows.every((row) => row.status === "pending" && row.attempts === 0),
+      );
+      await prisma.meetingEmailDelivery.updateMany({
+        where: { actionId: action.id },
+        data: { status: "cancelled" },
+      });
+    });
+
+    it("Stage 3: an agreed callback stores its receipt atomically and withdraws it after closure", async () => {
+      const f = await seed();
+      const { callback } = await callbacks.createAgentCallbackOnce({
+        ...ctx,
+        contactId: f.contact.id,
+        callId: f.call.id,
+        handoffId: f.handoff.id,
+        agentId,
+        agentCallbackKind: "agreed",
+        agentCallbackKey: randomUUID(),
+        scheduledAt: new Date(Date.now() + 3600000),
+      });
+      const action = await prisma.meetingAutomationAction.findFirstOrThrow({
+        where: { callbackId: callback.id },
+      });
+      assert.equal(action.kind, "recovery_callback");
+      assert.equal(action.followUpId, f.objective.id);
+      assert.notEqual(
+        (await actions.followUpSnapshot(f.objective.id))!.state,
+        "resolved",
+      );
+      const deliveryRepo = new MeetingEmailDeliveryRepository(db);
+      assert.equal(
+        (await deliveryRepo.listActionDeliveries(action.id, organizationId))
+          .length,
+        2,
+      );
+      await close(f.objective.id);
+      const claimed = await deliveryRepo.claimDue(
+        new Date(),
+        new Date(Date.now() + 300000),
+        500,
+        [organizationId],
+      );
+      const row = claimed.find((item) => item.actionId === action.id)!;
+      assert.ok(row);
+      assert.equal(
+        await deliveryRepo.prepareSend(row, 1, new Date(), {}),
+        null,
+      );
+      assert.equal(
+        (
+          await deliveryRepo.listActionDeliveries(action.id, organizationId)
+        ).find((item) => item.id === row.id)?.status,
+        "cancelled",
+      );
+    });
+
+    it("Stage 3: a callback receipt stands only on its own request's callback", async () => {
+      const f = await seed();
+      const other = await seed();
+      const agreed = (g: typeof f, scheduledAt: Date) =>
+        callbacks.createAgentCallbackOnce({
+          ...ctx,
+          contactId: g.contact.id,
+          callId: g.call.id,
+          handoffId: g.handoff.id,
+          agentId,
+          agentCallbackKind: "agreed",
+          agentCallbackKey: randomUUID(),
+          scheduledAt,
+        });
+      const { callback } = await agreed(f, new Date(Date.now() + 3600000));
+      // Another request's callback, still scheduled, at the very same time.
+      const { callback: foreign } = await agreed(other, callback.scheduledAt);
+      const action = await prisma.meetingAutomationAction.findFirstOrThrow({
+        where: { callbackId: callback.id },
+      });
+      await prisma.meetingAutomationAction.update({
+        where: { id: action.id },
+        data: { callbackId: foreign.id },
+      });
+      const deliveryRepo = new MeetingEmailDeliveryRepository(db);
+      const claimed = await deliveryRepo.claimDue(
+        new Date(),
+        new Date(Date.now() + 300000),
+        500,
+        [organizationId],
+      );
+      const row = claimed.find((item) => item.actionId === action.id)!;
+      assert.ok(row);
+      assert.equal(
+        await deliveryRepo.prepareSend(row, 1, new Date(), {}),
+        null,
+      );
+      assert.equal(
+        (
+          await deliveryRepo.listActionDeliveries(action.id, organizationId)
+        ).find((item) => item.id === row.id)?.lastError,
+        "callback_superseded",
+      );
+      for (const item of claimed.filter((c) => c.id !== row.id))
+        await deliveryRepo.release(
+          item.id,
+          "cancelled",
+          "test_finished",
+          item.claimToken!,
+        );
+      await close(f.objective.id);
+      await close(other.objective.id);
+    });
+
+    it("Stage 3: a cancellation that keeps rescheduling keeps the agreed callback's receipt", async () => {
+      const f = await seed();
+      const { callback } = await callbacks.createAgentCallbackOnce({
+        ...ctx,
+        contactId: f.contact.id,
+        callId: f.call.id,
+        handoffId: f.handoff.id,
+        agentId,
+        agentCallbackKind: "agreed",
+        agentCallbackKey: randomUUID(),
+        scheduledAt: new Date(Date.now() + 3600000),
+      });
+      const action = await prisma.meetingAutomationAction.findFirstOrThrow({
+        where: { callbackId: callback.id },
+      });
+      assert.ok(
+        await meetings.recordAgentDecision(ctx, {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: 1,
+          agentCallId: f.agentCall.id,
+          actorAgentId: sourceAgentId,
+          cancel: true,
+          continueRescheduling: true,
+          response: "Yes, cancel it, and call me back when we agreed.",
+        }),
+      );
+      const deliveryRepo = new MeetingEmailDeliveryRepository(db);
+      const receipts = await deliveryRepo.listActionDeliveries(
+        action.id,
+        organizationId,
+      );
+      assert.ok(receipts.length > 0);
+      assert.ok(receipts.every((row) => row.status === "pending"));
+      // The meeting's version moved with the cancellation; the receipt is
+      // about the callback, which still stands.
+      const claimed = await deliveryRepo.claimDue(
+        new Date(),
+        new Date(Date.now() + 300000),
+        500,
+        [organizationId],
+      );
+      const row = claimed.find((item) => item.actionId === action.id)!;
+      assert.ok(row);
+      assert.ok(await deliveryRepo.prepareSend(row, 2, new Date(), {}));
+      for (const item of claimed.filter((c) => c.actionId === action.id))
+        await deliveryRepo.release(
+          item.id,
+          "cancelled",
+          "test_finished",
+          item.claimToken!,
+        );
+      await close(f.objective.id);
+    });
+
+    it("Stage 3: the four-hour retry query finds an unanswered reminder only while the lead has not answered", async () => {
+      const f = await seed();
+      const policy = await prisma.meetingReminderPolicy.findFirstOrThrow({
+        where: { calendarId },
+      });
+      const confirmed = await prisma.meeting.create({
+        data: {
+          ...ctx,
+          contactId: f.contact.id,
+          calendarId,
+          scheduledAt: f.meeting.scheduledAt,
+          attendanceStatus: "confirmed",
+        },
+      });
+      const unanswered = (meetingId: string) =>
+        prisma.meetingReminderExecution.create({
+          data: {
+            ...ctx,
+            agentId: sourceAgentId,
+            meetingId,
+            policyId: policy.id,
+            policyVersion: policy.version,
+            trigger: "policy",
+            offsetMinutes: 240,
+            attempt: 1,
+            scheduleVersion: 1,
+            fireAt: new Date(),
+            idempotencyKey: randomUUID(),
+            status: "no_answer",
+          },
+        });
+      const pending = await unanswered(f.meeting.id);
+      const answered = await unanswered(confirmed.id);
+      const ids = (
+        await executions.listUnansweredForRetry(new Date(), undefined, [
+          organizationId,
+        ])
+      ).map((row) => row.id);
+      assert.ok(ids.includes(pending.id));
+      assert.ok(!ids.includes(answered.id));
+      await prisma.meetingReminderExecution.updateMany({
+        where: { id: { in: [pending.id, answered.id] } },
+        data: { status: "skipped" },
+      });
+      await prisma.meeting.update({
+        where: { id: confirmed.id },
+        data: { status: "cancelled" },
+      });
+      await close(f.objective.id);
+    });
+
+    it("Stage 3: callbacks and reminders share one contact reservation and a daily cap", async () => {
+      const f = await seed();
+      const input = {
+        organizationId,
+        contactId: f.contact.id,
+        timezone: "UTC",
+        now: new Date(),
+        agreed: false,
+        dailyLimit: 2,
+      };
+      const execution = (await executions.findByAgentCallId(f.agentCall.id))!;
+      const callback = await prisma.callbackTask.create({
+        data: {
+          ...ctx,
+          contactId: f.contact.id,
+          scheduledAt: new Date(),
+          status: "scheduled",
+          agentCallbackKind: "recovery",
+          agentId,
+        },
+      });
+      const claim = (kind: "reminder" | "callback") =>
+        prisma.$transaction(async (tx) => {
+          if (
+            !(await automaticContactDispatchAvailable(tx, {
+              ...input,
+              ...(kind === "reminder"
+                ? { reminderId: execution.id }
+                : { callbackId: callback.id }),
+            }))
+          )
+            return false;
+          if (kind === "reminder")
+            await tx.meetingReminderExecution.update({
+              where: { id: execution.id },
+              data: { dispatchCommittedAt: new Date() },
+            });
+          else
+            await tx.callbackTask.update({
+              where: { id: callback.id },
+              data: { dispatchCommittedAt: new Date(), status: "in_progress" },
+            });
+          return true;
+        });
+      const won = await Promise.all([claim("reminder"), claim("callback")]);
+      assert.equal(won.filter(Boolean).length, 1);
+      await prisma.aiVoiceAgentCall.update({
+        where: { id: f.agentCall.id },
+        data: { status: "completed" },
+      });
+      await prisma.meetingReminderExecution.update({
+        where: { id: execution.id },
+        data: { status: "no_answer", dispatchCommittedAt: new Date() },
+      });
+      await prisma.callbackTask.update({
+        where: { id: callback.id },
+        data: { status: "completed", dispatchCommittedAt: new Date() },
+      });
+      assert.equal(
+        await prisma.$transaction((tx) =>
+          automaticContactDispatchAvailable(tx, input),
+        ),
+        false,
+      );
+      assert.equal(
+        await prisma.$transaction((tx) =>
+          automaticContactDispatchAvailable(tx, { ...input, agreed: true }),
+        ),
+        true,
+      );
+      await close(f.objective.id);
+    });
 
     it("duplicate authorized Step 0 events create one action and objective", async () => {
       const f = await seed();
@@ -1032,16 +2122,16 @@ describe(
         (await handoffRepo.findById(f.handoff.id))?.requestStatus,
         "pending",
       );
-      // Over without a move: now a person decides.
+      // Over without a move: the specialist retains bounded recovery.
       await prisma.call.update({
         where: { id: f.call.id },
         data: { endedAt: new Date(), status: "completed" },
       });
       await service.reconcileFollowUp(f.objective.id);
       row = (await actions.followUpSnapshot(f.objective.id))!;
-      assert.equal(row.state, "blocked");
-      assert.equal(row.reason, "reschedule_commit_pending");
-      assert.equal(await actions.badgeCount(memberCtx, memberId), 1);
+      assert.equal(row.state, "recovering");
+      assert.equal(row.nextAction, "review_recovery");
+      assert.equal(await actions.badgeCount(memberCtx, memberId), 0);
       await close(f.objective.id);
     });
 
@@ -1071,10 +2161,6 @@ describe(
 
     it("a callback owned by a member who left the organization is not placed", async () => {
       const f = await seed(colleagueId);
-      await prisma.call.update({
-        where: { id: f.call.id },
-        data: { endedAt: new Date(), status: "completed" },
-      });
       const { callback } = await callbacks.createAgentCallbackOnce({
         userId: colleagueId,
         organizationId,
@@ -1085,6 +2171,10 @@ describe(
         agentCallbackKind: "agreed",
         agentCallbackKey: randomUUID(),
         scheduledAt: new Date(Date.now() - 1000),
+      });
+      await prisma.call.update({
+        where: { id: f.call.id },
+        data: { endedAt: new Date(), status: "completed" },
       });
       await prisma.organizationMembership.deleteMany({
         where: { organizationId, userId: colleagueId },
@@ -1170,39 +2260,14 @@ describe(
         /explicitly/,
       );
       const now = new Date();
-      // A meeting cancelled or held during the takeover is not called about again.
-      for (const status of ["cancelled", "completed"] as const) {
-        await prisma.meeting.update({
-          where: { id: f.meeting.id },
-          data: { status },
-        });
-        await assert.rejects(
-          service.controlFollowUp(
-            memberCtx,
-            row.pendingActionId,
-            { operation: "return_automatic", expectedRevision: row.revision },
-            now,
-          ),
-          /no longer scheduled/,
-          status,
-        );
-        assert.equal(
-          await prisma.callbackTask.count({
-            where: {
-              handoffId: f.handoff.id,
-              status: { in: ["scheduled", "due", "in_progress"] },
-            },
-          }),
-          0,
-          status,
-        );
-      }
-      row = (await actions.followUpSnapshot(row.id))!;
-      assert.equal(row.mode, "manual");
+      // An open request may return explicitly to automatic work even when its
+      // original was cancelled: a callback can create a linked replacement.
       await prisma.meeting.update({
         where: { id: f.meeting.id },
-        data: { status: "scheduled" },
+        data: { status: "cancelled" },
       });
+      row = (await actions.followUpSnapshot(row.id))!;
+      assert.equal(row.mode, "manual");
       await service.controlFollowUp(
         memberCtx,
         row.pendingActionId,

@@ -94,6 +94,11 @@ export class MeetingEmailService {
   async drain(now = new Date()): Promise<number> {
     const organizations = automationOrganizationFilter();
     if (organizations?.length === 0) return 0;
+    // The same address rule `deliver` reads the lead's address with.
+    await this.deliveries.requeueAvailableAddresses(
+      organizations,
+      (address) => normalizeEmail(address) !== null,
+    );
     await this.backfillMessageIds(now);
     const claimAt = this.now();
     const claimed = await this.deliveries.claimDue(
@@ -190,34 +195,56 @@ export class MeetingEmailService {
       );
       return false;
     }
-    if (
-      meeting.status !== MeetingStatus.scheduled &&
-      meeting.status !== MeetingStatus.rescheduled
-    ) {
-      await this.deliveries.release(
-        delivery.id,
-        D.cancelled,
-        "meeting_cancelled",
-        delivery.claimToken,
-      );
+    const action = delivery.actionId
+      ? await this.deliveries.findAction(delivery.actionId, {
+          organizationId: delivery.organizationId,
+          meetingId: delivery.meetingId,
+        })
+      : null;
+    // A receipt is never composed from an action outside its own workspace
+    // and meeting (`prepareSend` refuses it the same way).
+    if (delivery.actionId && !action) {
+      await release(D.cancelled, "action_missing");
       return false;
     }
-
-    const rescheduled = delivery.kind === MeetingEmailKind.rescheduled;
-    if (rescheduled) {
-      // About one move: a meeting moved again since owes its own email.
-      if (meeting.scheduleVersion !== delivery.scheduleVersion) {
-        await release(D.cancelled, "meeting_moved_again");
+    const rescheduled = [
+      MeetingEmailKind.rescheduled,
+      MeetingEmailKind.replaced,
+    ].includes(delivery.kind as "rescheduled" | "replaced");
+    if (action) {
+      // A callback receipt is about the callback, not the meeting: a
+      // cancellation that keeps rescheduling moves the version, and the
+      // callback (its time, its objective) is checked in `prepareSend`.
+      const valid =
+        (delivery.kind === "recovery_callback" ||
+          meeting.scheduleVersion === delivery.scheduleVersion) &&
+        (delivery.kind === "cancelled"
+          ? meeting.status === "cancelled"
+          : delivery.kind === "recovery_callback" ||
+            ["scheduled", "rescheduled"].includes(meeting.status)) &&
+        (delivery.kind !== "attendance_confirmed" ||
+          meeting.attendanceStatus === "confirmed");
+      if (!valid) {
+        await release(D.cancelled, "result_superseded");
         return false;
       }
     } else {
-      const expectedAttendance =
-        delivery.kind === MeetingEmailKind.attendance_confirmed
-          ? "confirmed"
-          : "declined";
       if (
-        meeting.attendanceScheduleVersion !== delivery.scheduleVersion ||
-        meeting.attendanceStatus !== expectedAttendance
+        ![MeetingStatus.scheduled, MeetingStatus.rescheduled].includes(
+          meeting.status as "scheduled" | "rescheduled",
+        )
+      ) {
+        await release(D.cancelled, "meeting_cancelled");
+        return false;
+      }
+      if (
+        rescheduled
+          ? meeting.scheduleVersion !== delivery.scheduleVersion
+          : meeting.attendanceScheduleVersion !== delivery.scheduleVersion ||
+            meeting.attendanceStatus !==
+              (delivery.kind === MeetingEmailKind.attendance_confirmed
+                ? "confirmed"
+                : "declined")
       ) {
         await release(D.cancelled, "attendance_changed");
         return false;
@@ -237,12 +264,12 @@ export class MeetingEmailService {
       return false;
     }
 
-    const leadEmail = normalizeEmail(
-      meeting.leadEmail ?? meeting.contact?.email ?? null,
-    );
+    const leadEmail =
+      normalizeEmail(meeting.leadEmail) ??
+      normalizeEmail(meeting.contact?.email ?? null);
     const confirmation =
       delivery.kind === MeetingEmailKind.attendance_confirmed;
-    if (confirmation && !leadEmail) {
+    if (confirmation && !leadEmail && !action) {
       await this.deliveries.release(
         delivery.id,
         D.needs_email,
@@ -254,14 +281,65 @@ export class MeetingEmailService {
 
     // A move goes to the lead too, when there is an address — without one it
     // still tells the team rather than waiting.
-    const to = unique([
-      ...((confirmation || rescheduled) && leadEmail ? [leadEmail] : []),
+    const external =
+      confirmation ||
+      rescheduled ||
+      (action && delivery.kind !== "attendance_declined");
+    let to = unique([
+      ...(external && leadEmail ? [leadEmail] : []),
       memberEmail,
       ...(people.creator ? [primaryEmail(people.creator)] : []),
     ]);
-    const cc = unique(people.admins.map(primaryEmail)).filter(
+    let cc = unique(people.admins.map(primaryEmail)).filter(
       (address) => !to.includes(address),
     );
+    if (action && delivery.audience === "responsible") {
+      to = [memberEmail];
+      cc = [];
+    }
+    if (action && ["contact", "contact_late"].includes(delivery.audience)) {
+      const siblings = await this.deliveries.listActionDeliveries(
+        action.id,
+        delivery.organizationId,
+      );
+      if (delivery.audience === "contact_late") {
+        const team = siblings.filter((row) => row.audience === "legacy");
+        if (!team.some((row) => row.status === "sent")) {
+          // A team email that will never go out would hold this one forever.
+          const settled = team.some(
+            (row) => row.status === D.failed || row.status === D.cancelled,
+          );
+          // One waiting on a person waits beside it, unclaimed, and goes back
+          // to `pending` with it once they act (`requeueForMeeting`).
+          const waiting = team.find(
+            (row) =>
+              row.status === D.needs_member || row.status === D.needs_email,
+          );
+          await release(
+            settled ? D.cancelled : (waiting?.status ?? D.pending),
+            settled ? "team_delivery_not_sent" : "awaiting_team_delivery",
+          );
+          return false;
+        }
+      }
+      if (!leadEmail) {
+        await release(D.needs_email, "contact_address_unavailable");
+        return false;
+      }
+      if (
+        leadEmail === memberEmail ||
+        siblings.some(
+          (row) =>
+            row.status === "sent" &&
+            [...row.toAddresses, ...row.ccAddresses].includes(leadEmail),
+        )
+      ) {
+        await release(D.cancelled, "recipient_already_included");
+        return false;
+      }
+      to = [leadEmail];
+      cc = [];
+    }
 
     const ctx: OrganizationOwnershipContext = {
       userId: meeting.userId,
@@ -275,9 +353,17 @@ export class MeetingEmailService {
     const timeZone = await this.timeZoneOf(ctx, meeting);
     const content = composeMeetingEmail({
       kind: delivery.kind,
-      language,
+      language: action?.language ?? language,
       company,
-      meeting,
+      meeting:
+        delivery.kind === "recovery_callback" && action
+          ? {
+              ...meeting,
+              scheduledAt: new Date(
+                (action.evidence as { scheduledAt: string }).scheduledAt,
+              ),
+            }
+          : meeting,
       previousScheduledAt: delivery.previousScheduledAt,
       leadName: contactName(meeting.contact),
       leadPhone: meeting.contact?.phoneNumber ?? null,
@@ -289,9 +375,13 @@ export class MeetingEmailService {
     // The next email about a meeting threads under the last one sent — but a
     // move starts its own thread: the lead it goes to was never on the
     // "can't attend" one before it.
-    const previous = rescheduled
-      ? null
-      : await this.deliveries.findLatestSentForMeeting(meeting.id, delivery.id);
+    const previous =
+      rescheduled || action
+        ? null
+        : await this.deliveries.findLatestSentForMeeting(
+            meeting.id,
+            delivery.id,
+          );
     const inReplyTo = previous?.messageId ?? null;
     const subject = previous?.subject
       ? `Re: ${previous.subject.replace(/^(Re:\s*)+/i, "")}`
@@ -669,25 +759,21 @@ export function composeMeetingEmail(input: {
       link: isLink ? location : undefined,
     });
   }
-  if (!confirmed && !rescheduled) {
-    const note = input.meeting.attendanceNote?.trim();
-    if (note) rows.push({ label: copy.note, value: note });
-    const reach = [input.leadPhone, input.leadEmail]
-      .filter(Boolean)
-      .join(" · ");
-    if (reach) rows.push({ label: copy.contact, value: reach });
-  }
-
-  const headline = confirmed
-    ? copy.confirmed(lead)
-    : rescheduled
-      ? copy.rescheduled(lead)
-      : copy.declined(lead);
-  const subject = confirmed
-    ? copy.confirmedSubject(title, shortWhen)
-    : rescheduled
-      ? copy.rescheduledSubject(title, shortWhen)
-      : copy.declinedSubject(title, shortWhen);
+  const definitive = outcomeCopy(base, input.kind);
+  const headline = definitive
+    ? definitive[1]
+    : confirmed
+      ? copy.confirmed(lead)
+      : rescheduled
+        ? copy.rescheduled(lead)
+        : copy.declined(lead);
+  const subject = definitive
+    ? `${definitive[0]}: ${title} — ${shortWhen}`
+    : confirmed
+      ? copy.confirmedSubject(title, shortWhen)
+      : rescheduled
+        ? copy.rescheduledSubject(title, shortWhen)
+        : copy.declinedSubject(title, shortWhen);
   const footer = [
     copy.reply(input.memberName),
     input.company ? copy.footer(input.company) : null,
@@ -727,6 +813,132 @@ export function composeMeetingEmail(input: {
   ].join("\n");
 
   return { subject, html, text };
+}
+
+function outcomeCopy(
+  language: string,
+  kind: MeetingEmailKind,
+): [string, string] | null {
+  const copy: Record<
+    string,
+    Partial<Record<MeetingEmailKind, [string, string]>>
+  > = {
+    en: {
+      booked: ["Appointment booked", "Your appointment is booked."],
+      replaced: [
+        "Replacement appointment",
+        "A replacement appointment is booked. The original appointment is preserved in your history.",
+      ],
+      cancelled: [
+        "Appointment cancelled",
+        "Your appointment was cancelled with your authorization. The reservation has been released.",
+      ],
+      declined_without_rescheduling: [
+        "Attendance response recorded",
+        "You said you cannot attend and do not want to reschedule. Your reservation has been retained; it has not been cancelled.",
+      ],
+      recovery_callback: [
+        "Callback agreed",
+        "The scheduling assistant will call at the time you agreed below to help find another appointment time.",
+      ],
+    },
+    es: {
+      booked: ["Cita agendada", "Tu cita está agendada."],
+      replaced: [
+        "Cita de reemplazo",
+        "Se agendó una cita de reemplazo. La cita original se conserva en tu historial.",
+      ],
+      cancelled: [
+        "Cita cancelada",
+        "Tu cita se canceló con tu autorización y se liberó la reserva.",
+      ],
+      declined_without_rescheduling: [
+        "Respuesta registrada",
+        "Indicaste que no podrás asistir y no deseas reagendar. La reserva se conserva; no ha sido cancelada.",
+      ],
+      recovery_callback: [
+        "Llamada acordada",
+        "El asistente de agendamiento te llamará a la hora acordada para buscar otra fecha.",
+      ],
+    },
+    pt: {
+      booked: ["Agendamento confirmado", "Seu horário está reservado."],
+      replaced: [
+        "Novo agendamento",
+        "Um novo horário foi reservado em substituição ao anterior, que permanece no histórico.",
+      ],
+      cancelled: [
+        "Agendamento cancelado",
+        "O agendamento foi cancelado com sua autorização. O horário foi liberado.",
+      ],
+      declined_without_rescheduling: [
+        "Resposta registrada",
+        "Você informou que não poderá comparecer nem deseja remarcar. A reserva foi mantida, sem cancelamento.",
+      ],
+      recovery_callback: [
+        "Retorno combinado",
+        "O assistente ligará no horário combinado abaixo para encontrar uma nova data.",
+      ],
+    },
+    fr: {
+      booked: ["Rendez-vous réservé", "Votre rendez-vous est réservé."],
+      replaced: [
+        "Rendez-vous de remplacement",
+        "Un rendez-vous de remplacement est réservé. Le précédent reste dans votre historique.",
+      ],
+      cancelled: [
+        "Rendez-vous annulé",
+        "Votre rendez-vous a été annulé avec votre autorisation. Le créneau est libéré.",
+      ],
+      declined_without_rescheduling: [
+        "Réponse enregistrée",
+        "Vous ne pouvez pas venir et ne souhaitez pas reporter. La réservation est conservée, sans annulation.",
+      ],
+      recovery_callback: [
+        "Rappel convenu",
+        "L’assistant vous rappellera à l’heure convenue ci-dessous pour trouver un autre créneau.",
+      ],
+    },
+    de: {
+      booked: ["Termin gebucht", "Ihr Termin ist gebucht."],
+      replaced: [
+        "Ersatztermin gebucht",
+        "Ein Ersatztermin wurde gebucht. Der ursprüngliche Termin bleibt im Verlauf erhalten.",
+      ],
+      cancelled: [
+        "Termin storniert",
+        "Ihr Termin wurde mit Ihrer Zustimmung storniert. Der Zeitraum ist wieder frei.",
+      ],
+      declined_without_rescheduling: [
+        "Antwort gespeichert",
+        "Sie können nicht teilnehmen und möchten keinen Ersatztermin. Die Buchung bleibt bestehen und wurde nicht storniert.",
+      ],
+      recovery_callback: [
+        "Rückruf vereinbart",
+        "Der Assistent ruft Sie zur vereinbarten Zeit an, um einen neuen Termin zu finden.",
+      ],
+    },
+    it: {
+      booked: ["Appuntamento prenotato", "Il tuo appuntamento è prenotato."],
+      replaced: [
+        "Appuntamento sostitutivo",
+        "È stato prenotato un appuntamento sostitutivo. L’originale rimane nello storico.",
+      ],
+      cancelled: [
+        "Appuntamento annullato",
+        "L’appuntamento è stato annullato con la tua autorizzazione. La prenotazione è stata liberata.",
+      ],
+      declined_without_rescheduling: [
+        "Risposta registrata",
+        "Non potrai partecipare e non desideri riprogrammare. La prenotazione rimane valida, senza annullamento.",
+      ],
+      recovery_callback: [
+        "Richiamata concordata",
+        "L’assistente ti chiamerà all’ora concordata per trovare un nuovo orario.",
+      ],
+    },
+  };
+  return (copy[language] ?? copy.en)![kind] ?? null;
 }
 
 function primaryEmail(user: UserWithEmails | null): string {

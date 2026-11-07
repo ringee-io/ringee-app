@@ -284,6 +284,11 @@ function formatInZone(instant: Date, timeZone: string): string {
 
 /** How many times a move re-applies a newer time before leaving it pending. */
 const MAX_EXTERNAL_MOVE_ATTEMPTS = 3;
+/**
+ * How long a cancellation waits for an event that was still being created
+ * when the meeting was cancelled, so the event lands where it can be deleted.
+ */
+const EXTERNAL_CREATE_GRACE_MS = 10 * 60_000;
 
 const DEFAULT_CALENDAR_NAME = "Global calendar";
 const MAX_CALENDAR_NAME_LENGTH = 80;
@@ -1314,13 +1319,33 @@ export class CalendarService {
         targetCalendarId,
         idempotencyId: googleEventIdFor(meeting.id),
       });
-      await this.meetingRepo.recordExternalSync(meeting.id, {
-        status: "synced",
-        externalEventId: event.id,
-        integrationId: integration.id,
-        targetCalendarId,
-        location: event.meetLink || undefined,
-      });
+      const recorded = await this.meetingRepo.recordExternalSync(
+        meeting.id,
+        {
+          status: "synced",
+          externalEventId: event.id,
+          integrationId: integration.id,
+          targetCalendarId,
+          location: event.meetLink || undefined,
+        },
+        { scheduleVersion: meeting.scheduleVersion },
+      );
+      if (
+        recorded &&
+        recorded.externalSyncStatus !== MeetingExternalSyncStatus.synced
+      ) {
+        // Cancelled or moved while the event was being created: the event
+        // follows the meeting as it is now, never left at the old time.
+        const followed =
+          recorded.status === "cancelled"
+            ? await this.cancelExternalEvent(ctx, recorded)
+            : await this.moveExternalEvent(ctx, recorded);
+        return {
+          status: followed.status,
+          externalEventId: event.id,
+          meetLink: event.meetLink,
+        };
+      }
       return {
         status: MeetingExternalSyncStatus.synced,
         externalEventId: event.id,
@@ -1440,6 +1465,76 @@ export class CalendarService {
         `Moving the external event of meeting ${meeting.id} failed: ${message}`,
       );
       return { status: MeetingExternalSyncStatus.failed, error: message };
+    }
+  }
+
+  /** Delete the event in its recorded account after a committed cancellation.
+   * A replayed DELETE (including an already absent event) is safe after a crash. */
+  async cancelExternalEvent(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+  ): Promise<{ status: MeetingExternalSyncStatus }> {
+    const current = await this.meetingRepo.findByIdForOwner(ctx, meeting.id);
+    if (
+      !current ||
+      current.status !== "cancelled" ||
+      current.scheduleVersion !== meeting.scheduleVersion
+    )
+      return { status: MeetingExternalSyncStatus.pending };
+    if (!current.externalEventId || !current.externalCalendarIntegrationId) {
+      // An event still being created is recorded after this read. The
+      // cancellation is not settled until it can be deleted (or the attempt
+      // has evidently died).
+      const creating =
+        !current.externalEventId &&
+        current.externalSyncStatus === MeetingExternalSyncStatus.pending &&
+        Date.now() - current.updatedAt.getTime() < EXTERNAL_CREATE_GRACE_MS;
+      return {
+        status: creating
+          ? MeetingExternalSyncStatus.pending
+          : MeetingExternalSyncStatus.not_required,
+      };
+    }
+    if (current.externalSyncStatus === "synced")
+      return { status: MeetingExternalSyncStatus.synced };
+    try {
+      const integration = await this.calendarRepo.findByIdForOwner(
+        ctx,
+        current.externalCalendarIntegrationId,
+      );
+      if (!integration)
+        throw new Error("The original calendar account is disconnected.");
+      const token = await this.ensureValidToken(integration);
+      const eventId = encodeURIComponent(current.externalEventId);
+      const calendarId = encodeURIComponent(
+        current.externalCalendarTargetId ?? integration.calendarId ?? "primary",
+      );
+      const url =
+        integration.provider === "google"
+          ? `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}?sendUpdates=all`
+          : `https://graph.microsoft.com/v1.0/me/events/${eventId}`;
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok && response.status !== 404 && response.status !== 410)
+        throw new Error(`Calendar cancellation failed (${response.status})`);
+      const saved = await this.meetingRepo.recordExternalCancellation(
+        ctx,
+        current,
+      );
+      return {
+        status: saved
+          ? MeetingExternalSyncStatus.synced
+          : MeetingExternalSyncStatus.pending,
+      };
+    } catch (error) {
+      await this.meetingRepo.recordExternalCancellation(
+        ctx,
+        current,
+        error instanceof Error ? error.message : "Calendar cancellation failed",
+      );
+      return { status: MeetingExternalSyncStatus.failed };
     }
   }
 

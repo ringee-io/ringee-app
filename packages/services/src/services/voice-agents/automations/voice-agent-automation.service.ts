@@ -540,13 +540,15 @@ export class VoiceAgentAutomationService {
     input: QuickAgentInput & {
       callerNumberId?: string;
       calendarId?: string;
+      receiptRecipients?: "legacy" | "contact_responsible";
       humanFollowUpEnabled?: boolean;
       interestedObjective?: "booking" | "information";
     },
   ): Promise<AutomationCard> {
     assertVoiceAgentAutomations(ctx);
     if (
-      (input.humanFollowUpEnabled !== undefined ||
+      (input.receiptRecipients !== undefined ||
+        input.humanFollowUpEnabled !== undefined ||
         input.interestedObjective !== undefined) &&
       !(
         await this.organizations.listAdminUserIds(ctx.organizationId, [
@@ -575,6 +577,11 @@ export class VoiceAgentAutomationService {
         );
       }
     }
+    // Read before the agent is resolved: a first setup's claim creates the
+    // row, and only a workspace that had one keeps the legacy receipts.
+    const existed = Boolean(
+      await this.automations.findForOwner(ctx, AGENT_TYPE.scheduling),
+    );
     const agent = await this.resolveAgent(ctx, "scheduling", input, {
       callerNumberId: input.callerNumberId,
       calendarId: input.calendarId,
@@ -592,18 +599,28 @@ export class VoiceAgentAutomationService {
         return {
           agentId: agent.id,
           enabled: true,
-          ...(input.humanFollowUpEnabled !== undefined
+          ...(input.humanFollowUpEnabled !== undefined ||
+          input.receiptRecipients !== undefined ||
+          !existed
             ? {
                 settings: {
                   ...settings,
-                  humanFollowUp: {
-                    enabled: input.humanFollowUpEnabled,
-                    interestedObjective:
-                      input.interestedObjective ??
-                      settings.humanFollowUp?.interestedObjective ??
-                      "booking",
-                    authorizedByUserId: ctx.userId,
-                  },
+                  receiptRecipients:
+                    input.receiptRecipients ??
+                    settings.receiptRecipients ??
+                    (existed ? "legacy" : "contact_responsible"),
+                  ...(input.humanFollowUpEnabled !== undefined
+                    ? {
+                        humanFollowUp: {
+                          enabled: input.humanFollowUpEnabled,
+                          interestedObjective:
+                            input.interestedObjective ??
+                            settings.humanFollowUp?.interestedObjective ??
+                            "booking",
+                          authorizedByUserId: ctx.userId,
+                        },
+                      }
+                    : {}),
                 },
               }
             : {}),
