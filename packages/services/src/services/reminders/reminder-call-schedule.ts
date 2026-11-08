@@ -86,6 +86,7 @@ export function planReminderCallAt(params: {
   window: CallingWindow;
   timeZone: string;
   notBefore: Date;
+  allowNearMeeting?: boolean;
 }): Date | null {
   const { meetingAt, offsetMinutes, window, timeZone, notBefore } = params;
   if (window.endMinute <= window.startMinute || window.days.length === 0) {
@@ -95,7 +96,13 @@ export function planReminderCallAt(params: {
   // Existing shorter policies are pulled earlier too; they never bypass it.
   const leadMinutes = Math.max(offsetMinutes, REMINDER_OFFSET_MIN_MINUTES + 5);
   const ideal = new Date(meetingAt.getTime() - leadMinutes * 60_000);
-  if (ideal.getTime() <= notBefore.getTime()) return null;
+  if (ideal.getTime() <= notBefore.getTime()) {
+    if (!params.allowNearMeeting) return null;
+    const next = nextCallingWindowMoment(notBefore, window, timeZone);
+    return next && meetingAt.getTime() - next.getTime() >= 20 * 60_000
+      ? next
+      : null;
+  }
   if (isWithinCallingWindow(ideal, window, timeZone)) return ideal;
 
   const { date } = zonedClock(ideal, timeZone);

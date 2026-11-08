@@ -1,3 +1,4 @@
+import { buildFinishMeetingResponseTool } from "./attendance.tool";
 import { Injectable } from "@nestjs/common";
 import { AiVoiceAgentOutcome, AiVoiceAgentType } from "@ringee/database";
 import type { VoiceAgentTool } from "@ringee/platform";
@@ -147,13 +148,14 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "5. Before booking, repeat the date and time back and get an explicit yes.",
       `6. The meeting is ${duration} minutes long.`,
       "7. Only after `book_appointment` returns success may you say the meeting",
-      "   is booked. If it fails, call `request_human_support`; only after that",
-      "   succeeds may you say someone will follow up. Never claim a booking",
+      "   is booked. For a recoverable failure, try another offered time or agree",
+      "   a callback and use `schedule_callback`. Never claim a booking",
       "   that did not happen.",
       "   `book_appointment` books on the same calendar `get_available_slots`",
       "   read. You do not choose the calendar and cannot name one — if either",
       "   tool reports the calendar is unavailable, say you cannot check the",
-      "   diary right now and call `request_human_support`.",
+      "   diary right now and offer a scheduling callback. Request human support only",
+      "   when the person asks or a specific decision exceeds your authority.",
       "8. If `Email on file` is not empty, ask only whether that exact address",
       "   is correct. Do not ask the person to dictate or spell it. After they",
       "   confirm it, pass {{email}} to `book_appointment` exactly as written",
@@ -239,7 +241,14 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
             "- While moving an existing meeting, offer only times",
             "  `get_available_slots` returned for it, never call",
             "  `book_appointment`, and say the meeting is moved only after",
-            "  `move_meeting` returns success.",
+            "  `move_meeting` returns success. A past or cancelled original may be",
+            "  replaced by that same tool only while the request remains authorized.",
+            "- If they decline another time, explicitly ask whether to cancel the",
+            "  original appointment. Record their actual answer using",
+            "  `finish_meeting_response`; only a clear yes to cancellation cancels.",
+            "  A no or unclear answer keeps the reservation. Announce only the",
+            "  result returned by the tool. A recoverable failure stays with you:",
+            "  offer another time or agree a callback and store it before promising.",
           ]
         : []),
     ].join("\n");
@@ -378,7 +387,11 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
     // it reads what it continues instead of opening a new call's script, and
     // moves the meeting it was handed instead of booking a second one.
     if (ctx.acceptsHandoffs) {
-      tools.push(buildHandoffContextTool(ctx), buildMoveMeetingTool(ctx));
+      tools.push(
+        buildHandoffContextTool(ctx),
+        buildMoveMeetingTool(ctx),
+        buildFinishMeetingResponseTool(ctx),
+      );
     }
 
     if (ctx.knowledgeBucketIds.length) {

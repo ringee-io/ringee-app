@@ -172,6 +172,14 @@ export class AiVoiceAgentHandoffRepository {
     },
   ): Promise<AiVoiceAgentHandoffActivation> {
     return this.prisma.$transaction(async (tx) => {
+      // Meeting mutations and participation activation share the same lock order.
+      // A source cannot finish an attendance/cancellation write after handing off.
+      const seed = await tx.aiVoiceAgentHandoff.findUnique({
+        where: { id: handoffId },
+      });
+      if (!seed) return { result: "not_found" as const, handoff: null };
+      await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${seed.meetingId}::uuid
+        AND "organizationId" = ${seed.organizationId}::uuid FOR UPDATE`;
       const [locked] = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "AiVoiceAgentHandoff"
         WHERE "id" = ${handoffId}::uuid
@@ -214,6 +222,14 @@ export class AiVoiceAgentHandoffRepository {
             : {}),
         },
       });
+      const source = await tx.aiVoiceAgentCallParticipant.findUnique({
+        where: {
+          agentCallId_agentId: {
+            agentCallId: handoff.agentCallId,
+            agentId: handoff.sourceAgentId,
+          },
+        },
+      });
       await tx.aiVoiceAgentCallParticipant.updateMany({
         where: {
           agentCallId: handoff.agentCallId,
@@ -233,6 +249,9 @@ export class AiVoiceAgentHandoffRepository {
             role: AiVoiceAgentParticipantRole.handoff,
             sequence: 2,
             ...destination.binding,
+            meetingScheduleVersion:
+              source?.meetingScheduleVersion ??
+              destination.binding.meetingScheduleVersion,
             startedAt: destination.now,
           },
         ],

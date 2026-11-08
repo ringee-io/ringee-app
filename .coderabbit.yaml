@@ -67,6 +67,7 @@ reviews:
     # Feature branches are frequently stacked on other feature branches here.
     base_branches:
       - main
+      - staging
       - "feat/.*"
       - "fix/.*"
     # Never stop reviewing a long-running branch half way through.

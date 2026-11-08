@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import {
   MeetingRepository,
+  MeetingAutomationAction,
   CallRepository,
   Meeting,
   MeetingAttendanceInput,
@@ -25,6 +26,7 @@ import {
   OrganizationRepository,
   ReminderSubjectType,
 } from "@ringee/database";
+import { automationOrganizationFilter } from "./voice-agents/automations/automation-access";
 import { OwnershipContext } from "@ringee/platform";
 import {
   CalendarService,
@@ -45,6 +47,10 @@ import {
   DispositionService,
   isCallOutcome,
 } from "./outbound/disposition.service";
+
+/** How far apart a failing automation-action repair is retried. */
+const MAINTENANCE_RETRY_MIN_MS = 60_000;
+const MAINTENANCE_RETRY_MAX_MS = 30 * 60_000;
 
 @Injectable()
 export class MeetingService {
@@ -152,6 +158,7 @@ export class MeetingService {
       bookingTimeZone?: string;
       /** Voice-agent call claimed atomically with this protected booking. */
       agentCallId?: string;
+      actorAgentId?: string;
       /**
        * The member the meeting is with. Omitted, it is whoever is booking —
        * "the member who scheduled it is proposed automatically" (CAL-003). The
@@ -223,6 +230,7 @@ export class MeetingService {
       notes: dto.notes,
       calendarId: resolvedCalendar.calendar.id,
       agentCallId: dto.agentCallId,
+      actorAgentId: dto.actorAgentId,
       responsibleUserId: dto.responsibleUserId ?? ctx.userId,
       leadEmail: normalizeEmail(dto.attendeeEmail),
     };
@@ -260,7 +268,10 @@ export class MeetingService {
       ? await this.meetingRepo.createIfAvailable(
           ctx,
           meetingData,
-          resolvedCalendar.scope,
+          {
+            ...resolvedCalendar.scope,
+            expectedCalendarUpdatedAt: resolvedCalendar.calendar.updatedAt,
+          },
           availabilityRuleId,
         )
       : await this.meetingRepo.create(ctx, meetingData);
@@ -519,6 +530,7 @@ export class MeetingService {
       durationMinutes: number;
       /** The agent call that moves it: the email speaks with its voice. */
       agentCallId: string;
+      actorAgentId?: string;
     },
   ): Promise<MeetingMoveOutcome> {
     // The same re-check a booking makes: the time must be one the calendar
@@ -545,6 +557,7 @@ export class MeetingService {
         meetingId: input.meetingId,
         expectedScheduleVersion: input.expectedScheduleVersion,
         scheduledAt: input.scheduledAt,
+        actorAgentId: input.actorAgentId,
         email: {
           // One email per move: a repeat of the same move is the same email.
           idempotencyKey: `meeting:${input.meetingId}:v${
@@ -553,7 +566,10 @@ export class MeetingService {
           agentCallId: input.agentCallId,
         },
       },
-      input.resolvedCalendar.scope,
+      {
+        ...input.resolvedCalendar.scope,
+        expectedCalendarUpdatedAt: input.resolvedCalendar.calendar.updatedAt,
+      },
       slot.availabilityRuleId,
     );
     // A repeat finishes what the first attempt may not have: every step is
@@ -575,27 +591,103 @@ export class MeetingService {
       meetingId: string;
       expectedScheduleVersion: number;
       scheduledAt: Date;
+      handoffId?: string;
     },
   ): Promise<Extract<MeetingMoveOutcome, { result: "moved" }> | null> {
-    const meeting = (await this.getMeetingById(ctx, input.meetingId).catch(
-      () => null,
-    )) as Extract<MeetingMoveOutcome, { result: "moved" }>["meeting"] | null;
-    if (
-      !meeting ||
-      (meeting.status !== MeetingStatus.scheduled &&
-        meeting.status !== MeetingStatus.rescheduled) ||
-      meeting.scheduleVersion !== input.expectedScheduleVersion + 1 ||
-      new Date(meeting.scheduledAt).getTime() !== input.scheduledAt.getTime()
-    ) {
-      return null;
-    }
-    await this.afterMove(ctx, meeting);
+    if (!input.handoffId) return null;
+    const action = await this.meetingRepo.findAgentAction(
+      ctx,
+      `reschedule:${input.handoffId}`,
+    );
+    if (!action || !isSameMove(action, input)) return null;
     return {
       result: "moved",
-      meeting,
-      previousScheduledAt: null,
+      meeting: action.meeting,
+      previousScheduledAt: action.previousScheduledAt,
       repeated: true,
+      replacement: action.kind === "replaced",
+      changedSinceAction:
+        action.meeting.scheduleVersion !== action.scheduleVersion ||
+        action.meeting.scheduledAt.getTime() !== action.scheduledAt.getTime(),
     };
+  }
+
+  recordAgentDecision(
+    ctx: OwnershipContext,
+    input: Parameters<MeetingRepository["recordAgentDecision"]>[1],
+  ): Promise<MeetingAutomationAction | null> {
+    return this.meetingRepo.recordAgentDecision(ctx, input);
+  }
+
+  /**
+   * Durable repair, on the existing reminder tick, with no dial side effect.
+   * Each try first moves the next one out by as long as the action has
+   * existed, so a repair that keeps failing — a disconnected calendar, a
+   * provider error — is tried twice as far apart each time, from a minute up
+   * to half an hour, and stays pending until it succeeds.
+   */
+  async repairAutomationActions(now = new Date()): Promise<void> {
+    const actions = await this.meetingRepo.listPendingMaintenance(
+      automationOrganizationFilter(),
+    );
+    for (const action of actions) {
+      const wait = Math.min(
+        MAINTENANCE_RETRY_MAX_MS,
+        Math.max(
+          MAINTENANCE_RETRY_MIN_MS,
+          now.getTime() - action.createdAt.getTime(),
+        ),
+      );
+      await this.meetingRepo.deferMaintenance(
+        action.id,
+        action.organizationId,
+        new Date(now.getTime() + wait),
+      );
+      const meeting = action.meeting;
+      const ctx = {
+        userId: meeting.userId,
+        organizationId: meeting.organizationId,
+      };
+      try {
+        if (meeting.status === "cancelled") {
+          await this.reminderService.cancelForSubject(
+            ReminderSubjectType.meeting,
+            meeting.id,
+          );
+          await this.reminderService.cancelMeetingCalls(
+            meeting.id,
+            "meeting_cancelled",
+          );
+          const cancelled = await this.calendarService.cancelExternalEvent(
+            ctx,
+            meeting,
+          );
+          if (!["synced", "not_required"].includes(cancelled.status)) continue;
+        } else if (
+          ["booked", "rescheduled", "replaced"].includes(action.kind)
+        ) {
+          await this.reminderService.replanMeetingCalls(meeting);
+          await this.reminderService.rescheduleForSubject({
+            subjectType: ReminderSubjectType.meeting,
+            subjectId: meeting.id,
+            userId: meeting.userId,
+            organizationId: meeting.organizationId,
+            fireAt: meeting.scheduledAt,
+          });
+          const synced = await this.retryExternalSync(ctx, meeting.id);
+          if (!["synced", "not_required"].includes(synced.externalSyncStatus))
+            continue;
+        }
+        await this.meetingRepo.completeMaintenance(
+          action.id,
+          action.organizationId,
+        );
+      } catch {
+        this.logger.warn(
+          `Meeting action ${action.id} is awaiting projection repair`,
+        );
+      }
+    }
   }
 
   /**
@@ -900,6 +992,32 @@ export class MeetingService {
     }
     return call;
   }
+}
+
+/**
+ * Whether a stored agent move is the one asked for again: the same meeting,
+ * from the same version, to the same time. Another time on the same request
+ * is a new move, never a repeat of the earlier one.
+ */
+export function isSameMove(
+  action: Pick<MeetingAutomationAction, "meetingId" | "scheduledAt"> & {
+    evidence: unknown;
+  },
+  input: {
+    meetingId: string;
+    expectedScheduleVersion: number;
+    scheduledAt: Date;
+  },
+): boolean {
+  const evidence = action.evidence as {
+    originalMeetingId?: string;
+    expectedScheduleVersion?: number;
+  } | null;
+  return (
+    (evidence?.originalMeetingId ?? action.meetingId) === input.meetingId &&
+    evidence?.expectedScheduleVersion === input.expectedScheduleVersion &&
+    action.scheduledAt.getTime() === input.scheduledAt.getTime()
+  );
 }
 
 /**

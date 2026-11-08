@@ -303,6 +303,26 @@ describe("VoiceAgentAutomationService quick setup", () => {
     assert.equal(created[0]!.voiceId, "voice-picked");
   });
 
+  it("gives a first scheduling setup the contact and member receipts, though its claim created the row", async () => {
+    // The row the upsert reads is the one the setup's own claim created.
+    const first = build({
+      automation: null,
+      lockedAutomation: { id: "automation-1", settings: null },
+    });
+    await first.service.setupScheduling(CTX, { calendarId: "calendar-1" });
+    assert.equal(
+      first.automationUpdates.at(-1)!.settings.receiptRecipients,
+      "contact_responsible",
+    );
+
+    // A workspace that already had the card keeps its policy untouched.
+    const existing = build({
+      lockedAutomation: { id: "automation-1", settings: null },
+    });
+    await existing.service.setupScheduling(CTX, { calendarId: "calendar-1" });
+    assert.equal(existing.automationUpdates.at(-1)!.settings, undefined);
+  });
+
   it("does not create a second agent while another window is setting one up", async () => {
     const { service, created } = build({
       automation: null,

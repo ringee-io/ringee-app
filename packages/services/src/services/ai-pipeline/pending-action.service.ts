@@ -27,7 +27,6 @@ import {
   FollowUpClosureReason,
   FollowUpState,
   FollowUpPlan,
-  MeetingStatus,
   AiPipelineType,
   PendingAction,
   PendingActionFilterKey,
@@ -851,7 +850,22 @@ export class PendingActionService {
           calendar.id,
         );
         const at = nextCallingWindowMoment(
-          new Date(now.getTime() + 60 * 60_000),
+          new Date(
+            Math.max(
+              now.getTime(),
+              // A day after the call ended; its dispatch when that is unknown.
+              ...row.callbacks
+                .filter((step) => step.dispatchCommittedAt)
+                .map(
+                  (step) =>
+                    Math.max(
+                      step.dispatchCommittedAt!.getTime(),
+                      step.agentCall?.call?.endedAt?.getTime() ?? 0,
+                    ) +
+                    24 * 60 * 60_000,
+                ),
+            ),
+          ),
           policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW,
           calendar.timezone,
         );
@@ -1127,26 +1141,19 @@ export class PendingActionService {
         const snapshot = await this.repo.followUpSnapshot(row.id);
         if (
           !snapshot ||
-          (snapshot.sourceType !== "human_call_outcome" &&
-            (!snapshot.handoff || snapshot.handoff.offeredAt))
+          (snapshot.sourceType !== "human_call_outcome" && !snapshot.handoff)
         )
           throw new ConflictException(
             "The meeting change needs an exceptional decision",
           );
-        // Only a meeting still on can be moved by an agent. One cancelled or
-        // held while the objective was paused or taken over resolves nothing:
-        // what follows is a person's decision, so nothing is scheduled for it.
+        // An open request can replace its past or cancelled original. Resume
+        // revalidates its identity and policy; neither condition proves success.
         const meeting = snapshot.meetingId
           ? await this.meetings.findByIdForOwner(ctx, snapshot.meetingId)
           : null;
-        if (
-          snapshot.sourceType !== "human_call_outcome" &&
-          (!meeting ||
-            (meeting.status !== MeetingStatus.scheduled &&
-              meeting.status !== MeetingStatus.rescheduled))
-        )
+        if (snapshot.sourceType !== "human_call_outcome" && !meeting)
           throw new ConflictException(
-            "The meeting is no longer scheduled; it cannot return to automatic follow-up",
+            "The original meeting is no longer available",
           );
         if (
           snapshot.sourceType === "human_call_outcome" &&

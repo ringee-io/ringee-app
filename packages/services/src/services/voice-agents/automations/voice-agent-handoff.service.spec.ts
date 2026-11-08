@@ -558,6 +558,7 @@ function tools(w: ReturnType<typeof world>) {
   const agentCallbacks: Row[] = [];
   const legacyCallbacks: Row[] = [];
   const attendance: Row[] = [];
+  const decisions: Row[] = [];
   const moves: Row[] = [];
   const repeats: Row[] = [];
   /**
@@ -611,6 +612,13 @@ function tools(w: ReturnType<typeof world>) {
       },
     } as never,
     {
+      recordAgentDecision: async (_ctx: Row, input: Row) => {
+        decisions.push(input);
+        return {
+          id: "action-1",
+          kind: input.cancel ? "cancelled" : "declined_without_rescheduling",
+        };
+      },
       recordAttendance: async (_ctx: Row, input: Row) => {
         attendance.push(input);
         return {
@@ -713,6 +721,7 @@ function tools(w: ReturnType<typeof world>) {
     agentCallbacks,
     legacyCallbacks,
     attendance,
+    decisions,
     moves,
     repeats,
     move,
@@ -886,6 +895,7 @@ function reminderWorker(
       Object.assign(row, { status, finishedAt: clock, leaseExpiresAt: null });
       return true;
     },
+    listUnansweredForRetry: async () => [],
     listPlacedBefore: async (before: Date) =>
       [...w.executions.values()]
         .filter(
@@ -1652,6 +1662,78 @@ describe("Reminders → scheduling handoff on the same call", () => {
   });
 });
 
+describe("Explicit appointment cancellation", () => {
+  it("keeps cancellation behind the workspace pilot", async () => {
+    const t = tools(world());
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-2"];
+    try {
+      assert.equal(
+        (
+          await t.service.finishMeetingResponse("agent-rem", REM_SECRET, CC, {
+            cancellation: "yes",
+            rescheduling: "declined",
+            response: "Yes, cancel.",
+          })
+        ).ok,
+        false,
+      );
+      assert.equal(t.decisions.length, 0);
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["org-1", "org-2"];
+    }
+  });
+
+  it("retains the reservation for no or unclear, and cancels only on yes", async () => {
+    for (const cancellation of ["no", "unclear", "yes"]) {
+      const t = tools(world());
+      const result = await t.service.finishMeetingResponse(
+        "agent-rem",
+        REM_SECRET,
+        CC,
+        {
+          cancellation,
+          rescheduling: "declined",
+          response:
+            cancellation === "yes"
+              ? "Yes, please cancel it."
+              : "Keep it for now.",
+        },
+      );
+      assert.equal(result.ok, true);
+      assert.equal(t.decisions.length, 1);
+      assert.equal(t.decisions[0].cancel, cancellation === "yes");
+      assert.equal(t.decisions[0].meetingId, "meeting-1");
+      assert.equal(t.decisions[0].expectedScheduleVersion, 3);
+    }
+  });
+  it("refuses a malformed answer and a source that already handed over", async () => {
+    const t = tools(world());
+    assert.equal(
+      (
+        await t.service.finishMeetingResponse("agent-rem", REM_SECRET, CC, {
+          cancellation: "yes",
+          rescheduling: "declined",
+          response: 42 as never,
+        })
+      ).ok,
+      false,
+    );
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    await t.service.getHandoffContext("agent-sched", SCHED_SECRET, CC);
+    assert.equal(
+      (
+        await t.service.finishMeetingResponse("agent-rem", REM_SECRET, CC, {
+          cancellation: "yes",
+          rescheduling: "declined",
+          response: "Yes, cancel.",
+        })
+      ).ok,
+      false,
+    );
+    assert.equal(t.decisions.length, 0);
+  });
+});
+
 describe("Moving the handed meeting on the call (AGENT-021)", () => {
   /** A future time on the hour, so the "already past" guard never trips. */
   const later = () =>
@@ -1682,7 +1764,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: start.toISOString() },
+      { time_confirmed: true, start: start.toISOString() },
     );
     assert.equal(result.ok, true);
     assert.equal(t.moves.length, 1);
@@ -1725,7 +1807,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, true);
     if (!result.ok) return;
@@ -1737,6 +1819,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
     const w = world();
     const t = tools(w);
     const root = await t.service.moveMeeting("agent-rem", REM_SECRET, CC, {
+      time_confirmed: true,
       start: later().toISOString(),
     });
     assert.equal(root.ok, false);
@@ -1747,7 +1830,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-rem",
       REM_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(source.ok, false);
     assert.match(source.ok ? "" : source.error, /handed to another assistant/);
@@ -1762,7 +1845,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /get_available_slots again/);
@@ -1777,7 +1860,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /was not moved/);
@@ -1791,7 +1874,10 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: new Date(Date.now() - 60_000).toISOString() },
+      {
+        time_confirmed: true,
+        start: new Date(Date.now() - 60_000).toISOString(),
+      },
     );
     assert.equal(result.ok, false);
     assert.deepEqual(t.moves, []);
@@ -1813,11 +1899,12 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: start.toISOString() },
+      { time_confirmed: true, start: start.toISOString() },
     );
     assert.equal(result.ok, true);
     assert.deepEqual(t.repeats, [
       {
+        handoffId: [...w.handoffs.values()][0]!.id,
         meetingId: "meeting-1",
         expectedScheduleVersion: 3,
         scheduledAt: start,
@@ -1835,7 +1922,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /already settled/);
@@ -1854,7 +1941,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
       "agent-sched",
       SCHED_SECRET,
       CC,
-      { start: later().toISOString() },
+      { time_confirmed: true, start: later().toISOString() },
     );
     assert.equal(result.ok, false);
     assert.match(result.ok ? "" : result.error, /no email was sent/);
@@ -1869,7 +1956,7 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
         "agent-sched",
         SCHED_SECRET,
         CC,
-        { start },
+        { time_confirmed: true, start },
       );
       assert.equal(result.ok, false);
       assert.match(result.ok ? "" : result.error, /timezone offset/);
