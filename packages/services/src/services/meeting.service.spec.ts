@@ -30,6 +30,7 @@ const RESOLVED_CALENDAR = {
     timezone: "UTC",
     isDefault: true,
     archivedAt: null,
+    updatedAt: new Date("2099-01-01T00:00:00Z"),
   },
   scope: { calendarId: "cal-global", isDefault: true },
   timezone: "UTC",
@@ -309,6 +310,7 @@ describe("MeetingService Ringee-first calendar sync", () => {
   it("books the calendar the caller named", async () => {
     const salesCalendar = {
       calendar: {
+        updatedAt: RESOLVED_CALENDAR.calendar.updatedAt,
         id: "cal-sales",
         name: "Sales",
         timezone: "UTC",
@@ -337,7 +339,11 @@ describe("MeetingService Ringee-first calendar sync", () => {
     assert.equal(createdMeetings[0]?.calendarId, "cal-sales");
     // Capacity is checked against that calendar only.
     assert.deepEqual(bookingScopes, [
-      { calendarId: "cal-sales", isDefault: false },
+      {
+        calendarId: "cal-sales",
+        isDefault: false,
+        expectedCalendarUpdatedAt: RESOLVED_CALENDAR.calendar.updatedAt,
+      },
     ]);
   });
 
@@ -683,6 +689,7 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
       slots?: Array<{ start: string; availabilityRuleId: string | null }>;
       outcome?: Record<string, unknown>;
       stored?: Record<string, unknown>;
+      action?: Record<string, unknown>;
     } = {},
   ) {
     const events: string[] = [];
@@ -716,6 +723,7 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
           return { ...STORED_MEETING, ...data };
         },
         findById: async () => options.stored ?? STORED_MEETING,
+        findAgentAction: async () => options.action ?? null,
       } as never,
       {} as never,
       {
@@ -792,13 +800,17 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
           meetingId: "meeting-1",
           expectedScheduleVersion: 3,
           scheduledAt: NEW_TIME,
+          actorAgentId: undefined,
           // One email per move, keyed on the version it moves to.
           email: {
             idempotencyKey: "meeting:meeting-1:v4:rescheduled",
             agentCallId: "agent-call-1",
           },
         },
-        scope: RESOLVED_CALENDAR.scope,
+        scope: {
+          ...RESOLVED_CALENDAR.scope,
+          expectedCalendarUpdatedAt: RESOLVED_CALENDAR.calendar.updatedAt,
+        },
         ruleId: "rule-1",
       },
     ]);
@@ -858,43 +870,69 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     ]);
   });
 
-  it("recognizes a move a retry finds already made, past the version it was handed", async () => {
-    const done = moveBuild({
-      stored: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
-    });
-    const outcome = await done.service.completeRepeatedMove(ctx, {
+  it("replays only the stored action and reports subsequent human changes", async () => {
+    const input = {
       meetingId: "meeting-1",
       expectedScheduleVersion: 3,
       scheduledAt: NEW_TIME,
+      handoffId: "request-1",
+    };
+    const human = moveBuild({
+      stored: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
     });
-    assert.equal(outcome?.repeated, true);
-    assert.deepEqual(done.events, [
-      "reminder-calls:replan",
-      "reminder:reschedule",
-      `external:${NEW_TIME.toISOString()}`,
-    ]);
-
-    // Another version, another time, or a cancelled meeting is not that move.
-    for (const stored of [
-      { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 5 },
-      { ...STORED_MEETING, scheduleVersion: 4 },
-      {
-        ...STORED_MEETING,
-        scheduledAt: NEW_TIME,
-        scheduleVersion: 4,
-        status: "cancelled",
-      },
-    ]) {
-      const other = moveBuild({ stored });
-      assert.equal(
-        await other.service.completeRepeatedMove(ctx, {
+    assert.equal(await human.service.completeRepeatedMove(ctx, input), null);
+    for (const version of [4, 5]) {
+      const done = moveBuild({
+        action: {
+          kind: "rescheduled",
           meetingId: "meeting-1",
-          expectedScheduleVersion: 3,
+          evidence: {
+            originalMeetingId: "meeting-1",
+            expectedScheduleVersion: 3,
+          },
           scheduledAt: NEW_TIME,
-        }),
+          scheduleVersion: 4,
+          previousScheduledAt: STORED_MEETING.scheduledAt,
+          meeting: {
+            ...STORED_MEETING,
+            scheduledAt: NEW_TIME,
+            scheduleVersion: version,
+          },
+        },
+      });
+      const result = await done.service.completeRepeatedMove(ctx, input);
+      assert.equal(result?.repeated, true);
+      assert.equal(result?.changedSinceAction, version !== 4);
+      assert.deepEqual(done.events, []);
+    }
+  });
+
+  it("does not report another time asked on the same request as the move already made", async () => {
+    const action = {
+      kind: "rescheduled",
+      meetingId: "meeting-1",
+      evidence: { originalMeetingId: "meeting-1", expectedScheduleVersion: 3 },
+      scheduledAt: NEW_TIME,
+      scheduleVersion: 4,
+      previousScheduledAt: STORED_MEETING.scheduledAt,
+      meeting: { ...STORED_MEETING, scheduledAt: NEW_TIME, scheduleVersion: 4 },
+    };
+    const input = {
+      meetingId: "meeting-1",
+      expectedScheduleVersion: 3,
+      scheduledAt: NEW_TIME,
+      handoffId: "request-1",
+    };
+    for (const other of [
+      { scheduledAt: new Date(NEW_TIME.getTime() + 60 * 60_000) },
+      { expectedScheduleVersion: 4 },
+      { meetingId: "meeting-2" },
+    ]) {
+      const { service } = moveBuild({ action });
+      assert.equal(
+        await service.completeRepeatedMove(ctx, { ...input, ...other }),
         null,
       );
-      assert.deepEqual(other.events, []);
     }
   });
 
@@ -939,5 +977,72 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     });
     await synced.service.retryExternalSync(ctx, "meeting-1");
     assert.deepEqual(synced.events, []);
+  });
+});
+
+describe("MeetingService.repairAutomationActions", () => {
+  it("retries a repair that keeps failing twice as far apart each time, from a minute up to half an hour", async () => {
+    const now = new Date("2099-01-05T12:00:00.000Z");
+    const minute = 60_000;
+    const ages = [10_000, 10 * minute, 6 * 60 * minute];
+    const deferred: Array<{
+      id: string;
+      organizationId: string;
+      wait: number;
+    }> = [];
+    const completed: string[] = [];
+    const service = new MeetingService(
+      {
+        listPendingMaintenance: async () =>
+          ages.map((age, index) => ({
+            id: `action-${index}`,
+            organizationId: "org-1",
+            kind: "cancelled",
+            createdAt: new Date(now.getTime() - age),
+            meeting: { ...STORED_MEETING, status: "cancelled" },
+          })),
+        deferMaintenance: async (
+          id: string,
+          organizationId: string,
+          until: Date,
+        ) => {
+          deferred.push({
+            id,
+            organizationId,
+            wait: until.getTime() - now.getTime(),
+          });
+        },
+        completeMaintenance: async (id: string) => {
+          completed.push(id);
+        },
+      } as never,
+      {} as never,
+      // The calendar account is disconnected: the event cannot be deleted yet.
+      { cancelExternalEvent: async () => ({ status: "failed" }) } as never,
+      {} as never,
+      {
+        cancelForSubject: async () => undefined,
+        cancelMeetingCalls: async () => undefined,
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.repairAutomationActions(now);
+
+    assert.deepEqual(deferred, [
+      { id: "action-0", organizationId: "org-1", wait: minute },
+      { id: "action-1", organizationId: "org-1", wait: 10 * minute },
+      { id: "action-2", organizationId: "org-1", wait: 30 * minute },
+    ]);
+    // Still pending, so it resumes once the calendar is reachable again.
+    assert.deepEqual(completed, []);
   });
 });

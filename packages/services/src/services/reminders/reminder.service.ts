@@ -11,7 +11,6 @@ import {
   MeetingStatus,
   Prisma,
   ReminderRepository,
-  ReminderStatus,
   ReminderSubjectType,
   UserRepository,
   ContactRepository,
@@ -269,6 +268,7 @@ export class ReminderService {
           planReminderCallAt({
             meetingAt: meeting.scheduledAt,
             offsetMinutes: input.offsetMinutes,
+            allowNearMeeting: input.offsetMinutes === 240,
             window,
             timeZone: calendar.timezone,
             notBefore,
@@ -309,6 +309,7 @@ export class ReminderService {
       const fireAt = planReminderCallAt({
         meetingAt: meeting.scheduledAt,
         offsetMinutes,
+        allowNearMeeting: offsetMinutes === 240,
         window,
         timeZone,
         notBefore,

@@ -78,16 +78,6 @@ export function planFollowUp(
   // specialist may still move the meeting; a callback the person agreed to is
   // the next step, as the handoff's own review has it. Blocking would settle
   // the request under either, and withdraw a callback already promised.
-  if (
-    handoff?.offeredAt &&
-    !live(handoff.agentCall.call) &&
-    !row.callbacks.some(
-      (step) =>
-        live(step.agentCall?.call) ||
-        ["scheduled", "due", "in_progress"].includes(step.status),
-    )
-  )
-    return blocked("reschedule_commit_pending");
 
   if (
     handoff?.requestStatus === "needs_attention" &&

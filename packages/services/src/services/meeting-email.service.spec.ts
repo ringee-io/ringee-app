@@ -69,6 +69,7 @@ function build(
 
   const service = new MeetingEmailService(
     {
+      requeueAvailableAddresses: async () => undefined,
       claimDue: async () => [delivery],
       prepareSend: async (
         claimed: Row,
@@ -335,7 +336,7 @@ describe("The email an agent's move owes (AGENT-021)", () => {
     await service.drain();
     assert.equal(sends.length, 0);
     assert.deepEqual(released, [
-      { status: "cancelled", error: "meeting_moved_again" },
+      { status: "cancelled", error: "attendance_changed" },
     ]);
   });
 
@@ -413,7 +414,8 @@ describe("composeMeetingEmail", () => {
       timeZone: "UTC",
     });
     assert.doesNotMatch(email.html, /<script/i);
-    assert.match(email.html, /&lt;script&gt;/);
+    assert.doesNotMatch(email.html, /&lt;script&gt;/);
+    assert.match(email.html, /&lt;b&gt;Demo&lt;\/b&gt;/);
   });
 });
 

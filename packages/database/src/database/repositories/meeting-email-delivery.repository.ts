@@ -36,6 +36,69 @@ export type MeetingEmailDeliveryWithMeeting = MeetingEmailDelivery & {
 export class MeetingEmailDeliveryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** The action a delivery is the receipt of, in the delivery's own
+   * workspace and meeting — the same predicate `prepareSend` holds it to. */
+  findAction(id: string, owner: { organizationId: string; meetingId: string }) {
+    return this.prisma.meetingAutomationAction.findFirst({
+      where: {
+        id,
+        organizationId: owner.organizationId,
+        meetingId: owner.meetingId,
+      },
+    });
+  }
+
+  listActionDeliveries(actionId: string, organizationId: string) {
+    return this.prisma.meetingEmailDelivery.findMany({
+      where: { actionId, organizationId },
+    });
+  }
+
+  /**
+   * A new address repairs only waiting audiences, never already accepted sends.
+   * `usable` is the caller's address rule: a malformed address would only be
+   * claimed and parked again on every tick.
+   */
+  async requeueAvailableAddresses(
+    organizationIds: string[] | null,
+    usable: (address: string | null) => boolean,
+  ) {
+    const waiting = {
+      status: D.needs_email,
+      actionId: { not: null },
+      firstAttemptAt: null,
+      ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+    } satisfies Prisma.MeetingEmailDeliveryWhereInput;
+    const candidates = await this.prisma.meetingEmailDelivery.findMany({
+      where: {
+        ...waiting,
+        meeting: {
+          OR: [
+            { leadEmail: { not: null } },
+            { contact: { email: { not: null } } },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        meeting: {
+          select: { leadEmail: true, contact: { select: { email: true } } },
+        },
+      },
+    });
+    const ids = candidates
+      .filter(
+        ({ meeting }) =>
+          usable(meeting.leadEmail) || usable(meeting.contact?.email ?? null),
+      )
+      .map(({ id }) => id);
+    if (ids.length === 0) return;
+    await this.prisma.meetingEmailDelivery.updateMany({
+      where: { ...waiting, id: { in: ids } },
+      data: { status: D.pending },
+    });
+  }
+
   /**
    * Claims pending deliveries, and any whose worker died mid-send. A sending
    * row past its lease may already have reached the provider: the service
@@ -89,6 +152,69 @@ export class MeetingEmailDeliveryRepository {
       await tx.$queryRaw`SELECT "id" FROM "Meeting"
         WHERE "id" = ${delivery.meetingId}::uuid
           AND "organizationId" = ${delivery.organizationId}::uuid FOR UPDATE`;
+      if (delivery.actionId) {
+        const action = await tx.meetingAutomationAction.findFirst({
+          where: {
+            id: delivery.actionId,
+            meetingId: delivery.meetingId,
+            organizationId: delivery.organizationId,
+          },
+        });
+        if (!action) {
+          await tx.meetingEmailDelivery.updateMany({
+            where: {
+              id: delivery.id,
+              claimToken: delivery.claimToken,
+              status: D.sending,
+            },
+            data: {
+              status: D.cancelled,
+              leaseExpiresAt: null,
+              lastError: "action_missing",
+            },
+          });
+          return null;
+        }
+        if (delivery.kind === "recovery_callback") {
+          // Only the callback of the action's own request, in the delivery's
+          // workspace, decides whether its receipt still stands.
+          const callback =
+            action.callbackId && action.handoffId
+              ? await tx.callbackTask.findFirst({
+                  where: {
+                    id: action.callbackId,
+                    organizationId: delivery.organizationId,
+                    handoffId: action.handoffId,
+                  },
+                  include: { followUp: true },
+                })
+              : null;
+          const evidence = action.evidence as { scheduledAt?: string };
+          if (
+            !callback ||
+            !["scheduled", "due"].includes(callback.status) ||
+            callback.scheduledAt.toISOString() !== evidence.scheduledAt ||
+            (callback.followUp &&
+              ["closed", "resolved", "paused", "blocked"].includes(
+                callback.followUp.state,
+              ))
+          ) {
+            await tx.meetingEmailDelivery.updateMany({
+              where: {
+                id: delivery.id,
+                claimToken: delivery.claimToken,
+                status: D.sending,
+              },
+              data: {
+                status: D.cancelled,
+                leaseExpiresAt: null,
+                lastError: "callback_superseded",
+              },
+            });
+            return null;
+          }
+        }
+      }
       const where: Prisma.MeetingEmailDeliveryWhereInput = {
         id: delivery.id,
         status: D.sending,
@@ -96,17 +222,30 @@ export class MeetingEmailDeliveryRepository {
         leaseExpiresAt: { gt: now },
         meeting: {
           organizationId: delivery.organizationId,
-          scheduleVersion: expectedMeetingVersion,
-          ...(rescheduled
+          // A callback receipt was checked against its callback above.
+          scheduleVersion:
+            delivery.kind === "recovery_callback"
+              ? undefined
+              : delivery.actionId && delivery.kind !== "attendance_confirmed"
+                ? delivery.scheduleVersion
+                : expectedMeetingVersion,
+          ...(delivery.actionId && delivery.kind !== "attendance_confirmed"
             ? {}
-            : {
-                attendanceScheduleVersion: delivery.scheduleVersion,
-                attendanceStatus:
-                  delivery.kind === MeetingEmailKind.attendance_confirmed
-                    ? "confirmed"
-                    : "declined",
-              }),
-          status: { in: ["scheduled", "rescheduled"] },
+            : rescheduled
+              ? {}
+              : {
+                  attendanceScheduleVersion: delivery.scheduleVersion,
+                  attendanceStatus:
+                    delivery.kind === MeetingEmailKind.attendance_confirmed
+                      ? "confirmed"
+                      : "declined",
+                }),
+          status:
+            delivery.kind === "cancelled"
+              ? "cancelled"
+              : delivery.kind === "recovery_callback"
+                ? undefined
+                : { in: ["scheduled", "rescheduled"] },
         },
       };
       const [row] = await tx.meetingEmailDelivery.updateManyAndReturn({

@@ -406,7 +406,7 @@ export class VoiceAgentResultService {
       }
     }
 
-    await this.applyKnownOutcome(agentCall, outcome);
+    await this.applyKnownOutcome(agentCall, outcome, true);
   }
 
   /**
@@ -416,6 +416,7 @@ export class VoiceAgentResultService {
   async applyKnownOutcome(
     agentCall: AiVoiceAgentCall,
     outcome: AiVoiceAgentOutcome,
+    fromAnalysis = false,
   ): Promise<AiVoiceAgentCall | null> {
     const callOutcome = this.toCallOutcome(outcome);
     let call: Call | null = null;
@@ -429,12 +430,14 @@ export class VoiceAgentResultService {
       call = await this.callRepository.updateOutcomeUnlessTakenOver(
         agentCall.callId,
         callOutcome,
+        fromAnalysis,
       );
     }
 
     const updated = await this.agentCalls.updateOutcomeIfChanged(
       agentCall.id,
       outcome,
+      fromAnalysis,
     );
     if (!updated) return null;
 

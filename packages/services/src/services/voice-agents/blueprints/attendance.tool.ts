@@ -2,6 +2,38 @@ import type { VoiceAgentTool } from "@ringee/platform";
 import type { VoiceAgentToolContext } from "../voice-agent.types";
 import { voiceAgentWebhookHeaders } from "./human-support.tool";
 
+export function buildFinishMeetingResponseTool(
+  ctx: VoiceAgentToolContext,
+): VoiceAgentTool {
+  return {
+    kind: "webhook",
+    name: "finish_meeting_response",
+    method: "POST",
+    url: `${ctx.toolBaseUrl}/${ctx.agentId}/finish-meeting-response`,
+    headers: voiceAgentWebhookHeaders(ctx),
+    description:
+      "After a person cannot attend and declines rescheduling, explicitly ask whether they want this appointment cancelled. Record their actual answer. Only cancellation=yes after an unambiguous yes to that question cancels. A no or unclear answer retains the reservation. Never infer cancellation from an attendance decline. Say it is cancelled only after success. If they still request another time, retain that separate request.",
+    parameters: {
+      type: "object",
+      properties: {
+        cancellation: {
+          type: "string",
+          enum: ["yes", "no", "unclear"],
+          description:
+            "The answer to the explicit cancellation question in this conversation.",
+        },
+        rescheduling: { type: "string", enum: ["requested", "declined"] },
+        response: {
+          type: "string",
+          description:
+            "The person's actual words answering the cancellation question, not a summary or inferred intention.",
+        },
+      },
+      required: ["cancellation", "rescheduling", "response"],
+    },
+  };
+}
+
 /**
  * Records the lead's explicit answer about the meeting a reminder call is for
  * (AGENT-017). The model names neither the meeting nor the call: Ringee reads

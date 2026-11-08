@@ -1391,6 +1391,55 @@ describe(
         p.callback.id,
       );
     });
+    it("Stage 3: the live booking tool commits reservation, exact objective, attribution and receipts together", async () => {
+      const f = await enroll();
+      const p = await claimAndPrepare(f);
+      await service.authorizeHumanCallbackDial(
+        p.callback,
+        p.decision,
+        p.placement,
+      );
+      const meeting = await meetings.createIfAvailable(
+        ctx,
+        {
+          contactId: f.contact.id,
+          calendarId,
+          callId: p.placement.callId,
+          agentCallId: p.placement.agentCallId,
+          actorAgentId: agentId,
+          scheduledAt: new Date(Date.now() + 3 * 86400000),
+          duration: 30,
+          responsibleUserId: userId,
+        },
+        { calendarId, isDefault: true },
+        null,
+      );
+      assert.ok(meeting);
+      const action = await prisma.meetingAutomationAction.findUniqueOrThrow({
+        where: { actionKey: `booking:${p.placement.agentCallId}` },
+      });
+      assert.equal(action.followUpId, f.objective.id);
+      assert.equal(action.callbackId, p.callback.id);
+      assert.equal(action.kind, "booked");
+      assert.equal(
+        await prisma.contactNote.count({
+          where: { automationActionId: action.id },
+        }),
+        1,
+      );
+      assert.equal(
+        await prisma.meetingEmailDelivery.count({
+          where: { actionId: action.id },
+        }),
+        2,
+      );
+      const resolved = (await repo.followUpSnapshot(f.objective.id))!;
+      assert.equal(resolved.state, "resolved");
+      assert.equal(
+        (resolved.resolutionEvidence as { actionId: string }).actionId,
+        action.id,
+      );
+    });
     it("rejects cross-member and cross-workspace outcomes and reads", async () => {
       const f = await enroll();
       await assert.rejects(

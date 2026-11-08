@@ -10,6 +10,7 @@ import {
   EnrichmentDrainService,
   McpUsageService,
   MeetingEmailService,
+  MeetingService,
   MeetingReminderCallService,
   NumberPurchasedService,
   PipelineRunService,
@@ -56,6 +57,7 @@ export function createActivities(app: INestApplicationContext) {
   const reminderService = app.get(ReminderService);
   const reminderCalls = app.get(MeetingReminderCallService);
   const meetingEmails = app.get(MeetingEmailService);
+  const meetings = app.get(MeetingService);
   const customIntegrationsDelivery = app.get(CustomIntegrationDeliveryService);
   const numberPurchasedService = app.get(NumberPurchasedService);
   const pipelineRunService = app.get(PipelineRunService);
@@ -165,6 +167,7 @@ export function createActivities(app: INestApplicationContext) {
         failures.push(`reminder calls: ${(error as Error).message}`);
       }
       try {
+        await meetings.repairAutomationActions();
         const sent = await meetingEmails.drain();
         if (sent > 0)
           logger.log(`ReminderScheduler: ${sent} meeting emails sent`);
