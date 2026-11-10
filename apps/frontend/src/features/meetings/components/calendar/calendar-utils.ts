@@ -90,14 +90,15 @@ export function initials(name: string): string {
 }
 
 /**
- * The calendar a meeting belongs to. Meetings booked before calendars
- * existed belong to the workspace's default one, as their capacity does.
+ * The calendar a meeting belongs to. A meeting fresh from a write names it
+ * without the relation. Meetings booked before calendars existed belong to
+ * the workspace's default one, as their capacity does.
  */
 export function calendarIdOf(
   m: CalendarMeeting,
   defaultId: string | null
 ): string | null {
-  return m.calendar?.id ?? defaultId;
+  return m.calendar?.id ?? m.calendarId ?? defaultId;
 }
 
 export function findCalendar(

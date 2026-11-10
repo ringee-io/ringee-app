@@ -12,8 +12,8 @@ import type {
   RingeeCalendar
 } from './types';
 
-/** A month grid holds six weeks; no workspace books this many in one. */
-const RANGE_LIMIT = 500;
+/** A month grid holds six weeks: most fit in one page, all of them load. */
+const RANGE_PAGE_SIZE = 500;
 const UPCOMING_LIMIT = 50;
 
 /**
@@ -37,14 +37,28 @@ export function useMeetingsData(range: { from: Date; to: Date }) {
     const id = ++request.current;
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        from: fromIso,
-        to: toIso,
-        limit: String(RANGE_LIMIT)
-      });
-      const res = await api.get<MeetingsResponse>(`/meetings?${params}`);
+      const page = (n: number) =>
+        api.get<MeetingsResponse>(
+          `/meetings?${new URLSearchParams({
+            from: fromIso,
+            to: toIso,
+            limit: String(RANGE_PAGE_SIZE),
+            page: String(n)
+          })}`
+        );
+      // Every page or none: a grid missing some meetings would read as free.
+      const first = await page(1);
       if (id !== request.current) return;
-      setMeetings(res.data);
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.meta.totalPages - 1) }, (_, i) =>
+          page(i + 2)
+        )
+      );
+      if (id !== request.current) return;
+      const byId = new Map<string, CalendarMeeting>();
+      for (const res of [first, ...rest])
+        for (const m of res.data) byId.set(m.id, m);
+      setMeetings([...byId.values()]);
       setFailed(false);
     } catch {
       if (id === request.current) setFailed(true);

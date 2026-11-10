@@ -750,6 +750,10 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
           events.push("external:create");
           return { status: "synced" };
         },
+        cancelExternalEvent: async () => {
+          events.push("external:delete");
+          return { status: "synced" };
+        },
       } as never,
       {} as never,
       {
@@ -977,6 +981,19 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     });
     await synced.service.retryExternalSync(ctx, "meeting-1");
     assert.deepEqual(synced.events, []);
+  });
+
+  it("retries the deletion that failed of a cancelled meeting's event as a deletion", async () => {
+    const { service, events } = moveBuild({
+      stored: {
+        ...STORED_MEETING,
+        status: "cancelled",
+        externalEventId: "google-event-1",
+        externalSyncStatus: "failed",
+      },
+    });
+    await service.retryExternalSync(ctx, "meeting-1");
+    assert.deepEqual(events, ["external:delete"]);
   });
 });
 

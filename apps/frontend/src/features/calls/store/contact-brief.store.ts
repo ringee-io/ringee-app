@@ -49,28 +49,40 @@ export const useContactBriefStore = create<ContactBriefState>((set, get) => ({
         }
       }
     }));
+    // A load started after an invalidation owns the entry: an older answer
+    // that comes back later must not overwrite it.
+    const superseded = (state: ContactBriefState) =>
+      (state.entries[contactId]?.epoch ?? epoch) > epoch;
     try {
       const brief = await api.get<MyDayContactBrief>(
         `/my-day/contacts/${encodeURIComponent(contactId)}`
       );
-      set((state) => ({
-        entries: {
-          ...state.entries,
-          [contactId]: { brief, loading: false, failed: false, epoch }
-        }
-      }));
+      set((state) =>
+        superseded(state)
+          ? state
+          : {
+              entries: {
+                ...state.entries,
+                [contactId]: { brief, loading: false, failed: false, epoch }
+              }
+            }
+      );
     } catch {
-      set((state) => ({
-        entries: {
-          ...state.entries,
-          [contactId]: {
-            brief: state.entries[contactId]?.brief ?? null,
-            loading: false,
-            failed: true,
-            epoch
-          }
-        }
-      }));
+      set((state) =>
+        superseded(state)
+          ? state
+          : {
+              entries: {
+                ...state.entries,
+                [contactId]: {
+                  brief: state.entries[contactId]?.brief ?? null,
+                  loading: false,
+                  failed: true,
+                  epoch
+                }
+              }
+            }
+      );
     }
   },
   invalidate: () => set((state) => ({ epoch: state.epoch + 1 }))

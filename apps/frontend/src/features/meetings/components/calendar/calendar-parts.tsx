@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
@@ -59,16 +59,52 @@ export function Segmented<T extends string | number>({
   );
 }
 
+/** How long the right-edge panel takes to slide out: `duration-200` below. */
+const DRAWER_EXIT_MS = 200;
+
 /**
- * A panel on the right, full height, with no veil: Monday to Friday stay in
- * view and usable behind it. Rendered on the body so a scroll container
- * cannot clip it, under dialogs (z-50).
+ * What the right edge shows, kept on screen while it slides out: `value`
+ * while there is one; once it is gone, the last one, with `leaving` set,
+ * for as long as the exit lasts; then nothing. Going from one value to
+ * another is not an exit: the panel stays and its content changes in place.
  */
-export function SideDrawer({
-  labelledBy,
+export function useDrawerExit<T>(value: T | null): {
+  shown: T | null;
+  leaving: boolean;
+} {
+  const open = value !== null;
+  const last = useRef(value);
+  useEffect(() => {
+    if (value !== null) last.current = value;
+  });
+  const [wasOpen, setWasOpen] = useState(open);
+  const [leaving, setLeaving] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    setLeaving(!open);
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = window.setTimeout(() => setLeaving(false), DRAWER_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [leaving]);
+  if (open) return { shown: value, leaving: false };
+  return { shown: leaving ? last.current : null, leaving };
+}
+
+/**
+ * The panel on the right, full height, with no veil: the week stays in view
+ * and usable behind it (it covers the side column, the weekend and the last
+ * ~30px of Friday). Rendered once by the calendar, on the body so a scroll
+ * container cannot clip it, under dialogs (z-50). It slides in from the edge
+ * and back out; while it leaves, what it still shows is a picture — `inert`,
+ * so a stale "Book" cannot be pressed. Reduced motion fades instead.
+ */
+export function DrawerEdge({
+  leaving,
   children
 }: {
-  labelledBy: string;
+  leaving: boolean;
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
@@ -76,13 +112,38 @@ export function SideDrawer({
   if (!mounted) return null;
   return createPortal(
     <aside
-      role='dialog'
-      aria-labelledby={labelledBy}
-      className='bg-card animate-in fade-in slide-in-from-right-8 fixed inset-y-0 right-0 z-40 flex w-[420px] max-w-full flex-col border-l text-base shadow-[-18px_0_48px_rgba(0,0,0,0.5)] duration-200'
+      inert={leaving}
+      className={cn(
+        'bg-card fixed inset-y-0 right-0 z-40 flex w-[460px] max-w-full flex-col border-l text-base',
+        // Light: a soft lift off the grid. Dark: a deep one, or it vanishes.
+        'shadow-[-2px_0_8px_rgb(15_23_42/0.04),-16px_0_40px_-12px_rgb(15_23_42/0.12)] dark:shadow-[-18px_0_48px_rgba(0,0,0,0.5)]',
+        leaving
+          ? 'animate-out slide-out-to-right fill-mode-forwards motion-reduce:fade-out motion-reduce:slide-out-to-right-0 duration-200 ease-in'
+          : 'animate-in slide-in-from-right motion-reduce:fade-in motion-reduce:slide-in-from-right-0 duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]'
+      )}
     >
       {children}
     </aside>,
     document.body
+  );
+}
+
+/** One drawer's content inside `DrawerEdge`: the dialog it names. */
+export function SideDrawer({
+  labelledBy,
+  children
+}: {
+  labelledBy: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      role='dialog'
+      aria-labelledby={labelledBy}
+      className='flex min-h-0 flex-1 flex-col'
+    >
+      {children}
+    </div>
   );
 }
 

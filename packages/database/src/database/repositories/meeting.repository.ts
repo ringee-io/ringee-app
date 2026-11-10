@@ -1665,7 +1665,8 @@ export class MeetingRepository {
           call: true,
           calendar: { select: { id: true, name: true, isDefault: true } },
         },
-        orderBy: { scheduledAt: upcoming ? "asc" : "desc" },
+        // The id breaks ties, so meetings at the same time page in one order.
+        orderBy: [{ scheduledAt: upcoming ? "asc" : "desc" }, { id: "asc" }],
         skip: (page - 1) * limit,
         take: limit,
       }),

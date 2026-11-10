@@ -429,6 +429,12 @@ export class MeetingService {
     meetingId: string,
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, meetingId);
+    // A cancelled meeting's event is deleted, never moved or created again
+    // (CAL-002): a deletion that failed is retried as a deletion.
+    if (meeting.status === MeetingStatus.cancelled) {
+      await this.calendarService.cancelExternalEvent(ctx, meeting);
+      return this.getMeetingById(ctx, meetingId);
+    }
     if (meeting.externalEventId) {
       // The event exists: what is left is moving it to the meeting's time —
       // a move that failed, or that never got to run (CAL-002).

@@ -17,3 +17,18 @@ export function parseOptionalIsoDate(
   }
   return date;
 }
+
+/**
+ * One edge of a date window (`from`, `to`): like `parseOptionalIsoDate`, but
+ * sent empty (`?from=`) it is a 400 — a window asked for without its edge
+ * must not quietly become unbounded. Omitted is still no bound.
+ */
+export function parseIsoDateBound(
+  value: string | undefined,
+  name: string,
+): Date | undefined {
+  if (value === "") {
+    throw new BadRequestException(`${name} must be an ISO 8601 date`);
+  }
+  return parseOptionalIsoDate(value, name);
+}

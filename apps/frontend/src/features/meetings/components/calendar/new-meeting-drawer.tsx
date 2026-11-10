@@ -161,6 +161,9 @@ export function NewMeetingDrawer({
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Set<Field>>(new Set());
   const [booking, setBooking] = useState(false);
+  // The contact a failed booking already saved, with the details it was saved
+  // from: a retry with the same details books on it instead of saving again.
+  const created = useRef<{ id: string; details: string } | null>(null);
   const [dnc, setDnc] = useState<{ phone: string; listed: boolean | null }>({
     phone: '',
     listed: null
@@ -344,24 +347,34 @@ export function NewMeetingDrawer({
     try {
       let contactId = contact?.id ?? null;
       if (mode === 'new') {
-        try {
-          const created = await api.post<{ id: string }>('/contacts', {
-            name: `${first.trim()} ${last.trim()}`,
-            firstName: first.trim(),
-            lastName: last.trim(),
-            phoneNumber: toE164(phone),
-            email: email.trim(),
-            organization: company.trim() || undefined
-          });
-          contactId = created.id;
-        } catch (error) {
-          toast.error(
-            error instanceof ApiError && error.status === 400
-              ? t('contactExists')
-              : t('contactFailed')
-          );
-          setBooking(false);
-          return;
+        const details = {
+          name: `${first.trim()} ${last.trim()}`,
+          firstName: first.trim(),
+          lastName: last.trim(),
+          phoneNumber: toE164(phone),
+          email: email.trim(),
+          organization: company.trim() || undefined
+        };
+        const key = JSON.stringify(details);
+        if (created.current?.details === key) {
+          contactId = created.current.id;
+        } else {
+          created.current = null;
+          try {
+            const saved = await api.post<{ id: string }>('/contacts', details);
+            created.current = { id: saved.id, details: key };
+            contactId = saved.id;
+          } catch (error) {
+            toast.error(
+              error instanceof ApiError &&
+                error.status === 400 &&
+                error.message === 'Contact already exists'
+                ? t('contactExists')
+                : t('contactFailed')
+            );
+            setBooking(false);
+            return;
+          }
         }
       }
 
@@ -392,7 +405,7 @@ export function NewMeetingDrawer({
 
   return (
     <SideDrawer labelledBy='mt-new-title'>
-      <div className='grid gap-1 border-b py-3 pr-3.5 pl-5'>
+      <div className='grid gap-1 border-b py-4 pr-4 pl-6'>
         <div className='flex min-h-8 items-center gap-1'>
           <h2
             id='mt-new-title'
@@ -418,7 +431,7 @@ export function NewMeetingDrawer({
 
       <div
         ref={bodyRef}
-        className='grid min-h-0 flex-1 content-start gap-5 overflow-y-auto px-5 pt-[18px] pb-6'
+        className='grid min-h-0 flex-1 content-start gap-6 overflow-y-auto px-6 pt-5 pb-8'
       >
         {/* 1 Who */}
         <section className='grid gap-3' aria-labelledby='nw-s1'>
@@ -431,6 +444,7 @@ export function NewMeetingDrawer({
             onChange={(value) => {
               setMode(value);
               setErrors(new Set());
+              created.current = null;
             }}
             className='h-9 w-full'
             options={[
@@ -884,7 +898,7 @@ export function NewMeetingDrawer({
         </section>
       </div>
 
-      <div className='grid gap-3 border-t px-5 pt-3.5 pb-4'>
+      <div className='grid gap-3 border-t px-6 pt-4 pb-5'>
         {warn && aiCovers ? (
           <p className='text-muted-foreground flex items-start gap-[7px] text-[12.8px] leading-snug'>
             <TriangleAlert className='mt-px size-3.5 shrink-0 text-amber-500' />

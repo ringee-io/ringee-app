@@ -47,6 +47,8 @@ export interface CalendarMeeting {
   } | null;
   /** The Ringee calendar it was booked on; none for the oldest bookings. */
   calendar: { id: string; name: string; isDefault: boolean } | null;
+  /** The same calendar's id, also on a write's answer, which has no relation. */
+  calendarId?: string | null;
   externalSyncStatus?: ExternalSyncStatus;
   attendanceStatus?: MeetingAttendanceStatus;
   attendanceNote?: string | null;

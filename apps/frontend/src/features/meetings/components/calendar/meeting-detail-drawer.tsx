@@ -179,7 +179,7 @@ export function MeetingDetailDrawer({
 
   return (
     <SideDrawer labelledBy='mt-detail-title'>
-      <div className='grid gap-1 border-b py-3 pr-3.5 pl-5'>
+      <div className='grid gap-1 border-b py-4 pr-4 pl-6'>
         <div className='flex min-h-8 items-center gap-1'>
           <div className='flex min-w-0 flex-1 flex-wrap items-center gap-1.5'>
             <span
@@ -236,7 +236,7 @@ export function MeetingDetailDrawer({
         </p>
       </div>
 
-      <div className='grid min-h-0 flex-1 content-start gap-5 overflow-y-auto px-5 pt-[18px] pb-6'>
+      <div className='grid min-h-0 flex-1 content-start gap-6 overflow-y-auto px-6 pt-5 pb-8'>
         <section className='grid gap-2.5'>
           <SectionLabel>{t('when')}</SectionLabel>
           <Fact icon={<CalendarDays />} tone='green'>
@@ -438,7 +438,7 @@ export function MeetingDetailDrawer({
       </div>
 
       {upcoming ? (
-        <div className='flex items-center gap-[7px] border-t px-5 pt-3.5 pb-4'>
+        <div className='flex items-center gap-[7px] border-t px-6 pt-4 pb-5'>
           <Button
             type='button'
             variant='ghost'

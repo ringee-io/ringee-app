@@ -143,4 +143,31 @@ describe("buildContactBrief", () => {
       },
     ]);
   });
+
+  it("reads the older incoming/outgoing directions, and nothing else", () => {
+    const call = (id: string, direction: string | null) =>
+      ({
+        id,
+        createdAt: new Date("2026-11-03T21:12:00.000Z"),
+        direction,
+        status: "completed",
+        outcome: null,
+        outcomeNote: null,
+        durationSeconds: null,
+      }) as never;
+    const brief = buildContactBrief(contact(), {
+      total: 5,
+      calls: [
+        call("a", "incoming"),
+        call("b", "outgoing"),
+        call("c", "inbound"),
+        call("d", "sideways"),
+        call("e", null),
+      ],
+    });
+    assert.deepEqual(
+      brief.calls.recent.map((recent) => recent.direction),
+      ["inbound", "outbound", "inbound", null, null],
+    );
+  });
 });

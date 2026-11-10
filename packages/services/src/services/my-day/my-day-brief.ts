@@ -65,6 +65,15 @@ function text(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+/** Older calls were stored as "incoming"/"outgoing"; anything else is unknown. */
+function callDirection(
+  value: string | null | undefined,
+): MyDayBriefCall["direction"] {
+  if (value === "inbound" || value === "incoming") return "inbound";
+  if (value === "outbound" || value === "outgoing") return "outbound";
+  return null;
+}
+
 export function buildContactBrief(
   contact: ContactBrief,
   history: { total: number; calls: RecentContactCall[] },
@@ -109,10 +118,7 @@ export function buildContactBrief(
       recent: history.calls.map((call) => ({
         id: call.id,
         at: call.createdAt,
-        direction:
-          call.direction === "inbound" || call.direction === "outbound"
-            ? call.direction
-            : null,
+        direction: callDirection(call.direction),
         status: call.status,
         outcome: call.outcome,
         durationSeconds: call.durationSeconds,

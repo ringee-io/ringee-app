@@ -24,7 +24,7 @@ import { useVoiceAgentsRail } from '@/features/ai-voice-agents/automations/store
 import { useDialerStore } from '@/features/calls/store/dialer.store';
 import { useSettingsDialogStore } from '@/features/settings/store/settings-dialog.store';
 import { CalendarFilter } from './calendar-filter';
-import { Segmented } from './calendar-parts';
+import { DrawerEdge, Segmented, useDrawerExit } from './calendar-parts';
 import {
   aiCallAt,
   atTime,
@@ -180,6 +180,18 @@ function MeetingsCalendarReady({ now }: { now: Date }) {
   const railOpen = useVoiceAgentsRail((state) => state.open);
   const setRailOpen = useVoiceAgentsRail((state) => state.setOpen);
   const drawerOpen = !!current || !!draft;
+  // One panel for both drawers: it slides in when the edge opens and out
+  // when it closes, and stays put when "new" turns into the booked meeting.
+  const panel = useDrawerExit<
+    | { kind: 'detail'; meeting: CalendarMeeting }
+    | { kind: 'new'; draft: NewMeetingDraft }
+  >(
+    draft
+      ? { kind: 'new', draft }
+      : current
+        ? { kind: 'detail', meeting: current }
+        : null
+  );
   useEffect(() => {
     if (!drawerOpen) return;
     if (useDialerStore.getState().quickDial) setQuickDial(false);
@@ -296,7 +308,10 @@ function MeetingsCalendarReady({ now }: { now: Date }) {
         filterOpen ||
         !!document.querySelector('[data-slot="dialog-content"]');
       if (event.key === 'Escape') {
-        if (dialogOpen) return;
+        // A layer that took the key (a menu) or a field being typed in keeps
+        // the drawer: Escape there is not "discard".
+        if (dialogOpen || event.defaultPrevented || isTyping(event.target))
+          return;
         if (draft) setDraft(null);
         else if (selected) setSelected(null);
         return;
@@ -475,7 +490,7 @@ function MeetingsCalendarReady({ now }: { now: Date }) {
           aria-label={t('calendarLabel')}
           className='bg-card min-w-0 overflow-hidden rounded-xl border'
         >
-          {data.failed && data.meetings.length === 0 ? (
+          {data.failed ? (
             <div className='grid place-items-center gap-3 px-6 py-24 text-center'>
               <p className='font-semibold'>{t('failedTitle')}</p>
               <p className='text-muted-foreground max-w-xs text-sm'>
@@ -541,52 +556,78 @@ function MeetingsCalendarReady({ now }: { now: Date }) {
         </aside>
       </div>
 
-      {current && !draft ? (
-        <MeetingDetailDrawer
-          meeting={current}
-          calendar={findCalendar(data.calendars, calendarOf(current))}
-          provider={providerOf(current)}
-          now={now}
-          aiCallAt={aiCallAt(current, plan, calendarOf(current), now)}
-          pilot={pilot}
-          remindersOn={remindersOn}
-          onClose={() => setSelected(null)}
-          onEdit={() => setEditing({ id: current.id, initial: null })}
-          onCancel={() => setCancellingId(current.id)}
-          onChanged={data.replace}
-        />
-      ) : null}
-
-      {draft ? (
-        <NewMeetingDrawer
-          draft={draft}
-          onDraftChange={updateDraft}
-          calendars={data.calendars}
-          plan={plan}
-          now={now}
-          onClose={() => setDraft(null)}
-          onBooked={(meeting, first) => {
-            setDraft(null);
-            setSelected(meeting);
-            const start = meetingStart(meeting);
-            setAnchor(startOfDay(start));
-            void data.refresh();
-            const provider = providerOf(meeting);
-            toast.success(
-              provider
-                ? t('toasts.bookedInvite', {
-                    day: fmt.shortDay(start),
-                    time: fmt.time(start),
-                    name: first || contactName(meeting),
-                    provider
-                  })
-                : t('toasts.booked', {
-                    day: fmt.shortDay(start),
-                    time: fmt.time(start)
-                  })
-            );
-          }}
-        />
+      {panel.shown ? (
+        <DrawerEdge leaving={panel.leaving}>
+          {panel.shown.kind === 'detail' ? (
+            <MeetingDetailDrawer
+              key={panel.shown.meeting.id}
+              meeting={panel.shown.meeting}
+              calendar={findCalendar(
+                data.calendars,
+                calendarOf(panel.shown.meeting)
+              )}
+              provider={providerOf(panel.shown.meeting)}
+              now={now}
+              aiCallAt={aiCallAt(
+                panel.shown.meeting,
+                plan,
+                calendarOf(panel.shown.meeting),
+                now
+              )}
+              pilot={pilot}
+              remindersOn={remindersOn}
+              onClose={() => setSelected(null)}
+              onEdit={() =>
+                current && setEditing({ id: current.id, initial: null })
+              }
+              onCancel={() => current && setCancellingId(current.id)}
+              onChanged={data.replace}
+            />
+          ) : (
+            <NewMeetingDrawer
+              draft={panel.shown.draft}
+              onDraftChange={updateDraft}
+              calendars={data.calendars}
+              plan={plan}
+              now={now}
+              onClose={() => setDraft(null)}
+              onBooked={(meeting, first) => {
+                setDraft(null);
+                setSelected(meeting);
+                const start = meetingStart(meeting);
+                setAnchor(startOfDay(start));
+                void data.refresh();
+                const provider = providerOf(meeting);
+                const when = {
+                  day: fmt.shortDay(start),
+                  time: fmt.time(start)
+                };
+                // The invite went out only if the external event exists; the
+                // booking stands in Ringee either way (CAL-002).
+                const sync = meeting.externalSyncStatus;
+                if (provider && sync === 'synced') {
+                  toast.success(
+                    t('toasts.bookedInvite', {
+                      ...when,
+                      name: first || contactName(meeting),
+                      provider
+                    })
+                  );
+                } else if (provider && sync === 'failed') {
+                  toast.warning(t('toasts.booked', when), {
+                    description: t('detail.sync.failedTitle')
+                  });
+                } else if (provider && sync === 'pending') {
+                  toast.success(t('toasts.booked', when), {
+                    description: t('detail.sync.pendingTitle')
+                  });
+                } else {
+                  toast.success(t('toasts.booked', when));
+                }
+              }}
+            />
+          )}
+        </DrawerEdge>
       ) : null}
 
       {editing && editingMeeting ? (

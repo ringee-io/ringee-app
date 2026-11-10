@@ -37,7 +37,7 @@ import {
   MeetingService,
   OrganizationService,
 } from "@ringee/services";
-import { parseOptionalIsoDate } from "../query-dates";
+import { parseIsoDateBound } from "../query-dates";
 import { validationExceptionFactory } from "../validation-error";
 
 class CreateMeetingDto {
@@ -174,8 +174,8 @@ export class MeetingController {
       page: Number(page),
       limit: Number(limit),
       calendarId,
-      scheduledFrom: parseOptionalIsoDate(from, "from"),
-      scheduledTo: parseOptionalIsoDate(to, "to"),
+      scheduledFrom: parseIsoDateBound(from, "from"),
+      scheduledTo: parseIsoDateBound(to, "to"),
     });
   }
 
