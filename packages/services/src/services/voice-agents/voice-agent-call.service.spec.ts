@@ -93,6 +93,7 @@ function build(options: {
         if (options.toolSyncError) throw options.toolSyncError;
         await Promise.resolve();
         deliveryEvents.push(`tools:${target.id}`);
+        return true;
       },
     } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
@@ -500,8 +501,8 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
     assert.equal(createdAgentCalls[0]!.responsibleUserId, "member-7");
   });
 
-  it("never places a second leg under a key whose call may already exist", async () => {
-    const { service, placed } = build({
+  it("never places a second leg, or writes the contact again, under a key whose call may already exist", async () => {
+    const { service, placed, contacts } = build({
       usable: [NUMBERS.miami],
       existingByKey: {
         id: "agent-call-earlier",
@@ -522,10 +523,11 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
         error.agentCallId === "agent-call-earlier",
     );
     assert.deepEqual(placed, []);
+    assert.deepEqual(contacts, []);
   });
 
   it("reports an earlier try that provably placed nothing as safe to follow", async () => {
-    const { service, placed } = build({
+    const { service, placed, contacts } = build({
       usable: [NUMBERS.miami],
       existingByKey: { id: "agent-call-earlier", status: "failed" },
     });
@@ -540,6 +542,7 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
         error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
     );
     assert.deepEqual(placed, []);
+    assert.deepEqual(contacts, []);
   });
 });
 
@@ -560,6 +563,26 @@ describe("VoiceAgentCallService final placement guard", () => {
     );
     assert.equal(placed.length, 0);
     assert.deepEqual(forciblyEnded, ["call-1"]);
+  });
+
+  it("never lets a durable caller dial on tools it could not verify", async () => {
+    // Unlike a person's own call, a reminder or callback would run on what
+    // the assistant last saved: it is not placed, and it may be retried.
+    let guarded = false;
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      toolSyncError: new Error("provider unavailable"),
+    });
+    await assert.rejects(
+      service.startCall(CTX, "agent-1", { to: TO }, async () => {
+        guarded = true;
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
+    );
+    assert.equal(guarded, false);
+    assert.equal(placed.length, 0);
   });
 });
 

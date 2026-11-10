@@ -65,6 +65,11 @@ calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
 - keeps the write that records a placed call outside the dial's own error
   handling: once `startCall` has returned, a failed write is not a failed dial.
   The claim is left to expire and the next tick links the call by its key;
+- dials only on tools verified against the current blueprint: with a
+  `beforePlacement` guard, `startCall` refuses an agent whose tools it could not
+  verify or re-sync, before placement (`retryable_before_placement`). Tool
+  parameters are not read back from the provider, so a schema change behind an
+  unchanged tool URL still needs the agents re-synced;
 - re-checks what it is calling about right before the dial (versions, calling
   window, DNC through `startCall`), because the row it planned from may be stale.
   `startCall` fills the contact's blank fields from the call's variables

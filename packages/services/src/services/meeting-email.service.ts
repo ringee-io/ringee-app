@@ -341,8 +341,34 @@ export class MeetingEmailService {
         await release(D.needs_email, "contact_address_unavailable");
         return false;
       }
+      // The member's own receipt reaches the same address only once it is
+      // accepted: until then this one waits beside it (unclaimed while it
+      // waits on a person), and after a failure it goes out on its own.
+      const unsettled =
+        leadEmail === memberEmail
+          ? siblings.find(
+              (row) =>
+                row.audience === "responsible" &&
+                !(
+                  [
+                    D.sent,
+                    D.failed,
+                    D.cancelled,
+                  ] as MeetingEmailDeliveryStatus[]
+                ).includes(row.status),
+            )
+          : undefined;
+      if (unsettled) {
+        await release(
+          unsettled.status === D.needs_member ||
+            unsettled.status === D.needs_email
+            ? unsettled.status
+            : D.pending,
+          "awaiting_member_delivery",
+        );
+        return false;
+      }
       if (
-        leadEmail === memberEmail ||
         siblings.some(
           (row) =>
             row.status === "sent" &&

@@ -462,8 +462,26 @@ describe(
         ).actionId,
         action.id,
       );
-      const detail = await calls.findById(f.call.id);
+      // The call's detail, as its owner reads it, carries the attributed action.
+      const detail = await calls.findDetailForOwner(ctx, f.call.id);
       assert.ok(detail);
+      const shown = detail.automationActions.find(
+        (row) => row.id === action.id,
+      );
+      assert.deepEqual(
+        shown && {
+          id: shown.id,
+          kind: shown.kind,
+          agentId: shown.agentId,
+          meetingId: shown.meetingId,
+        },
+        {
+          id: action.id,
+          kind: "rescheduled",
+          agentId,
+          meetingId: f.meeting.id,
+        },
+      );
     });
 
     it("Stage 3: a participant already speaking may commit after pause, without another dispatch", async () => {
@@ -780,6 +798,56 @@ describe(
           where: { actionId: corrected.id },
         }),
         0,
+      );
+    });
+
+    it("Stage 3: keeping the booking needs this version's decline, and a later yes on the same call only corrects it", async () => {
+      const f = await seed();
+      const decide = (cancel: boolean, response: string) =>
+        meetings.recordAgentDecision(ctx, {
+          meetingId: f.meeting.id,
+          expectedScheduleVersion: 1,
+          agentCallId: f.agentCall.id,
+          actorAgentId: sourceAgentId,
+          cancel,
+          continueRescheduling: false,
+          response,
+        });
+      // Nothing declined yet: no receipt may say the person cannot attend.
+      assert.equal(await decide(false, "Keep it."), null);
+      const execution = (await executions.findByAgentCallId(f.agentCall.id))!;
+      assert.equal(
+        (
+          await meetings.recordAttendance(ctx, {
+            meetingId: f.meeting.id,
+            expectedScheduleVersion: 1,
+            status: "declined",
+            agentCallId: f.agentCall.id,
+            actorAgentId: sourceAgentId,
+            executionId: execution.id,
+            email: null,
+          })
+        ).result,
+        "recorded",
+      );
+      const kept = await decide(false, "No other time. Keep it for now.");
+      assert.equal(kept?.kind, "declined_without_rescheduling");
+      // A yes on the same call afterwards is a correction: it never changes
+      // the appointment again (CAL-003).
+      const corrected = await decide(true, "Actually, yes, cancel it.");
+      assert.ok(corrected);
+      assert.notEqual(corrected.id, kept!.id);
+      assert.equal(
+        (corrected.evidence as { correctsActionId?: string }).correctsActionId,
+        kept!.id,
+      );
+      const stored = await meetings.findById(f.meeting.id);
+      assert.equal(stored?.status, "scheduled");
+      assert.equal(stored?.scheduleVersion, 1);
+      // The same answer again is a retry of the correction, not another.
+      assert.equal(
+        (await decide(true, "Actually, yes, cancel it."))?.id,
+        corrected.id,
       );
     });
 

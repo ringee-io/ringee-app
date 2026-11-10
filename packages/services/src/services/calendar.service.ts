@@ -289,6 +289,8 @@ const MAX_EXTERNAL_MOVE_ATTEMPTS = 3;
  * when the meeting was cancelled, so the event lands where it can be deleted.
  */
 const EXTERNAL_CREATE_GRACE_MS = 10 * 60_000;
+/** How long an event's DELETE may take before the repair tick moves on. */
+const EXTERNAL_DELETE_TIMEOUT_MS = 15_000;
 
 const DEFAULT_CALENDAR_NAME = "Global calendar";
 const MAX_CALENDAR_NAME_LENGTH = 80;
@@ -1271,6 +1273,9 @@ export class CalendarService {
     externalEventId?: string;
     meetLink?: string;
     error?: string;
+    /** The meeting as it is now, when it was cancelled while its event was
+     * being created: the event is not the booking's, so neither is its link. */
+    cancelled?: Meeting;
   }> {
     // Already there. A retry must not create a second event.
     if (meeting.externalEventId) {
@@ -1320,6 +1325,7 @@ export class CalendarService {
         idempotencyId: googleEventIdFor(meeting.id),
       });
       const recorded = await this.meetingRepo.recordExternalSync(
+        ctx,
         meeting.id,
         {
           status: "synced",
@@ -1335,11 +1341,13 @@ export class CalendarService {
         recorded.externalSyncStatus !== MeetingExternalSyncStatus.synced
       ) {
         // Cancelled or moved while the event was being created: the event
-        // follows the meeting as it is now, never left at the old time.
-        const followed =
-          recorded.status === "cancelled"
-            ? await this.cancelExternalEvent(ctx, recorded)
-            : await this.moveExternalEvent(ctx, recorded);
+        // follows the meeting as it is now, never left at the old time. A
+        // cancelled booking's event is deleted, and its link not reported.
+        if (recorded.status === "cancelled") {
+          const deleted = await this.cancelExternalEvent(ctx, recorded);
+          return { status: deleted.status, cancelled: recorded };
+        }
+        const followed = await this.moveExternalEvent(ctx, recorded);
         return {
           status: followed.status,
           externalEventId: event.id,
@@ -1353,7 +1361,7 @@ export class CalendarService {
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.meetingRepo.recordExternalSync(meeting.id, {
+      await this.meetingRepo.recordExternalSync(ctx, meeting.id, {
         status: "failed",
         integrationId: integration.id,
         targetCalendarId,
@@ -1398,7 +1406,7 @@ export class CalendarService {
     // If even this write fails the meeting stays `pending`, never `synced`.
     const recordFailure = (integrationId: string, error: string) =>
       this.meetingRepo
-        .recordExternalSync(meeting.id, {
+        .recordExternalSync(ctx, meeting.id, {
           status: "failed",
           integrationId,
           targetCalendarId,
@@ -1447,10 +1455,12 @@ export class CalendarService {
         ) {
           return { status: MeetingExternalSyncStatus.synced };
         }
-        // It moved again while this time was being applied.
+        // It moved again while this time was being applied — or was
+        // cancelled, and its event is the cancellation's to delete.
         const latest = await this.meetingRepo.findById(meeting.id);
         if (
           !latest ||
+          latest.status === "cancelled" ||
           latest.externalEventId !== eventId ||
           attempt >= MAX_EXTERNAL_MOVE_ATTEMPTS
         ) {
@@ -1495,7 +1505,14 @@ export class CalendarService {
           : MeetingExternalSyncStatus.not_required,
       };
     }
-    if (current.externalSyncStatus === "synced")
+    // `synced` recorded after the cancellation is the event's deletion. Before
+    // it, `synced` was the booking's or a move's, and the event still exists.
+    if (
+      current.externalSyncStatus === "synced" &&
+      current.cancelledAt &&
+      current.externalSyncedAt &&
+      current.externalSyncedAt >= current.cancelledAt
+    )
       return { status: MeetingExternalSyncStatus.synced };
     try {
       const integration = await this.calendarRepo.findByIdForOwner(
@@ -1516,6 +1533,8 @@ export class CalendarService {
       const response = await fetch(url, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
+        // A stalled provider is a failed try, retried by the next repair tick.
+        signal: AbortSignal.timeout(EXTERNAL_DELETE_TIMEOUT_MS),
       });
       if (!response.ok && response.status !== 404 && response.status !== 410)
         throw new Error(`Calendar cancellation failed (${response.status})`);
@@ -1576,13 +1595,25 @@ export class CalendarService {
       idempotencyId: googleEventIdFor(dto.meetingId),
     });
 
-    await this.meetingRepo.recordExternalSync(dto.meetingId, {
-      status: "synced",
-      externalEventId: event.id,
-      integrationId: integration.id,
-      targetCalendarId: integration.calendarId ?? "primary",
-      location: event.meetLink || undefined,
-    });
+    const recorded = await this.meetingRepo.recordExternalSync(
+      ctx,
+      dto.meetingId,
+      {
+        status: "synced",
+        externalEventId: event.id,
+        integrationId: integration.id,
+        targetCalendarId: integration.calendarId ?? "primary",
+        location: event.meetLink || undefined,
+      },
+      { scheduleVersion: meeting.scheduleVersion },
+    );
+    // Cancelled or moved while the event was being created: never `synced`,
+    // and the event follows the meeting as it is now.
+    if (recorded.externalSyncStatus !== MeetingExternalSyncStatus.synced) {
+      if (recorded.status === "cancelled")
+        await this.cancelExternalEvent(ctx, recorded);
+      else await this.moveExternalEvent(ctx, recorded);
+    }
 
     return { externalEventId: event.id, meetLink: event.meetLink };
   }

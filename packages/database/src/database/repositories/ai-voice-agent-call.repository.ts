@@ -263,10 +263,21 @@ export class AiVoiceAgentCallRepository {
     const [updated] = await this.prisma.aiVoiceAgentCall.updateManyAndReturn({
       where: {
         id,
-        ...(protectToolActions
-          ? { call: { automationActions: { none: {} } } }
-          : {}),
-        OR: [{ outcome: null }, { outcome: { not: outcome } }],
+        AND: [
+          { OR: [{ outcome: null }, { outcome: { not: outcome } }] },
+          // A tool's recorded action stands over a later analysis. A call
+          // with no Call row carries no such action, so its analysis lands.
+          ...(protectToolActions
+            ? [
+                {
+                  OR: [
+                    { callId: null },
+                    { call: { automationActions: { none: {} } } },
+                  ],
+                },
+              ]
+            : []),
+        ],
       },
       data: { outcome },
     });

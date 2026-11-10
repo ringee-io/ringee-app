@@ -83,6 +83,7 @@ function build(
   const callbacks: Array<Record<string, unknown>> = [];
   const callbackOutcomes: Array<Record<string, unknown>> = [];
   const attendanceWrites: Array<Record<string, unknown>> = [];
+  const attachedContacts: Array<{ callId: string; contactId: string }> = [];
   let updateAttempt = 0;
   let callbackOutcomeAttempt = 0;
 
@@ -240,7 +241,16 @@ function build(
         return call;
       },
     } as never,
-    {} as never,
+    {
+      attachContact: async (
+        _ctx: unknown,
+        callId: string,
+        contactId: string,
+      ) => {
+        attachedContacts.push({ callId, contactId });
+        return true;
+      },
+    } as never,
     {} as never,
     {} as never,
     {} as never,
@@ -279,6 +289,7 @@ function build(
     supportRequests,
     callbacks,
     callbackOutcomes,
+    attachedContacts,
   };
 }
 
@@ -511,7 +522,7 @@ describe("VoiceAgentToolService booking", () => {
   });
 
   it("falls back to the dialed number when the call has no contact yet", async () => {
-    const { service, updates, created } = build({
+    const { service, updates, created, attachedContacts } = build({
       agentCall: {
         id: "call-1",
         agentId: "agent-1",
@@ -528,6 +539,28 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(result.ok, true);
     assert.equal(created[0]?.contactId, "contact-2");
     assert.deepEqual(updates[0], { contactId: "contact-2" });
+    // The call row is linked to the same person, so meeting actions on this
+    // call find both links in agreement.
+    assert.deepEqual(attachedContacts, [
+      { callId: "c-1", contactId: "contact-2" },
+    ]);
+  });
+
+  it("links the call row on a retry where only the agent call had the contact", async () => {
+    const { service, updates, attachedContacts } = build();
+
+    const result = await service.bookAppointment("agent-1", SECRET, "cc-1", {
+      start: FUTURE,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(
+      updates.some((data) => "contactId" in data),
+      false,
+    );
+    assert.deepEqual(attachedContacts, [
+      { callId: "c-1", contactId: "contact-1" },
+    ]);
   });
 });
 

@@ -707,7 +707,9 @@ export class ContactRepository {
 }
 
 /** Count automatic dispatches under the contact lock shared by both schedulers.
- * The caller has already locked its meeting (when any), before calling this. */
+ * The caller has already locked its meeting (when any), before calling this.
+ * A committed try whose call is `failed` with no provider leg — refused before
+ * anything was placed — uses none of the day's calls; an uncertain one does. */
 export async function automaticContactDispatchAvailable(
   tx: Prisma.TransactionClient,
   input: {
@@ -745,7 +747,8 @@ export async function automaticContactDispatchAvailable(
         AND r.id <> ${input.reminderId ?? "00000000-0000-0000-0000-000000000000"}::uuid
     ) SELECT count(*) FILTER (WHERE at >=
       ((date_trunc('day', ${input.now}::timestamptz AT TIME ZONE ${input.timezone})
-        AT TIME ZONE ${input.timezone}) AT TIME ZONE 'UTC'))::int AS count,
+        AT TIME ZONE ${input.timezone}) AT TIME ZONE 'UTC')
+        AND (call_state IS DISTINCT FROM 'failed' OR leg IS NOT NULL))::int AS count,
       count(*) FILTER (WHERE call_state IN ('created', 'initiating', 'ringing', 'in_progress')
         OR (leg IS NULL AND state IN ('in_progress', 'claimed', 'placed')) )::int AS active
     FROM attempts

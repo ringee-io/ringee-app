@@ -1,5 +1,8 @@
 import { automaticContactDispatchAvailable } from "./contact.repository";
-import { recordAgreedCallbackAction } from "./meeting-action.persistence";
+import {
+  lockAgreedCallbackMeeting,
+  recordAgreedCallbackAction,
+} from "./meeting-action.persistence";
 import {
   lockFollowUp,
   observeFollowUp,
@@ -144,6 +147,9 @@ export class CallbackTaskRepository {
   ): Promise<{ callback: CallbackTask; created: boolean }> {
     try {
       const callback = await this.prisma.$transaction(async (tx) => {
+        // An agreed time records a meeting action: its meeting is locked first.
+        if (data.agentCallbackKind === "agreed" && data.callId)
+          await lockAgreedCallbackMeeting(tx, data.handoffId);
         // Creation and suspension use the same order and lock. A callback
         // cannot appear after pause/closure under an old service decision.
         await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${data.handoffId}::uuid FOR UPDATE`;
@@ -573,6 +579,8 @@ export class CallbackTaskRepository {
               ...owned,
               contactId: action.contactId!,
               scheduleVersion: input.meetingVersion,
+              // A meeting that took place leaves nothing to reschedule.
+              status: { not: "completed" },
             },
           })
         : null;
@@ -1038,6 +1046,14 @@ export class CallbackTaskRepository {
         seed.callId
       )
         return null;
+      // The receipt below records a meeting action: meeting before objective.
+      if (
+        recordAgreedReceipt &&
+        seed?.agentCallbackKind === "agreed" &&
+        seed.handoffId &&
+        seed.callId
+      )
+        await lockAgreedCallbackMeeting(tx, seed.handoffId);
       const objective = seed?.followUpId
         ? await lockFollowUp(tx, seed.followUpId)
         : null;

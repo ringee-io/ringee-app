@@ -945,23 +945,27 @@ export class MeetingRepository {
       });
       if (!meeting || !actor || meeting.contactId !== actor.call.contactId)
         return null;
-      const key = `decision:${meeting.id}:v${input.expectedScheduleVersion}:${input.cancel ? "cancel" : "keep"}`;
+      const decided = `decision:${meeting.id}:v${input.expectedScheduleVersion}`;
+      const key = `${decided}:${input.cancel ? "cancel" : "keep"}`;
+      // This call's first answer about the version, whichever answer it was:
+      // the same one again is a retry, a different one a correction.
       const prior =
-        (await tx.meetingAutomationAction.findUnique({
-          where: { actionKey: key },
+        (await tx.meetingAutomationAction.findFirst({
+          where: {
+            actionKey: { in: [`${decided}:cancel`, `${decided}:keep`] },
+          },
+          orderBy: { createdAt: "asc" },
         })) ??
-        (input.cancel
-          ? await tx.meetingAutomationAction.findFirst({
-              where: {
-                meetingId: meeting.id,
-                agentCallId: actor.call.id,
-                kind: "cancelled",
-                scheduleVersion: meeting.scheduleVersion,
-              },
-              // The decision itself, before any correction of it.
-              orderBy: { createdAt: "asc" },
-            })
-          : null);
+        (await tx.meetingAutomationAction.findFirst({
+          where: {
+            meetingId: meeting.id,
+            agentCallId: actor.call.id,
+            kind: "cancelled",
+            scheduleVersion: meeting.scheduleVersion,
+          },
+          // The decision itself, before any correction of it.
+          orderBy: { createdAt: "asc" },
+        }));
       const handoffSeed = actor.participant
         ? await tx.aiVoiceAgentHandoff.findUnique({
             where: { id: actor.participant.handoffId },
@@ -1034,6 +1038,33 @@ export class MeetingRepository {
           },
           new Date(),
         );
+      // Without an objective a refusal ends the request itself: settled as
+      // closed, its waiting callbacks withdrawn as a resolution withdraws them,
+      // so no agreed call follows a "no".
+      const closeRequest = async (decision: { kind: string }) => {
+        if (!handoff || handoff.requestStatus !== "pending") return;
+        await tx.aiVoiceAgentHandoff.update({
+          where: { id: handoff.id },
+          data: {
+            requestStatus: "closed",
+            resolution: decision.kind,
+            resolvedAt: new Date(),
+          },
+        });
+        await tx.callbackTask.updateMany({
+          where: {
+            handoffId: handoff.id,
+            status: { in: ["scheduled", "due"] },
+            dispatchCommittedAt: null,
+          },
+          data: {
+            status: "cancelled",
+            reason: "request_closed",
+            claimToken: null,
+            leaseExpiresAt: null,
+          },
+        });
+      };
       if (prior) {
         if (
           prior.agentCallId !== actor.call.id ||
@@ -1056,9 +1087,12 @@ export class MeetingRepository {
         const said = latest.evidence as {
           response?: string;
           continueRescheduling?: boolean;
+          explicitCancellation?: boolean;
         } | null;
         // The same answer again is a retry of it.
         if (
+          (said?.explicitCancellation ?? latest.kind === "cancelled") ===
+            input.cancel &&
           said?.response === input.response &&
           said?.continueRescheduling === input.continueRescheduling
         )
@@ -1086,8 +1120,10 @@ export class MeetingRepository {
             correctsActionId: latest.id,
           },
         });
-        if (objective && open && !input.continueRescheduling)
-          await closeObjective(objective, correction);
+        if (!input.continueRescheduling) {
+          if (objective && open) await closeObjective(objective, correction);
+          else if (!objective) await closeRequest(correction);
+        }
         return correction;
       }
       if (
@@ -1124,6 +1160,14 @@ export class MeetingRepository {
       )
         return null;
       if (input.continueRescheduling && !objective) return null;
+      // Keeping the booking answers a decline: without the person's recorded
+      // decline of this version there is nothing to keep it through.
+      if (
+        !input.cancel &&
+        (meeting.attendanceStatus !== "declined" ||
+          meeting.attendanceScheduleVersion !== meeting.scheduleVersion)
+      )
+        return null;
       const updated = input.cancel
         ? await tx.meeting.update({
             where: { id: meeting.id },
@@ -1191,8 +1235,10 @@ export class MeetingRepository {
           data: { meetingScheduleVersion: updated.scheduleVersion },
         });
       }
-      if (objective && !input.continueRescheduling)
-        await closeObjective(objective, action);
+      if (!input.continueRescheduling) {
+        if (objective) await closeObjective(objective, action);
+        else await closeRequest(action);
+      }
       return action;
     });
   }
@@ -1360,6 +1406,7 @@ export class MeetingRepository {
    * rewrites where an event that already exists lives.
    */
   async recordExternalSync(
+    ctx: OwnershipContext,
     id: string,
     result:
       | {
@@ -1382,6 +1429,7 @@ export class MeetingRepository {
      */
     expected?: { scheduleVersion: number },
   ): Promise<Meeting> {
+    const owned = buildOwnershipFilter(ctx);
     if (result.status === "synced" && expected) {
       const pointer = {
         externalEventId: result.externalEventId,
@@ -1393,6 +1441,7 @@ export class MeetingRepository {
       const { count } = await this.prisma.meeting.updateMany({
         where: {
           id,
+          ...owned,
           scheduleVersion: expected.scheduleVersion,
           status: { in: ACTIVE_MEETING_STATUSES },
         },
@@ -1404,9 +1453,11 @@ export class MeetingRepository {
         },
       });
       if (count)
-        return this.prisma.meeting.findUniqueOrThrow({ where: { id } });
+        return this.prisma.meeting.findFirstOrThrow({
+          where: { id, ...owned },
+        });
       return this.prisma.meeting.update({
-        where: { id },
+        where: { id, ...owned },
         data: {
           ...pointer,
           externalSyncStatus: MeetingExternalSyncStatus.pending,
@@ -1414,7 +1465,7 @@ export class MeetingRepository {
       });
     }
     return this.prisma.meeting.update({
-      where: { id },
+      where: { id, ...owned },
       data:
         result.status === "synced"
           ? {
@@ -1459,6 +1510,8 @@ export class MeetingRepository {
         scheduledAt: applied.scheduledAt,
         duration: applied.duration,
         externalEventId: applied.externalEventId,
+        // A meeting cancelled meanwhile is synced only by its event's deletion.
+        status: { in: ACTIVE_MEETING_STATUSES },
       },
       data: {
         externalCalendarIntegrationId: applied.integrationId,

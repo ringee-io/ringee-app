@@ -969,7 +969,7 @@ export class VoiceAgentToolService {
         email: "not_applicable",
         speech_instruction: destination?.ok
           ? `Tell the person their answer is recorded. Then ask once whether they would like to find another time now; ${destination.agent.name} can do it on this call. If they agree, ask what days or times suit them if they have not said, then call prepare_reschedule_handoff. If they decline rescheduling, explicitly ask whether they want this appointment cancelled. Call finish_meeting_response with their actual cancellation answer and only confirm cancellation after it succeeds. Do not promise a new time yourself.`
-          : "Their attendance answer is recorded. Ask whether they want another time; if yes, call schedule_reschedule_callback for an agreed time. If they decline rescheduling, explicitly ask whether to cancel this appointment and call finish_meeting_response with the actual answer. Do not claim cancellation before success.",
+          : "Their attendance answer is recorded. Ask whether they want another time; if yes, call request_human_support with the days or times that suit them, and say someone will follow up only after it succeeds. If they decline rescheduling, explicitly ask whether to cancel this appointment and call finish_meeting_response with the actual answer. Do not claim cancellation before success.",
       };
     }
 
@@ -1895,18 +1895,25 @@ export class VoiceAgentToolService {
     ctx: OwnershipContext,
     agentCall: AiVoiceAgentCall | null,
   ): Promise<string | null> {
-    if (agentCall?.contactId) return agentCall.contactId;
-    if (!agentCall?.toNumber) return null;
-
-    const contact = await this.contacts
-      .findOrCreateByPhone(ctx, agentCall.toNumber, {
-        ...contactIdentityFromVariables(agentCall.variables),
-        source: AI_VOICE_AGENT_CONTACT_SOURCE,
-      })
-      .catch(() => null);
-    if (!contact) return null;
-
-    await this.agentCalls.update(agentCall.id, { contactId: contact.id });
-    return contact.id;
+    if (!agentCall) return null;
+    let contactId = agentCall.contactId;
+    if (!contactId) {
+      if (!agentCall.toNumber) return null;
+      const contact = await this.contacts
+        .findOrCreateByPhone(ctx, agentCall.toNumber, {
+          ...contactIdentityFromVariables(agentCall.variables),
+          source: AI_VOICE_AGENT_CONTACT_SOURCE,
+        })
+        .catch(() => null);
+      if (!contact) return null;
+      await this.agentCalls.update(agentCall.id, { contactId: contact.id });
+      contactId = contact.id;
+    }
+    // The call row names the same person, since meeting actions require both
+    // links to agree — also on a retry where only the agent call's was written.
+    // A contact the call already has is never replaced.
+    if (agentCall.callId)
+      await this.calls.attachContact(ctx, agentCall.callId, contactId);
+    return contactId;
   }
 }

@@ -1942,6 +1942,42 @@ describe("Moving the handed meeting on the call (AGENT-021)", () => {
     assert.equal([...w.handoffs.values()][0]!.requestStatus, R.resolved);
   });
 
+  it("refuses every move without an explicit `time_confirmed: true`, new or repeated, before either runs", async () => {
+    for (const repeated of [false, true]) {
+      for (const consent of [
+        {},
+        { time_confirmed: false },
+        { time_confirmed: "true" },
+        { time_confirmed: "yes" },
+      ]) {
+        const w = world();
+        const t = await handedOver(w);
+        const start = later();
+        if (repeated)
+          t.move.repeat = {
+            result: "moved",
+            meeting: {
+              id: "meeting-1",
+              scheduledAt: start,
+              scheduleVersion: 4,
+            },
+            previousScheduledAt: null,
+            repeated: true,
+          };
+        const result = await t.service.moveMeeting(
+          "agent-sched",
+          SCHED_SECRET,
+          CC,
+          { ...consent, start: start.toISOString() } as never,
+        );
+        assert.equal(result.ok, false);
+        assert.match(result.ok ? "" : result.error, /explicit yes/);
+        assert.deepEqual(t.moves, []);
+        assert.deepEqual(t.repeats, []);
+      }
+    }
+  });
+
   it("moves nothing on a request the team is already handling", async () => {
     const w = world();
     const t = await handedOver(w);

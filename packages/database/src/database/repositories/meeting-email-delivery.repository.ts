@@ -21,6 +21,9 @@ import {
 
 const D = MeetingEmailDeliveryStatus;
 
+/** Waiting deliveries one drain re-reads for a new address. */
+const ADDRESS_SCAN_BATCH = 200;
+
 /** Deliveries a person has to act on before they can go out. */
 export const ATTENTION_EMAIL_DELIVERY_STATUSES: MeetingEmailDeliveryStatus[] = [
   D.needs_email,
@@ -44,6 +47,9 @@ export type MeetingEmailDeliveryWithMeeting = MeetingEmailDelivery & {
  */
 @Injectable()
 export class MeetingEmailDeliveryRepository {
+  /** Where the next address scan resumes; unset, it starts from the first row. */
+  private addressScanAfter: string | undefined;
+
   constructor(private readonly prisma: PrismaService) {}
 
   /** The action a delivery is the receipt of, in the delivery's own
@@ -88,6 +94,7 @@ export class MeetingEmailDeliveryRepository {
     const candidates = await this.prisma.meetingEmailDelivery.findMany({
       where: {
         ...waiting,
+        ...(this.addressScanAfter ? { id: { gt: this.addressScanAfter } } : {}),
         meeting: {
           OR: [
             { leadEmail: { not: null } },
@@ -101,7 +108,15 @@ export class MeetingEmailDeliveryRepository {
           select: { leadEmail: true, contact: { select: { email: true } } },
         },
       },
+      orderBy: { id: "asc" },
+      take: ADDRESS_SCAN_BATCH,
     });
+    // A full batch resumes after its last row on the next drain; a short one
+    // starts over, so a row skipped here is read again once its address changes.
+    this.addressScanAfter =
+      candidates.length === ADDRESS_SCAN_BATCH
+        ? candidates[candidates.length - 1].id
+        : undefined;
     const ids = candidates
       .filter(
         ({ meeting }) =>
@@ -195,6 +210,18 @@ export class MeetingEmailDeliveryRepository {
           return null;
         }
         if (delivery.kind === "recovery_callback") {
+          // The request's own lock, after the meeting's (FOLLOW_UP.md order):
+          // settlement takes it too, so a request settled before this commit,
+          // whose callback will never dial, sends no receipt promising it.
+          if (action.handoffId)
+            await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff"
+              WHERE "id" = ${action.handoffId}::uuid FOR UPDATE`;
+          const handoff = action.handoffId
+            ? await tx.aiVoiceAgentHandoff.findFirst({
+                where: { id: action.handoffId, ...owned },
+                select: { requestStatus: true },
+              })
+            : null;
           // Only the callback of the action's own request, in the delivery's
           // workspace, decides whether its receipt still stands.
           const callback =
@@ -211,6 +238,7 @@ export class MeetingEmailDeliveryRepository {
           const evidence = action.evidence as { scheduledAt?: string };
           if (
             !callback ||
+            handoff?.requestStatus !== "pending" ||
             !["scheduled", "due"].includes(callback.status) ||
             callback.scheduledAt.toISOString() !== evidence.scheduledAt ||
             (callback.followUp &&

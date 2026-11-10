@@ -37,10 +37,35 @@ describe("planReminderCallAt", () => {
       })?.toISOString(),
       "2026-11-05T14:00:00.000Z",
     );
+    // Exactly twenty minutes is still allowed; nineteen is not.
+    assert.equal(
+      planReminderCallAt({
+        ...params,
+        meetingAt: new Date("2026-11-05T14:20:00Z"),
+      })?.toISOString(),
+      "2026-11-05T14:00:00.000Z",
+    );
     assert.equal(
       planReminderCallAt({
         ...params,
         meetingAt: new Date("2026-11-05T14:19:00Z"),
+      }),
+      null,
+    );
+    // 12:05 planned at 08:00: its moment (08:05) is before the window opens
+    // and pulling it earlier lands before planning — the 09:00 window takes it.
+    assert.equal(
+      planReminderCallAt({
+        ...params,
+        meetingAt: new Date("2026-11-05T17:05:00Z"),
+      })?.toISOString(),
+      "2026-11-05T14:00:00.000Z",
+    );
+    assert.equal(
+      planReminderCallAt({
+        ...params,
+        meetingAt: new Date("2026-11-05T17:05:00Z"),
+        allowNearMeeting: false,
       }),
       null,
     );

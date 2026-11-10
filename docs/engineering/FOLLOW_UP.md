@@ -77,7 +77,9 @@ the contact-attempt number. Another callback or specialist does not reset counte
 A shared contact row lock coordinates objective callbacks and reminder dispatch,
 reserving one active automatic conversation and at most two automatic calls in
 the calendar-local day. A stored agreed callback is an explicit daily-cap exception,
-never an exception to active-call exclusion. Exhaustion closes without success.
+never an exception to active-call exclusion; so is a person's "Confirm now". A
+committed try the provider refused before any leg existed uses none of the day's
+calls. Exhaustion closes without success.
 
 ## Dispatch, pause and recovery
 
@@ -365,7 +367,9 @@ cancels; `no`/`unclear` retains the reservation. If another time is still reques
 the objective remains open. Its authorized cancellation advances only the current
 call's participation binding, so the specialist can commit a replacement on that
 same call. A human edit never advances that binding. Declining further scheduling
-closes the objective as refusal.
+closes the objective as refusal; a request without an objective is itself closed,
+and its waiting callbacks are withdrawn. Keeping the booking needs the lead's
+recorded decline of that version.
 
 An explicitly configured 240-minute reminder policy supports close bookings only
 when the next window leaves at least 20 minutes. An unanswered first reminder can

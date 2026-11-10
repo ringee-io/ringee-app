@@ -12,6 +12,7 @@ import {
   OwnershipContext,
   workspaceOf,
 } from "@ringee/platform";
+import { AUTOMATION_WORKSPACE_CONTEXT } from "./ai-voice-agent-automation.repository";
 import {
   applyFollowUpPlan,
   lockFollowUp,
@@ -77,6 +78,20 @@ export async function lockMeetingRequest(
   expectedVersion: number,
 ) {
   const participant = actor.participant;
+  // The calendar the request was bound to: the meeting's own, or for a meeting
+  // without one the workspace's global calendar, as the handoff recorded it.
+  const calendarId =
+    meeting.calendarId ??
+    (
+      await tx.calendar.findFirst({
+        where: {
+          ...buildOwnershipFilter(workspaceOf(meeting)),
+          isDefault: true,
+        },
+        select: { id: true },
+      })
+    )?.id ??
+    null;
   if (
     !participant ||
     participant.meetingId !== meeting.id ||
@@ -89,7 +104,7 @@ export async function lockMeetingRequest(
       },
       meeting,
     ) ||
-    participant.calendarId !== meeting.calendarId
+    participant.calendarId !== calendarId
   )
     return null;
   await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${participant.handoffId}::uuid FOR UPDATE`;
@@ -105,7 +120,7 @@ export async function lockMeetingRequest(
     !handoff ||
     !isSameWorkspace(handoff, meeting) ||
     handoff.contactId !== meeting.contactId ||
-    handoff.calendarId !== meeting.calendarId ||
+    handoff.calendarId !== calendarId ||
     handoff.responsibleUserId !==
       (meeting.responsibleUserId ?? meeting.userId) ||
     handoff.destinationAgentId !== actor.agent.id ||
@@ -210,6 +225,7 @@ export async function recordMeetingAction(
       where: {
         ...buildOwnershipFilter(workspaceOf(meeting)),
         capability: "appointment_booking",
+        contextKey: AUTOMATION_WORKSPACE_CONTEXT,
       },
     });
     const policy = (
@@ -299,6 +315,23 @@ export async function resolveMeetingRequest(
       },
     });
   }
+}
+
+/**
+ * Takes the meeting lock an agreed callback's receipt needs before the
+ * handoff, objective or callback lock (FOLLOW_UP.md lock order): recording the
+ * action references the meeting, and decision handling locks it first.
+ */
+export async function lockAgreedCallbackMeeting(
+  tx: Prisma.TransactionClient,
+  handoffId: string,
+): Promise<void> {
+  const handoff = await tx.aiVoiceAgentHandoff.findUnique({
+    where: { id: handoffId },
+    select: { meetingId: true },
+  });
+  if (handoff)
+    await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${handoff.meetingId}::uuid FOR UPDATE`;
 }
 
 export async function recordAgreedCallbackAction(

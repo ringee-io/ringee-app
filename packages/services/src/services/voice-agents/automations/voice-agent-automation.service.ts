@@ -597,10 +597,22 @@ export class VoiceAgentAutomationService {
     const existed = Boolean(
       await this.automations.findForOwner(ctx, AGENT_TYPE.scheduling),
     );
-    const agent = await this.resolveAgent(ctx, "scheduling", input, {
-      callerNumberId: input.callerNumberId,
-      calendarId: input.calendarId,
-    });
+    const agent = await this.resolveAgent(
+      ctx,
+      "scheduling",
+      input,
+      {
+        callerNumberId: input.callerNumberId,
+        calendarId: input.calendarId,
+      },
+      // A first setup's receipts are part of its claim: a retry after an
+      // interruption finds the row with them, never as a legacy workspace's.
+      existed
+        ? undefined
+        : {
+            receiptRecipients: input.receiptRecipients ?? "contact_responsible",
+          },
+    );
     await this.automations.upsertForOwner(
       ctx,
       AGENT_TYPE.scheduling,
@@ -910,6 +922,8 @@ export class VoiceAgentAutomationService {
     capability: AutomationCapability,
     input: QuickAgentInput,
     settings: { callerNumberId?: string; calendarId?: string },
+    /** What a row this setup creates starts with (`claim`). */
+    firstSettings?: Record<string, string>,
   ): Promise<AiVoiceAgent> {
     const type = AGENT_TYPE[capability];
     if (input.agentId) {
@@ -968,6 +982,7 @@ export class VoiceAgentAutomationService {
       type,
       token,
       new Date(Date.now() - CLAIM_STALE_MS),
+      firstSettings,
     );
     if (!claim.claimed) {
       const agent = claim.row.agentId

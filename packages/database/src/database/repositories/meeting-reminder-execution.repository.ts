@@ -90,7 +90,14 @@ export class MeetingReminderExecutionRepository {
         },
         policy: { enabled: true },
       },
-      include: { meeting: { include: { calendar: true } }, policy: true },
+      include: {
+        meeting: { include: { calendar: true } },
+        policy: true,
+        // When the first call happened, for rows older than `dispatchCommittedAt`.
+        agentCall: {
+          select: { createdAt: true, call: { select: { endedAt: true } } },
+        },
+      },
       orderBy: { id: "asc" },
       take: 100,
     });
@@ -237,15 +244,24 @@ export class MeetingReminderExecutionRepository {
         where: { id: execution.meetingId },
         include: { calendar: true },
       });
+      // The calling day is the calendar's, as the service's window has it: the
+      // meeting's own, or the workspace's default for a meeting without one.
+      const calendar = meeting?.calendarId
+        ? meeting.calendar
+        : await tx.calendar.findFirst({
+            where: { ...buildOwnershipFilter(workspace), isDefault: true },
+          });
       if (
         !meeting ||
         !(await automaticContactDispatchAvailable(tx, {
           workspace,
           contactId: meeting.contactId,
-          timezone: meeting.calendar?.timezone ?? "UTC",
+          timezone: calendar?.timezone ?? "UTC",
           now,
           reminderId: execution.id,
-          agreed: false,
+          // A person's "Confirm now" is not an automatic call: it may exceed
+          // the daily cap, never the active-call reservation.
+          agreed: execution.trigger === "manual",
           dailyLimit: 2,
         }))
       )

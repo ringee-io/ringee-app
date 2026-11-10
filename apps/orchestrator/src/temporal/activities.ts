@@ -166,8 +166,13 @@ export function createActivities(app: INestApplicationContext) {
       } catch (error) {
         failures.push(`reminder calls: ${(error as Error).message}`);
       }
+      // A repair that fails never holds up the receipts already owed.
       try {
         await meetings.repairAutomationActions();
+      } catch (error) {
+        failures.push(`meeting repair: ${(error as Error).message}`);
+      }
+      try {
         const sent = await meetingEmails.drain();
         if (sent > 0)
           logger.log(`ReminderScheduler: ${sent} meeting emails sent`);

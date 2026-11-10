@@ -1160,6 +1160,9 @@ export class PendingActionService {
           throw new ConflictException(
             "The original meeting is no longer available",
           );
+        // A meeting that took place leaves nothing to reschedule.
+        if (meeting?.status === "completed")
+          throw new ConflictException("The meeting is already completed");
         if (
           snapshot.sourceType === "human_call_outcome" &&
           snapshot.objectiveType !== "book_meeting"
@@ -1245,10 +1248,28 @@ export class PendingActionService {
                 step.scheduledAt > now,
             )
           : undefined;
+        // A pause never shortens the policy's recovery wait: a day after the
+        // last call ended (its dispatch when that is unknown), as reconciling
+        // has it. A time the person agreed to stands as agreed.
+        const recoveryFloor = human
+          ? Math.max(
+              0,
+              ...snapshot.callbacks
+                .filter((step) => step.dispatchCommittedAt)
+                .map(
+                  (step) =>
+                    Math.max(
+                      step.dispatchCommittedAt!.getTime(),
+                      step.agentCall?.call?.endedAt?.getTime() ?? 0,
+                    ) +
+                    24 * 60 * 60_000,
+                ),
+            )
+          : 0;
         const at =
           agreed?.scheduledAt ??
           nextCallingWindowMoment(
-            new Date(now.getTime() + 60 * 60_000),
+            new Date(Math.max(now.getTime() + 60 * 60_000, recoveryFloor)),
             policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW,
             calendar.timezone,
           );

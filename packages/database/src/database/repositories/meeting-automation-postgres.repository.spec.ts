@@ -351,6 +351,79 @@ describe("Meeting automation PostgreSQL concurrency", { skip: !url }, () => {
     );
   });
 
+  it("an action receipt goes out only for its own meeting's and workspace's action", async () => {
+    const otherOrganizationId = randomUUID();
+    await prisma.organization.create({
+      data: {
+        id: otherOrganizationId,
+        clerkId: `automation-test-${otherOrganizationId}`,
+        name: "Another organization",
+      },
+    });
+    const own = await meeting();
+    const sibling = await meeting();
+    const action = (
+      meetingId: string,
+      scope: { userId: string; organizationId: string },
+    ) =>
+      prisma.meetingAutomationAction.create({
+        data: {
+          ...scope,
+          actionKey: `receipt-scope:${randomUUID()}`,
+          meetingId,
+          contactId,
+          agentCallId: randomUUID(),
+          agentId,
+          kind: "booked",
+          scheduleVersion: 1,
+          scheduledAt: now,
+          language: "en",
+          evidence: {},
+        },
+      });
+    const actions = [
+      // The same workspace, another meeting.
+      await action(sibling.id, ctx),
+      // This meeting, another organization.
+      await action(own.id, { userId, organizationId: otherOrganizationId }),
+    ];
+    try {
+      for (const foreign of actions) {
+        const receipt = await prisma.meetingEmailDelivery.create({
+          data: {
+            ...ctx,
+            meetingId: own.id,
+            actionId: foreign.id,
+            kind: "booked",
+            audience: "legacy",
+            scheduleVersion: 1,
+            idempotencyKey: randomUUID(),
+          },
+        });
+        const claimed = (
+          await emails.claimDue(now, until, 50, admit([organizationId]))
+        ).find((row) => row.id === receipt.id);
+        assert.ok(claimed);
+        assert.equal(await emails.prepareSend(claimed, 1, now, {}), null);
+        const stored = await prisma.meetingEmailDelivery.findUniqueOrThrow({
+          where: { id: receipt.id },
+        });
+        assert.equal(stored.status, "cancelled");
+        assert.equal(stored.lastError, "action_missing");
+      }
+    } finally {
+      await prisma.meetingEmailDelivery.deleteMany({
+        where: { actionId: { in: actions.map((row) => row.id) } },
+      });
+      await prisma.meetingAutomationAction.deleteMany({
+        where: { id: { in: actions.map((row) => row.id) } },
+      });
+      await prisma.organization.deleteMany({
+        where: { id: otherOrganizationId },
+      });
+    }
+  });
+
   it("reassignment preserves an answer, but rescheduling invalidates its email", async () => {
     const seed = await delivery();
     const [claimed] = await emails.claimDue(

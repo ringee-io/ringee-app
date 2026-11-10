@@ -298,6 +298,7 @@ export class MeetingReminderCallService {
       status: MeetingReminderExecutionStatus,
       reason: string,
       lastError?: string,
+      agentCallId?: string,
     ) => {
       await this.executions.finish(
         execution.id,
@@ -306,6 +307,7 @@ export class MeetingReminderCallService {
         {
           reason,
           lastError,
+          agentCallId,
         },
         claimToken,
       );
@@ -583,9 +585,15 @@ export class MeetingReminderCallService {
         }
       }
 
+      // The try's own call row is the evidence: failed with no provider leg,
+      // it tells the contact's daily cap that nothing was placed.
+      const tried =
+        error instanceof VoiceAgentCallStartError
+          ? (error.agentCallId ?? undefined)
+          : undefined;
       return outcome === VoiceAgentCallStartOutcome.terminal_rejection
-        ? end(S.skipped, "rejected", message)
-        : end(S.failed, "not_placed", message);
+        ? end(S.skipped, "rejected", message, tried)
+        : end(S.failed, "not_placed", message, tried);
     }
 
     // Outside the dial's own error handling on purpose: the leg exists, so a
@@ -636,6 +644,9 @@ export class MeetingReminderCallService {
         automationAdmissionFilter(),
       );
       afterId = rows.length === 100 ? rows[rows.length - 1].id : undefined;
+      const retries: Parameters<
+        MeetingReminderExecutionRepository["createMany"]
+      >[0] = [];
       for (const prior of rows) {
         if (
           !voiceAgentAutomationsEnabled(prior) ||
@@ -644,39 +655,53 @@ export class MeetingReminderCallService {
           prior.scheduleVersion !== prior.meeting.scheduleVersion
         )
           continue;
+        // An hour after the first call, by what it left behind: its dispatch
+        // commit, its call row, its end. A row with none of them gets no
+        // retry — never one timed from its plan, which can precede the dial.
+        const happened = [
+          prior.dispatchCommittedAt,
+          prior.agentCall?.createdAt,
+          prior.agentCall?.call?.endedAt,
+        ].filter((at): at is Date => at instanceof Date);
+        if (!happened.length) continue;
         const fireAt = new Date(
           Math.max(
             now.getTime(),
-            (prior.dispatchCommittedAt ?? prior.fireAt).getTime() + 60 * 60_000,
+            ...happened.map((at) => at.getTime() + 60 * 60_000),
           ),
         );
+        // The meeting's calendar, or the workspace's default one for a meeting
+        // without its own — the zone the first call was planned in.
+        const calendar = prior.meeting.calendarId
+          ? prior.meeting.calendar
+          : await this.calendars.findDefault(workspaceOf(prior));
         if (
           prior.meeting.scheduledAt.getTime() - fireAt.getTime() <
             20 * 60_000 ||
           !isWithinCallingWindow(
             fireAt,
             readCallingWindow(prior.policy),
-            prior.meeting.calendar?.timezone ?? "UTC",
+            calendar?.timezone ?? "UTC",
           )
         )
           continue;
-        await this.executions.createMany([
-          {
-            userId: prior.userId,
-            organizationId: prior.organizationId,
-            meetingId: prior.meetingId,
-            policyId: prior.policyId,
-            agentId: prior.agentId,
-            trigger: "policy",
-            scheduleVersion: prior.scheduleVersion,
-            policyVersion: prior.policyVersion,
-            offsetMinutes: prior.offsetMinutes,
-            attempt: 2,
-            fireAt,
-            idempotencyKey: `retry:${prior.id}:a2`,
-          },
-        ]);
+        retries.push({
+          userId: prior.userId,
+          organizationId: prior.organizationId,
+          meetingId: prior.meetingId,
+          policyId: prior.policyId,
+          agentId: prior.agentId,
+          trigger: "policy",
+          scheduleVersion: prior.scheduleVersion,
+          policyVersion: prior.policyVersion,
+          offsetMinutes: prior.offsetMinutes,
+          attempt: 2,
+          fireAt,
+          idempotencyKey: `retry:${prior.id}:a2`,
+        });
       }
+      // One insert per page; a retry already planned is skipped by its key.
+      if (retries.length) await this.executions.createMany(retries);
     } while (afterId);
   }
 

@@ -609,6 +609,7 @@ describe("Four-hour reminder recovery", () => {
       meeting: {
         scheduleVersion: 2,
         scheduledAt: new Date(NOW.getTime() + 4 * 3600000),
+        calendarId: "calendar-1",
         calendar: { timezone: "America/New_York" },
       },
       policy: {
@@ -625,7 +626,31 @@ describe("Four-hour reminder recovery", () => {
     assert.equal(retry[0].fireAt.getTime(), NOW.getTime() + 3600000);
     assert.equal(retry[0].scheduleVersion, 2);
     assert.equal(retry[0].idempotencyKey, "retry:first:a2");
+    // A row older than the dispatch marker is timed from its call: an hour
+    // after the call ended, never from its plan.
+    const legacy = build({
+      unanswered: [
+        {
+          ...prior,
+          dispatchCommittedAt: null,
+          fireAt: new Date(NOW.getTime() - 3 * 3600000),
+          agentCall: {
+            createdAt: new Date(NOW.getTime() - 10 * 60000),
+            call: { endedAt: new Date(NOW.getTime() - 9 * 60000) },
+          },
+        },
+      ],
+    });
+    await legacy.service.processDue(NOW);
+    const legacyRetry = legacy.events.find((event) => event.retry)
+      ?.retry as Row[];
+    assert.equal(
+      legacyRetry[0].fireAt.getTime(),
+      NOW.getTime() - 9 * 60000 + 3600000,
+    );
     for (const row of [
+      // Nothing tells when the first call happened: no retry at all.
+      { ...prior, dispatchCommittedAt: null },
       { ...prior, scheduleVersion: 1 },
       { ...prior, policyVersion: 4 },
       {

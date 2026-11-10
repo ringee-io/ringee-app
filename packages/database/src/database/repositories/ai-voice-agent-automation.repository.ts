@@ -74,6 +74,9 @@ export class AiVoiceAgentAutomationRepository {
     capability: AiVoiceAgentType,
     token: string,
     staleBefore: Date,
+    /** Settings a row created by this claim starts with, so a setup that
+     * stops after the claim still leaves its first policy in place. */
+    initialSettings?: Prisma.InputJsonObject,
   ): Promise<AutomationClaim> {
     const now = new Date();
     try {
@@ -94,6 +97,7 @@ export class AiVoiceAgentAutomationRepository {
               contextKey: AUTOMATION_WORKSPACE_CONTEXT,
               claimToken: token,
               claimedAt: now,
+              ...(initialSettings ? { settings: initialSettings } : {}),
             },
           });
           return { claimed: true as const, row };

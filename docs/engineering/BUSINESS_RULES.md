@@ -1509,12 +1509,15 @@ the lead said they will attend. It is never `Meeting.status`: a confirmed
 meeting is still `scheduled`, and "I can't make it" cancels nothing without a
 person deciding to. `finish_meeting_response` may execute that decision only
 after an explicit yes to cancellation on the currently authorized conversation.
-A no or unclear answer retains the booking and records the actual response.
+A no or unclear answer retains the booking and records the actual response — only
+once the lead's decline of that version is recorded, since that receipt says so.
 Cancellation increments the version, retires uncommitted reminders and releases
 the reservation; an open request for another time survives when requested.
 Keeping the booking withdraws none of its unsent emails. A different answer on
-the same call is recorded as a correction: it never changes the appointment
-again, a refusal still closes the objective, and a closed one is not reopened.
+the same call — a yes after a no, or a no after a yes — is recorded as a
+correction: it never changes the appointment again, a refusal still closes the
+objective (or, for a request without one, the request and its waiting
+callbacks), and a closed one is not reopened.
 
 Every meeting carries a `scheduleVersion`, bumped when it moves, is cancelled or
 changes hands. Moving a meeting resets its attendance to `pending` — an answer
@@ -2031,16 +2034,21 @@ being prepared.
 
 For an explicitly configured 240-minute policy, a newly planned close meeting
 may receive a reminder at the next authorized window if at least 20 minutes
-remain. One unanswered first attempt may receive one more attempt at least 60
-minutes later, still inside the window and at least 20 minutes before the meeting.
-Both bind the current meeting and policy versions. A contact/workspace row lock
-coordinates reminder and objective callback dispatch, with at most two automatic
-calls per calendar-local day; the reservation reads only the dispatching
-workspace's own rows (a personal one by its owner, `workspaceOwnershipSql`). A
-stored agreed callback can exceed the daily cap, never the active-call
-reservation. Technical retries proved unplaced clear the dispatch marker and
-reuse the contact attempt. Defaults and broad policy setup remain rollout work;
-no workspace — organization or personal — is automatically opted in.
+remain — also when pulling the reminder earlier would land before it was planned.
+One unanswered first attempt may receive one more attempt at least 60 minutes
+after the first call (its end, else its dispatch or call row; a row with none of
+them gets no retry), still inside the window and at least 20 minutes before the
+meeting. Both bind the current meeting and policy versions. A contact/workspace
+row lock coordinates reminder and objective callback dispatch, with at most two
+automatic calls per calendar-local day — the day of the meeting's calendar, or of
+the workspace's default calendar for a meeting without one; the reservation reads
+only the dispatching workspace's own rows (a personal one by its owner,
+`workspaceOwnershipSql`). A stored agreed callback, and a person's "Confirm now",
+can exceed the daily cap, never the active-call reservation. Technical retries
+proved unplaced clear the dispatch marker and reuse the contact attempt; a
+committed try the provider refused before any leg existed (its call `failed`,
+with no leg) uses none of the day's calls. Defaults and broad policy setup remain
+rollout work; no workspace — organization or personal — is automatically opted in.
 
 - **Source of truth:** `ReminderService.planMeetingCalls` / `planPolicyCalls`,
   `planReminderCallAt`, `MeetingReminderCallService`,
