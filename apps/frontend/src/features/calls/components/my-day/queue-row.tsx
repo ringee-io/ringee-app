@@ -2,21 +2,17 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Loader2, MoreHorizontal, Phone, X } from 'lucide-react';
+import { ExternalLink, Loader2, Phone, X } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback
 } from '@ringee/frontend-shared/components/ui/avatar';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { getInitials } from '../../lib/initials';
 import type { MyDayQueueItem } from '../../types/my-day';
+import { ContactLinksMenu } from './contact-links-menu';
 import { ListTag } from './list-tag';
 import { callbackNote, ReasonChips } from './reason-chips';
 import { useMyDayFormat } from './use-my-day-format';
@@ -35,14 +31,17 @@ export function useQueueItemName() {
 /** Where the number is from, and the time there when it is known. */
 export function QueueItemPlace({
   item,
-  now
+  now,
+  place
 }: {
   item: MyDayQueueItem;
   now: Date;
+  /** The contact's city, when known: it says more than the country. */
+  place?: string | null;
 }) {
   const t = useTranslations('calls.myDay.queue');
   const fmt = useMyDayFormat();
-  const country = fmt.country(item.contact.country);
+  const country = place || fmt.country(item.contact.country);
   const localTime = fmt.localTime(item.contact.timezone, now);
   if (!country && !localTime) return null;
   return (
@@ -157,41 +156,34 @@ export function QueueRow({
       </Button>
 
       {item.contact.id || callbacks.length > 0 ? (
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant='ghost'
-              size='icon'
-              className='text-muted-foreground size-9 shrink-0'
-              aria-label={t('more', { name })}
-            >
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align='end'>
-            {item.contact.id ? (
-              <DropdownMenuItem asChild>
-                <Link
-                  href={`/dashboard/contact/${item.contact.id}`}
-                  target='_blank'
-                >
-                  <ExternalLink />
-                  {t('viewContact')}
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
-            {callbacks.map((callbackId) => (
-              <DropdownMenuItem
-                key={callbackId}
-                variant='destructive'
-                onClick={() => onCancelCallback(callbackId)}
+        <ContactLinksMenu
+          contactId={item.contact.id}
+          name={name}
+          companyName={item.contact.company}
+          className='size-9'
+        >
+          {item.contact.id ? (
+            <DropdownMenuItem asChild>
+              <Link
+                href={`/dashboard/contact/${item.contact.id}`}
+                target='_blank'
               >
-                <X />
-                {t('cancelCallback')}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <ExternalLink />
+                {t('viewContact')}
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {callbacks.map((callbackId) => (
+            <DropdownMenuItem
+              key={callbackId}
+              variant='destructive'
+              onClick={() => onCancelCallback(callbackId)}
+            >
+              <X />
+              {t('cancelCallback')}
+            </DropdownMenuItem>
+          ))}
+        </ContactLinksMenu>
       ) : (
         <span className='size-9 shrink-0' aria-hidden />
       )}

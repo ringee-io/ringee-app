@@ -190,6 +190,8 @@ test('Enter ignores stale search results and calls a current match', async () =>
       'next-intl': intl,
       '@ringee/frontend-shared/hooks/use.api': { useApi: () => ({}) },
       '@ringee/frontend-shared/lib/utils': { cn: () => '' },
+      // Shared components resolve to .tsx sources Node cannot load here.
+      '@ringee/frontend-shared/components/ui/kbd': { Kbd: () => null },
       '@ringee/dialer-core/phone': { normalize: () => null }
     });
     const { CallSearch } = load(

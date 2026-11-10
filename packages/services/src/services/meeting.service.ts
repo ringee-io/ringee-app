@@ -429,6 +429,12 @@ export class MeetingService {
     meetingId: string,
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, meetingId);
+    // A cancelled meeting's event is deleted, never moved or created again
+    // (CAL-002): a deletion that failed is retried as a deletion.
+    if (meeting.status === MeetingStatus.cancelled) {
+      await this.calendarService.cancelExternalEvent(ctx, meeting);
+      return this.getMeetingById(ctx, meetingId);
+    }
     if (meeting.externalEventId) {
       // The event exists: what is left is moving it to the meeting's time —
       // a move that failed, or that never got to run (CAL-002).
@@ -817,6 +823,19 @@ export class MeetingService {
       );
     }
     await this.withdrawUnsentEmails(meeting.id);
+
+    // The external event goes too (CAL-002): the provider sends the attendee
+    // the cancellation. Best-effort like a move's — the cancellation in Ringee
+    // already stands — and safe to repeat; the outcome is recorded on the
+    // meeting, which is answered as it stands now so the caller can say it.
+    try {
+      await this.calendarService.cancelExternalEvent(ctx, updated);
+      return await this.getMeetingById(ctx, meeting.id);
+    } catch (err) {
+      this.logger.warn(
+        `Could not cancel the external event of meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
 
     return updated;
   }

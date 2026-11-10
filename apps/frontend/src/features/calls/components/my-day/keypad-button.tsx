@@ -20,7 +20,7 @@ import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useDial } from '../../hooks/use.dial';
 import { DialPad } from '../dialer.pad';
-import { Kbd } from './kbd';
+import { Kbd } from '@ringee/frontend-shared/components/ui/kbd';
 import { useMyDayFormat } from './use-my-day-format';
 
 interface KeypadButtonProps {

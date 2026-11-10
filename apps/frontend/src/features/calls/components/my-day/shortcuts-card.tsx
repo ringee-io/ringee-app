@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { Kbd } from './kbd';
+import { Kbd } from '@ringee/frontend-shared/components/ui/kbd';
 
 /** The page's keys, next to what they do. */
 export function ShortcutsCard() {

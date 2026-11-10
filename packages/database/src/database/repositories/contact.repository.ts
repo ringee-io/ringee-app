@@ -47,6 +47,43 @@ const CONTACT_DETAIL_INCLUDE = {
   },
 } satisfies Prisma.ContactInclude;
 
+const CONTACT_BRIEF_SELECT = {
+  id: true,
+  jobTitle: true,
+  email: true,
+  company: true,
+  revenue: true,
+  companySize: true,
+  linkedinUrl: true,
+  websiteUrl: true,
+  locationCity: true,
+  locationRegion: true,
+  locationCountry: true,
+  affiliations: {
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    take: 1,
+    select: {
+      company: {
+        select: {
+          name: true,
+          industry: true,
+          revenueRange: true,
+          employeeCountRange: true,
+          employeeCount: true,
+          website: true,
+          domain: true,
+          linkedinUrl: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ContactSelect;
+
+/** A contact as the Call page introduces it (`findBriefForOwner`). */
+export type ContactBrief = Prisma.ContactGetPayload<{
+  select: typeof CONTACT_BRIEF_SELECT;
+}>;
+
 /** Who a contact is, its tags, and its latest notes with their authors. */
 export type ContactWithLatestNotes = Prisma.ContactGetPayload<{
   select: typeof CONTACT_WITH_LATEST_NOTES_SELECT & {
@@ -103,6 +140,21 @@ export class ContactRepository {
   ): Promise<Contact | null> {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
+  /**
+   * What the Call page shows about a contact before calling them: role,
+   * where they are, their links, and their primary company's profile.
+   * Only when the contact belongs to the workspace.
+   */
+  async findBriefForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<ContactBrief | null> {
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+      select: CONTACT_BRIEF_SELECT,
     });
   }
 
