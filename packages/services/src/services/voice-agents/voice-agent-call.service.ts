@@ -24,6 +24,7 @@ import {
 } from "@ringee/database";
 import {
   hashApiKey,
+  isInWorkspace,
   normalizePhoneE164,
   VoiceAgentCallRefusedError,
   VoiceAgentProviderService,
@@ -142,8 +143,11 @@ export class VoiceAgentCallService {
     call: Call,
   ): Promise<void> {
     assertVoiceAgentAccess(ctx);
+    // The call must be this workspace's: matching organizations alone would
+    // let one person's personal workspace take another's call, since every
+    // personal call has a null organization.
     if (
-      call.organizationId !== ctx.organizationId ||
+      !isInWorkspace(ctx, call) ||
       call.direction !== "inbound" ||
       !call.callControlId ||
       call.endedAt
@@ -167,7 +171,7 @@ export class VoiceAgentCallService {
       agentId,
       callId: call.id,
       userId: ctx.userId,
-      organizationId: ctx.organizationId,
+      organizationId: ctx.organizationId ?? null,
       fromNumber: call.toNumber,
       toNumber: call.fromNumber,
       contactId: call.contactId,

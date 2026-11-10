@@ -6,13 +6,28 @@ import {
   Prisma,
   Call,
 } from "@prisma/client";
-import type { OwnershipContext } from "@ringee/platform";
+import { buildOwnershipFilter, type OwnershipContext } from "@ringee/platform";
+import { isWorkspaceMemberInTransaction } from "./workspace-scope";
+
+/**
+ * The workspace part of an objective's `sourceKey`. An organization keeps the
+ * bare organization id every existing key was written with, so retries of
+ * organization sources still find their objective; a personal workspace is
+ * `personal:<owner>`, which no organization id can collide with.
+ */
+export function followUpWorkspaceKey(workspace: OwnershipContext): string {
+  return workspace.organizationId
+    ? workspace.organizationId
+    : `personal:${workspace.userId}`;
+}
 
 /** Transaction helpers of PendingActionRepository, shared with the handoff and
  * callback repositories so their observations cannot be lost between writes. */
 export interface NewFollowUpObjective {
+  /** The commercially responsible person; in a personal workspace, its owner. */
   userId: string;
-  organizationId: string;
+  /** Null for a personal workspace (WRK-001). */
+  organizationId: string | null;
   contextKey: string;
   configuredByUserId: string;
   contactId: string;
@@ -54,7 +69,8 @@ export const FOLLOW_UP_TERMINAL: FollowUpState[] = ["resolved", "closed"];
 
 /** Authorized by PendingActionService; persisted alongside the human outcome. */
 export interface HumanOutcomeAssignment {
-  organizationId: string;
+  /** The source call's workspace: null for a personal one, owned by `userId`. */
+  organizationId: string | null;
   userId: string;
   actorUserId: string;
   commitment: Prisma.InputJsonValue;
@@ -79,6 +95,12 @@ export async function acceptHumanOutcome(
     !call.contactId
   )
     throw new Error("Human follow-up source changed");
+  // The source call's own workspace (checked above to match the call).
+  const workspace: OwnershipContext = {
+    userId: input.userId,
+    organizationId: input.organizationId,
+  };
+  const owned = buildOwnershipFilter(workspace);
   if (input.objective) {
     if (input.objective.contactId !== call.contactId)
       throw new Error("Follow-up contact changed");
@@ -89,7 +111,7 @@ export async function acceptHumanOutcome(
       ? await tx.aiVoiceAgentAutomation.findFirst({
           where: {
             id: automationId,
-            organizationId: input.organizationId,
+            ...owned,
             capability: "appointment_booking",
           },
         })
@@ -99,14 +121,10 @@ export async function acceptHumanOutcome(
     } | null;
     if (settings?.humanFollowUp?.enabled !== true)
       throw new Error("Follow-up enrollment policy changed");
-    if (
-      !(await tx.organizationMembership.count({
-        where: { organizationId: input.organizationId, userId: call.userId! },
-      }))
-    )
+    if (!(await isWorkspaceMemberInTransaction(tx, workspace, call.userId)))
       throw new Error("Follow-up membership changed");
   }
-  const sourceKey = `${input.organizationId}:human_call:${call.id}`;
+  const sourceKey = `${followUpWorkspaceKey(workspace)}:human_call:${call.id}`;
   let row = await tx.pendingActionFollowUp.findUnique({ where: { sourceKey } });
   // An unchanged old outcome must never enroll when a policy is first enabled.
   if (!changed && !row) return null;
@@ -116,7 +134,7 @@ export async function acceptHumanOutcome(
     const others = await tx.pendingActionFollowUp.findMany({
       where: {
         action: {
-          organizationId: input.organizationId,
+          ...owned,
           contactId: call.contactId,
         },
         state: { notIn: FOLLOW_UP_TERMINAL },
@@ -183,7 +201,7 @@ export async function acceptHumanOutcome(
     const active = await tx.pendingActionFollowUp.findFirst({
       where: {
         action: {
-          organizationId: input.organizationId,
+          ...owned,
           contactId: call.contactId,
         },
         state: { notIn: FOLLOW_UP_TERMINAL },
@@ -279,7 +297,7 @@ export async function acceptHumanOutcome(
   await tx.callbackTask.updateMany({
     where: {
       callId: call.id,
-      organizationId: input.organizationId,
+      ...owned,
       followUpId: null,
       agentCallbackKind: null,
       status: { in: ["scheduled", "due"] },
@@ -291,7 +309,7 @@ export async function acceptHumanOutcome(
       where: {
         id: input.campaignLeadId,
         contactId: call.contactId,
-        campaign: { organizationId: input.organizationId },
+        campaign: owned,
       },
       data: {
         status: "completed",
@@ -324,7 +342,9 @@ export async function createFollowUpInTransaction(
       source: "rule",
       priority: "high",
       title: input.desiredResult,
-      contextType: "organization_outside_campaign",
+      contextType: input.organizationId
+        ? "organization_outside_campaign"
+        : "personal",
       contextKey: input.contextKey,
       countsTowardBadge: input.state === "blocked",
     },

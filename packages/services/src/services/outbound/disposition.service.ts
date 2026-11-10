@@ -659,13 +659,10 @@ export class DispositionService {
   }
 
   private async withFollowUpPolicy(ctx: OwnershipContext, rows: Disposition[]) {
-    if (
-      !ctx.organizationId ||
-      !voiceAgentAutomationsEnabled(ctx.organizationId)
-    )
-      return rows;
+    // An organization or an enrolled personal workspace, under its own policy.
+    if (!voiceAgentAutomationsEnabled(ctx)) return rows;
     const automation = await this.automations.findForOwner(
-      { ...ctx, organizationId: ctx.organizationId },
+      ctx,
       "appointment_booking",
     );
     const settings = automation?.settings as {

@@ -4,7 +4,7 @@ import {
   Call,
   CallRepository,
 } from "@ringee/database";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import { isInWorkspace, type OwnershipContext } from "@ringee/platform";
 
 /** How many earlier calls a new conversation is told about. */
 const PREVIOUS_CALLS = 3;
@@ -36,7 +36,7 @@ export class VoiceAgentConversationContextService {
   ) {}
 
   async previousInteractions(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     input: { contactId: string; sourceCallId?: string | null },
   ): Promise<string> {
     try {
@@ -52,8 +52,10 @@ export class VoiceAgentConversationContextService {
         !rows.some((call) => call.id === input.sourceCallId)
       ) {
         const source = await this.calls.findById(input.sourceCallId);
-        // The ownership check the list applied, applied to this row too.
-        if (source && source.organizationId === ctx.organizationId) {
+        // The ownership check the list applied, applied to this row too: in a
+        // personal workspace that is the owner's own call, not anyone's with
+        // no organization.
+        if (source && isInWorkspace(ctx, source)) {
           rows.push(source);
         }
       }

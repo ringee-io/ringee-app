@@ -15,8 +15,18 @@ import {
   MeetingReminderExecutionStatus,
   MeetingStatus,
 } from "@prisma/client";
-import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import {
+  OwnershipContext,
+  buildOwnershipFilter,
+  isInWorkspace,
+  workspaceOf,
+} from "@ringee/platform";
 import { lockWorkspace } from "./calendar.repository";
+import {
+  workspaceAdmissionWhere,
+  workspaceOwnershipSql,
+  type WorkspaceAdmission,
+} from "./workspace-scope";
 import {
   meetingActor,
   lockMeetingRequest,
@@ -292,11 +302,15 @@ export class MeetingRepository {
         const source = objective
           ? await tx.call.findFirst({
               where: {
-                id: objective.sourceId,
-                organizationId: ctx.organizationId,
-                userId: objective.responsibleUserId,
-                contactId: data.contactId,
-                outcomeRevision: objective.sourceRevision,
+                AND: [
+                  buildOwnershipFilter(ctx),
+                  {
+                    id: objective.sourceId,
+                    userId: objective.responsibleUserId,
+                    contactId: data.contactId,
+                    outcomeRevision: objective.sourceRevision,
+                  },
+                ],
               },
             })
           : null;
@@ -304,7 +318,7 @@ export class MeetingRepository {
           !objective ||
           !source ||
           !execution?.dispatchCommittedAt ||
-          execution.organizationId !== ctx.organizationId ||
+          !isInWorkspace(ctx, execution) ||
           execution.contactId !== data.contactId ||
           execution.sourceRevision !== objective.sourceRevision ||
           objective.objectiveType !== "book_meeting" ||
@@ -314,13 +328,17 @@ export class MeetingRepository {
           return null;
         const placed = await tx.aiVoiceAgentCall.findFirst({
           where: {
-            id: data.agentCallId,
-            callId: data.callId,
-            agentId: objective.agentId!,
-            organizationId: ctx.organizationId,
-            userId: objective.configuredByUserId,
-            contactId: data.contactId,
-            calendarId: objective.calendarId,
+            AND: [
+              buildOwnershipFilter(ctx),
+              {
+                id: data.agentCallId,
+                callId: data.callId,
+                agentId: objective.agentId!,
+                userId: objective.configuredByUserId,
+                contactId: data.contactId,
+                calendarId: objective.calendarId,
+              },
+            ],
           },
         });
         if (!placed) return null;
@@ -535,7 +553,7 @@ export class MeetingRepository {
             where: { actionKey: key },
           })
         : null;
-      if (prior && prior.organizationId === ctx.organizationId) {
+      if (prior && isInWorkspace(ctx, prior)) {
         const decided = prior.evidence as {
           originalMeetingId?: string;
           expectedScheduleVersion?: number;
@@ -673,7 +691,7 @@ export class MeetingRepository {
           leaseExpiresAt: null,
         },
       });
-      if (input.email && meeting.organizationId && !actor) {
+      if (input.email && !actor) {
         await tx.meetingEmailDelivery.createMany({
           data: [
             {
@@ -800,7 +818,7 @@ export class MeetingRepository {
             agentCallId: input.agentCallId,
             meetingId: input.meetingId,
             scheduleVersion: input.expectedScheduleVersion,
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
           },
         });
         if (!actor || actor.participant?.role === "handoff" || !execution)
@@ -823,7 +841,7 @@ export class MeetingRepository {
         },
       });
 
-      if (input.email && meeting.organizationId && !actor) {
+      if (input.email && !actor) {
         await tx.meetingEmailDelivery.createMany({
           data: [
             {
@@ -841,7 +859,7 @@ export class MeetingRepository {
           await tx.meetingEmailDelivery.updateMany({
             where: {
               idempotencyKey: input.email.idempotencyKey,
-              organizationId: meeting.organizationId,
+              ...buildOwnershipFilter(workspaceOf(meeting)),
               status: "needs_email",
               firstAttemptAt: null,
             },
@@ -917,7 +935,7 @@ export class MeetingRepository {
   ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${input.meetingId}::uuid
-        AND "organizationId" = ${ctx.organizationId}::uuid FOR UPDATE`;
+        AND ${workspaceOwnershipSql(ctx)} FOR UPDATE`;
       const meeting = await tx.meeting.findFirst({
         where: { id: input.meetingId, ...buildOwnershipFilter(ctx) },
       });
@@ -981,7 +999,7 @@ export class MeetingRepository {
             agentCallId: actor.call.id,
             meetingId: meeting.id,
             scheduleVersion: input.expectedScheduleVersion,
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
           },
         });
         if (!execution) return null;
@@ -1026,7 +1044,7 @@ export class MeetingRepository {
         // The last answer this call gave: the decision, or its last correction.
         const answers = await tx.meetingAutomationAction.findMany({
           where: {
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
             OR: [
               { actionKey: prior.actionKey },
               { actionKey: { startsWith: `${prior.actionKey}:correction:` } },
@@ -1098,7 +1116,7 @@ export class MeetingRepository {
           where: {
             agentCallId: actor.call.id,
             handoffId: handoffSeed?.id,
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
             ...(objective ? { followUpId: objective.id } : {}),
             dispatchCommittedAt: { not: null },
           },
@@ -1183,19 +1201,19 @@ export class MeetingRepository {
     return this.prisma.meetingAutomationAction.findFirst({
       where: {
         actionKey: key,
-        organizationId:
-          ctx.organizationId ?? "00000000-0000-0000-0000-000000000000",
+        ...buildOwnershipFilter(ctx),
       },
       include: { meeting: { include: { contact: true } } },
     });
   }
 
-  listPendingMaintenance(organizationIds: string[] | null, take = 50) {
+  listPendingMaintenance(admission: WorkspaceAdmission, take = 50) {
     return this.prisma.meetingAutomationAction.findMany({
       where: {
         maintenanceCompletedAt: null,
         maintenanceReviewAt: { lte: new Date() },
-        ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+        // In the query, so a workspace off the pilot never fills the page.
+        AND: [workspaceAdmissionWhere(admission)],
       },
       orderBy: { maintenanceReviewAt: "asc" },
       take,
@@ -1203,16 +1221,16 @@ export class MeetingRepository {
     });
   }
 
-  deferMaintenance(id: string, organizationId: string, until: Date) {
+  deferMaintenance(id: string, workspace: OwnershipContext, until: Date) {
     return this.prisma.meetingAutomationAction.updateMany({
-      where: { id, organizationId },
+      where: { id, ...buildOwnershipFilter(workspace) },
       data: { maintenanceReviewAt: until },
     });
   }
 
-  completeMaintenance(id: string, organizationId: string) {
+  completeMaintenance(id: string, workspace: OwnershipContext) {
     return this.prisma.meetingAutomationAction.updateMany({
-      where: { id, organizationId },
+      where: { id, ...buildOwnershipFilter(workspace) },
       data: { maintenanceCompletedAt: new Date() },
     });
   }

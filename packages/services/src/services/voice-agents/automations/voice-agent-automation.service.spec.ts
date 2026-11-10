@@ -150,6 +150,15 @@ function build(
       listAdminUserIds: async () => over.admins ?? ["admin-1"],
       isMember: async (id: string) =>
         (over.members ?? ["admin-1", "member-1"]).includes(id),
+      // The repository's scope-aware forms: a personal workspace's only
+      // person is its owner.
+      isWorkspaceAdmin: async (ctx: Row) =>
+        !ctx.organizationId ||
+        (over.admins ?? ["admin-1"]).includes(ctx.userId as string),
+      isWorkspaceMember: async (ctx: Row, id: string) =>
+        ctx.organizationId
+          ? (over.members ?? ["admin-1", "member-1"]).includes(id)
+          : id === ctx.userId,
     } as never,
     {
       findById: async (id: string) => ({ id, firstName: "Carlos" }),
@@ -824,5 +833,100 @@ describe("quick setup claim recovery", () => {
     );
     assert.equal(created.length, 0);
     assert.equal(statuses.length, 0);
+  });
+});
+
+// ── Stage 4A: a freelancer's personal workspace ─────────────────────────────
+
+describe("VoiceAgentAutomationService in a personal workspace", () => {
+  const OWNER = { userId: "owner-1", organizationId: null };
+  const withPilot = async (users: string[], run: () => Promise<void>) => {
+    const previous = config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = users;
+    try {
+      await run();
+    } finally {
+      config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = previous;
+    }
+  };
+
+  it("stays off for a freelancer outside the pilot, even with every organization admitted", async () => {
+    const previous = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["*"];
+    try {
+      await withPilot([], async () => {
+        const { service } = build();
+        assert.deepEqual(await service.summary(OWNER, { admin: true }), {
+          enabled: false,
+          operational: 0,
+          attention: 0,
+          capabilities: {},
+        });
+        // The module gate refuses first: no personal module, no automations.
+        await assert.rejects(
+          service.setupScheduling(OWNER, { calendarId: "calendar-1" }),
+          /personal workspaces enrolled in the pilot/,
+        );
+      });
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = previous;
+    }
+  });
+
+  it("shows the owner reminders and scheduling, and refuses the receptionist on the server", async () => {
+    await withPilot(["owner-1"], async () => {
+      const { service, created } = build({ automation: null });
+      const panel = await service.panel(OWNER, { admin: true });
+      assert.equal(panel.enabled, true);
+      assert.deepEqual(
+        panel.cards.map((card) => card.capability),
+        ["reminders", "scheduling"],
+      );
+      await assert.rejects(
+        service.setupReceptionist(OWNER, {
+          numbers: [{ kind: "ringee", id: "number-1" }],
+        }),
+        /not available in personal workspaces yet/,
+      );
+      assert.deepEqual(created, []);
+    });
+  });
+
+  it("lets the owner authorize their own follow-up policy", async () => {
+    await withPilot(["owner-1"], async () => {
+      // No organization admins exist here: the owner is the authority.
+      const s = build({ admins: [] });
+      await s.service.setupScheduling(OWNER, {
+        humanFollowUpEnabled: true,
+        receiptRecipients: "contact_responsible",
+      });
+      const saved = s.automationUpdates.at(-1)!.settings;
+      assert.equal(saved.humanFollowUp.enabled, true);
+      assert.equal(saved.humanFollowUp.authorizedByUserId, "owner-1");
+      assert.equal(saved.receiptRecipients, "contact_responsible");
+    });
+  });
+
+  it("calls to schedule a meeting with the owner, and with nobody else", async () => {
+    await withPilot(["owner-1"], async () => {
+      const s = build({
+        automation: {
+          id: "automation-1",
+          capability: "appointment_booking",
+          agentId: "agent-1",
+          enabled: true,
+        },
+      });
+      await s.service.startSchedulingCall(OWNER, { contactId: "contact-1" });
+      const placed = s.calls.find((call) => call.startCall);
+      assert.equal(placed?.responsibleUserId, "owner-1");
+      await assert.rejects(
+        s.service.startSchedulingCall(OWNER, {
+          contactId: "contact-1",
+          responsibleUserId: "member-1",
+        }),
+        /personal workspace is with you/,
+      );
+    });
   });
 });

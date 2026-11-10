@@ -21,12 +21,14 @@ import {
 } from "@ringee/database";
 import {
   EMAIL_PROVIDER,
+  isSameWorkspace,
+  workspaceOf,
   type EmailMessage,
   type EmailInterface,
-  type OrganizationOwnershipContext,
+  type OwnershipContext,
 } from "@ringee/platform";
 import {
-  automationOrganizationFilter,
+  automationAdmissionFilter,
   voiceAgentAutomationsEnabled,
 } from "./voice-agents/automations/automation-access";
 import { normalizeEmail } from "./meeting.service";
@@ -92,11 +94,17 @@ export class MeetingEmailService {
 
   /** Worker entry point, on the reminder schedule's tick. */
   async drain(now = new Date()): Promise<number> {
-    const organizations = automationOrganizationFilter();
-    if (organizations?.length === 0) return 0;
+    // Admitted organizations and personal workspaces, applied inside the
+    // claim so one left out never takes a slot from one admitted.
+    const admission = automationAdmissionFilter();
+    if (
+      admission.organizationIds?.length === 0 &&
+      admission.personalUserIds.length === 0
+    )
+      return 0;
     // The same address rule `deliver` reads the lead's address with.
     await this.deliveries.requeueAvailableAddresses(
-      organizations,
+      admission,
       (address) => normalizeEmail(address) !== null,
     );
     await this.backfillMessageIds(now);
@@ -105,7 +113,7 @@ export class MeetingEmailService {
       claimAt,
       new Date(claimAt.getTime() + LEASE_MS),
       BATCH,
-      organizations,
+      admission,
     );
     let sent = 0;
     for (const delivery of claimed) {
@@ -125,11 +133,13 @@ export class MeetingEmailService {
     return sent;
   }
 
-  /** Who a meeting's email goes to, as of now. */
+  /**
+   * Who a meeting's email goes to, as of now: resolved from current workspace
+   * membership. In a personal workspace that is its owner — the responsible
+   * person and recipient of the team copy — and there are no admins to copy.
+   */
   async people(meeting: Meeting): Promise<MeetingEmailPeople> {
-    const organizationId = meeting.organizationId;
-    if (!organizationId)
-      return { responsible: null, creator: null, admins: [] };
+    const workspace = workspaceOf(meeting);
 
     // The human who created the meeting: whoever started the booking call
     // when an agent booked it, otherwise the meeting's owner.
@@ -139,7 +149,7 @@ export class MeetingEmailService {
 
     const member = async (userId: string | null) => {
       if (!userId) return null;
-      if (!(await this.organizations.isMember(userId, organizationId))) {
+      if (!(await this.organizations.isWorkspaceMember(workspace, userId))) {
         return null;
       }
       return (await this.users.findById(userId)) as UserWithEmails | null;
@@ -148,7 +158,11 @@ export class MeetingEmailService {
     const [responsible, creator, admins] = await Promise.all([
       member(responsibleId),
       creatorId !== responsibleId ? member(creatorId) : Promise.resolve(null),
-      this.organizations.findAdminMembersWithEmails(organizationId),
+      workspace.organizationId
+        ? this.organizations.findAdminMembersWithEmails(
+            workspace.organizationId,
+          )
+        : Promise.resolve([]),
     ]);
     return { responsible, creator, admins };
   }
@@ -162,7 +176,7 @@ export class MeetingEmailService {
         reason,
         delivery.claimToken!,
       );
-    if (!voiceAgentAutomationsEnabled(delivery.organizationId)) {
+    if (!voiceAgentAutomationsEnabled(delivery)) {
       await release(D.pending, "automations_disabled");
       return false;
     }
@@ -186,7 +200,7 @@ export class MeetingEmailService {
     const meeting = (await this.meetings.findById(delivery.meetingId)) as
       | (Meeting & { contact?: Contact | null })
       | null;
-    if (!meeting || meeting.organizationId !== delivery.organizationId) {
+    if (!meeting || !isSameWorkspace(meeting, delivery)) {
       await this.deliveries.release(
         delivery.id,
         D.cancelled,
@@ -197,6 +211,7 @@ export class MeetingEmailService {
     }
     const action = delivery.actionId
       ? await this.deliveries.findAction(delivery.actionId, {
+          userId: delivery.userId,
           organizationId: delivery.organizationId,
           meetingId: delivery.meetingId,
         })
@@ -300,7 +315,7 @@ export class MeetingEmailService {
     if (action && ["contact", "contact_late"].includes(delivery.audience)) {
       const siblings = await this.deliveries.listActionDeliveries(
         action.id,
-        delivery.organizationId,
+        delivery,
       );
       if (delivery.audience === "contact_late") {
         const team = siblings.filter((row) => row.audience === "legacy");
@@ -341,10 +356,7 @@ export class MeetingEmailService {
       cc = [];
     }
 
-    const ctx: OrganizationOwnershipContext = {
-      userId: meeting.userId,
-      organizationId: meeting.organizationId!,
-    };
+    const ctx: OwnershipContext = workspaceOf(meeting);
     const { language, company } = await this.voiceOf(
       ctx,
       meeting,
@@ -415,7 +427,7 @@ export class MeetingEmailService {
       );
       return false;
     }
-    if (!voiceAgentAutomationsEnabled(delivery.organizationId)) {
+    if (!voiceAgentAutomationsEnabled(delivery)) {
       await release(D.pending, "automations_disabled");
       return false;
     }
@@ -497,7 +509,7 @@ export class MeetingEmailService {
    * call.
    */
   private async voiceOf(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     meeting: Meeting,
     agentCallId: string | null,
   ): Promise<{ language: string; company: string | null }> {
@@ -516,9 +528,11 @@ export class MeetingEmailService {
       ? await this.agents.findByIdForOwner(ctx, agentId)
       : null;
     if (!agent) {
-      const organization = await this.organizations.findById(
-        ctx.organizationId,
-      );
+      // An organization introduces itself by name; a personal workspace has no
+      // company to invent for its owner.
+      const organization = ctx.organizationId
+        ? await this.organizations.findById(ctx.organizationId)
+        : null;
       return { language: "en", company: organization?.name ?? null };
     }
     const company = await this.companyProfiles
@@ -531,7 +545,7 @@ export class MeetingEmailService {
   }
 
   private async timeZoneOf(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     meeting: Meeting,
   ): Promise<string> {
     const calendar = meeting.calendarId

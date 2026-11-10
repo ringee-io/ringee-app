@@ -28,7 +28,7 @@ import {
   VoiceAgentAutomationService,
   type AutomationCapability,
 } from "@ringee/services";
-import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.guard";
+import { VoiceAgentAccessGuard } from "../guards/voice-agent-access.guard";
 
 /**
  * The "Ringee IA Voice Agents" rail (AGENT-018).
@@ -41,7 +41,7 @@ import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.
  * that card, and "Call to schedule" is theirs. The service checks the pilot
  * flag on every call.
  */
-@UseGuards(VoiceAgentOrganizationGuard)
+@UseGuards(VoiceAgentAccessGuard)
 @Controller("ai-voice-agent-automations")
 export class AiVoiceAgentAutomationController {
   constructor(private readonly automations: VoiceAgentAutomationService) {}

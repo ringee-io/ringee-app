@@ -87,7 +87,9 @@ user the **next recommended step**. Focused skills: `ringee-prospect`,
 2. Before `start_ai_voice_agent_call`, resolve the agent with
    `list_ai_voice_agents`, explain that it places a real billed call, and get
    explicit confirmation. Never invent an `agentId`, caller number or required
-   variable. AI voice agents require an active organization workspace.
+   variable. AI voice agents need a workspace with access to them — an
+   organization workspace, or a personal workspace that has been enabled; the
+   tools say when the active workspace has none.
 3. Never delete a contact without strict double confirmation: read the stored
    phone back to the user, get an explicit "yes, delete", then pass
    `confirm=true` AND `confirmPhoneNumber` equal to that number. Never auto-confirm.

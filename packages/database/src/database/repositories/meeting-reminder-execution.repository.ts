@@ -6,8 +6,17 @@ import {
   MeetingReminderExecutionStatus,
   Prisma,
 } from "@prisma/client";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import {
+  buildOwnershipFilter,
+  workspaceOf,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
+import {
+  workspaceAdmissionWhere,
+  workspaceOwnershipSql,
+  type WorkspaceAdmission,
+} from "./workspace-scope";
 
 const S = MeetingReminderExecutionStatus;
 
@@ -62,13 +71,14 @@ export class MeetingReminderExecutionRepository {
 
   listUnansweredForRetry(
     now: Date,
-    afterId?: string,
-    organizationIds: string[] | null = null,
+    afterId: string | undefined,
+    admission: WorkspaceAdmission,
   ) {
     return this.prisma.meetingReminderExecution.findMany({
       where: {
         ...(afterId ? { id: { gt: afterId } } : {}),
-        ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+        // Inside the query, so a workspace off the pilot never fills a page.
+        AND: [workspaceAdmissionWhere(admission)],
         trigger: "policy",
         offsetMinutes: 240,
         attempt: 1,
@@ -217,10 +227,12 @@ export class MeetingReminderExecutionRepository {
     leaseUntil: Date,
   ): Promise<boolean> {
     if (!execution.claimToken) return false;
+    // The execution's own workspace, as persisted — never the owner's active one.
+    const workspace = workspaceOf(execution);
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Meeting"
         WHERE "id" = ${execution.meetingId}::uuid
-          AND "organizationId" = ${execution.organizationId}::uuid FOR UPDATE`;
+          AND ${workspaceOwnershipSql(workspace)} FOR UPDATE`;
       const meeting = await tx.meeting.findUnique({
         where: { id: execution.meetingId },
         include: { calendar: true },
@@ -228,7 +240,7 @@ export class MeetingReminderExecutionRepository {
       if (
         !meeting ||
         !(await automaticContactDispatchAvailable(tx, {
-          organizationId: execution.organizationId,
+          workspace,
           contactId: meeting.contactId,
           timezone: meeting.calendar?.timezone ?? "UTC",
           now,
@@ -251,10 +263,10 @@ export class MeetingReminderExecutionRepository {
           agent: {
             status: "active",
             deletedAt: null,
-            organizationId: execution.organizationId,
+            ...buildOwnershipFilter(workspace),
           },
           meeting: {
-            organizationId: execution.organizationId,
+            ...buildOwnershipFilter(workspace),
             scheduleVersion: execution.scheduleVersion,
             status: { in: ["scheduled", "rescheduled"] },
             attendanceStatus: "pending",
@@ -466,12 +478,12 @@ export class MeetingReminderExecutionRepository {
   }
 
   listUpcomingForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     options: { from: Date; take: number; agentId?: string },
   ): Promise<MeetingReminderExecutionWithMeeting[]> {
     return this.prisma.meetingReminderExecution.findMany({
       where: {
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         status: S.scheduled,
         fireAt: { gte: options.from },
         ...(options.agentId ? { agentId: options.agentId } : {}),
@@ -483,12 +495,12 @@ export class MeetingReminderExecutionRepository {
   }
 
   countUpcomingForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     options: { from: Date; agentId?: string },
   ): Promise<number> {
     return this.prisma.meetingReminderExecution.count({
       where: {
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         status: S.scheduled,
         fireAt: { gte: options.from },
         ...(options.agentId ? { agentId: options.agentId } : {}),
@@ -498,12 +510,12 @@ export class MeetingReminderExecutionRepository {
 
   /** Recently finished executions, for the rail's activity list. */
   listFinishedForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     options: { since: Date; take: number },
   ): Promise<MeetingReminderExecutionWithMeeting[]> {
     return this.prisma.meetingReminderExecution.findMany({
       where: {
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         status: {
           in: [S.confirmed, S.declined, S.no_answer, S.completed, S.failed],
         },
@@ -517,11 +529,11 @@ export class MeetingReminderExecutionRepository {
 
   /** The executions of one meeting, newest first, for its detail. */
   listForMeeting(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     meetingId: string,
   ): Promise<MeetingReminderExecution[]> {
     return this.prisma.meetingReminderExecution.findMany({
-      where: { organizationId: ctx.organizationId, meetingId },
+      where: { ...buildOwnershipFilter(ctx), meetingId },
       orderBy: { createdAt: "desc" },
       take: 20,
     });

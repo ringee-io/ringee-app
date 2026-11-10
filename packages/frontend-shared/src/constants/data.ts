@@ -141,6 +141,8 @@ export const navGroups: NavGroup[] = [
         icon: "bot",
         shortcut: ["a", "v"],
         organizationOnly: true,
+        // A personal workspace enrolled in the pilot opens it too (AGENT-011).
+        personalAccess: "ai_voice_agents",
         // The module is usable but still changing shape; the pill is what tells
         // a user that before they build a workflow on top of it.
         badge: "beta",

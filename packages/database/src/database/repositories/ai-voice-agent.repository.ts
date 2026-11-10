@@ -14,6 +14,7 @@ import {
   OwnershipContext,
 } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
+import { workspaceOwnershipSql } from "./workspace-scope";
 
 export interface AiVoiceAgentWithSources extends AiVoiceAgent {
   knowledgeSources: AiVoiceAgentKnowledgeSource[];
@@ -73,13 +74,14 @@ export class AiVoiceAgentRepository {
     >,
     claim: { id: string; token: string },
   ): Promise<AiVoiceAgent | null> {
-    if (!ctx.organizationId) return null;
     return this.prisma.$transaction(async (tx) => {
+      // The claim must be this workspace's: the organization's, or the
+      // personal owner's own row (WRK-001).
       const [owner] = await tx.$queryRaw<
         Array<{ claimToken: string | null; agentId: string | null }>
       >`
         SELECT "claimToken", "agentId" FROM "AiVoiceAgentAutomation"
-        WHERE "id" = ${claim.id}::uuid AND "organizationId" = ${ctx.organizationId}::uuid
+        WHERE "id" = ${claim.id}::uuid AND ${workspaceOwnershipSql(ctx)}
         FOR UPDATE
       `;
       if (!owner || owner.claimToken !== claim.token || owner.agentId)

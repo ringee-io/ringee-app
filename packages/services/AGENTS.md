@@ -71,6 +71,18 @@ calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
   before `beforePlacement` runs, so a guard fenced on `Contact.updatedAt`
   re-reads the contact there instead of comparing the version its plan read.
 
+Voice-agent work exists in both workspace types (AGENT-011): an organization,
+or a personal workspace (`userId` + `organizationId: null`) enrolled in the
+pilot. Deferred work rebuilds its scope from the persisted row (`workspaceOf`),
+never from the workspace its owner has open now. Compare a row to a context with
+`isInWorkspace` and two rows with `isSameWorkspace` — `a.organizationId ===
+b.organizationId` pairs every personal row with every other, since all are null.
+Admission is `voiceAgentAutomationsEnabled(row)` on the row's own
+`userId`/`organizationId`; claim queries take `automationAdmissionFilter()`
+inside the query. Membership and authority are
+`OrganizationRepository.isWorkspaceMember` / `isWorkspaceAdmin`: a personal
+workspace's only member and administrator is its owner.
+
 A call can hold more than one agent (AGENT-021): the agent that placed it and
 one that took it over through a handoff. A voice-agent tool therefore never
 decides who may act on a call from `AiVoiceAgentCall.agentId` alone — it asks

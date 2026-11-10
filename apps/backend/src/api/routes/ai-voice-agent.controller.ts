@@ -46,7 +46,7 @@ import {
   VoiceCloneReadingSampleService,
 } from "@ringee/services";
 import { AiVoiceAgentType } from "@ringee/database";
-import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.guard";
+import { VoiceAgentAccessGuard } from "../guards/voice-agent-access.guard";
 
 /**
  * AI Voice Agents.
@@ -55,11 +55,12 @@ import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.
  * rule about what an agent is and when it may call lives in `@ringee/services`,
  * because the same rules have to hold for the API, the CLI and the MCP tools.
  *
- * The whole controller requires an active organization. The provider-facing
- * webhook and tool controllers are separate and stay open, so a call already
- * in flight is unaffected.
+ * The whole controller requires a workspace with access to the module: an
+ * active organization, or a personal workspace enrolled in the pilot
+ * (AGENT-011). The provider-facing webhook and tool controllers are separate
+ * and stay open, so a call already in flight is unaffected.
  */
-@UseGuards(VoiceAgentOrganizationGuard)
+@UseGuards(VoiceAgentAccessGuard)
 @Controller("ai-voice-agents")
 export class AiVoiceAgentController {
   constructor(

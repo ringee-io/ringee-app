@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { Prisma, Contact, CallOutcome } from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import { workspaceOwnershipSql } from "./workspace-scope";
 
 /** A contact row with the multi-value email/phone relations needed for dedup. */
 export type ContactDedupMatch = Prisma.ContactGetPayload<{
@@ -710,7 +711,8 @@ export class ContactRepository {
 export async function automaticContactDispatchAvailable(
   tx: Prisma.TransactionClient,
   input: {
-    organizationId: string;
+    /** The dispatch's persisted workspace: an organization, or one owner's personal workspace. */
+    workspace: OwnershipContext;
     contactId: string;
     timezone: string;
     now: Date;
@@ -723,7 +725,7 @@ export async function automaticContactDispatchAvailable(
   const locked = await tx.$queryRaw<
     Array<{ id: string }>
   >`SELECT "id" FROM "Contact"
-    WHERE "id" = ${input.contactId}::uuid AND "organizationId" = ${input.organizationId}::uuid
+    WHERE "id" = ${input.contactId}::uuid AND ${workspaceOwnershipSql(input.workspace)}
       AND "deletedAt" IS NULL FOR NO KEY UPDATE`;
   if (!locked.length) return false;
   const [usage] = await tx.$queryRaw<Array<{ count: number; active: number }>>`
@@ -731,14 +733,14 @@ export async function automaticContactDispatchAvailable(
       SELECT cb."dispatchCommittedAt" AS at, cb."status"::text AS state,
         ac."status"::text AS call_state, ac."providerCallControlId" AS leg
       FROM "CallbackTask" cb LEFT JOIN "AiVoiceAgentCall" ac ON ac.id = cb."agentCallId"
-      WHERE cb."organizationId" = ${input.organizationId}::uuid AND cb."contactId" = ${input.contactId}::uuid
+      WHERE ${workspaceOwnershipSql(input.workspace, "cb")} AND cb."contactId" = ${input.contactId}::uuid
         AND cb."dispatchCommittedAt" IS NOT NULL
         AND cb.id <> ${input.callbackId ?? "00000000-0000-0000-0000-000000000000"}::uuid
       UNION ALL
       SELECT r."dispatchCommittedAt", r."status"::text, ac."status"::text, ac."providerCallControlId"
       FROM "MeetingReminderExecution" r JOIN "Meeting" m ON m.id = r."meetingId"
         LEFT JOIN "AiVoiceAgentCall" ac ON ac.id = r."agentCallId"
-      WHERE r."organizationId" = ${input.organizationId}::uuid AND m."contactId" = ${input.contactId}::uuid
+      WHERE ${workspaceOwnershipSql(input.workspace, "r")} AND m."contactId" = ${input.contactId}::uuid
         AND r."dispatchCommittedAt" IS NOT NULL
         AND r.id <> ${input.reminderId ?? "00000000-0000-0000-0000-000000000000"}::uuid
     ) SELECT count(*) FILTER (WHERE at >=

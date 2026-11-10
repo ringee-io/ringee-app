@@ -1103,11 +1103,11 @@ export class CallRepository {
         : current;
       // Booking writes also correct the human source, even without enrollment
       // input. Close its obsolete objective without claiming AI booking success.
+      // In either workspace type: a personal source is looked up by its owner.
       const acceptance =
         assignment ??
         (semanticChange &&
         outcome === "meeting_booked" &&
-        call.organizationId &&
         call.userId &&
         call.contactId &&
         call.source !== "ai_voice_agent"

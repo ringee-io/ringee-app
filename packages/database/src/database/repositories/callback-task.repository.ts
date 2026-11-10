@@ -7,6 +7,11 @@ import {
 } from "./pending-action-follow-up.persistence";
 import { Injectable } from "@nestjs/common";
 import { randomUUID } from "crypto";
+import {
+  buildOwnershipFilter,
+  isInWorkspace,
+  workspaceOf,
+} from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
 import {
   CallbackAgentKind,
@@ -68,7 +73,8 @@ export interface CreateCallbackTaskInput {
 
 /** A callback an AI voice agent places itself, for a handoff request. */
 export interface CreateAgentCallbackInput extends CreateCallbackTaskInput {
-  organizationId: string;
+  /** The request's workspace: null for a personal one, owned by `userId`. */
+  organizationId: string | null;
   agentCallbackKind: CallbackAgentKind;
   agentId: string;
   handoffId: string;
@@ -542,6 +548,11 @@ export class CallbackTaskRepository {
       const action = await tx.pendingAction.findUniqueOrThrow({
         where: { id: objective.pendingActionId },
       });
+      // Everything below is read inside the objective's own workspace, as it
+      // was persisted: an organization, or the owner's personal workspace —
+      // whose rows all share a null organization with every other freelancer.
+      const workspace = workspaceOf(action);
+      const owned = buildOwnershipFilter(workspace);
       const handoff = objective.handoffId
         ? await tx.aiVoiceAgentHandoff.findUnique({
             where: { id: objective.handoffId },
@@ -552,14 +563,14 @@ export class CallbackTaskRepository {
         !human &&
         (!handoff ||
           handoff.requestStatus !== "pending" ||
-          handoff.organizationId !== action.organizationId)
+          !isInWorkspace(workspace, handoff))
       )
         return false;
       const meeting = input.meetingId
         ? await tx.meeting.findFirst({
             where: {
               id: input.meetingId,
-              organizationId: action.organizationId,
+              ...owned,
               contactId: action.contactId!,
               scheduleVersion: input.meetingVersion,
             },
@@ -568,7 +579,7 @@ export class CallbackTaskRepository {
       const automation = await tx.aiVoiceAgentAutomation.findFirst({
         where: {
           id: automationId ?? "00000000-0000-0000-0000-000000000000",
-          organizationId: action.organizationId!,
+          ...owned,
           enabled: true,
           agentId: input.agentId,
         },
@@ -576,7 +587,7 @@ export class CallbackTaskRepository {
       const agent = await tx.aiVoiceAgent.findFirst({
         where: {
           id: input.agentId,
-          organizationId: action.organizationId,
+          ...owned,
           status: "active",
           deletedAt: null,
           providerAssistantId: { not: null },
@@ -586,22 +597,26 @@ export class CallbackTaskRepository {
       const contact = await tx.contact.findFirst({
         where: {
           id: action.contactId!,
-          organizationId: action.organizationId,
+          ...owned,
           deletedAt: null,
           ...(input.contactUpdatedAt
             ? { updatedAt: input.contactUpdatedAt }
             : {}),
         },
       });
-      const members = await tx.organizationMembership.findMany({
-        where: {
-          organizationId: action.organizationId!,
-          userId: {
-            in: [objective.configuredByUserId, objective.responsibleUserId],
-          },
-        },
-        select: { userId: true },
-      });
+      // An organization's configuring and responsible members must still
+      // belong to it; a personal workspace has one person, its owner.
+      const members = workspace.organizationId
+        ? await tx.organizationMembership.findMany({
+            where: {
+              organizationId: workspace.organizationId,
+              userId: {
+                in: [objective.configuredByUserId, objective.responsibleUserId],
+              },
+            },
+            select: { userId: true },
+          })
+        : [{ userId: workspace.userId }];
       const user = await tx.user.findFirst({
         where: {
           id: objective.configuredByUserId,
@@ -609,8 +624,9 @@ export class CallbackTaskRepository {
           blockedAt: null,
         },
       });
+      // The workspace's own list (CMP-005): an organization's, or the owner's.
       const onDnc = await tx.dNCEntry.findFirst({
-        where: { organizationId: action.organizationId, phoneNumber: input.to },
+        where: { ...owned, phoneNumber: input.to },
         select: { id: true },
       });
       if (
@@ -646,7 +662,7 @@ export class CallbackTaskRepository {
         const source = await tx.call.findFirst({
           where: {
             id: objective.sourceId,
-            organizationId: action.organizationId,
+            ...owned,
             userId: objective.responsibleUserId,
             contactId: action.contactId,
             outcomeRevision: objective.sourceRevision,
@@ -660,7 +676,7 @@ export class CallbackTaskRepository {
           ? await tx.calendar.findFirst({
               where: {
                 id: objective.calendarId,
-                organizationId: action.organizationId,
+                ...owned,
                 archivedAt: null,
               },
             })
@@ -678,7 +694,7 @@ export class CallbackTaskRepository {
         const active = await tx.callbackTask.findFirst({
           where: {
             id: { not: callback.id },
-            organizationId: action.organizationId,
+            ...owned,
             contactId: action.contactId!,
             dispatchCommittedAt: { not: null },
             agentCall: {
@@ -700,7 +716,7 @@ export class CallbackTaskRepository {
           (await tx.campaignLead.count({
             where: {
               contactId: action.contactId!,
-              campaign: { organizationId: action.organizationId },
+              campaign: owned,
               lockedBy: { not: null },
               status: { in: ["locked", "dialing", "in_call", "wrap_up"] },
             },
@@ -715,12 +731,12 @@ export class CallbackTaskRepository {
             objective.calendarId ??
             handoff?.calendarId ??
             "00000000-0000-0000-0000-000000000000",
-          organizationId: action.organizationId!,
+          ...owned,
         },
       });
       if (
         !(await automaticContactDispatchAvailable(tx, {
-          organizationId: action.organizationId!,
+          workspace,
           contactId: action.contactId!,
           timezone: dispatchCalendar?.timezone ?? "UTC",
           now: input.now,
@@ -742,7 +758,7 @@ export class CallbackTaskRepository {
         where: {
           id: input.placement.agentCallId,
           callId: input.placement.callId,
-          organizationId: action.organizationId,
+          ...owned,
           userId: objective.configuredByUserId,
           agentId: input.agentId,
           ...(human ? { contactId: action.contactId } : {}),

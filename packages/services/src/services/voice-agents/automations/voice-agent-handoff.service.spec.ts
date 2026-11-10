@@ -16,6 +16,7 @@ import {
   CallbackStatus,
   MeetingStatus,
 } from "@ringee/database";
+import { isInWorkspace } from "@ringee/platform";
 import { VoiceAgentToolService } from "../voice-agent-tool.service";
 import { MeetingReminderCallService } from "./meeting-reminder-call.service";
 import { assertVoiceAgentAutomations } from "./automation-access";
@@ -30,6 +31,7 @@ const R = AiVoiceAgentHandoffRequestStatus;
 const REM_SECRET = "rva_reminders";
 const SCHED_SECRET = "rva_scheduling";
 const FOREIGN_SECRET = "rva_foreign";
+const STRANGER_SECRET = "rva_stranger";
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
@@ -66,16 +68,24 @@ function world(
     objective?: Row;
     /** Whether the request's owner is still a member of the organization. */
     ownerIsMember?: boolean;
+    /**
+     * The workspace every fixture row belongs to: the organization by default,
+     * or a freelancer's personal workspace (Stage 4A).
+     */
+    workspace?: { userId: string; organizationId: string | null };
   } = {},
 ) {
+  const scope = over.workspace ?? {
+    userId: "admin-1",
+    organizationId: "org-1",
+  };
   const agents = new Map<string, Row>();
   agents.set("agent-rem", {
     id: "agent-rem",
     name: "Sofía",
     type: "reminders_notifications",
     status: "active",
-    userId: "admin-1",
-    organizationId: "org-1",
+    ...scope,
     voiceLanguage: "es",
     providerAssistantId: "asst-rem",
     toolSecretHash: hash(REM_SECRET),
@@ -89,8 +99,7 @@ function world(
     name: "Carmen",
     type: "appointment_booking",
     status: "active",
-    userId: "admin-1",
-    organizationId: "org-1",
+    ...scope,
     voiceLanguage: "es",
     providerAssistantId: "asst-sched",
     toolSecretHash: hash(SCHED_SECRET),
@@ -116,12 +125,29 @@ function world(
     calendarId: null,
     calendarIntegrationId: null,
   });
+  // Another freelancer's scheduling agent: a null organization like every
+  // personal row, and never the same workspace as anyone else's.
+  agents.set("agent-stranger", {
+    id: "agent-stranger",
+    name: "Stranger",
+    type: "appointment_booking",
+    status: "active",
+    userId: "stranger-1",
+    organizationId: null,
+    voiceLanguage: "es",
+    providerAssistantId: "asst-stranger",
+    toolSecretHash: hash(STRANGER_SECRET),
+    deletedAt: null,
+    meetingDurationMinutes: 30,
+    calendarId: null,
+    calendarIntegrationId: null,
+  });
 
   const automation =
     over.automation === undefined
       ? {
           id: "auto-1",
-          organizationId: "org-1",
+          ...scope,
           capability: "appointment_booking",
           agentId: "agent-sched",
           enabled: true,
@@ -130,8 +156,7 @@ function world(
 
   const contact = {
     id: "contact-1",
-    organizationId: "org-1",
-    userId: "admin-1",
+    ...scope,
     phoneNumber: "+34600111222",
     firstName: "Ana",
     lastName: "López",
@@ -143,8 +168,7 @@ function world(
   const meetings = new Map<string, Row>();
   meetings.set("meeting-1", {
     id: "meeting-1",
-    organizationId: "org-1",
-    userId: "admin-1",
+    ...scope,
     contactId: "contact-1",
     callId: "booking-call",
     calendarId: "cal-meeting",
@@ -164,7 +188,7 @@ function world(
   const calls = new Map<string, Row>();
   calls.set("call-1", {
     id: "call-1",
-    organizationId: "org-1",
+    ...scope,
     status: "answered",
     endedAt: null,
     answeredAt: new Date(NOW.getTime() - 60_000),
@@ -176,8 +200,7 @@ function world(
   agentCalls.set("ac-1", {
     id: "ac-1",
     agentId: "agent-rem",
-    userId: "admin-1",
-    organizationId: "org-1",
+    ...scope,
     callId: "call-1",
     contactId: "contact-1",
     toNumber: "+34600111222",
@@ -200,7 +223,7 @@ function world(
   executions.set("exec-1", {
     id: "exec-1",
     agentCallId: "ac-1",
-    organizationId: "org-1",
+    ...scope,
     meetingId: "meeting-1",
     scheduleVersion: 3,
     status: "placed",
@@ -445,14 +468,16 @@ function world(
     findById: async (id: string) => clone(callbacks.get(id) ?? null),
   };
 
+  // The repositories' ownership filter (WRK-001): an organization by its id,
+  // a personal workspace by its owner and a null organization.
   const sameOrg = (ctx: Row, row: Row | undefined | null) =>
-    row && row.organizationId === ctx.organizationId ? row : null;
+    row && isInWorkspace(ctx as never, row) ? row : null;
 
   const handoffService = new VoiceAgentHandoffService(
     handoffRepo as never,
     {
       findForOwner: async (ctx: Row) =>
-        automation && automation.organizationId === ctx.organizationId
+        automation && isInWorkspace(ctx as never, automation)
           ? { ...automation }
           : null,
     } as never,
@@ -504,7 +529,7 @@ function world(
     } as never,
     {
       findByIdForOwner: async (ctx: Row, id: string) =>
-        id === contact.id && ctx.organizationId === contact.organizationId
+        id === contact.id && isInWorkspace(ctx as never, contact)
           ? { ...contact }
           : null,
     } as never,
@@ -526,7 +551,10 @@ function world(
       },
       followUpForHandoff: async () => over.objective ?? null,
     } as never,
-    { isMember: async () => over.ownerIsMember ?? true } as never,
+    {
+      isMember: async () => over.ownerIsMember ?? true,
+      isWorkspaceMember: async () => over.ownerIsMember ?? true,
+    } as never,
   );
 
   return {
@@ -2568,6 +2596,109 @@ describe("A callback for the request", () => {
     assert.equal(
       w.participants.some((p) => p.agentCallId === "ac-callback"),
       false,
+    );
+  });
+});
+
+// ── Stage 4A: a freelancer's personal workspace ─────────────────────────────
+
+describe("Personal workspace handoffs (Stage 4A)", () => {
+  const OWNER = { userId: "owner-1", organizationId: null };
+  const personalWorld = () =>
+    world({ workspace: OWNER, meeting: { responsibleUserId: "owner-1" } });
+  let previous: unknown;
+  beforeEach(() => {
+    previous = config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = ["owner-1"];
+  });
+  afterEach(() => {
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = previous;
+  });
+
+  it("hands an enrolled freelancer's call to their own scheduling agent", async () => {
+    const w = personalWorld();
+    const t = tools(w);
+    const destination = await w.handoffService.resolveDestination(OWNER, "es");
+    assert.equal(destination.ok && destination.agent.id, "agent-sched");
+
+    const prepared = await t.service.prepareRescheduleHandoff(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      { person_said: "Hoy no puedo", identity_confirmed: true },
+    );
+    assert.equal(prepared.ok, true);
+    const [handoff] = [...w.handoffs.values()];
+    assert.equal(handoff!.userId, "owner-1");
+    assert.equal(handoff!.organizationId, null);
+    assert.equal(handoff!.destinationAgentId, "agent-sched");
+    assert.equal(handoff!.responsibleUserId, "owner-1");
+
+    const context = await t.service.getHandoffContext(
+      "agent-sched",
+      SCHED_SECRET,
+      CC,
+    );
+    assert.equal(context.ok, true);
+    assert.equal(w.handoffs.get(handoff!.id)!.status, H.completed);
+    // The source handed it over and may change nothing from then on.
+    const grant = await w.handoffService.grantFor(
+      w.agents.get("agent-rem") as never,
+      w.agentCalls.get("ac-1") as never,
+    );
+    assert.deepEqual(grant, { kind: "refused", reason: "handed_off" });
+  });
+
+  it("never lets another freelancer's agent take or act on the call", async () => {
+    const w = personalWorld();
+    const t = tools(w);
+    await t.service.prepareRescheduleHandoff("agent-rem", REM_SECRET, CC, {});
+    // Both workspaces have a null organization; neither is the other.
+    assert.deepEqual(
+      await w.handoffService.grantFor(
+        w.agents.get("agent-stranger") as never,
+        w.agentCalls.get("ac-1") as never,
+      ),
+      { kind: "refused", reason: "not_participant" },
+    );
+    await assert.rejects(
+      t.service.getHandoffContext("agent-stranger", STRANGER_SECRET, CC),
+      /Call does not belong to this agent/,
+    );
+    await assert.rejects(
+      t.service.getAvailableSlots("agent-stranger", STRANGER_SECRET, CC, {
+        date: "2026-11-04",
+      }),
+      /Call does not belong to this agent/,
+    );
+    assert.equal([...w.handoffs.values()][0]!.status, H.prepared);
+    // The stranger's own workspace is not admitted, and owns nothing here.
+    assert.deepEqual(
+      await w.handoffService.resolveDestination(
+        { userId: "stranger-1", organizationId: null },
+        "es",
+      ),
+      { ok: false, reason: "automations_disabled" },
+    );
+  });
+
+  it("keeps the request visible, without a live handoff, when the owner is off the pilot", async () => {
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = [];
+    const w = personalWorld();
+    const t = tools(w);
+    const prepared = await t.service.prepareRescheduleHandoff(
+      "agent-rem",
+      REM_SECRET,
+      CC,
+      {},
+    );
+    assert.equal(prepared.ok, false);
+    const [handoff] = [...w.handoffs.values()];
+    assert.equal(handoff!.organizationId, null);
+    assert.equal(handoff!.requestStatus, R.needs_attention);
+    assert.equal(
+      handoff!.resolution,
+      "destination_unavailable:automations_disabled",
     );
   });
 });

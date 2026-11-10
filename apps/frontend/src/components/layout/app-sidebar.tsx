@@ -63,6 +63,10 @@ import { OrgSwitcher } from '@ringee/frontend-shared/components/org-switcher';
 import { useDialerStore } from '@/features/calls/store/dialer.store';
 import { useUnreadCount } from '@/features/inbox/hooks/use-inbox';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
+import {
+  isNavItemAvailable,
+  useVoiceAgentModuleAccess
+} from '@ringee/frontend-shared/hooks/use-voice-agent-access';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
@@ -242,6 +246,9 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
     : useOrganization();
 
   const hasActiveOrg = !!activeOrg;
+  // A personal workspace may be granted AI Voice Agents (the pilot); the API
+  // answers, never a client-side list. The mock preview asks nothing.
+  const voiceAgentAccess = useVoiceAgentModuleAccess(!useMock);
   const { state: sidebarState, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = sidebarState === 'collapsed';
   const closeMobileSidebar = () => setOpenMobile(false);
@@ -330,9 +337,16 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     const itemTitle = itemKey ? tNav(itemKey) : item.title;
 
                     // Organization-only modules stay discoverable from a
-                    // personal workspace, but cannot be opened from here. The
-                    // route layout and API enforce the same boundary.
-                    if (item.organizationOnly && !hasActiveOrg) {
+                    // personal workspace, but cannot be opened from here —
+                    // unless the API grants this workspace that module (the
+                    // AI Voice Agents personal pilot). The route layout and
+                    // API enforce the same boundary.
+                    if (
+                      !isNavItemAvailable(item, {
+                        hasOrg: hasActiveOrg,
+                        voiceAgentAccess
+                      })
+                    ) {
                       return (
                         <SidebarMenuItem key={item.title}>
                           <Tooltip>

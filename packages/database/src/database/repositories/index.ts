@@ -98,6 +98,7 @@ export * from "./meeting-reminder-policy.repository";
 export * from "./meeting-reminder-execution.repository";
 export * from "./meeting-email-delivery.repository";
 export * from "./workspace-company-profile.repository";
+export * from "./workspace-scope";
 
 export * from "./external-carrier.repository";
 export * from "./inbound-route.repository";

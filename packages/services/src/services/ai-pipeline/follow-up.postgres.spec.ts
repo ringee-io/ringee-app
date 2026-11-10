@@ -545,6 +545,7 @@ describe(
         data: { scheduledAt: past },
       });
       await handoffRepo.createCallbackParticipant({
+        userId: f.handoff.userId,
         organizationId,
         handoffId: f.handoff.id,
         agentCallId: callbackCall.id,
@@ -1009,10 +1010,7 @@ describe(
       };
       await worker().drain();
       await worker().drain();
-      let rows = await deliveries.listActionDeliveries(
-        action.id,
-        organizationId,
-      );
+      let rows = await deliveries.listActionDeliveries(action.id, ctx);
       assert.equal(
         rows.find((row) => row.audience === "responsible")?.status,
         "sent",
@@ -1030,7 +1028,7 @@ describe(
       });
       await worker().drain();
       await worker().drain();
-      rows = await deliveries.listActionDeliveries(action.id, organizationId);
+      rows = await deliveries.listActionDeliveries(action.id, ctx);
       assert.ok(rows.every((row) => row.status === "sent"));
       assert.equal(accepted.size, 2);
       assert.equal(requests.length, 3);
@@ -1091,9 +1089,9 @@ describe(
         } as never,
         handoffRepo,
       ).drain();
-      const late = (
-        await deliveries.listActionDeliveries(action.id, organizationId)
-      ).find((row) => row.audience === "contact_late");
+      const late = (await deliveries.listActionDeliveries(action.id, ctx)).find(
+        (row) => row.audience === "contact_late",
+      );
       assert.equal(late?.status, "cancelled");
       assert.equal(late?.lastError, "team_delivery_not_sent");
       assert.equal(requests.length, 0);
@@ -1151,7 +1149,7 @@ describe(
           handoffRepo,
         ).drain();
       const late = async () =>
-        (await deliveries.listActionDeliveries(action.id, organizationId)).find(
+        (await deliveries.listActionDeliveries(action.id, ctx)).find(
           (row) => row.audience === "contact_late",
         )!;
       await drain();
@@ -1163,10 +1161,7 @@ describe(
       assert.equal(requests.length, 0);
       // The admin's fix requeues both, with fresh tries.
       await deliveries.requeueForMeeting(action.meetingId, ["needs_member"]);
-      const rows = await deliveries.listActionDeliveries(
-        action.id,
-        organizationId,
-      );
+      const rows = await deliveries.listActionDeliveries(action.id, ctx);
       assert.equal(rows.length, 2);
       assert.ok(
         rows.every((row) => row.status === "pending" && row.attempts === 0),
@@ -1200,8 +1195,7 @@ describe(
       );
       const deliveryRepo = new MeetingEmailDeliveryRepository(db);
       assert.equal(
-        (await deliveryRepo.listActionDeliveries(action.id, organizationId))
-          .length,
+        (await deliveryRepo.listActionDeliveries(action.id, ctx)).length,
         2,
       );
       await close(f.objective.id);
@@ -1209,7 +1203,7 @@ describe(
         new Date(),
         new Date(Date.now() + 300000),
         500,
-        [organizationId],
+        { organizationIds: [organizationId], personalUserIds: [] },
       );
       const row = claimed.find((item) => item.actionId === action.id)!;
       assert.ok(row);
@@ -1218,9 +1212,9 @@ describe(
         null,
       );
       assert.equal(
-        (
-          await deliveryRepo.listActionDeliveries(action.id, organizationId)
-        ).find((item) => item.id === row.id)?.status,
+        (await deliveryRepo.listActionDeliveries(action.id, ctx)).find(
+          (item) => item.id === row.id,
+        )?.status,
         "cancelled",
       );
     });
@@ -1254,7 +1248,7 @@ describe(
         new Date(),
         new Date(Date.now() + 300000),
         500,
-        [organizationId],
+        { organizationIds: [organizationId], personalUserIds: [] },
       );
       const row = claimed.find((item) => item.actionId === action.id)!;
       assert.ok(row);
@@ -1263,9 +1257,9 @@ describe(
         null,
       );
       assert.equal(
-        (
-          await deliveryRepo.listActionDeliveries(action.id, organizationId)
-        ).find((item) => item.id === row.id)?.lastError,
+        (await deliveryRepo.listActionDeliveries(action.id, ctx)).find(
+          (item) => item.id === row.id,
+        )?.lastError,
         "callback_superseded",
       );
       for (const item of claimed.filter((c) => c.id !== row.id))
@@ -1306,10 +1300,7 @@ describe(
         }),
       );
       const deliveryRepo = new MeetingEmailDeliveryRepository(db);
-      const receipts = await deliveryRepo.listActionDeliveries(
-        action.id,
-        organizationId,
-      );
+      const receipts = await deliveryRepo.listActionDeliveries(action.id, ctx);
       assert.ok(receipts.length > 0);
       assert.ok(receipts.every((row) => row.status === "pending"));
       // The meeting's version moved with the cancellation; the receipt is
@@ -1318,7 +1309,7 @@ describe(
         new Date(),
         new Date(Date.now() + 300000),
         500,
-        [organizationId],
+        { organizationIds: [organizationId], personalUserIds: [] },
       );
       const row = claimed.find((item) => item.actionId === action.id)!;
       assert.ok(row);
@@ -1367,9 +1358,10 @@ describe(
       const pending = await unanswered(f.meeting.id);
       const answered = await unanswered(confirmed.id);
       const ids = (
-        await executions.listUnansweredForRetry(new Date(), undefined, [
-          organizationId,
-        ])
+        await executions.listUnansweredForRetry(new Date(), undefined, {
+          organizationIds: [organizationId],
+          personalUserIds: [],
+        })
       ).map((row) => row.id);
       assert.ok(ids.includes(pending.id));
       assert.ok(!ids.includes(answered.id));
@@ -1387,7 +1379,7 @@ describe(
     it("Stage 3: callbacks and reminders share one contact reservation and a daily cap", async () => {
       const f = await seed();
       const input = {
-        organizationId,
+        workspace: ctx,
         contactId: f.contact.id,
         timezone: "UTC",
         now: new Date(),
@@ -2137,7 +2129,11 @@ describe(
 
     it("no callback is promised for an objective past its expiry, even before it is closed", async () => {
       const f = await seed();
-      const handoff = { id: f.handoff.id, organizationId };
+      const handoff = {
+        id: f.handoff.id,
+        userId: f.handoff.userId,
+        organizationId,
+      };
       assert.equal(await handoffs.callbackStillWanted(handoff), true);
       // Expiring at this very moment is expired.
       assert.equal(

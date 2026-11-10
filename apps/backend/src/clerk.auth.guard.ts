@@ -64,7 +64,12 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     request.clerkUserId = userId;
-    request.resolveRingeeUser = () => this.resolveRingeeUser(userId);
+    // Once per request: a route guard (VoiceAgentAccessGuard) and
+    // @CurrentUser() may both need the Ringee user, and each lookup is a
+    // Clerk API call.
+    let resolution: ReturnType<ClerkAuthGuard["resolveRingeeUser"]> | undefined;
+    request.resolveRingeeUser = () =>
+      (resolution ??= this.resolveRingeeUser(userId));
 
     return isAuthenticated;
   }

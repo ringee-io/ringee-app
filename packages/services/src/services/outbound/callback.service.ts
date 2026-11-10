@@ -328,8 +328,9 @@ export class CallbackService {
     agentId: string;
     kind: CallbackAgentKind;
     key: string;
+    /** The request's workspace: its owner, and no organization when personal. */
     userId: string;
-    organizationId: string;
+    organizationId: string | null;
     contactId: string;
     callId: string | null;
     scheduledAt: Date;
@@ -353,7 +354,8 @@ export class CallbackService {
     if (
       callback.handoffId !== data.handoffId ||
       callback.agentId !== data.agentId ||
-      callback.organizationId !== data.organizationId
+      callback.organizationId !== data.organizationId ||
+      callback.userId !== data.userId
     ) {
       throw new ConflictException("Callback key is already in use");
     }
@@ -423,7 +425,6 @@ export class CallbackService {
       !callback ||
       callback.handoffId !== handoffId ||
       callback.status !== CallbackStatus.scheduled ||
-      !callback.organizationId ||
       !callback.agentId
     )
       throw beingPlaced();

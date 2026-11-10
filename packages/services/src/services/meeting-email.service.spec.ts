@@ -120,6 +120,10 @@ function build(
     { findById: async (id: string) => users[id] ?? null } as never,
     {
       isMember: async (id: string) => members.has(id),
+      isWorkspaceMember: async (
+        ctx: { userId: string; organizationId?: string | null },
+        id: string,
+      ) => (ctx.organizationId ? members.has(id) : id === ctx.userId),
       findAdminMembersWithEmails: async () =>
         over.admins ?? [
           user("admin-1", "boss@acme.test"),

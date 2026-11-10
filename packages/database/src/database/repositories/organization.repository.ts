@@ -7,7 +7,7 @@ import {
   User,
   UserEmail,
 } from "@prisma/client";
-import { ClerkOrganization } from "@ringee/platform";
+import { ClerkOrganization, type OwnershipContext } from "@ringee/platform";
 import { randomBytes } from "crypto";
 
 @Injectable()
@@ -133,6 +133,32 @@ export class OrganizationRepository {
       where: { userId, organizationId },
     });
     return count > 0;
+  }
+
+  /**
+   * Whether `userId` belongs to the workspace `ctx` names (WRK-001): a current
+   * member of the organization, or — a personal workspace has exactly one
+   * person — its owner. Never membership in some other organization.
+   */
+  isWorkspaceMember(
+    ctx: OwnershipContext,
+    userId: string | null | undefined,
+  ): Promise<boolean> {
+    if (!userId) return Promise.resolve(false);
+    if (!ctx.organizationId) return Promise.resolve(userId === ctx.userId);
+    return this.isMember(userId, ctx.organizationId);
+  }
+
+  /**
+   * Whether `ctx.userId` administers the workspace right now: an organization
+   * admin, re-read from the membership, or the owner of a personal workspace
+   * (WRK-004).
+   */
+  async isWorkspaceAdmin(ctx: OwnershipContext): Promise<boolean> {
+    if (!ctx.organizationId) return true;
+    return (
+      await this.listAdminUserIds(ctx.organizationId, [ctx.userId])
+    ).includes(ctx.userId);
   }
 
   findExtension(organizationId: string, membershipId: string) {

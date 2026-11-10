@@ -26,8 +26,8 @@ import {
   OrganizationRepository,
   ReminderSubjectType,
 } from "@ringee/database";
-import { automationOrganizationFilter } from "./voice-agents/automations/automation-access";
-import { OwnershipContext } from "@ringee/platform";
+import { automationAdmissionFilter } from "./voice-agents/automations/automation-access";
+import { OwnershipContext, workspaceOf } from "@ringee/platform";
 import {
   CalendarService,
   ResolvedCalendar,
@@ -628,7 +628,7 @@ export class MeetingService {
    */
   async repairAutomationActions(now = new Date()): Promise<void> {
     const actions = await this.meetingRepo.listPendingMaintenance(
-      automationOrganizationFilter(),
+      automationAdmissionFilter(),
     );
     for (const action of actions) {
       const wait = Math.min(
@@ -638,16 +638,14 @@ export class MeetingService {
           now.getTime() - action.createdAt.getTime(),
         ),
       );
+      // The action's own workspace, as persisted.
       await this.meetingRepo.deferMaintenance(
         action.id,
-        action.organizationId,
+        workspaceOf(action),
         new Date(now.getTime() + wait),
       );
       const meeting = action.meeting;
-      const ctx = {
-        userId: meeting.userId,
-        organizationId: meeting.organizationId,
-      };
+      const ctx = workspaceOf(meeting);
       try {
         if (meeting.status === "cancelled") {
           await this.reminderService.cancelForSubject(
@@ -680,7 +678,7 @@ export class MeetingService {
         }
         await this.meetingRepo.completeMaintenance(
           action.id,
-          action.organizationId,
+          workspaceOf(action),
         );
       } catch {
         this.logger.warn(

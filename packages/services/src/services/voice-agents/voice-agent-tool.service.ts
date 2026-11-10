@@ -23,8 +23,8 @@ import {
   RedisService,
   VoiceAgentProviderService,
   hashApiKey,
+  isInWorkspace,
   safeHashEqual,
-  type OrganizationOwnershipContext,
   type OwnershipContext,
 } from "@ringee/platform";
 import { CalendarService, ResolvedCalendar } from "../calendar.service";
@@ -192,11 +192,14 @@ export class VoiceAgentToolService {
       ? await this.calls.findById(agentCall.callId)
       : null;
     if (
+      // The AI receptionist answers organization numbers only for now
+      // (Stage 4A defers personal inbound reception; see
+      // PERSONAL_AUTOMATION_CAPABILITIES).
       !ctx.organizationId ||
       !agentCall ||
       agentCall.agentId !== agent.id ||
       !call ||
-      call.organizationId !== ctx.organizationId ||
+      !isInWorkspace(ctx, call) ||
       call.direction !== "inbound" ||
       call.callControlId !== controlId ||
       call.inboundDestinationType !== "ai_receptionist" ||
@@ -732,11 +735,7 @@ export class VoiceAgentToolService {
     }
 
     const agentCall = await this.agentCalls.findByCallControlId(callControlId);
-    if (
-      !agentCall?.callId ||
-      agentCall.organizationId !== ctx.organizationId ||
-      (!ctx.organizationId && agentCall.userId !== ctx.userId)
-    ) {
+    if (!agentCall?.callId || !isInWorkspace(ctx, agentCall)) {
       return {
         ok: false,
         error: "The current call could not be found for a callback.",
@@ -895,7 +894,7 @@ export class VoiceAgentToolService {
     const execution = await this.reminderExecutions.findByAgentCallId(
       agentCall.id,
     );
-    if (!execution || execution.organizationId !== ctx.organizationId) {
+    if (!execution || !isInWorkspace(ctx, execution)) {
       return {
         ok: false,
         error:
@@ -961,14 +960,9 @@ export class VoiceAgentToolService {
     if (attendance === "declined") {
       // Whether this call can continue with the scheduling agent, read now —
       // the same check the handoff preparation repeats.
-      const destination = ctx.organizationId
-        ? await this.handoffs
-            .resolveDestination(
-              { userId: ctx.userId, organizationId: ctx.organizationId },
-              agent.voiceLanguage,
-            )
-            .catch(() => null)
-        : null;
+      const destination = await this.handoffs
+        .resolveDestination(ctx, agent.voiceLanguage)
+        .catch(() => null);
       return {
         ok: true,
         attendance,
@@ -1003,7 +997,7 @@ export class VoiceAgentToolService {
     input: { cancellation?: string; rescheduling?: string; response?: string },
   ) {
     const { agent, ctx } = await this.authorize(agentId, secret);
-    if (!voiceAgentAutomationsEnabled(ctx.organizationId))
+    if (!voiceAgentAutomationsEnabled(ctx))
       return {
         ok: false,
         error:
@@ -1051,12 +1045,9 @@ export class VoiceAgentToolService {
           "The request for a new time remains open. Continue with the scheduling specialist.",
       };
     if (input.rescheduling === "requested" && grant.kind === "root") {
-      const prepared = await this.handoffs.prepareReschedule(
-        { userId: ctx.userId, organizationId: ctx.organizationId! },
-        agent,
-        call,
-        { personSaid: input.response.trim().slice(0, 1000) },
-      );
+      const prepared = await this.handoffs.prepareReschedule(ctx, agent, call, {
+        personSaid: input.response.trim().slice(0, 1000),
+      });
       if (!prepared.handoff)
         return {
           ok: false,
@@ -1364,9 +1355,6 @@ export class VoiceAgentToolService {
     if (!callControlId) {
       return { ok: false, error: "The current call could not be identified." };
     }
-    if (!ctx.organizationId) {
-      throw new UnauthorizedException("Unknown agent");
-    }
     const agentCall = await this.agentCalls.findByCallControlId(callControlId);
     if (!agentCall) {
       return { ok: false, error: "The current call could not be found." };
@@ -1380,10 +1368,7 @@ export class VoiceAgentToolService {
       };
     }
     if (grant.kind === "refused") return this.refuse(grant);
-    const view = await this.handoffs.describe(
-      { userId: ctx.userId, organizationId: ctx.organizationId },
-      grant,
-    );
+    const view = await this.handoffs.describe(ctx, grant);
     if (!view) {
       return {
         ok: false,
@@ -1408,9 +1393,6 @@ export class VoiceAgentToolService {
     input: { start?: string; time_confirmed?: boolean },
   ): Promise<ToolResult<MoveMeetingResult>> {
     const { agent, ctx } = await this.authorize(agentId, secret);
-    if (!ctx.organizationId) {
-      throw new UnauthorizedException("Unknown agent");
-    }
     if (input.time_confirmed !== true)
       return {
         ok: false,
@@ -1445,10 +1427,6 @@ export class VoiceAgentToolService {
     }
     if (grant.kind === "refused") return this.refuse(grant);
 
-    const orgCtx: OrganizationOwnershipContext = {
-      userId: ctx.userId,
-      organizationId: ctx.organizationId,
-    };
     const meetingId = grant.participant.meetingId ?? grant.handoff.meetingId;
     const expectedScheduleVersion =
       grant.participant.meetingScheduleVersion ??
@@ -1460,7 +1438,7 @@ export class VoiceAgentToolService {
       // A retry of a move already made finds the meeting one version on, at
       // the time it asks for — past the version gate below. That move stands;
       // only what follows it may be left to finish.
-      const repeat = await this.meetings.completeRepeatedMove(orgCtx, {
+      const repeat = await this.meetings.completeRepeatedMove(ctx, {
         meetingId,
         expectedScheduleVersion,
         scheduledAt: start,
@@ -1477,10 +1455,10 @@ export class VoiceAgentToolService {
             error: `This request was already settled — the meeting was moved, or the team is handling it — so nothing was moved. ${MOVE_FALLS_TO_TEAM}`,
           };
         }
-        const scope = await this.handoffs.availabilityFor(orgCtx, grant);
+        const scope = await this.handoffs.availabilityFor(ctx, grant);
         if (!scope.ok) return { ok: false, error: scope.error };
         timeZone = scope.resolved.timezone;
-        outcome = await this.meetings.moveForAgent(orgCtx, {
+        outcome = await this.meetings.moveForAgent(ctx, {
           meetingId,
           expectedScheduleVersion,
           scheduledAt: start,
@@ -1545,7 +1523,7 @@ export class VoiceAgentToolService {
     const hasEmail = Boolean(meeting.leadEmail || meeting.contact?.email);
     // A repeat never read availability: its zone is its calendar's.
     timeZone ??= await this.calendars
-      .resolveCalendar(orgCtx, {
+      .resolveCalendar(ctx, {
         calendarId: meeting.calendarId,
         allowArchived: true,
       })
@@ -1575,18 +1553,11 @@ export class VoiceAgentToolService {
     grant: Extract<HandoffGrant, { kind: "participant" }>,
     date: string,
   ): Promise<ToolResult<AvailableSlotsResult>> {
-    if (!ctx.organizationId) {
-      throw new UnauthorizedException("Unknown agent");
-    }
-    const orgCtx: OrganizationOwnershipContext = {
-      userId: ctx.userId,
-      organizationId: ctx.organizationId,
-    };
-    const scope = await this.handoffs.availabilityFor(orgCtx, grant);
+    const scope = await this.handoffs.availabilityFor(ctx, grant);
     if (!scope.ok) return { ok: false, error: scope.error };
     try {
       const slots = await this.calendars.getBookableSlotsForCalendar(
-        orgCtx,
+        ctx,
         scope.resolved,
         {
           date,
@@ -1637,7 +1608,7 @@ export class VoiceAgentToolService {
       note?: string;
     },
   ): Promise<ToolResult<ScheduleCallbackResult>> {
-    if (!ctx.organizationId || !input.contactId) {
+    if (!input.contactId) {
       return {
         ok: false,
         error: "There is no contact to schedule this callback for.",
@@ -1664,7 +1635,7 @@ export class VoiceAgentToolService {
         kind: CallbackAgentKind.agreed,
         key: input.key,
         userId: input.agentCall.userId,
-        organizationId: ctx.organizationId,
+        organizationId: ctx.organizationId ?? null,
         contactId: input.contactId,
         callId: input.agentCall.callId,
         scheduledAt: input.scheduledAt,
@@ -1693,7 +1664,8 @@ export class VoiceAgentToolService {
       if (
         !(await this.handoffs.callbackStillWanted({
           id: input.handoffId,
-          organizationId: ctx.organizationId,
+          userId: input.agentCall.userId,
+          organizationId: ctx.organizationId ?? null,
         }))
       ) {
         return {
@@ -1738,13 +1710,12 @@ export class VoiceAgentToolService {
     | {
         ok: true;
         agent: AiVoiceAgent;
-        ctx: OrganizationOwnershipContext;
+        ctx: OwnershipContext;
         agentCall: AiVoiceAgentCall;
       }
     | { ok: false; error: string }
   > {
     const { agent, ctx } = await this.authorize(agentId, secret);
-    if (!ctx.organizationId) throw new UnauthorizedException("Unknown agent");
     if (!callControlId) {
       return { ok: false, error: "The current call could not be identified." };
     }
@@ -1761,12 +1732,7 @@ export class VoiceAgentToolService {
           "This call was handed to you; only its first assistant uses this tool.",
       };
     }
-    return {
-      ok: true,
-      agent,
-      ctx: { userId: ctx.userId, organizationId: ctx.organizationId },
-      agentCall,
-    };
+    return { ok: true, agent, ctx, agentCall };
   }
 
   /**
