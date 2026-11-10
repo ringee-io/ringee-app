@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
+  Building2,
   CheckCircle2,
+  ExternalLink,
   Gift,
   Loader2,
   Phone,
@@ -13,16 +16,20 @@ import {
 } from 'lucide-react';
 import { IconListDetails } from '@tabler/icons-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useContactBrief } from '../../hooks/use.contact.brief';
 import { getInitials } from '../../lib/initials';
 import type {
   MyDayList,
   MyDayListEntry,
   MyDayQueueItem
 } from '../../types/my-day';
-import { Kbd } from './kbd';
+import { Kbd } from '@ringee/frontend-shared/components/ui/kbd';
+import { ContactLinksMenu } from './contact-links-menu';
 import { ListTag } from './list-tag';
+import { NextCallDetail } from './next-call-detail';
 import { QueueItemPlace, useQueueItemName } from './queue-row';
 import { callbackNote, ReasonChips } from './reason-chips';
 import { useMyDayFormat } from './use-my-day-format';
@@ -104,9 +111,17 @@ export function NextCallPanel({
   onSkip
 }: NextCallPanelProps) {
   const t = useTranslations('calls.myDay.next');
+  const tQueue = useTranslations('calls.myDay.queue');
   const fmt = useMyDayFormat();
   const nameOf = useQueueItemName();
   const reduceMotion = useReducedMotion();
+  const contactId = next?.item.contact.id ?? null;
+  const {
+    brief,
+    loading: briefLoading,
+    failed: briefFailed,
+    load: reloadBrief
+  } = useContactBrief(contactId, { enabled: !!contactId });
   const panelRef = useRef<HTMLElement>(null);
   const callRef = useRef<HTMLButtonElement>(null);
   const [glow, setGlow] = useState(false);
@@ -183,92 +198,154 @@ export function NextCallPanel({
       }
       transition={{ duration: 1.1, ease: 'easeOut', repeat: glow ? 1 : 0 }}
       className={cn(
-        'flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-4 transition-[border-color] duration-700 outline-none sm:flex-row sm:items-center sm:px-5 dark:border-emerald-500/25 dark:bg-emerald-500/[0.08]',
+        'flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-4 transition-[border-color] duration-700 outline-none sm:px-5 sm:py-5 dark:border-emerald-500/25 dark:bg-emerald-500/[0.07]',
         glow && 'border-emerald-500 dark:border-emerald-400/70'
       )}
     >
-      <div className='flex min-w-0 flex-1 items-center gap-4'>
-        <span className='bg-background flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold shadow-xs'>
-          {getInitials(item.contact.name, item.contact.phoneNumber)}
-        </span>
-        <div className='min-w-0 flex-1 space-y-1'>
-          <div className='flex min-w-0 items-center gap-2.5'>
-            <p className='shrink-0 text-xs font-semibold tracking-wider text-emerald-800 uppercase dark:text-emerald-300'>
-              {t('label')}
+      <div className='flex flex-col gap-4 sm:flex-row sm:items-start'>
+        <div className='flex min-w-0 flex-1 items-start gap-4'>
+          <span className='bg-background flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold shadow-xs dark:bg-black/50'>
+            {getInitials(item.contact.name, item.contact.phoneNumber)}
+          </span>
+          <div className='min-w-0 flex-1 space-y-1.5'>
+            <div className='flex min-w-0 items-center gap-2.5'>
+              <p className='shrink-0 text-xs font-semibold tracking-wider text-emerald-800 uppercase dark:text-emerald-300'>
+                {t('label')}
+              </p>
+              <ListTag
+                lists={item.lists}
+                preferredId={fromList?.list.id}
+                className='text-foreground/70'
+              />
+            </div>
+            <p className='truncate text-[21px] leading-tight font-semibold'>
+              {name}
             </p>
-            <ListTag
-              lists={item.lists}
-              preferredId={fromList?.list.id}
-              className='text-foreground/70'
+            <NextCallRole
+              jobTitle={brief?.jobTitle ?? null}
+              company={brief?.company?.name ?? item.contact.company}
             />
-          </div>
-          <p className='truncate text-[17px] leading-tight font-semibold'>
-            {name}
-            {item.contact.company ? (
-              <span className='text-muted-foreground font-normal'>
-                {' '}
-                · {item.contact.company}
-              </span>
-            ) : null}
-          </p>
-          <div className='text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]'>
-            {fromList ? (
-              <>
-                {fromList.entry.skipped ? (
-                  <span className='bg-muted text-muted-foreground inline-flex h-[22px] items-center rounded-full px-2.5 text-xs font-semibold'>
-                    {t('skippedBefore')}
+            <div className='text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]'>
+              {fromList ? (
+                <>
+                  {fromList.entry.skipped ? (
+                    <span className='bg-muted text-muted-foreground inline-flex h-[22px] items-center rounded-full px-2.5 text-xs font-semibold'>
+                      {t('skippedBefore')}
+                    </span>
+                  ) : null}
+                  <span className='inline-flex h-[22px] items-center rounded-full bg-violet-100 px-2.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'>
+                    {t('leftInList', { count: fromList.list.remaining })}
                   </span>
-                ) : null}
-                <span className='inline-flex h-[22px] items-center rounded-full bg-violet-100 px-2.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'>
-                  {t('leftInList', { count: fromList.list.remaining })}
-                </span>
-              </>
-            ) : (
-              <ReasonChips reasons={item.reasons} now={now} />
-            )}
-            {note ? (
-              <span className='max-w-[18rem] truncate italic'>“{note}”</span>
-            ) : null}
-            <span className='font-mono tabular-nums'>
-              {fmt.phone(item.contact.phoneNumber)}
-            </span>
-            <QueueItemPlace item={item} now={now} />
-            {fromLabel ? <span>{fromLabel}</span> : null}
+                </>
+              ) : (
+                <ReasonChips reasons={item.reasons} now={now} />
+              )}
+              {note ? (
+                <span className='max-w-[18rem] truncate italic'>“{note}”</span>
+              ) : null}
+            </div>
+            <div className='text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]'>
+              <span className='font-mono tabular-nums'>
+                {fmt.phone(item.contact.phoneNumber)}
+              </span>
+              <QueueItemPlace item={item} now={now} place={brief?.place} />
+              {fromLabel ? <span>{fromLabel}</span> : null}
+            </div>
           </div>
+        </div>
+
+        <div className='flex shrink-0 items-center gap-2'>
+          {fromList ? (
+            <Button
+              variant='ghost'
+              onClick={() => onSkip(fromList.entry.entryId)}
+              disabled={busy || skipping}
+              aria-keyshortcuts='S'
+              title={t('skipHint')}
+              className='h-11 gap-2 px-3 text-[15px]'
+            >
+              {skipping ? (
+                <Loader2 className='animate-spin' />
+              ) : (
+                <SkipForward />
+              )}
+              {t('skip')}
+              <Kbd className='hidden sm:inline-flex'>S</Kbd>
+            </Button>
+          ) : null}
+          <Button
+            ref={callRef}
+            onClick={() => onCall(item)}
+            disabled={busy || skipping}
+            aria-keyshortcuts='N'
+            title={busy && !dialing ? t('onCall') : undefined}
+            className='h-11 flex-1 gap-2.5 bg-emerald-600 px-5 text-[15px] font-semibold text-white hover:bg-emerald-700 sm:flex-none dark:bg-emerald-600 dark:hover:bg-emerald-500'
+          >
+            {dialing ? <Loader2 className='animate-spin' /> : <Phone />}
+            {dialing ? t('calling') : t('callNext')}
+            <Kbd onColor className='hidden sm:inline-flex'>
+              N
+            </Kbd>
+          </Button>
+          {item.contact.id ? (
+            <ContactLinksMenu
+              contactId={item.contact.id}
+              name={name}
+              companyName={item.contact.company}
+              variant='outline'
+              className='size-11'
+            >
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/dashboard/contact/${item.contact.id}`}
+                  target='_blank'
+                >
+                  <ExternalLink />
+                  {tQueue('viewContact')}
+                </Link>
+              </DropdownMenuItem>
+            </ContactLinksMenu>
+          ) : null}
         </div>
       </div>
 
-      <div className='flex shrink-0 items-center gap-2'>
-        {fromList ? (
-          <Button
-            variant='ghost'
-            onClick={() => onSkip(fromList.entry.entryId)}
-            disabled={busy || skipping}
-            aria-keyshortcuts='S'
-            title={t('skipHint')}
-            className='h-11 gap-2 px-3 text-[15px]'
-          >
-            {skipping ? <Loader2 className='animate-spin' /> : <SkipForward />}
-            {t('skip')}
-            <Kbd className='hidden sm:inline-flex'>S</Kbd>
-          </Button>
-        ) : null}
-        <Button
-          ref={callRef}
-          onClick={() => onCall(item)}
-          disabled={busy || skipping}
-          aria-keyshortcuts='N'
-          title={busy && !dialing ? t('onCall') : undefined}
-          className='h-11 flex-1 gap-2.5 bg-emerald-600 px-5 text-[15px] font-semibold text-white hover:bg-emerald-700 sm:flex-none dark:bg-emerald-600 dark:hover:bg-emerald-500'
-        >
-          {dialing ? <Loader2 className='animate-spin' /> : <Phone />}
-          {dialing ? t('calling') : t('callNext')}
-          <Kbd onColor className='hidden sm:inline-flex'>
-            N
-          </Kbd>
-        </Button>
-      </div>
+      {item.contact.id ? (
+        <NextCallDetail
+          brief={brief}
+          loading={briefLoading}
+          failed={briefFailed}
+          onRetry={reloadBrief}
+          now={now}
+        />
+      ) : null}
     </motion.section>
+  );
+}
+
+/** "VP of Operations at Brightline Logistics", as far as it is known. */
+function NextCallRole({
+  jobTitle,
+  company
+}: {
+  jobTitle: string | null;
+  company: string | null;
+}) {
+  const t = useTranslations('calls.myDay.next');
+  if (!jobTitle && !company) return null;
+  const strong = (chunks: React.ReactNode) => (
+    <span className='text-foreground font-semibold'>{chunks}</span>
+  );
+  return (
+    <p className='text-muted-foreground flex min-w-0 items-center gap-2 text-[15px]'>
+      <Building2 className='size-4 shrink-0' aria-hidden />
+      <span className='truncate'>
+        {jobTitle && company
+          ? t.rich('role', { title: jobTitle, company, strong })
+          : jobTitle
+            ? jobTitle
+            : strong(company)}
+      </span>
+    </p>
   );
 }
 

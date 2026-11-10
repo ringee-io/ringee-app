@@ -22,7 +22,7 @@ import {
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { MyDayList } from '../../types/my-day';
-import { Kbd } from './kbd';
+import { Kbd } from '@ringee/frontend-shared/components/ui/kbd';
 
 interface ListPickerProps {
   open: boolean;

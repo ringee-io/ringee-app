@@ -77,6 +77,39 @@ export interface MyDayListNext {
   next: MyDayListEntry | null;
 }
 
+/** One past call with a contact (`GET /my-day/contacts/:id`). */
+export interface MyDayBriefCall {
+  id: string;
+  at: string;
+  direction: 'inbound' | 'outbound' | null;
+  status: string;
+  outcome: string | null;
+  durationSeconds: number | null;
+  note: string | null;
+}
+
+/** Who a contact is before the call (`GET /my-day/contacts/:id`). */
+export interface MyDayContactBrief {
+  contactId: string;
+  jobTitle: string | null;
+  email: string | null;
+  /** City and region as far as they are known: "Chicago, IL". */
+  place: string | null;
+  /** Only ever an http(s) URL — the server drops any other scheme. */
+  linkedinUrl: string | null;
+  company: {
+    name: string | null;
+    /** The company's revenue band ("$10M-$50M"). */
+    revenue: string | null;
+    employees: string | null;
+    industry: string | null;
+    website: string | null;
+    linkedinUrl: string | null;
+  } | null;
+  /** The newest few, and how many there are in all. */
+  calls: { total: number; recent: MyDayBriefCall[] };
+}
+
 export interface MyDaySummary {
   calls: number;
   conversations: number;

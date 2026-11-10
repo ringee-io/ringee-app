@@ -23,6 +23,7 @@ import {
 } from '../../hooks/use.my.day.queue';
 import { useMyDaySummary } from '../../hooks/use.my.day.summary';
 import { useQueueDial } from '../../hooks/use.queue.dial';
+import { useContactBriefStore } from '../../store/contact-brief.store';
 import { useNumbersStore } from '../../store/number.selector.store';
 import type {
   MyDayList,
@@ -114,6 +115,9 @@ export function MyDayView() {
     void refreshQueue();
     void refreshSummary();
     void refreshListNext();
+    // A call just ended or started: whoever is next may have a new line in
+    // their history.
+    useContactBriefStore.getState().invalidate();
   }, [refreshQueue, refreshSummary, refreshListNext]);
 
   const { callItem, dialingKey, busy, called } = useQueueDial(refreshAll);

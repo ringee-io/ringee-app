@@ -818,6 +818,19 @@ export class MeetingService {
     }
     await this.withdrawUnsentEmails(meeting.id);
 
+    // The external event goes too (CAL-002): the provider sends the attendee
+    // the cancellation. Best-effort like a move's — the cancellation in Ringee
+    // already stands — and safe to repeat; the outcome is recorded on the
+    // meeting, which is answered as it stands now so the caller can say it.
+    try {
+      await this.calendarService.cancelExternalEvent(ctx, updated);
+      return await this.getMeetingById(ctx, meeting.id);
+    } catch (err) {
+      this.logger.warn(
+        `Could not cancel the external event of meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+
     return updated;
   }
 

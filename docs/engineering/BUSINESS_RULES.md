@@ -1491,6 +1491,12 @@ after the meeting was cancelled or moved is recorded `pending` (its pointer kept
 never `synced`) and then deleted or moved; a cancellation does not settle while
 an event is still being created.
 
+A meeting cancelled from the dashboard (`MeetingService.cancelMeeting`) deletes
+its event the same way (`CalendarService.cancelExternalEvent`), which the
+provider announces to the attendee as a cancellation (Google with
+`sendUpdates=all`). It is best-effort like a move: the cancellation in Ringee
+stands, the outcome is recorded on the meeting, and repeating it is safe.
+
 The destination is stored **on the meeting**, not read back from the calendar, so
 re-pointing a calendar at a different Google account never rewrites where an
 event that already exists lives. Disconnecting an account leaves each calendar's
