@@ -8,6 +8,36 @@ const nonNegativeInteger = (name: string, fallback: number): number => {
   return Number.isInteger(value) && value >= 0 ? value : fallback;
 };
 
+const PILOT_USER_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Explicit enrollment only: every entry must be a user id. A wildcard or a
+ * malformed entry admits nobody — it is dropped with a warning instead of
+ * refusing to boot, so a typo closes the pilot rather than the API.
+ */
+const parsePersonalPilotUserIds = (raw: string | undefined): string[] => {
+  const entries = (raw ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const rejected = entries.filter((id) => !PILOT_USER_ID.test(id));
+  if (rejected.length > 0) {
+    console.warn(
+      `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS ignores ${rejected.length} entr${
+        rejected.length === 1 ? "y" : "ies"
+      } that are not user ids (a wildcard is not supported).`,
+    );
+  }
+  return [
+    ...new Set(
+      entries
+        .filter((id) => PILOT_USER_ID.test(id))
+        .map((id) => id.toLowerCase()),
+    ),
+  ];
+};
+
 const apiConfiguration = {
   PORT: process.env.PORT || 3000,
   DATABASE_URL: process.env.DATABASE_URL!,
@@ -297,6 +327,15 @@ const apiConfiguration = {
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean),
+  // Personal workspaces enrolled in the AI Voice Agents pilot (AGENT-011,
+  // AGENT-018): a comma-separated list of Ringee user ids, each naming one
+  // owner's personal workspace. Enrollment opens the module, manual agent calls
+  // and automated work for that personal workspace only. Explicit ids only —
+  // "*" is not honored here, and neither is the organization list's "*".
+  // Empty (the default) admits no personal workspace.
+  AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS: parsePersonalPilotUserIds(
+    process.env.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS,
+  ),
   // AI Pipeline — Follow-up Intelligence batch enrichment. Context activation
   // is already explicit, so AI runs unless it is deliberately disabled.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED !== "false",
@@ -482,4 +521,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-export { apiConfiguration };
+export { apiConfiguration, parsePersonalPilotUserIds };

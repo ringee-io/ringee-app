@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { MeetingReminderPolicy } from "@prisma/client";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import {
+  buildOwnershipData,
+  buildOwnershipFilter,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
 
 export interface MeetingReminderPolicyInput {
@@ -22,12 +26,12 @@ export class MeetingReminderPolicyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   listForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     options?: { agentId?: string },
   ): Promise<MeetingReminderPolicy[]> {
     return this.prisma.meetingReminderPolicy.findMany({
       where: {
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         ...(options?.agentId ? { agentId: options.agentId } : {}),
       },
       orderBy: { createdAt: "asc" },
@@ -35,20 +39,20 @@ export class MeetingReminderPolicyRepository {
   }
 
   findForCalendar(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     calendarId: string,
   ): Promise<MeetingReminderPolicy | null> {
     return this.prisma.meetingReminderPolicy.findFirst({
-      where: { organizationId: ctx.organizationId, calendarId },
+      where: { ...buildOwnershipFilter(ctx), calendarId },
     });
   }
 
   findByIdForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     id: string,
   ): Promise<MeetingReminderPolicy | null> {
     return this.prisma.meetingReminderPolicy.findFirst({
-      where: { organizationId: ctx.organizationId, id },
+      where: { ...buildOwnershipFilter(ctx), id },
     });
   }
 
@@ -58,7 +62,7 @@ export class MeetingReminderPolicyRepository {
    * settings is cancelled and replanned by the caller.
    */
   upsertForCalendar(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     input: MeetingReminderPolicyInput,
   ): Promise<MeetingReminderPolicy> {
     const now = new Date();
@@ -78,8 +82,7 @@ export class MeetingReminderPolicyRepository {
     return this.prisma.meetingReminderPolicy.upsert({
       where: { calendarId: input.calendarId },
       create: {
-        userId: ctx.userId,
-        organizationId: ctx.organizationId,
+        ...buildOwnershipData(ctx),
         calendarId: input.calendarId,
         enabled: true,
         activatedAt: now,
@@ -101,13 +104,13 @@ export class MeetingReminderPolicyRepository {
    * offsets that passed while paused are never called late.
    */
   async setEnabled(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     ids: string[],
     enabled: boolean,
   ): Promise<MeetingReminderPolicy[]> {
     if (ids.length === 0) return [];
     await this.prisma.meetingReminderPolicy.updateMany({
-      where: { organizationId: ctx.organizationId, id: { in: ids } },
+      where: { ...buildOwnershipFilter(ctx), id: { in: ids } },
       data: {
         enabled,
         version: { increment: 1 },
@@ -115,18 +118,15 @@ export class MeetingReminderPolicyRepository {
       },
     });
     return this.prisma.meetingReminderPolicy.findMany({
-      where: { organizationId: ctx.organizationId, id: { in: ids } },
+      where: { ...buildOwnershipFilter(ctx), id: { in: ids } },
     });
   }
 
   /** Removes the policies of calendars no longer covered by an agent's setup. */
-  async deleteForOwner(
-    ctx: OrganizationOwnershipContext,
-    ids: string[],
-  ): Promise<number> {
+  async deleteForOwner(ctx: OwnershipContext, ids: string[]): Promise<number> {
     if (ids.length === 0) return 0;
     const { count } = await this.prisma.meetingReminderPolicy.deleteMany({
-      where: { organizationId: ctx.organizationId, id: { in: ids } },
+      where: { ...buildOwnershipFilter(ctx), id: { in: ids } },
     });
     return count;
   }

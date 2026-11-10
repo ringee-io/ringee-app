@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 // Test-only bootstrap, never a production migration runner. Start with an empty
-// local database; derive the preceding schema and apply the real Stage 1/2/3 SQL.
+// local database; derive the preceding schema and apply the real Stage 1/2/3/4A SQL.
 const url = new URL(process.env.FOLLOWUP_DATABASE_URL);
 if (
   !["localhost", "127.0.0.1"].includes(url.hostname) ||
@@ -51,8 +51,10 @@ for (const name of [
   if (!block.test(schema)) throw new Error(`Missing schema block ${name}`);
   schema = schema.replace(block, "");
 }
-schema = schema.replace(/^.*\bPendingActionFollowUp\??\s*.*$/gm, "");
-schema = schema.replace(/^.*\bMeetingAutomationAction\??\s*.*$/gm, "");
+// One line each: `\s*` would cross the newline and also delete the next one
+// (it once dropped `@@index([requestStatus, reviewAt])` from the baseline).
+schema = schema.replace(/^.*\bPendingActionFollowUp\b.*$/gm, "");
+schema = schema.replace(/^.*\bMeetingAutomationAction\b.*$/gm, "");
 for (const [model, fields] of [
   ["Call", ["outcomeRevision", "outcomeCommitment"]],
   ["Meeting", ["replacesMeetingId"]],
@@ -70,6 +72,28 @@ for (const [model, fields] of [
       .filter(
         (line) =>
           !fields.some((field) => new RegExp(`\\b${field}\\b`).test(line)),
+      )
+      .join("\n"),
+  );
+}
+// Stage 4A: these tables required an organization, and participations had no
+// owner column, before 20261107120000_personal_voice_agent_scope.
+for (const model of [
+  "AiVoiceAgentAutomation",
+  "MeetingReminderPolicy",
+  "MeetingReminderExecution",
+  "MeetingEmailDelivery",
+  "AiVoiceAgentHandoff",
+  "AiVoiceAgentCallParticipant",
+]) {
+  schema = schema.replace(new RegExp(`model ${model} \\{[^}]*\\}`), (block) =>
+    block
+      .replace(/^(\s*organizationId\s+)String\?(\s)/m, "$1String $2")
+      .replace(/^(\s*organization\s+)Organization\?(\s)/m, "$1Organization $2")
+      .split("\n")
+      .filter(
+        (line) =>
+          model !== "AiVoiceAgentCallParticipant" || !/^\s*userId\s/.test(line),
       )
       .join("\n"),
   );
@@ -110,6 +134,8 @@ try {
     "migrations-pending/20261103140000_human_outcome_follow_up/migration.sql",
     "migrations-pending/20261105090000_follow_up_resolution/migration.sql",
     "pending-migrations/20261105090100_follow_up_resolution_indexes.sql",
+    "migrations-pending/20261107120000_personal_voice_agent_scope/migration.sql",
+    "pending-migrations/20261107120100_personal_voice_agent_scope_indexes.sql",
   ])
     sql(read(path));
   console.log(

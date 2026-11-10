@@ -26,8 +26,8 @@ import {
   OrganizationRepository,
   ReminderSubjectType,
 } from "@ringee/database";
-import { automationOrganizationFilter } from "./voice-agents/automations/automation-access";
-import { OwnershipContext } from "@ringee/platform";
+import { automationAdmissionFilter } from "./voice-agents/automations/automation-access";
+import { OwnershipContext, workspaceOf } from "@ringee/platform";
 import {
   CalendarService,
   ResolvedCalendar,
@@ -369,6 +369,8 @@ export class MeetingService {
     // `createCalendarEvent` persists these fields after Ringee creates the
     // meeting. Reflect them in this response as well so tool callers receive
     // the Meet/Teams link without needing a second read.
+    // Cancelled while its event was being created, the booking caller gets
+    // the meeting as it is now — not a scheduled meeting with a deleted link.
     return calendarResult
       ? {
           ...meeting,
@@ -376,7 +378,7 @@ export class MeetingService {
           externalSyncStatus: MeetingExternalSyncStatus.synced,
           location: calendarResult.meetLink ?? meeting.location,
         }
-      : { ...meeting, externalSyncStatus: sync.status };
+      : { ...meeting, ...sync.cancelled, externalSyncStatus: sync.status };
   }
 
   async getMeetingById(ctx: OwnershipContext, id: string): Promise<Meeting> {
@@ -574,8 +576,53 @@ export class MeetingService {
     );
     // A repeat finishes what the first attempt may not have: every step is
     // safe to run again, and the external event moves only if it still lags.
-    if (outcome.result === "moved") await this.afterMove(ctx, outcome.meeting);
+    if (outcome.result === "moved") {
+      if (outcome.replacement)
+        await this.publishReplacement(
+          ctx,
+          outcome.meeting,
+          input.resolvedCalendar,
+        );
+      await this.afterMove(ctx, outcome.meeting);
+    }
     return outcome;
+  }
+
+  /**
+   * A replacement is a new booking, published as one: its external event,
+   * then the integrations and CRM. Each is keyed on the meeting — the event
+   * id, `meeting_created`'s and the CRM sync's dedupe keys — so a retried move
+   * publishes nothing twice. Best-effort like a booking's: the move stands.
+   */
+  private async publishReplacement(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+    calendar: ResolvedCalendar,
+  ): Promise<void> {
+    const sync = await this.calendarService
+      .syncMeetingToExternalCalendar(ctx, meeting, {
+        destination: calendar.destination,
+        title: meeting.title ?? undefined,
+        attendeeEmail: meeting.leadEmail ?? undefined,
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `Could not create the external event of replacement meeting ${meeting.id}: ${(err as Error).message}`,
+        );
+        return null;
+      });
+    await this.enqueueMeetingCreated(meeting);
+    try {
+      await this.crmMeetingSync.enqueueMeetingSync(ctx, meeting, {
+        calendarEventId: sync?.externalEventId ?? null,
+        meetingUrl: sync?.meetLink ?? null,
+        attendeeEmail: meeting.leadEmail ?? null,
+      });
+    } catch (err) {
+      this.logger.debug(
+        `Skipped CRM meeting sync for replacement meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
   }
 
   /**
@@ -628,7 +675,7 @@ export class MeetingService {
    */
   async repairAutomationActions(now = new Date()): Promise<void> {
     const actions = await this.meetingRepo.listPendingMaintenance(
-      automationOrganizationFilter(),
+      automationAdmissionFilter(),
     );
     for (const action of actions) {
       const wait = Math.min(
@@ -638,16 +685,14 @@ export class MeetingService {
           now.getTime() - action.createdAt.getTime(),
         ),
       );
+      // The action's own workspace, as persisted.
       await this.meetingRepo.deferMaintenance(
         action.id,
-        action.organizationId,
+        workspaceOf(action),
         new Date(now.getTime() + wait),
       );
       const meeting = action.meeting;
-      const ctx = {
-        userId: meeting.userId,
-        organizationId: meeting.organizationId,
-      };
+      const ctx = workspaceOf(meeting);
       try {
         if (meeting.status === "cancelled") {
           await this.reminderService.cancelForSubject(
@@ -666,21 +711,29 @@ export class MeetingService {
         } else if (
           ["booked", "rescheduled", "replaced"].includes(action.kind)
         ) {
-          await this.reminderService.replanMeetingCalls(meeting);
+          // The meeting as it is now, not as it was listed: replanning a
+          // stale version would withdraw the calls a later move planned.
+          const current = await this.meetingRepo.findById(meeting.id);
+          if (!current || current.scheduleVersion !== meeting.scheduleVersion)
+            continue;
+          await this.reminderService.replanMeetingCalls(current);
           await this.reminderService.rescheduleForSubject({
             subjectType: ReminderSubjectType.meeting,
-            subjectId: meeting.id,
-            userId: meeting.userId,
-            organizationId: meeting.organizationId,
-            fireAt: meeting.scheduledAt,
+            subjectId: current.id,
+            userId: current.userId,
+            organizationId: current.organizationId,
+            fireAt: current.scheduledAt,
           });
           const synced = await this.retryExternalSync(ctx, meeting.id);
           if (!["synced", "not_required"].includes(synced.externalSyncStatus))
             continue;
+          // Moved while this ran: not complete, so the next try writes the
+          // schedule it moved to.
+          if (synced.scheduleVersion !== current.scheduleVersion) continue;
         }
         await this.meetingRepo.completeMaintenance(
           action.id,
-          action.organizationId,
+          workspaceOf(action),
         );
       } catch {
         this.logger.warn(

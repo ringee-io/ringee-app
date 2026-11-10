@@ -24,6 +24,7 @@ import {
 } from "@ringee/database";
 import {
   hashApiKey,
+  isInWorkspace,
   normalizePhoneE164,
   VoiceAgentCallRefusedError,
   VoiceAgentProviderService,
@@ -142,8 +143,11 @@ export class VoiceAgentCallService {
     call: Call,
   ): Promise<void> {
     assertVoiceAgentAccess(ctx);
+    // The call must be this workspace's: matching organizations alone would
+    // let one person's personal workspace take another's call, since every
+    // personal call has a null organization.
     if (
-      call.organizationId !== ctx.organizationId ||
+      !isInWorkspace(ctx, call) ||
       call.direction !== "inbound" ||
       !call.callControlId ||
       call.endedAt
@@ -167,7 +171,7 @@ export class VoiceAgentCallService {
       agentId,
       callId: call.id,
       userId: ctx.userId,
-      organizationId: ctx.organizationId,
+      organizationId: ctx.organizationId ?? null,
       fromNumber: call.toNumber,
       toNumber: call.fromNumber,
       contactId: call.contactId,
@@ -230,6 +234,18 @@ export class VoiceAgentCallService {
     await this.assertCallingAllowed(ctx, to);
 
     const from = await this.resolveCallerId(ctx, agent, input.fromNumberId);
+
+    // A durable caller's earlier try under the same key already has its row:
+    // whatever happened to it, this start must not place a second leg or
+    // write the contact again, so the key is checked before the first write.
+    // Two starts racing under one key are settled by the unique key below.
+    if (input.idempotencyKey) {
+      const earlier = await this.agentCalls.findByIdempotencyKey(
+        input.idempotencyKey,
+      );
+      if (earlier) throw this.alreadyStarted(earlier);
+    }
+
     // Everyone an agent dials becomes a contact in the workspace, named from
     // the variables the caller already supplied — otherwise the only record of
     // the person is a phone number on a call row, and the follow-up, the DNC
@@ -250,15 +266,6 @@ export class VoiceAgentCallService {
         );
         return null;
       });
-
-    // A durable caller's earlier try under the same key already has its row:
-    // whatever happened to it, this start must not place a second leg.
-    if (input.idempotencyKey) {
-      const earlier = await this.agentCalls.findByIdempotencyKey(
-        input.idempotencyKey,
-      );
-      if (earlier) throw this.alreadyStarted(earlier);
-    }
 
     const callbackToken = `rvc_${randomBytes(24).toString("hex")}`;
     let agentCall: AiVoiceAgentCall | null = null;
@@ -324,7 +331,7 @@ export class VoiceAgentCallService {
 
     try {
       await this.ensureInsightDelivery(agent);
-      await this.ensureToolDelivery(ctx, agent);
+      await this.ensureToolDelivery(ctx, agent, Boolean(beforePlacement));
       const callingAppId = await this.requireCallingApp(agent);
       // All potentially slow preparation is done. Durable callers commit their
       // current authorization immediately before the external side effect.
@@ -687,8 +694,9 @@ export class VoiceAgentCallService {
   private async ensureToolDelivery(
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
+    required = false,
   ): Promise<void> {
-    await this.agents
+    const verified = await this.agents
       .ensureToolEndpoints(ctx, agent)
       .catch((error: unknown) => {
         this.logger.warn(
@@ -696,7 +704,15 @@ export class VoiceAgentCallService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        return false;
       });
+    // A durable caller dials on its own, so it never runs on whatever tools
+    // the assistant last saved — a move it could not confirm, a tool that no
+    // longer answers. Unverified, the call is not placed and is retried.
+    if (required && !verified)
+      throw new Error(
+        `The tools of agent ${agent.id} could not be verified before dialing`,
+      );
   }
 
   private async requireCallingApp(agent: AiVoiceAgent): Promise<string> {

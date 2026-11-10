@@ -65,11 +65,28 @@ calls (AGENT-019), scheduled agent callbacks (AGENT-014) — goes through
 - keeps the write that records a placed call outside the dial's own error
   handling: once `startCall` has returned, a failed write is not a failed dial.
   The claim is left to expire and the next tick links the call by its key;
+- dials only on tools verified against the current blueprint: with a
+  `beforePlacement` guard, `startCall` refuses an agent whose tools it could not
+  verify or re-sync, before placement (`retryable_before_placement`). Tool
+  parameters are not read back from the provider, so a schema change behind an
+  unchanged tool URL still needs the agents re-synced;
 - re-checks what it is calling about right before the dial (versions, calling
   window, DNC through `startCall`), because the row it planned from may be stale.
   `startCall` fills the contact's blank fields from the call's variables
   before `beforePlacement` runs, so a guard fenced on `Contact.updatedAt`
   re-reads the contact there instead of comparing the version its plan read.
+
+Voice-agent work exists in both workspace types (AGENT-011): an organization,
+or a personal workspace (`userId` + `organizationId: null`) enrolled in the
+pilot. Deferred work rebuilds its scope from the persisted row (`workspaceOf`),
+never from the workspace its owner has open now. Compare a row to a context with
+`isInWorkspace` and two rows with `isSameWorkspace` — `a.organizationId ===
+b.organizationId` pairs every personal row with every other, since all are null.
+Admission is `voiceAgentAutomationsEnabled(row)` on the row's own
+`userId`/`organizationId`; claim queries take `automationAdmissionFilter()`
+inside the query. Membership and authority are
+`OrganizationRepository.isWorkspaceMember` / `isWorkspaceAdmin`: a personal
+workspace's only member and administrator is its owner.
 
 A call can hold more than one agent (AGENT-021): the agent that placed it and
 one that took it over through a handoff. A voice-agent tool therefore never

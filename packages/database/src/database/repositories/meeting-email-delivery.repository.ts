@@ -6,10 +6,23 @@ import {
   MeetingEmailKind,
   Prisma,
 } from "@prisma/client";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import {
+  buildOwnershipFilter,
+  workspaceOf,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
+import {
+  workspaceAdmissionSql,
+  workspaceAdmissionWhere,
+  workspaceOwnershipSql,
+  type WorkspaceAdmission,
+} from "./workspace-scope";
 
 const D = MeetingEmailDeliveryStatus;
+
+/** Waiting deliveries one drain re-reads for a new address. */
+const ADDRESS_SCAN_BATCH = 200;
 
 /** Deliveries a person has to act on before they can go out. */
 export const ATTENTION_EMAIL_DELIVERY_STATUSES: MeetingEmailDeliveryStatus[] = [
@@ -34,23 +47,32 @@ export type MeetingEmailDeliveryWithMeeting = MeetingEmailDelivery & {
  */
 @Injectable()
 export class MeetingEmailDeliveryRepository {
+  /** Where the next address scan resumes; unset, it starts from the first row. */
+  private addressScanAfter: string | undefined;
+
   constructor(private readonly prisma: PrismaService) {}
 
   /** The action a delivery is the receipt of, in the delivery's own
    * workspace and meeting — the same predicate `prepareSend` holds it to. */
-  findAction(id: string, owner: { organizationId: string; meetingId: string }) {
+  findAction(
+    id: string,
+    owner: { userId: string; organizationId: string | null; meetingId: string },
+  ) {
     return this.prisma.meetingAutomationAction.findFirst({
       where: {
         id,
-        organizationId: owner.organizationId,
+        ...buildOwnershipFilter(workspaceOf(owner)),
         meetingId: owner.meetingId,
       },
     });
   }
 
-  listActionDeliveries(actionId: string, organizationId: string) {
+  listActionDeliveries(
+    actionId: string,
+    workspace: { userId: string; organizationId: string | null },
+  ) {
     return this.prisma.meetingEmailDelivery.findMany({
-      where: { actionId, organizationId },
+      where: { actionId, ...buildOwnershipFilter(workspaceOf(workspace)) },
     });
   }
 
@@ -60,18 +82,19 @@ export class MeetingEmailDeliveryRepository {
    * claimed and parked again on every tick.
    */
   async requeueAvailableAddresses(
-    organizationIds: string[] | null,
+    admission: WorkspaceAdmission,
     usable: (address: string | null) => boolean,
   ) {
     const waiting = {
       status: D.needs_email,
       actionId: { not: null },
       firstAttemptAt: null,
-      ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+      AND: [workspaceAdmissionWhere(admission)],
     } satisfies Prisma.MeetingEmailDeliveryWhereInput;
     const candidates = await this.prisma.meetingEmailDelivery.findMany({
       where: {
         ...waiting,
+        ...(this.addressScanAfter ? { id: { gt: this.addressScanAfter } } : {}),
         meeting: {
           OR: [
             { leadEmail: { not: null } },
@@ -85,7 +108,15 @@ export class MeetingEmailDeliveryRepository {
           select: { leadEmail: true, contact: { select: { email: true } } },
         },
       },
+      orderBy: { id: "asc" },
+      take: ADDRESS_SCAN_BATCH,
     });
+    // A full batch resumes after its last row on the next drain; a short one
+    // starts over, so a row skipped here is read again once its address changes.
+    this.addressScanAfter =
+      candidates.length === ADDRESS_SCAN_BATCH
+        ? candidates[candidates.length - 1].id
+        : undefined;
     const ids = candidates
       .filter(
         ({ meeting }) =>
@@ -108,7 +139,7 @@ export class MeetingEmailDeliveryRepository {
     now: Date,
     leaseUntil: Date,
     limit: number,
-    organizationIds: string[] | null = null,
+    admission: WorkspaceAdmission,
   ): Promise<MeetingEmailDelivery[]> {
     return this.prisma.$queryRaw<MeetingEmailDelivery[]>`
       UPDATE "MeetingEmailDelivery"
@@ -123,7 +154,7 @@ export class MeetingEmailDeliveryRepository {
         WHERE ("status" = 'pending'
            OR ("status" = 'sending'
                 AND "leaseExpiresAt" < (${now}::timestamptz AT TIME ZONE 'UTC')))
-          ${organizationIds === null ? Prisma.empty : Prisma.sql`AND "organizationId"::text = ANY(${organizationIds}::text[])`}
+          AND ${workspaceAdmissionSql(admission)}
         ORDER BY "createdAt" ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -148,16 +179,19 @@ export class MeetingEmailDeliveryRepository {
     if (rescheduled && expectedMeetingVersion !== delivery.scheduleVersion) {
       return null;
     }
+    // The delivery's own workspace, as persisted.
+    const workspace = workspaceOf(delivery);
+    const owned = buildOwnershipFilter(workspace);
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Meeting"
         WHERE "id" = ${delivery.meetingId}::uuid
-          AND "organizationId" = ${delivery.organizationId}::uuid FOR UPDATE`;
+          AND ${workspaceOwnershipSql(workspace)} FOR UPDATE`;
       if (delivery.actionId) {
         const action = await tx.meetingAutomationAction.findFirst({
           where: {
             id: delivery.actionId,
             meetingId: delivery.meetingId,
-            organizationId: delivery.organizationId,
+            ...owned,
           },
         });
         if (!action) {
@@ -176,6 +210,18 @@ export class MeetingEmailDeliveryRepository {
           return null;
         }
         if (delivery.kind === "recovery_callback") {
+          // The request's own lock, after the meeting's (FOLLOW_UP.md order):
+          // settlement takes it too, so a request settled before this commit,
+          // whose callback will never dial, sends no receipt promising it.
+          if (action.handoffId)
+            await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff"
+              WHERE "id" = ${action.handoffId}::uuid FOR UPDATE`;
+          const handoff = action.handoffId
+            ? await tx.aiVoiceAgentHandoff.findFirst({
+                where: { id: action.handoffId, ...owned },
+                select: { requestStatus: true },
+              })
+            : null;
           // Only the callback of the action's own request, in the delivery's
           // workspace, decides whether its receipt still stands.
           const callback =
@@ -183,7 +229,7 @@ export class MeetingEmailDeliveryRepository {
               ? await tx.callbackTask.findFirst({
                   where: {
                     id: action.callbackId,
-                    organizationId: delivery.organizationId,
+                    ...owned,
                     handoffId: action.handoffId,
                   },
                   include: { followUp: true },
@@ -192,6 +238,7 @@ export class MeetingEmailDeliveryRepository {
           const evidence = action.evidence as { scheduledAt?: string };
           if (
             !callback ||
+            handoff?.requestStatus !== "pending" ||
             !["scheduled", "due"].includes(callback.status) ||
             callback.scheduledAt.toISOString() !== evidence.scheduledAt ||
             (callback.followUp &&
@@ -221,7 +268,7 @@ export class MeetingEmailDeliveryRepository {
         claimToken: delivery.claimToken,
         leaseExpiresAt: { gt: now },
         meeting: {
-          organizationId: delivery.organizationId,
+          ...owned,
           // A callback receipt was checked against its callback above.
           scheduleVersion:
             delivery.kind === "recovery_callback"
@@ -342,11 +389,11 @@ export class MeetingEmailDeliveryRepository {
   }
 
   findByIdForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     id: string,
   ): Promise<MeetingEmailDelivery | null> {
     return this.prisma.meetingEmailDelivery.findFirst({
-      where: { organizationId: ctx.organizationId, id },
+      where: { ...buildOwnershipFilter(ctx), id },
     });
   }
 
@@ -383,12 +430,12 @@ export class MeetingEmailDeliveryRepository {
   }
 
   listAttentionForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     options: { since: Date; take: number },
   ): Promise<MeetingEmailDeliveryWithMeeting[]> {
     return this.prisma.meetingEmailDelivery.findMany({
       where: {
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         status: { in: ATTENTION_EMAIL_DELIVERY_STATUSES },
         updatedAt: { gte: options.since },
       },
@@ -408,11 +455,11 @@ export class MeetingEmailDeliveryRepository {
   }
 
   listForMeeting(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     meetingId: string,
   ): Promise<MeetingEmailDelivery[]> {
     return this.prisma.meetingEmailDelivery.findMany({
-      where: { organizationId: ctx.organizationId, meetingId },
+      where: { ...buildOwnershipFilter(ctx), meetingId },
       orderBy: { createdAt: "desc" },
     });
   }

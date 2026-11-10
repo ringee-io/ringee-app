@@ -26,10 +26,7 @@ import {
   OrganizationRepository,
   UserRepository,
 } from "@ringee/database";
-import type {
-  OrganizationOwnershipContext,
-  OwnershipContext,
-} from "@ringee/platform";
+import type { OwnershipContext } from "@ringee/platform";
 import { CalendarService } from "../../calendar.service";
 import { ContactService } from "../../contact.service";
 import { CreditService } from "../../credit.service";
@@ -72,6 +69,19 @@ export const AUTOMATION_CAPABILITIES: AutomationCapability[] = [
  * or deleting its trigger, is an admin's.
  */
 export const MEMBER_AUTOMATION_CAPABILITIES: AutomationCapability[] = [
+  "scheduling",
+];
+
+/**
+ * What a personal workspace's owner gets (Stage 4A): the same reminders and
+ * scheduling an organization has, configured by the owner. The AI receptionist
+ * is not offered yet: an inbound leg it answers in a personal workspace would
+ * occupy its owner's single call (CALL-001), and its transfers need the
+ * per-user browser endpoint only organizations are issued — both pending
+ * deliberate changes and live validation.
+ */
+export const PERSONAL_AUTOMATION_CAPABILITIES: AutomationCapability[] = [
+  "reminders",
   "scheduling",
 ];
 
@@ -282,12 +292,12 @@ export class VoiceAgentAutomationService {
     ctx: OwnershipContext,
     viewer: AutomationViewer,
   ): Promise<AutomationSummary> {
-    if (!voiceAgentAutomationsEnabled(ctx.organizationId)) {
+    if (!voiceAgentAutomationsEnabled(ctx)) {
       return { enabled: false, operational: 0, attention: 0, capabilities: {} };
     }
-    const cards = await this.cards(ctx as OrganizationOwnershipContext, {
+    const cards = await this.cards(ctx, {
       details: false,
-      capabilities: visibleCapabilities(viewer),
+      capabilities: visibleCapabilities(ctx, viewer),
     });
     return {
       enabled: true,
@@ -308,13 +318,13 @@ export class VoiceAgentAutomationService {
     ctx: OwnershipContext,
     viewer: AutomationViewer,
   ): Promise<AutomationPanel> {
-    if (!voiceAgentAutomationsEnabled(ctx.organizationId)) {
+    if (!voiceAgentAutomationsEnabled(ctx)) {
       return { enabled: false, operational: 0, cards: [], activity: [] };
     }
     assertVoiceAgentAutomations(ctx);
     const cards = await this.cards(ctx, {
       details: true,
-      capabilities: visibleCapabilities(viewer),
+      capabilities: visibleCapabilities(ctx, viewer),
     });
     const activity = await this.activity(ctx, cards);
     return {
@@ -461,6 +471,13 @@ export class VoiceAgentAutomationService {
     failed: Array<{ number: InboundNumberRef; error: string }>;
   }> {
     assertVoiceAgentAutomations(ctx);
+    if (!ctx.organizationId) {
+      // Not a hidden card only: the server refuses it (see
+      // PERSONAL_AUTOMATION_CAPABILITIES for why it waits).
+      throw new ConflictException(
+        "The AI receptionist is not available in personal workspaces yet.",
+      );
+    }
     if (!inboundAvailable()) {
       throw new ConflictException(
         "Inbound AI calling is not available on this installation yet.",
@@ -546,15 +563,13 @@ export class VoiceAgentAutomationService {
     },
   ): Promise<AutomationCard> {
     assertVoiceAgentAutomations(ctx);
+    // An organization admin, re-read now — or a personal workspace's owner,
+    // who authorizes their own follow-up through the same setup.
     if (
       (input.receiptRecipients !== undefined ||
         input.humanFollowUpEnabled !== undefined ||
         input.interestedObjective !== undefined) &&
-      !(
-        await this.organizations.listAdminUserIds(ctx.organizationId, [
-          ctx.userId,
-        ])
-      ).includes(ctx.userId)
+      !(await this.organizations.isWorkspaceAdmin(ctx))
     )
       throw new BadRequestException(
         "Only an administrator can authorize automatic follow-up",
@@ -582,10 +597,22 @@ export class VoiceAgentAutomationService {
     const existed = Boolean(
       await this.automations.findForOwner(ctx, AGENT_TYPE.scheduling),
     );
-    const agent = await this.resolveAgent(ctx, "scheduling", input, {
-      callerNumberId: input.callerNumberId,
-      calendarId: input.calendarId,
-    });
+    const agent = await this.resolveAgent(
+      ctx,
+      "scheduling",
+      input,
+      {
+        callerNumberId: input.callerNumberId,
+        calendarId: input.calendarId,
+      },
+      // A first setup's receipts are part of its claim: a retry after an
+      // interruption finds the row with them, never as a legacy workspace's.
+      existed
+        ? undefined
+        : {
+            receiptRecipients: input.receiptRecipients ?? "contact_responsible",
+          },
+    );
     await this.automations.upsertForOwner(
       ctx,
       AGENT_TYPE.scheduling,
@@ -822,14 +849,12 @@ export class VoiceAgentAutomationService {
     if (!contact) throw new NotFoundException("Contact not found");
 
     const responsibleUserId = input.responsibleUserId ?? ctx.userId;
-    if (
-      !(await this.organizations.isMember(
-        responsibleUserId,
-        ctx.organizationId,
-      ))
-    ) {
+    // In a personal workspace the meeting can only be with its owner.
+    if (!(await this.organizations.isWorkspaceMember(ctx, responsibleUserId))) {
       throw new BadRequestException(
-        "Choose a member of your organization for the meeting.",
+        ctx.organizationId
+          ? "Choose a member of your organization for the meeting."
+          : "A meeting in your personal workspace is with you.",
       );
     }
     const responsible = await this.users.findById(responsibleUserId);
@@ -893,10 +918,12 @@ export class VoiceAgentAutomationService {
    * company context.
    */
   private async resolveAgent(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     capability: AutomationCapability,
     input: QuickAgentInput,
     settings: { callerNumberId?: string; calendarId?: string },
+    /** What a row this setup creates starts with (`claim`). */
+    firstSettings?: Record<string, string>,
   ): Promise<AiVoiceAgent> {
     const type = AGENT_TYPE[capability];
     if (input.agentId) {
@@ -955,6 +982,7 @@ export class VoiceAgentAutomationService {
       type,
       token,
       new Date(Date.now() - CLAIM_STALE_MS),
+      firstSettings,
     );
     if (!claim.claimed) {
       const agent = claim.row.agentId
@@ -1006,7 +1034,7 @@ export class VoiceAgentAutomationService {
 
   /** Applies what the mini-form changed, and switches the agent on. */
   private async prepare(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     agent: AiVoiceAgent,
     name: string | undefined,
     settings: { callerNumberId?: string; calendarId?: string },
@@ -1030,7 +1058,7 @@ export class VoiceAgentAutomationService {
   }
 
   private async ensureActive(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     agent: AiVoiceAgent,
   ): Promise<AiVoiceAgent> {
     if (agent.status === AiVoiceAgentStatus.active) return agent;
@@ -1052,7 +1080,7 @@ export class VoiceAgentAutomationService {
     }
   }
 
-  private async environment(ctx: OrganizationOwnershipContext) {
+  private async environment(ctx: OwnershipContext) {
     const [balance, numbers] = await Promise.all([
       this.credits.getBalance(ctx).catch(() => null),
       this.voiceAgents
@@ -1063,7 +1091,7 @@ export class VoiceAgentAutomationService {
   }
 
   private async cards(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     options: { details: boolean; capabilities: AutomationCapability[] },
   ): Promise<AutomationCard[]> {
     const [automations, env] = await Promise.all([
@@ -1086,7 +1114,7 @@ export class VoiceAgentAutomationService {
   }
 
   private async buildCard(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     capability: AutomationCapability,
     automation: AiVoiceAgentAutomation | null,
     env: { balance: number | null; numbers: VoiceAgentCallerNumber[] },
@@ -1167,9 +1195,12 @@ export class VoiceAgentAutomationService {
               from: new Date(),
               agentId: agent.id,
             }),
-            this.organizations
-              .findAdminMembersWithEmails(ctx.organizationId)
-              .catch(() => []),
+            // A personal workspace has no admins to copy: its owner is the member.
+            ctx.organizationId
+              ? this.organizations
+                  .findAdminMembersWithEmails(ctx.organizationId)
+                  .catch(() => [])
+              : Promise.resolve([]),
           ])
         : [0, []];
       return {
@@ -1289,7 +1320,7 @@ export class VoiceAgentAutomationService {
   }
 
   private async activity(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     cards: AutomationCard[],
   ): Promise<AutomationActivity[]> {
     const since = new Date(Date.now() - ACTIVITY_WINDOW_MS);
@@ -1364,7 +1395,11 @@ export class VoiceAgentAutomationService {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function visibleCapabilities(viewer: AutomationViewer): AutomationCapability[] {
+function visibleCapabilities(
+  ctx: OwnershipContext,
+  viewer: AutomationViewer,
+): AutomationCapability[] {
+  if (!ctx.organizationId) return PERSONAL_AUTOMATION_CAPABILITIES;
   return viewer.admin
     ? AUTOMATION_CAPABILITIES
     : MEMBER_AUTOMATION_CAPABILITIES;

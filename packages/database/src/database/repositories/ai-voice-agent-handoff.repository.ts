@@ -14,7 +14,9 @@ import {
   observeFollowUp,
   type NewFollowUpObjective,
 } from "./pending-action-follow-up.persistence";
+import { workspaceOf } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
+import { workspaceOwnershipSql } from "./workspace-scope";
 
 const H = AiVoiceAgentHandoffStatus;
 const R = AiVoiceAgentHandoffRequestStatus;
@@ -25,8 +27,9 @@ const ACTIVATABLE: AiVoiceAgentHandoffStatus[] = [H.prepared, H.uncertain];
 
 /** What a handoff request is created with — every field derived server-side. */
 export interface AiVoiceAgentHandoffInput {
+  /** The source agent call's owner and workspace: no organization when personal. */
   userId: string;
-  organizationId: string;
+  organizationId: string | null;
   purpose: AiVoiceAgentHandoffPurpose;
   agentCallId: string;
   callId: string | null;
@@ -127,6 +130,7 @@ export class AiVoiceAgentHandoffRepository {
             data: [
               {
                 organizationId: input.organizationId,
+                userId: input.userId,
                 agentCallId: input.agentCallId,
                 agentId: input.sourceAgentId,
                 handoffId: created.id,
@@ -179,7 +183,7 @@ export class AiVoiceAgentHandoffRepository {
       });
       if (!seed) return { result: "not_found" as const, handoff: null };
       await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${seed.meetingId}::uuid
-        AND "organizationId" = ${seed.organizationId}::uuid FOR UPDATE`;
+        AND ${workspaceOwnershipSql(workspaceOf(seed))} FOR UPDATE`;
       const [locked] = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "AiVoiceAgentHandoff"
         WHERE "id" = ${handoffId}::uuid
@@ -243,6 +247,7 @@ export class AiVoiceAgentHandoffRepository {
         data: [
           {
             organizationId: handoff.organizationId,
+            userId: handoff.userId,
             agentCallId: handoff.agentCallId,
             agentId: destination.agentId,
             handoffId: handoff.id,
@@ -496,7 +501,9 @@ export class AiVoiceAgentHandoffRepository {
    * request from its first word. A retry finds the row the first try wrote.
    */
   async createCallbackParticipant(input: {
-    organizationId: string;
+    /** The request's workspace: its owner, and no organization when personal. */
+    userId: string;
+    organizationId: string | null;
     agentCallId: string;
     agentId: string;
     handoffId: string;
@@ -506,6 +513,7 @@ export class AiVoiceAgentHandoffRepository {
       data: [
         {
           organizationId: input.organizationId,
+          userId: input.userId,
           agentCallId: input.agentCallId,
           agentId: input.agentId,
           handoffId: input.handoffId,

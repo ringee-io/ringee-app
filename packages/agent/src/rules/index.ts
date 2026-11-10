@@ -24,7 +24,7 @@ export const OPERATING_RULES: OperatingRule[] = [
   },
   {
     id: "voice-agent-call-confirm",
-    rule: "Before start_ai_voice_agent_call, resolve the configured agent with list_ai_voice_agents, explain that it places a real billed call, and get explicit confirmation. Never invent an agentId, caller number or required variable. AI voice agents require an active organization workspace.",
+    rule: "Before start_ai_voice_agent_call, resolve the configured agent with list_ai_voice_agents, explain that it places a real billed call, and get explicit confirmation. Never invent an agentId, caller number or required variable. AI voice agents need a workspace with access to them — an organization workspace, or a personal workspace that has been enabled; the tools say when the active workspace has none.",
     appliesTo: ["sensitive"],
   },
   {

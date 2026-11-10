@@ -27,11 +27,16 @@ by `userId` **plus** `organizationId: null` when it is not.
 
 ### WRK-002 — A resource is never acted on by id alone
 
-Services load the row, then compare its `organizationId` to the caller's context
-before returning or mutating it (`CampaignService.getCampaignById` is the
-reference).
+Services load the row, then check it belongs to the caller's workspace before
+returning or mutating it (`CampaignService.getCampaignById` is the reference).
+For a row already loaded that check is `isInWorkspace(ctx, row)`, and two rows
+are compared with `isSameWorkspace` (`ownership.types.ts`): an organization
+matches on `organizationId`, a personal workspace on its owner's `userId` **and**
+a null organization — comparing `organizationId` alone pairs every personal row
+with every other.
 
-- **Source of truth:** `packages/services/src/services/campaign.service.ts`
+- **Source of truth:** `packages/services/src/services/campaign.service.ts`,
+  `isInWorkspace` / `isSameWorkspace` in `packages/platform/src/auth/ownership.types.ts`
 - **Risk if violated:** cross-workspace data exposure — a guessed or leaked UUID
   becomes read/write access
 
@@ -1504,12 +1509,15 @@ the lead said they will attend. It is never `Meeting.status`: a confirmed
 meeting is still `scheduled`, and "I can't make it" cancels nothing without a
 person deciding to. `finish_meeting_response` may execute that decision only
 after an explicit yes to cancellation on the currently authorized conversation.
-A no or unclear answer retains the booking and records the actual response.
+A no or unclear answer retains the booking and records the actual response — only
+once the lead's decline of that version is recorded, since that receipt says so.
 Cancellation increments the version, retires uncommitted reminders and releases
 the reservation; an open request for another time survives when requested.
 Keeping the booking withdraws none of its unsent emails. A different answer on
-the same call is recorded as a correction: it never changes the appointment
-again, a refusal still closes the objective, and a closed one is not reopened.
+the same call — a yes after a no, or a no after a yes — is recorded as a
+correction: it never changes the appointment again, a refusal still closes the
+objective (or, for a request without one, the request and its waiting
+callbacks), and a closed one is not reopened.
 
 Every meeting carries a `scheduleVersion`, bumped when it moves, is cancelled or
 changes hands. Moving a meeting resets its attendance to `pending` — an answer
@@ -1716,20 +1724,42 @@ the tool reports success, and may never invent a response time.
 - **Source of truth:** `VoiceAgentToolService.requestHumanSupport` and
   `VoiceAgentHumanSupportService`
 
-### AGENT-011 — AI voice agents require an active organization workspace
+### AGENT-011 — AI voice agents require an organization workspace or an enrolled personal workspace
 
-The module is available to organization workspaces only. Dashboard routes,
-REST calls, CLI commands and MCP tools all fail closed when the active ownership
-context has no `organizationId`. The shared `assertVoiceAgentAccess` service
-rule is the source of truth; the API guard also covers catalogue and credential
-routes that do not otherwise need an ownership context.
+Every organization workspace has the module. A personal workspace has it only
+while its owner is explicitly enrolled in the pilot
+(`AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`: Ringee user ids; a wildcard or a
+malformed entry admits nobody, and the organization list's `*` never admits a
+personal workspace). Dashboard routes, REST calls, CLI commands and MCP tools
+all fail closed otherwise. One scope-aware decision, `voiceAgentAccess`,
+answers both module access and automation admission (AGENT-018) for the API
+guard, every service entry point, the dashboard's `GET /api/ai-voice-agents-access`
+(additive `workspaceType`) and the workers. The guard reads the personal owner
+from the auth layer (Clerk private metadata, `AUTH-003`), never from the client;
+it also covers catalogue and credential routes that need no ownership context.
+
+A personal workspace is its owner's `userId` with `organizationId: null`
+(`WRK-001`). Every resource the module reads, links or acts on is checked with
+the canonical helpers — `buildOwnershipFilter`, `isInWorkspace`,
+`isSameWorkspace` — because two personal rows share a null organization without
+sharing a workspace, and a user's personal workspace is never their
+organization. Deferred work rebuilds its scope from the persisted row
+(`workspaceOf`), never from the workspace its owner has open now.
+
+In the personal pilot the owner gets the organization capabilities — agents,
+manual calls, reminders and confirmations, scheduling, human-outcome follow-up,
+handoffs, agent callbacks, attributed notes and receipts — and configures them
+(`WRK-004`). Not yet: routing a personal number to an AI receptionist (TELEPHONY,
+"AI Receptionist").
 
 Provider-facing tool and webhook routes are not subject to the workspace-session
 gate. They carry their own authorization and must remain available so an
-already-started or legacy call can finish and settle safely.
+already-started or legacy call can finish and settle safely. Settlement and
+voice-clone reconciliation run in the persisted workspace whether or not it is
+still admitted; only new work requires admission.
 
 - **Source of truth:** `services/voice-agents/voice-agent-access.ts` +
-  `VoiceAgentOrganizationGuard`
+  `VoiceAgentAccessGuard` (`apps/backend/src/api/guards/voice-agent-access.guard.ts`)
 
 ### AGENT-012 — Human voice clones belong to their Ringee workspace
 
@@ -1847,7 +1877,8 @@ called back is handed to `request_human_support`.
 A scheduling agent may also **continue** a call another agent placed, through
 an authorized handoff on that same call (AGENT-021). That does not make it an
 inbound destination: no number routes to it, and the resolver and
-`inboundConfig` still refuse it.
+`inboundConfig` still refuse it. In a personal workspace no number can be routed
+to a receptionist yet (AGENT-011).
 
 - **Source of truth:** `ReceptionistBlueprint`,
   `InboundRouteResolverService.resolveDestination`,
@@ -1886,12 +1917,18 @@ tools — this one included — refuse to change anything on the call.
 
 The "Trigger AI Voice Agents" rail offers three capabilities — reminders and
 confirmations, AI receptionist, appointment scheduling — each backed by one
-`AiVoiceAgentAutomation` row per organization. Setting one up creates or reuses
-an ordinary agent; the advanced editor still owns everything else, and nothing
-limits how many agents a workspace creates there.
+`AiVoiceAgentAutomation` row per workspace: an organization's row keyed by the
+organization, a personal workspace's by its owner (`organizationId` null; the
+partial unique index `AiVoiceAgentAutomation_personal_capability_contextKey_key`).
+Setting one up creates or reuses an ordinary agent; the advanced editor still
+owns everything else, and nothing limits how many agents a workspace creates
+there. A personal workspace's rail offers reminders and scheduling; its
+receptionist card is not shown and its setup is refused on the server until
+personal inbound reception exists (AGENT-011).
 
-- The row's unique key is the claim that stops a double click or a second tab
-  from creating two agents; a claim left by a crashed request can be taken over.
+- The claim stops a double click or a second tab from creating two agents: it
+  is taken under the workspace lock (`lockWorkspace`), with the unique keys as
+  the backstop; a claim left by a crashed request can be taken over.
   Creating the local agent and attaching it to the claim are one transaction,
   before provisioning. A stale request cannot create or publish another agent.
   An attached draft is recovered through Customize, never by provisioning a
@@ -1903,21 +1940,35 @@ limits how many agents a workspace creates there.
 - Configuring an automation, deleting its trigger, and the reminders' calls
   ("Confirm now", the upcoming reminder calls) are admin-only
   (`@OrgAdminOnly()`), and so are creating and deleting an agent in the
-  advanced editor. A member gets appointment scheduling only
+  advanced editor. A personal workspace's owner passes that gate (`WRK-004`)
+  and authorizes their own follow-up policy (`OrganizationRepository.isWorkspaceAdmin`).
+  A member gets appointment scheduling only
   (`MEMBER_AUTOMATION_CAPABILITIES`): its card, counter and bookings in the
   rail, and "Call to schedule". The server filters the panel and the summary
-  by role; the browser does not hide the rest.
+  by role and workspace type; the browser does not hide the rest. A personal
+  "Call to schedule" books the meeting with the owner and refuses anyone else.
 - Deleting a trigger removes the card's row, never its agent: the agent stays
   as it was among the workspace's agents, and the next setup offers it again.
   What the trigger did stops first — reminders withdraw their planned calls and
   drop their calendar policies; a receptionist hands every number back, and if
   one cannot be, nothing is removed.
-- Organization-only (AGENT-011), and only for organizations listed in
-  `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every one). Both the reminder and
-  attendance-email workers apply the flag before causing a provider side effect.
+- Only for workspaces with module access (AGENT-011) that are admitted:
+  organizations listed in `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every
+  organization), personal workspaces whose owner is listed in
+  `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` (explicit ids only). Workers decide
+  admission from each row's persisted `userId`/`organizationId`. Where a claim
+  filters (receipts, late-address requeue, four-hour retries, action
+  maintenance) the admission is inside the claim query (`WorkspaceAdmission`),
+  so an excluded workspace never takes a slot from an admitted one; the reminder
+  and agent-callback claims keep skipping an excluded row (`automations_disabled`),
+  as they did for organizations. Both the reminder and attendance-email workers
+  apply the flag before causing a provider side effect; taking a workspace off
+  the pilot pauses its receipts and blocks its objectives, and a call already
+  placed still finishes and settles.
 - Rail drafts and cached summaries belong to the authenticated user and active
-  organization. Switching either clears the visible state before loading that
-  workspace's draft; an old request cannot publish a summary in the new one.
+  workspace (organization or personal). Switching either clears the visible
+  state before loading that workspace's draft; an old request cannot publish a
+  summary in the new one.
 - Pausing a receptionist hands each of its numbers back first — to where the
   number rang before the receptionist took it, or to the backup chosen at
   setup — under compare-and-set on the route's `version`. A number another admin
@@ -1983,14 +2034,21 @@ being prepared.
 
 For an explicitly configured 240-minute policy, a newly planned close meeting
 may receive a reminder at the next authorized window if at least 20 minutes
-remain. One unanswered first attempt may receive one more attempt at least 60
-minutes later, still inside the window and at least 20 minutes before the meeting.
-Both bind the current meeting and policy versions. A contact/workspace row lock
-coordinates reminder and objective callback dispatch, with at most two automatic
-calls per calendar-local day. A stored agreed callback can exceed the daily cap,
-never the active-call reservation. Technical retries proved unplaced clear the
-dispatch marker and reuse the contact attempt. Defaults and broad policy setup
-remain rollout work; no organization is automatically opted in.
+remain — also when pulling the reminder earlier would land before it was planned.
+One unanswered first attempt may receive one more attempt at least 60 minutes
+after the first call (its end, else its dispatch or call row; a row with none of
+them gets no retry), still inside the window and at least 20 minutes before the
+meeting. Both bind the current meeting and policy versions. A contact/workspace
+row lock coordinates reminder and objective callback dispatch, with at most two
+automatic calls per calendar-local day — the day of the meeting's calendar, or of
+the workspace's default calendar for a meeting without one; the reservation reads
+only the dispatching workspace's own rows (a personal one by its owner,
+`workspaceOwnershipSql`). A stored agreed callback, and a person's "Confirm now",
+can exceed the daily cap, never the active-call reservation. Technical retries
+proved unplaced clear the dispatch marker and reuse the contact attempt; a
+committed try the provider refused before any leg existed (its call `failed`,
+with no leg) uses none of the day's calls. Defaults and broad policy setup remain
+rollout work; no workspace — organization or personal — is automatically opted in.
 
 - **Source of truth:** `ReminderService.planMeetingCalls` / `planPolicyCalls`,
   `planReminderCallAt`, `MeetingReminderCallService`,
@@ -2009,15 +2067,18 @@ The scheduling automation's `receiptRecipients` setting adopts either `legacy`
 or `contact_responsible`. Existing workspaces without that setting preserve their
 lead/member/creator and admin recipient policy. New scheduling setups default to
 contact and responsible member, and changing an existing preference requires an
-administrator. Under the adopted policy each audience has a separate durable
+administrator (in a personal workspace, its owner). Under the adopted policy each audience has a separate durable
 row keyed by action and audience, with reply-to the responsible member. The
 member's receipt never waits for the contact's address. A late usable address
 requeues only the still-valid outstanding audience and never resends to recipients
 already accepted. Legacy rows keep their existing behavior; new legacy-policy
 actions have an outstanding contact-only row for late addresses.
 
-Recipients are resolved from current workspace membership. Missing contact email
-is `needs_email`; a missing responsible member is `needs_member`. Business success
+Recipients are resolved from current workspace membership
+(`OrganizationRepository.isWorkspaceMember`): in a personal workspace its only
+member is the owner, who receives the responsible person's copy, and there are
+no admins to copy. Missing contact email is `needs_email`; a missing responsible
+member is `needs_member`. Business success
 is independent of delivery. The receipt uses the action's effective language and
 contains no internal notes, technical failure, transcript or recording. New
 outcomes start their own thread, preventing exposure of older internal messages.
@@ -2043,8 +2104,8 @@ provider's deduplication lifetime.
 ### AGENT-021 — One agent continues another's call only through a handoff the workspace authorized
 
 When the person on a reminder call cannot attend and agrees to look for another
-time, the reminders agent can hand **the same call** to the organization's
-scheduling agent. It is the pilot's first delivery of
+time, the reminders agent can hand **the same call** to the workspace's
+scheduling agent — the organization's, or a personal owner's own. It is the pilot's first delivery of
 [PLAN_ORGANIZATION_AI_FOLLOWUP](../product/PLAN_ORGANIZATION_AI_FOLLOWUP.md):
 the call ends with an authoritative stored result. Stage 3 adds explicit
 cancellation and a linked replacement for an open request after its original
@@ -2056,8 +2117,9 @@ meeting passed or was validly cancelled.
   Control commands on a call an assistant runs are documented to conflict. So
   everything Ringee decides is decided in the tools on either side of it.
 - **Destination.** Only the scheduling automation's agent of the same
-  organization, switched on, active, provisioned and speaking the
-  conversation's language (`resolveDestination`). It is resolved on the server
+  workspace (the organization, or the personal owner's — never another
+  freelancer's, though both have no organization), switched on, active,
+  provisioned and speaking the conversation's language (`resolveDestination`). It is resolved on the server
   — the reminders assistant's handoff tool names exactly that one, re-synced at
   dial time when it drifts — and re-validated before every step. A model never
   supplies it.
@@ -2126,7 +2188,7 @@ meeting passed or was validly cancelled.
   passing, or the meeting being cancelled, resolves nothing. A callback or
   recovery is placed on behalf of the request's owner, and never once that
   member has left the organization: it is skipped as `owner_not_member` and a
-  person decides. A try whose call row never
+  person decides. A personal request's owner is its workspace. A try whose call row never
   confirmed its leg is waited on, then recorded as `placement_unconfirmed` —
   never completed on a guess, never dialed again. When a call ends before the
   scheduling agent ever spoke and nothing was agreed, the request is recovered
@@ -2140,8 +2202,10 @@ meeting passed or was validly cancelled.
   without success instead of returning a routine manual call to the salesperson.
   Offered availability alone remains progress and no longer blocks an objective.
 - **History and money.** One `Call` and one `AiVoiceAgentCall` root, with
-  `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children; `agentId`
-  keeps meaning the agent that placed the call. A participation is not a
+  `AiVoiceAgentCallParticipant` and `AiVoiceAgentHandoff` children in the
+  call's workspace (a participation also names the call's owner; a check
+  requires an organization or an owner); `agentId` keeps meaning the agent that
+  placed the call. A participation is not a
   charge: the leg settles once under `call-cost:<callId>`, the AI half once
   under `ai-voice-agent-cost:<agentCallId>`. If the provider ever reports the
   agent that took over under a conversation of its own, that conversation's
@@ -2172,8 +2236,13 @@ meeting passed or was validly cancelled.
 an optional child of the existing pending action, behind the automation pilot.
 A new Step 0 handoff creates that child and its initial evidence in the same
 transaction, once per workspace/source/version. Stage 2 also accepts newly saved
-human canonical outcomes under an explicit administrator-authorized enrollment
-policy and the pilot. Outcome, semantic source revision, objective and first step
+human canonical outcomes under an explicit enrollment policy authorized by an
+administrator — or, in a personal workspace, its owner — and the pilot. A
+personal objective lives in its owner's workspace: `PendingAction` with
+`organizationId` null and context `personal`, a source key prefixed
+`personal:<owner>` (organizations keep the bare organization id), and every
+dispatch fence read in that scope. A personal workspace outside the pilot saves
+outcomes exactly as before, with no follow-up path. Outcome, semantic source revision, objective and first step
 commit together. Interested enrolls booking only by policy; informational
 commitments remain honestly blocked. No-answer/voicemail and AI-origin outcomes
 do not enroll. Historical recommendations and unchanged old outcomes stay manual.
@@ -2206,8 +2275,10 @@ do not enroll. Historical recommendations and unchanged old outcomes stay manual
   Human booking retains a still-future agreed callback; otherwise resume selects
   a policy window at least an hour ahead. Manual takeover requires explicit
   `return_automatic`.
-- Configuring administrator, commercial owner and executing agent are distinct.
-  Members can see their own objectives without gaining colleagues' call data.
+- Configuring administrator, commercial owner and executing agent are distinct;
+  in a personal workspace both human roles are its owner, who reads and
+  controls every objective of it. Members can see their own objectives without
+  gaining colleagues' call data.
   Existing call/AI debit keys settle each linked call once; transitions are free
   and unknown costs stay null.
 

@@ -1,5 +1,8 @@
 /// <reference types="node" />
 
+// Nest's metadata polyfill first, as the applications load it: the repository
+// pulls in `@ringee/platform`, whose decorated DTOs need it at import time.
+import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, describe, it, type TestContext } from "node:test";

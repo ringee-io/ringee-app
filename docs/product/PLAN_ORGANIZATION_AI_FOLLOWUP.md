@@ -6,9 +6,10 @@ Revisión de alcance y experiencia · 2 de noviembre de 2026
 
 Decisión de alcance · 7 de noviembre de 2026: freelancers y organizaciones tendrán
 **las mismas capacidades de AI Voice Agents y el mismo onboarding**. El workspace
-personal no requiere contratar Organization. Este cambio está planificado, todavía
-no habilitado en el código; ver §20 y el
-[plan actualizado de Stage 4 con PostHog](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md).
+personal no requiere contratar Organization. El alcance personal (4A) está
+implementado detrás de un piloto explícito; el onboarding común y PostHog siguen
+planificados. Ver §20 y el
+[plan actualizado de Stage 4 con PostHog](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md) §13.
 El nombre del archivo se conserva para mantener sus enlaces.
 
 Estado (6 de noviembre de 2026): Step 0 y Stages 1–3 implementados detrás del piloto;
@@ -1277,8 +1278,11 @@ Stage 4 conserva provisión, onboarding ampliado y rollout general.
 
 El usuario confirmó acceso personal con las mismas capacidades y el mismo onboarding
 que Organization. La propuesta de §1–§14 incorpora esta decisión. §16–§19 conserva
-el historial de lo implementado para el piloto de organización; no demuestra que
-el alcance personal o PostHog ya estén disponibles.
+el historial de lo implementado para el piloto de organización. El paso 1 de la
+secuencia siguiente (alcance personal, entrega 4A) se implementó el 10 de
+noviembre de 2026 detrás de `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`; su estado,
+despliegue y validación pendiente están en el plan de Stage 4 §13 y en
+[FOLLOW_UP.md](../engineering/FOLLOW_UP.md). PostHog sigue sin implementar.
 
 El [plan de Stage 4 actualizado](PLAN_ORGANIZATION_STAGE_4_POSTHOG.md) es el detalle
 de la siguiente entrega. Su secuencia es:

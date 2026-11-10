@@ -96,13 +96,16 @@ export function planReminderCallAt(params: {
   // Existing shorter policies are pulled earlier too; they never bypass it.
   const leadMinutes = Math.max(offsetMinutes, REMINDER_OFFSET_MIN_MINUTES + 5);
   const ideal = new Date(meetingAt.getTime() - leadMinutes * 60_000);
-  if (ideal.getTime() <= notBefore.getTime()) {
+  // A close meeting's next authorized window, while 20 minutes still remain:
+  // what a policy that allows it gets when its own moment cannot be called.
+  const nearMeeting = () => {
     if (!params.allowNearMeeting) return null;
     const next = nextCallingWindowMoment(notBefore, window, timeZone);
     return next && meetingAt.getTime() - next.getTime() >= 20 * 60_000
       ? next
       : null;
-  }
+  };
+  if (ideal.getTime() <= notBefore.getTime()) return nearMeeting();
   if (isWithinCallingWindow(ideal, window, timeZone)) return ideal;
 
   const { date } = zonedClock(ideal, timeZone);
@@ -122,9 +125,9 @@ export function planReminderCallAt(params: {
     // On the meeting's own day that moment may come after the ideal one, which
     // means the ideal is before the window opened: look at the day before.
     if (pulled.getTime() > ideal.getTime()) continue;
-    return pulled.getTime() > notBefore.getTime() ? pulled : null;
+    return pulled.getTime() > notBefore.getTime() ? pulled : nearMeeting();
   }
-  return null;
+  return nearMeeting();
 }
 
 function weekdayOf(date: string): number {

@@ -15,8 +15,18 @@ import {
   MeetingReminderExecutionStatus,
   MeetingStatus,
 } from "@prisma/client";
-import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import {
+  OwnershipContext,
+  buildOwnershipFilter,
+  isInWorkspace,
+  workspaceOf,
+} from "@ringee/platform";
 import { lockWorkspace } from "./calendar.repository";
+import {
+  workspaceAdmissionWhere,
+  workspaceOwnershipSql,
+  type WorkspaceAdmission,
+} from "./workspace-scope";
 import {
   meetingActor,
   lockMeetingRequest,
@@ -292,11 +302,15 @@ export class MeetingRepository {
         const source = objective
           ? await tx.call.findFirst({
               where: {
-                id: objective.sourceId,
-                organizationId: ctx.organizationId,
-                userId: objective.responsibleUserId,
-                contactId: data.contactId,
-                outcomeRevision: objective.sourceRevision,
+                AND: [
+                  buildOwnershipFilter(ctx),
+                  {
+                    id: objective.sourceId,
+                    userId: objective.responsibleUserId,
+                    contactId: data.contactId,
+                    outcomeRevision: objective.sourceRevision,
+                  },
+                ],
               },
             })
           : null;
@@ -304,7 +318,7 @@ export class MeetingRepository {
           !objective ||
           !source ||
           !execution?.dispatchCommittedAt ||
-          execution.organizationId !== ctx.organizationId ||
+          !isInWorkspace(ctx, execution) ||
           execution.contactId !== data.contactId ||
           execution.sourceRevision !== objective.sourceRevision ||
           objective.objectiveType !== "book_meeting" ||
@@ -314,13 +328,17 @@ export class MeetingRepository {
           return null;
         const placed = await tx.aiVoiceAgentCall.findFirst({
           where: {
-            id: data.agentCallId,
-            callId: data.callId,
-            agentId: objective.agentId!,
-            organizationId: ctx.organizationId,
-            userId: objective.configuredByUserId,
-            contactId: data.contactId,
-            calendarId: objective.calendarId,
+            AND: [
+              buildOwnershipFilter(ctx),
+              {
+                id: data.agentCallId,
+                callId: data.callId,
+                agentId: objective.agentId!,
+                userId: objective.configuredByUserId,
+                contactId: data.contactId,
+                calendarId: objective.calendarId,
+              },
+            ],
           },
         });
         if (!placed) return null;
@@ -535,7 +553,7 @@ export class MeetingRepository {
             where: { actionKey: key },
           })
         : null;
-      if (prior && prior.organizationId === ctx.organizationId) {
+      if (prior && isInWorkspace(ctx, prior)) {
         const decided = prior.evidence as {
           originalMeetingId?: string;
           expectedScheduleVersion?: number;
@@ -673,7 +691,7 @@ export class MeetingRepository {
           leaseExpiresAt: null,
         },
       });
-      if (input.email && meeting.organizationId && !actor) {
+      if (input.email && !actor) {
         await tx.meetingEmailDelivery.createMany({
           data: [
             {
@@ -800,7 +818,7 @@ export class MeetingRepository {
             agentCallId: input.agentCallId,
             meetingId: input.meetingId,
             scheduleVersion: input.expectedScheduleVersion,
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
           },
         });
         if (!actor || actor.participant?.role === "handoff" || !execution)
@@ -823,7 +841,7 @@ export class MeetingRepository {
         },
       });
 
-      if (input.email && meeting.organizationId && !actor) {
+      if (input.email && !actor) {
         await tx.meetingEmailDelivery.createMany({
           data: [
             {
@@ -841,7 +859,7 @@ export class MeetingRepository {
           await tx.meetingEmailDelivery.updateMany({
             where: {
               idempotencyKey: input.email.idempotencyKey,
-              organizationId: meeting.organizationId,
+              ...buildOwnershipFilter(workspaceOf(meeting)),
               status: "needs_email",
               firstAttemptAt: null,
             },
@@ -917,7 +935,7 @@ export class MeetingRepository {
   ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${input.meetingId}::uuid
-        AND "organizationId" = ${ctx.organizationId}::uuid FOR UPDATE`;
+        AND ${workspaceOwnershipSql(ctx)} FOR UPDATE`;
       const meeting = await tx.meeting.findFirst({
         where: { id: input.meetingId, ...buildOwnershipFilter(ctx) },
       });
@@ -927,23 +945,27 @@ export class MeetingRepository {
       });
       if (!meeting || !actor || meeting.contactId !== actor.call.contactId)
         return null;
-      const key = `decision:${meeting.id}:v${input.expectedScheduleVersion}:${input.cancel ? "cancel" : "keep"}`;
+      const decided = `decision:${meeting.id}:v${input.expectedScheduleVersion}`;
+      const key = `${decided}:${input.cancel ? "cancel" : "keep"}`;
+      // This call's first answer about the version, whichever answer it was:
+      // the same one again is a retry, a different one a correction.
       const prior =
-        (await tx.meetingAutomationAction.findUnique({
-          where: { actionKey: key },
+        (await tx.meetingAutomationAction.findFirst({
+          where: {
+            actionKey: { in: [`${decided}:cancel`, `${decided}:keep`] },
+          },
+          orderBy: { createdAt: "asc" },
         })) ??
-        (input.cancel
-          ? await tx.meetingAutomationAction.findFirst({
-              where: {
-                meetingId: meeting.id,
-                agentCallId: actor.call.id,
-                kind: "cancelled",
-                scheduleVersion: meeting.scheduleVersion,
-              },
-              // The decision itself, before any correction of it.
-              orderBy: { createdAt: "asc" },
-            })
-          : null);
+        (await tx.meetingAutomationAction.findFirst({
+          where: {
+            meetingId: meeting.id,
+            agentCallId: actor.call.id,
+            kind: "cancelled",
+            scheduleVersion: meeting.scheduleVersion,
+          },
+          // The decision itself, before any correction of it.
+          orderBy: { createdAt: "asc" },
+        }));
       const handoffSeed = actor.participant
         ? await tx.aiVoiceAgentHandoff.findUnique({
             where: { id: actor.participant.handoffId },
@@ -981,7 +1003,7 @@ export class MeetingRepository {
             agentCallId: actor.call.id,
             meetingId: meeting.id,
             scheduleVersion: input.expectedScheduleVersion,
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
           },
         });
         if (!execution) return null;
@@ -1016,6 +1038,33 @@ export class MeetingRepository {
           },
           new Date(),
         );
+      // Without an objective a refusal ends the request itself: settled as
+      // closed, its waiting callbacks withdrawn as a resolution withdraws them,
+      // so no agreed call follows a "no".
+      const closeRequest = async (decision: { kind: string }) => {
+        if (!handoff || handoff.requestStatus !== "pending") return;
+        await tx.aiVoiceAgentHandoff.update({
+          where: { id: handoff.id },
+          data: {
+            requestStatus: "closed",
+            resolution: decision.kind,
+            resolvedAt: new Date(),
+          },
+        });
+        await tx.callbackTask.updateMany({
+          where: {
+            handoffId: handoff.id,
+            status: { in: ["scheduled", "due"] },
+            dispatchCommittedAt: null,
+          },
+          data: {
+            status: "cancelled",
+            reason: "request_closed",
+            claimToken: null,
+            leaseExpiresAt: null,
+          },
+        });
+      };
       if (prior) {
         if (
           prior.agentCallId !== actor.call.id ||
@@ -1026,7 +1075,7 @@ export class MeetingRepository {
         // The last answer this call gave: the decision, or its last correction.
         const answers = await tx.meetingAutomationAction.findMany({
           where: {
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
             OR: [
               { actionKey: prior.actionKey },
               { actionKey: { startsWith: `${prior.actionKey}:correction:` } },
@@ -1038,9 +1087,12 @@ export class MeetingRepository {
         const said = latest.evidence as {
           response?: string;
           continueRescheduling?: boolean;
+          explicitCancellation?: boolean;
         } | null;
         // The same answer again is a retry of it.
         if (
+          (said?.explicitCancellation ?? latest.kind === "cancelled") ===
+            input.cancel &&
           said?.response === input.response &&
           said?.continueRescheduling === input.continueRescheduling
         )
@@ -1068,8 +1120,10 @@ export class MeetingRepository {
             correctsActionId: latest.id,
           },
         });
-        if (objective && open && !input.continueRescheduling)
-          await closeObjective(objective, correction);
+        if (!input.continueRescheduling) {
+          if (objective && open) await closeObjective(objective, correction);
+          else if (!objective) await closeRequest(correction);
+        }
         return correction;
       }
       if (
@@ -1098,7 +1152,7 @@ export class MeetingRepository {
           where: {
             agentCallId: actor.call.id,
             handoffId: handoffSeed?.id,
-            organizationId: ctx.organizationId!,
+            ...buildOwnershipFilter(ctx),
             ...(objective ? { followUpId: objective.id } : {}),
             dispatchCommittedAt: { not: null },
           },
@@ -1106,6 +1160,14 @@ export class MeetingRepository {
       )
         return null;
       if (input.continueRescheduling && !objective) return null;
+      // Keeping the booking answers a decline: without the person's recorded
+      // decline of this version there is nothing to keep it through.
+      if (
+        !input.cancel &&
+        (meeting.attendanceStatus !== "declined" ||
+          meeting.attendanceScheduleVersion !== meeting.scheduleVersion)
+      )
+        return null;
       const updated = input.cancel
         ? await tx.meeting.update({
             where: { id: meeting.id },
@@ -1173,8 +1235,10 @@ export class MeetingRepository {
           data: { meetingScheduleVersion: updated.scheduleVersion },
         });
       }
-      if (objective && !input.continueRescheduling)
-        await closeObjective(objective, action);
+      if (!input.continueRescheduling) {
+        if (objective) await closeObjective(objective, action);
+        else await closeRequest(action);
+      }
       return action;
     });
   }
@@ -1183,19 +1247,19 @@ export class MeetingRepository {
     return this.prisma.meetingAutomationAction.findFirst({
       where: {
         actionKey: key,
-        organizationId:
-          ctx.organizationId ?? "00000000-0000-0000-0000-000000000000",
+        ...buildOwnershipFilter(ctx),
       },
       include: { meeting: { include: { contact: true } } },
     });
   }
 
-  listPendingMaintenance(organizationIds: string[] | null, take = 50) {
+  listPendingMaintenance(admission: WorkspaceAdmission, take = 50) {
     return this.prisma.meetingAutomationAction.findMany({
       where: {
         maintenanceCompletedAt: null,
         maintenanceReviewAt: { lte: new Date() },
-        ...(organizationIds ? { organizationId: { in: organizationIds } } : {}),
+        // In the query, so a workspace off the pilot never fills the page.
+        AND: [workspaceAdmissionWhere(admission)],
       },
       orderBy: { maintenanceReviewAt: "asc" },
       take,
@@ -1203,16 +1267,16 @@ export class MeetingRepository {
     });
   }
 
-  deferMaintenance(id: string, organizationId: string, until: Date) {
+  deferMaintenance(id: string, workspace: OwnershipContext, until: Date) {
     return this.prisma.meetingAutomationAction.updateMany({
-      where: { id, organizationId },
+      where: { id, ...buildOwnershipFilter(workspace) },
       data: { maintenanceReviewAt: until },
     });
   }
 
-  completeMaintenance(id: string, organizationId: string) {
+  completeMaintenance(id: string, workspace: OwnershipContext) {
     return this.prisma.meetingAutomationAction.updateMany({
-      where: { id, organizationId },
+      where: { id, ...buildOwnershipFilter(workspace) },
       data: { maintenanceCompletedAt: new Date() },
     });
   }
@@ -1342,6 +1406,7 @@ export class MeetingRepository {
    * rewrites where an event that already exists lives.
    */
   async recordExternalSync(
+    ctx: OwnershipContext,
     id: string,
     result:
       | {
@@ -1364,6 +1429,7 @@ export class MeetingRepository {
      */
     expected?: { scheduleVersion: number },
   ): Promise<Meeting> {
+    const owned = buildOwnershipFilter(ctx);
     if (result.status === "synced" && expected) {
       const pointer = {
         externalEventId: result.externalEventId,
@@ -1375,6 +1441,7 @@ export class MeetingRepository {
       const { count } = await this.prisma.meeting.updateMany({
         where: {
           id,
+          ...owned,
           scheduleVersion: expected.scheduleVersion,
           status: { in: ACTIVE_MEETING_STATUSES },
         },
@@ -1386,9 +1453,11 @@ export class MeetingRepository {
         },
       });
       if (count)
-        return this.prisma.meeting.findUniqueOrThrow({ where: { id } });
+        return this.prisma.meeting.findFirstOrThrow({
+          where: { id, ...owned },
+        });
       return this.prisma.meeting.update({
-        where: { id },
+        where: { id, ...owned },
         data: {
           ...pointer,
           externalSyncStatus: MeetingExternalSyncStatus.pending,
@@ -1396,7 +1465,7 @@ export class MeetingRepository {
       });
     }
     return this.prisma.meeting.update({
-      where: { id },
+      where: { id, ...owned },
       data:
         result.status === "synced"
           ? {
@@ -1441,6 +1510,8 @@ export class MeetingRepository {
         scheduledAt: applied.scheduledAt,
         duration: applied.duration,
         externalEventId: applied.externalEventId,
+        // A meeting cancelled meanwhile is synced only by its event's deletion.
+        status: { in: ACTIVE_MEETING_STATUSES },
       },
       data: {
         externalCalendarIntegrationId: applied.integrationId,

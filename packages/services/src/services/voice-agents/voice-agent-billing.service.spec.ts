@@ -1213,3 +1213,60 @@ describe("VoiceAgentBillingService — a call another agent took over (AGENT-021
     assert.equal(provider.queries.length, 1);
   });
 });
+
+// ── Stage 4A: a personal workspace's agent call ─────────────────────────────
+
+describe("VoiceAgentBillingService — a personal workspace's call", () => {
+  it("charges the personal balance persisted on the call, once, whatever workspace its owner is in now", async () => {
+    const debits: Array<{ ctx: unknown; key: string }> = [];
+    const { service } = build({
+      // The owner also belongs to an organization; the call was placed in
+      // their personal workspace, and that is the balance it settles against.
+      repo: repository({
+        ...AGENT_CALL,
+        userId: "owner-1",
+        organizationId: null,
+      }),
+      calls: callRepository({
+        id: "telephony-1",
+        userId: "owner-1",
+        organizationId: null,
+        callControlId: "cc-1",
+        callSessionId: "cs-1",
+        totalCost: null,
+      }),
+      credits: {
+        consumeCredits: async (
+          ctx: unknown,
+          _amount: number,
+          ref: { idempotencyKey: string },
+        ) => {
+          debits.push({ ctx, key: ref.idempotencyKey });
+          return {};
+        },
+        getBalance: async () => 10,
+      },
+    });
+
+    await service.settle("call-1");
+    await service.settle("call-1");
+
+    const aiDebits = debits.filter((debit) =>
+      debit.key.startsWith("ai-voice-agent-cost:"),
+    );
+    assert.deepEqual(aiDebits, [
+      {
+        ctx: { userId: "owner-1", organizationId: null },
+        key: "ai-voice-agent-cost:call-1",
+      },
+    ]);
+    assert.ok(
+      debits.every(
+        (debit) =>
+          JSON.stringify(debit.ctx) ===
+          JSON.stringify({ userId: "owner-1", organizationId: null }),
+      ),
+      "no debit lands on any organization's balance",
+    );
+  });
+});

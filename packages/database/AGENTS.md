@@ -27,7 +27,16 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   `::timestamptz AT TIME ZONE 'UTC'` before comparing them to those columns;
   implicit conversion depends on the PostgreSQL session time zone and can
   miss overlapping meetings.
-- Queue claims use `SELECT FOR UPDATE SKIP LOCKED` (`lockNextLead`).
+- Queue claims use `SELECT FOR UPDATE SKIP LOCKED` (`lockNextLead`). A claim
+  that admits only some workspaces filters inside the query
+  (`workspaceAdmissionWhere` / `workspaceAdmissionSql`), so an excluded
+  workspace never takes a slot.
+- Raw SQL scoped to a workspace uses `workspaceOwnershipSql(ctx, alias)`, never
+  `"organizationId" = ${ctx.organizationId}` alone: a personal context has no
+  organization, and its rows match on owner **and** `organizationId IS NULL`.
+- A uniqueness that must hold per workspace on a nullable `organizationId`
+  needs its personal partial index too: PostgreSQL treats NULLs as distinct
+  (`AiVoiceAgentAutomation_personal_capability_contextKey_key`).
 
 ## Schema
 

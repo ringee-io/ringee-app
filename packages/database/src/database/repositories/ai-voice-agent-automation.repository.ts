@@ -4,9 +4,14 @@ import {
   AiVoiceAgentType,
   Prisma,
 } from "@prisma/client";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import {
+  buildOwnershipData,
+  buildOwnershipFilter,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
 import { lockWorkspace } from "./calendar.repository";
+import { workspaceOwnershipSql } from "./workspace-scope";
 
 type AutomationSetup = {
   agentId: string;
@@ -14,7 +19,7 @@ type AutomationSetup = {
   settings?: Prisma.InputJsonValue;
 };
 
-/** The organization-wide context the rail drives. */
+/** The workspace-wide context the rail drives. */
 export const AUTOMATION_WORKSPACE_CONTEXT = "workspace";
 
 export type AutomationClaim =
@@ -22,7 +27,9 @@ export type AutomationClaim =
   | { claimed: false; row: AiVoiceAgentAutomation };
 
 /**
- * The rail's quick-action rows: one per organization, capability and context.
+ * The rail's quick-action rows: one per workspace, capability and context — an
+ * organization's keyed by the organization, a personal workspace's by its
+ * owner (WRK-001).
  *
  * Creating an agent from the rail is guarded by a claim on this row rather
  * than by the agent table, so a double click or a second tab finds the first
@@ -34,21 +41,19 @@ export class AiVoiceAgentAutomationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     capability: AiVoiceAgentType,
     contextKey = AUTOMATION_WORKSPACE_CONTEXT,
   ): Promise<AiVoiceAgentAutomation | null> {
     return this.prisma.aiVoiceAgentAutomation.findFirst({
-      where: { organizationId: ctx.organizationId, capability, contextKey },
+      where: { ...buildOwnershipFilter(ctx), capability, contextKey },
     });
   }
 
-  listForOwner(
-    ctx: OrganizationOwnershipContext,
-  ): Promise<AiVoiceAgentAutomation[]> {
+  listForOwner(ctx: OwnershipContext): Promise<AiVoiceAgentAutomation[]> {
     return this.prisma.aiVoiceAgentAutomation.findMany({
       where: {
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         contextKey: AUTOMATION_WORKSPACE_CONTEXT,
       },
     });
@@ -57,33 +62,73 @@ export class AiVoiceAgentAutomationRepository {
   /**
    * Claims the row so this request may create the agent.
    *
-   * The insert is the claim: the unique key lets exactly one concurrent setup
-   * through. A row that already exists is claimable only while it has no agent
-   * and its previous claim went stale — a crashed request must not block the
-   * card forever, and a live one must not be overtaken.
+   * The claim is serialized by the workspace lock: inside it, either no row
+   * exists and this request inserts one, or the existing row is claimable only
+   * while it has no agent and its previous claim went stale — a crashed
+   * request must not block the card forever, and a live one must not be
+   * overtaken. The unique keys (the organization's, and the personal partial
+   * index) stay the backstop against a writer that does not take the lock.
    */
   async claim(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     capability: AiVoiceAgentType,
     token: string,
     staleBefore: Date,
+    /** Settings a row created by this claim starts with, so a setup that
+     * stops after the claim still leaves its first policy in place. */
+    initialSettings?: Prisma.InputJsonObject,
   ): Promise<AutomationClaim> {
     const now = new Date();
     try {
-      const row = await this.prisma.aiVoiceAgentAutomation.create({
-        data: {
-          userId: ctx.userId,
-          organizationId: ctx.organizationId,
-          capability,
-          contextKey: AUTOMATION_WORKSPACE_CONTEXT,
-          claimToken: token,
-          claimedAt: now,
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        await lockWorkspace(tx, ctx);
+        const existing = await tx.aiVoiceAgentAutomation.findFirst({
+          where: {
+            ...buildOwnershipFilter(ctx),
+            capability,
+            contextKey: AUTOMATION_WORKSPACE_CONTEXT,
+          },
+        });
+        if (!existing) {
+          const row = await tx.aiVoiceAgentAutomation.create({
+            data: {
+              ...buildOwnershipData(ctx),
+              capability,
+              contextKey: AUTOMATION_WORKSPACE_CONTEXT,
+              claimToken: token,
+              claimedAt: now,
+              ...(initialSettings ? { settings: initialSettings } : {}),
+            },
+          });
+          return { claimed: true as const, row };
+        }
+        if (
+          existing.agentId ||
+          (existing.claimToken &&
+            existing.claimedAt &&
+            existing.claimedAt > staleBefore)
+        ) {
+          return { claimed: false as const, row: existing };
+        }
+        const { count } = await tx.aiVoiceAgentAutomation.updateMany({
+          where: {
+            id: existing.id,
+            agentId: null,
+            claimToken: existing.claimToken,
+          },
+          data: { claimToken: token, claimedAt: now, userId: ctx.userId },
+        });
+        const current =
+          (await tx.aiVoiceAgentAutomation.findUnique({
+            where: { id: existing.id },
+          })) ?? existing;
+        return count === 1
+          ? { claimed: true as const, row: current }
+          : { claimed: false as const, row: current };
       });
-      return { claimed: true, row };
     } catch (error) {
-      // Only the capability key means "someone else got here first"; any
-      // other unique violation is a real failure and propagates.
+      // Only the capability key means "someone else got here first" — a writer
+      // outside the lock; any other unique violation is a real failure.
       if (!isUniqueViolationOn(error, "capability")) throw error;
     }
 
@@ -93,27 +138,7 @@ export class AiVoiceAgentAutomationRepository {
       // retry of the whole setup will insert again.
       throw new Error("Automation row vanished while being claimed");
     }
-    if (
-      existing.agentId ||
-      (existing.claimToken &&
-        existing.claimedAt &&
-        existing.claimedAt > staleBefore)
-    ) {
-      return { claimed: false, row: existing };
-    }
-
-    const { count } = await this.prisma.aiVoiceAgentAutomation.updateMany({
-      where: {
-        id: existing.id,
-        agentId: null,
-        claimToken: existing.claimToken,
-      },
-      data: { claimToken: token, claimedAt: now, userId: ctx.userId },
-    });
-    const current = (await this.findForOwner(ctx, capability)) ?? existing;
-    return count === 1
-      ? { claimed: true, row: current }
-      : { claimed: false, row: current };
+    return { claimed: false, row: existing };
   }
 
   /**
@@ -150,12 +175,12 @@ export class AiVoiceAgentAutomationRepository {
    * card on meanwhile is left alone.
    */
   async clearAgent(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     id: string,
     agentId: string,
   ): Promise<boolean> {
     const { count } = await this.prisma.aiVoiceAgentAutomation.updateMany({
-      where: { id, organizationId: ctx.organizationId, agentId },
+      where: { id, ...buildOwnershipFilter(ctx), agentId },
       data: { agentId: null },
     });
     return count === 1;
@@ -167,22 +192,25 @@ export class AiVoiceAgentAutomationRepository {
    * that moved the card on meanwhile is left alone.
    */
   async removeForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     id: string,
     agentId: string,
   ): Promise<boolean> {
     const { count } = await this.prisma.aiVoiceAgentAutomation.deleteMany({
-      where: { id, organizationId: ctx.organizationId, agentId },
+      where: { id, ...buildOwnershipFilter(ctx), agentId },
     });
     return count === 1;
   }
 
   /**
-   * Saves the setup of a capability whose agent already exists. An upsert on
-   * the stable key, so re-running a setup converges instead of duplicating.
+   * Saves the setup of a capability whose agent already exists. Find-or-create
+   * on the stable key under the workspace lock, so re-running a setup — or two
+   * concurrent ones — converges on one row instead of duplicating it. The
+   * organization's compound unique key cannot name a personal row (its
+   * organization is null), so the row is found by the ownership filter.
    */
   upsertForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     capability: AiVoiceAgentType,
     data:
       | AutomationSetup
@@ -193,49 +221,46 @@ export class AiVoiceAgentAutomationRepository {
       // with direct updates and follow-up dispatch of an existing automation.
       await lockWorkspace(tx, ctx);
       await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentAutomation"
-        WHERE "organizationId" = ${ctx.organizationId}::uuid
+        WHERE ${workspaceOwnershipSql(ctx)}
           AND "capability" = ${capability}::"AiVoiceAgentType"
           AND "contextKey" = ${AUTOMATION_WORKSPACE_CONTEXT} FOR UPDATE`;
       const current = await tx.aiVoiceAgentAutomation.findFirst({
         where: {
-          organizationId: ctx.organizationId,
+          ...buildOwnershipFilter(ctx),
           capability,
           contextKey: AUTOMATION_WORKSPACE_CONTEXT,
         },
       });
       const setup = typeof data === "function" ? data(current) : data;
-      return tx.aiVoiceAgentAutomation.upsert({
-        where: {
-          organizationId_capability_contextKey: {
-            organizationId: ctx.organizationId,
-            capability,
-            contextKey: AUTOMATION_WORKSPACE_CONTEXT,
+      if (current) {
+        return tx.aiVoiceAgentAutomation.update({
+          where: { id: current.id },
+          data: {
+            ...setup,
+            userId: ctx.userId,
+            claimToken: null,
+            claimedAt: null,
           },
-        },
-        create: {
-          userId: ctx.userId,
-          organizationId: ctx.organizationId,
+        });
+      }
+      return tx.aiVoiceAgentAutomation.create({
+        data: {
+          ...buildOwnershipData(ctx),
           capability,
           contextKey: AUTOMATION_WORKSPACE_CONTEXT,
           ...setup,
-        },
-        update: {
-          ...setup,
-          userId: ctx.userId,
-          claimToken: null,
-          claimedAt: null,
         },
       });
     });
   }
 
   async updateForOwner(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     id: string,
     data: { enabled?: boolean; settings?: Prisma.InputJsonValue },
   ): Promise<AiVoiceAgentAutomation | null> {
     const { count } = await this.prisma.aiVoiceAgentAutomation.updateMany({
-      where: { id, organizationId: ctx.organizationId },
+      where: { id, ...buildOwnershipFilter(ctx) },
       data,
     });
     if (count !== 1) return null;

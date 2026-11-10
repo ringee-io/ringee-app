@@ -26,6 +26,7 @@ import {
   SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
 import { useOrgMembers } from '@ringee/frontend-shared/hooks/use-org-members';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import {
   ContactPicker,
   contactLabel,
@@ -62,6 +63,9 @@ export function ScheduleCallDialog({
   const t = useTranslations('aiVoiceAgents.automations.scheduleCall');
   const api = useAutomationApi();
   const { members, isLoaded } = useOrgMembers();
+  // A personal workspace has one person: the meeting is with its owner, which
+  // the server applies when no member is sent (UX only — it checks).
+  const { hasOrg } = useOrgRole();
   const [lead, setLead] = useState<PickableContact | null>(contact ?? null);
   const [firstName, setFirstName] = useState('');
   const [memberId, setMemberId] = useState('');
@@ -89,7 +93,7 @@ export function ScheduleCallDialog({
     try {
       await api.scheduleCall({
         contactId: lead.id,
-        ...(member ? { responsibleUserId: member } : {}),
+        ...(hasOrg && member ? { responsibleUserId: member } : {}),
         ...(firstName.trim() ? { firstName: firstName.trim() } : {})
       });
       toast.success(t('calling', { name: contactLabel(lead) }));
@@ -165,25 +169,27 @@ export function ScheduleCallDialog({
             </Field>
           ) : null}
 
-          <Field label={t('member')} htmlFor='schedule-member' required>
-            <Select value={member} onValueChange={setMemberId}>
-              <SelectTrigger
-                id='schedule-member'
-                className={selectTriggerClass}
-                disabled={!isLoaded}
-              >
-                <SelectValue placeholder={t('chooseMember')} />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((candidate) => (
-                  <SelectItem key={candidate.id} value={candidate.id}>
-                    {candidate.name ?? candidate.id}
-                    {candidate.isCurrentUser ? ` ${t('you')}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          {hasOrg ? (
+            <Field label={t('member')} htmlFor='schedule-member' required>
+              <Select value={member} onValueChange={setMemberId}>
+                <SelectTrigger
+                  id='schedule-member'
+                  className={selectTriggerClass}
+                  disabled={!isLoaded}
+                >
+                  <SelectValue placeholder={t('chooseMember')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((candidate) => (
+                    <SelectItem key={candidate.id} value={candidate.id}>
+                      {candidate.name ?? candidate.id}
+                      {candidate.isCurrentUser ? ` ${t('you')}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
 
           <div className='bg-muted/40 space-y-1 rounded-lg px-3 py-2.5 text-xs'>
             {scheduling?.calendar ? (
@@ -200,7 +206,9 @@ export function ScheduleCallDialog({
         <DialogFooter className='shrink-0'>
           <Button
             className='h-11 rounded-lg md:h-10'
-            disabled={!lead || !firstName.trim() || !member || starting}
+            disabled={
+              !lead || !firstName.trim() || (hasOrg && !member) || starting
+            }
             onClick={() => void start()}
           >
             {starting ? (

@@ -5,11 +5,19 @@ import {
   MeetingEmailKind,
   Prisma,
 } from "@prisma/client";
-import { buildOwnershipFilter, OwnershipContext } from "@ringee/platform";
+import {
+  buildOwnershipFilter,
+  isInWorkspace,
+  isSameWorkspace,
+  OwnershipContext,
+  workspaceOf,
+} from "@ringee/platform";
+import { AUTOMATION_WORKSPACE_CONTEXT } from "./ai-voice-agent-automation.repository";
 import {
   applyFollowUpPlan,
   lockFollowUp,
 } from "./pending-action-follow-up.persistence";
+import { isWorkspaceMemberInTransaction } from "./workspace-scope";
 
 /** Transaction helpers of the meeting aggregate, also used when a callback is
  * committed. Identifiers here are server-derived, and are checked again at write. */
@@ -28,9 +36,8 @@ export async function meetingActor(
     !["pending", "answered", "ringing", "recording"].includes(
       call.call.status,
     ) ||
-    call.call.organizationId !== ctx.organizationId ||
-    call.call.contactId !== call.contactId ||
-    !ctx.organizationId
+    !isInWorkspace(ctx, call.call) ||
+    call.call.contactId !== call.contactId
   )
     return null;
   const participant = await tx.aiVoiceAgentCallParticipant.findUnique({
@@ -44,7 +51,7 @@ export async function meetingActor(
   const agent = await tx.aiVoiceAgent.findFirst({
     where: {
       id: input.agentId,
-      organizationId: ctx.organizationId,
+      ...buildOwnershipFilter(ctx),
       status: "active",
       deletedAt: null,
     },
@@ -54,13 +61,11 @@ export async function meetingActor(
     !(await tx.contact.count({
       where: {
         id: call.contactId ?? "00000000-0000-0000-0000-000000000000",
-        organizationId: ctx.organizationId,
+        ...buildOwnershipFilter(ctx),
         deletedAt: null,
       },
     })) ||
-    !(await tx.organizationMembership.count({
-      where: { organizationId: ctx.organizationId, userId: call.userId },
-    }))
+    !(await isWorkspaceMemberInTransaction(tx, ctx, call.userId))
   )
     return null;
   return { call, participant, agent };
@@ -73,12 +78,33 @@ export async function lockMeetingRequest(
   expectedVersion: number,
 ) {
   const participant = actor.participant;
+  // The calendar the request was bound to: the meeting's own, or for a meeting
+  // without one the workspace's global calendar, as the handoff recorded it.
+  const calendarId =
+    meeting.calendarId ??
+    (
+      await tx.calendar.findFirst({
+        where: {
+          ...buildOwnershipFilter(workspaceOf(meeting)),
+          isDefault: true,
+        },
+        select: { id: true },
+      })
+    )?.id ??
+    null;
   if (
     !participant ||
     participant.meetingId !== meeting.id ||
     participant.meetingScheduleVersion !== expectedVersion ||
-    participant.organizationId !== meeting.organizationId ||
-    participant.calendarId !== meeting.calendarId
+    !isSameWorkspace(
+      {
+        // Participations written before personal workspaces carry no owner.
+        userId: participant.userId ?? actor.call.userId,
+        organizationId: participant.organizationId,
+      },
+      meeting,
+    ) ||
+    participant.calendarId !== calendarId
   )
     return null;
   await tx.$queryRaw`SELECT "id" FROM "AiVoiceAgentHandoff" WHERE "id" = ${participant.handoffId}::uuid FOR UPDATE`;
@@ -92,9 +118,9 @@ export async function lockMeetingRequest(
     return null;
   if (
     !handoff ||
-    handoff.organizationId !== meeting.organizationId ||
+    !isSameWorkspace(handoff, meeting) ||
     handoff.contactId !== meeting.contactId ||
-    handoff.calendarId !== meeting.calendarId ||
+    handoff.calendarId !== calendarId ||
     handoff.responsibleUserId !==
       (meeting.responsibleUserId ?? meeting.userId) ||
     handoff.destinationAgentId !== actor.agent.id ||
@@ -115,12 +141,11 @@ export async function lockMeetingRequest(
   if (handoff.requestStatus !== "pending" && objective?.state !== "paused")
     return null;
   if (
-    !(await tx.organizationMembership.count({
-      where: {
-        organizationId: handoff.organizationId,
-        userId: meeting.responsibleUserId ?? meeting.userId,
-      },
-    }))
+    !(await isWorkspaceMemberInTransaction(
+      tx,
+      workspaceOf(handoff),
+      meeting.responsibleUserId ?? meeting.userId,
+    ))
   )
     return null;
   const callback =
@@ -165,7 +190,7 @@ export async function recordMeetingAction(
     data: {
       id,
       actionKey: input.key,
-      organizationId: meeting.organizationId!,
+      organizationId: meeting.organizationId,
       userId: actor.call.userId,
       meetingId: meeting.id,
       contactId: meeting.contactId,
@@ -198,8 +223,9 @@ export async function recordMeetingAction(
   if (input.receipt) {
     const automation = await tx.aiVoiceAgentAutomation.findFirst({
       where: {
-        organizationId: meeting.organizationId!,
+        ...buildOwnershipFilter(workspaceOf(meeting)),
         capability: "appointment_booking",
+        contextKey: AUTOMATION_WORKSPACE_CONTEXT,
       },
     });
     const policy = (
@@ -213,7 +239,7 @@ export async function recordMeetingAction(
     await tx.meetingEmailDelivery.createMany({
       data: audiences.map((audience) => ({
         userId: meeting.userId,
-        organizationId: meeting.organizationId!,
+        organizationId: meeting.organizationId,
         meetingId: meeting.id,
         actionId: id,
         agentCallId: actor.call.id,
@@ -291,6 +317,23 @@ export async function resolveMeetingRequest(
   }
 }
 
+/**
+ * Takes the meeting lock an agreed callback's receipt needs before the
+ * handoff, objective or callback lock (FOLLOW_UP.md lock order): recording the
+ * action references the meeting, and decision handling locks it first.
+ */
+export async function lockAgreedCallbackMeeting(
+  tx: Prisma.TransactionClient,
+  handoffId: string,
+): Promise<void> {
+  const handoff = await tx.aiVoiceAgentHandoff.findUnique({
+    where: { id: handoffId },
+    select: { meetingId: true },
+  });
+  if (handoff)
+    await tx.$queryRaw`SELECT "id" FROM "Meeting" WHERE "id" = ${handoff.meetingId}::uuid FOR UPDATE`;
+}
+
 export async function recordAgreedCallbackAction(
   tx: Prisma.TransactionClient,
   callback: CallbackTask,
@@ -307,8 +350,7 @@ export async function recordAgreedCallbackAction(
   const source = await tx.aiVoiceAgentCall.findUnique({
     where: { callId: callback.callId },
   });
-  if (!handoff || !source || source.organizationId !== callback.organizationId)
-    return;
+  if (!handoff || !source || !isSameWorkspace(source, callback)) return;
   const active = await tx.aiVoiceAgentCallParticipant.findFirst({
     where: { agentCallId: source.id, status: "active" },
     orderBy: { sequence: "desc" },
@@ -323,7 +365,7 @@ export async function recordAgreedCallbackAction(
   const meeting = await tx.meeting.findFirst({
     where: {
       id: handoff.meetingId,
-      organizationId: callback.organizationId,
+      ...buildOwnershipFilter(workspaceOf(callback)),
       contactId: callback.contactId,
     },
   });

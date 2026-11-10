@@ -532,7 +532,13 @@ wearing configuration's clothes.
 A receptionist is an `AiVoiceAgent` of type `receptionist`, created and
 configured on the AI Voice Agents screen like every other type, and selected by
 an `InboundRoute`. Only that type can be routed to, and it never places calls
-(`AGENT-016`). `ReceptionistBlueprint` owns its help-first inbound instructions,
+(`AGENT-016`). Routing a number to one is organization-only for now: a personal
+workspace in the voice-agent pilot cannot route its numbers to a receptionist
+yet, because an inbound leg the AI answers would occupy its owner's single call
+(`CALL-001` counts an answered personal inbound call) and a transfer to the
+owner needs the per-user browser endpoint only organizations are issued. Both
+are deliberate changes still to make; `startInbound` already binds the call to
+the whole workspace (owner and null organization in a personal one). `ReceptionistBlueprint` owns its help-first inbound instructions,
 greeting and the authenticated directory/transfer tools, so they are part of
 the saved assistant. `VoiceAgentService.inboundConfig` composes that
 configuration again for each call, so the runtime clock is current.
@@ -919,8 +925,12 @@ so it is settled after the call exists, using the existing ledger idempotency ke
 ## AI voice agent calls
 
 A different shape of call: the provider runs the conversation, and nobody is on
-Ringee's end of it. Starting one requires an active organization workspace
-(AGENT-011), regardless of whether REST, the CLI or MCP triggered it.
+Ringee's end of it. Starting one requires a workspace with AI Voice Agents
+access — every organization, or a personal workspace enrolled in the pilot
+(AGENT-011) — regardless of whether REST, the CLI or MCP triggered it. A
+personal workspace's agent call settles against its own personal balance, the
+workspace persisted on the call (BILL-020), whichever workspace its owner has
+open later.
 
 ```
 POST /api/ai-voice-agents/:id/calls   (or the API / CLI / MCP — one path)
@@ -1038,7 +1048,7 @@ Consequences worth keeping:
 ### One agent continuing another's call (AGENT-021)
 
 A reminders agent whose contact cannot attend can hand **the same call** to the
-organization's scheduling agent. No second call is placed, and no Call Control
+workspace's scheduling agent — the organization's, or the personal owner's own. No second call is placed, and no Call Control
 command is issued on the TeXML call: Telnyx documents that commands on a call an
 assistant runs conflict with it, and its AI-to-AI mechanism is a `handoff` tool
 on the handing assistant, decided by its model

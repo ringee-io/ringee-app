@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BadRequestException, HttpException } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentCallRefusedError } from "@ringee/platform";
 import {
   VoiceAgentCallService,
@@ -92,6 +93,7 @@ function build(options: {
         if (options.toolSyncError) throw options.toolSyncError;
         await Promise.resolve();
         deliveryEvents.push(`tools:${target.id}`);
+        return true;
       },
     } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
@@ -499,8 +501,8 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
     assert.equal(createdAgentCalls[0]!.responsibleUserId, "member-7");
   });
 
-  it("never places a second leg under a key whose call may already exist", async () => {
-    const { service, placed } = build({
+  it("never places a second leg, or writes the contact again, under a key whose call may already exist", async () => {
+    const { service, placed, contacts } = build({
       usable: [NUMBERS.miami],
       existingByKey: {
         id: "agent-call-earlier",
@@ -521,10 +523,11 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
         error.agentCallId === "agent-call-earlier",
     );
     assert.deepEqual(placed, []);
+    assert.deepEqual(contacts, []);
   });
 
   it("reports an earlier try that provably placed nothing as safe to follow", async () => {
-    const { service, placed } = build({
+    const { service, placed, contacts } = build({
       usable: [NUMBERS.miami],
       existingByKey: { id: "agent-call-earlier", status: "failed" },
     });
@@ -539,6 +542,7 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
         error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
     );
     assert.deepEqual(placed, []);
+    assert.deepEqual(contacts, []);
   });
 });
 
@@ -559,5 +563,131 @@ describe("VoiceAgentCallService final placement guard", () => {
     );
     assert.equal(placed.length, 0);
     assert.deepEqual(forciblyEnded, ["call-1"]);
+  });
+
+  it("never lets a durable caller dial on tools it could not verify", async () => {
+    // Unlike a person's own call, a reminder or callback would run on what
+    // the assistant last saved: it is not placed, and it may be retried.
+    let guarded = false;
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      toolSyncError: new Error("provider unavailable"),
+    });
+    await assert.rejects(
+      service.startCall(CTX, "agent-1", { to: TO }, async () => {
+        guarded = true;
+      }),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.retryable_before_placement,
+    );
+    assert.equal(guarded, false);
+    assert.equal(placed.length, 0);
+  });
+});
+
+// ── Stage 4A: the inbound attach is bound to the whole workspace ────────────
+
+describe("VoiceAgentCallService.startInbound workspace binding", () => {
+  const config = apiConfiguration as unknown as Record<string, unknown>;
+  const OWNER = "owner-1";
+
+  function inbound() {
+    const started: string[] = [];
+    const service = new VoiceAgentCallService(
+      {
+        require: async () => ({ id: "agent-1", providerAssistantId: "a-1" }),
+        inboundConfig: async () => ({}),
+      } as never,
+      {} as never,
+      {
+        findByCallId: async () => null,
+        createInboundOnce: async (data: Record<string, unknown>) => ({
+          id: "agent-call-1",
+          ...data,
+        }),
+        markInboundStarted: async () => undefined,
+      } as never,
+      {} as never,
+      {
+        startInboundCall: async (input: { callControlId: string }) => {
+          started.push(input.callControlId);
+          return { conversationId: "conversation-1" };
+        },
+      } as never,
+      {} as never,
+      {} as never,
+      { getBalance: async () => 10 } as never,
+      {} as never,
+      {} as never,
+    );
+    return { service, started };
+  }
+
+  const call = (over: Record<string, unknown>) =>
+    ({
+      id: "call-1",
+      direction: "inbound",
+      callControlId: "cc-inbound",
+      endedAt: null,
+      fromNumber: "+13055550100",
+      toNumber: "+13055550200",
+      contactId: null,
+      ...over,
+    }) as never;
+
+  it("refuses another freelancer's personal call, and the owner's organization call", async () => {
+    const previous = config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = [OWNER];
+    try {
+      const { service, started } = inbound();
+      const personal = { userId: OWNER, organizationId: null };
+      // Both calls have a null organization; only the owner's is theirs.
+      await assert.rejects(
+        service.startInbound(
+          personal,
+          "agent-1",
+          call({ userId: "stranger-1", organizationId: null }),
+        ),
+        /This inbound call is unavailable/,
+      );
+      await assert.rejects(
+        service.startInbound(
+          personal,
+          "agent-1",
+          call({ userId: OWNER, organizationId: "org-1" }),
+        ),
+        /This inbound call is unavailable/,
+      );
+      assert.deepEqual(started, []);
+      await service.startInbound(
+        personal,
+        "agent-1",
+        call({ userId: OWNER, organizationId: null }),
+      );
+      assert.deepEqual(started, ["cc-inbound"]);
+    } finally {
+      config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = previous;
+    }
+  });
+
+  it("keeps an organization's inbound attach working on its own calls", async () => {
+    const { service, started } = inbound();
+    const org = { userId: "admin-1", organizationId: "org-1" };
+    // Who the organization call rang does not matter: it is the organization's.
+    await service.startInbound(
+      org,
+      "agent-1",
+      call({ userId: "member-2", organizationId: "org-1" }),
+    );
+    await assert.rejects(
+      service.startInbound(
+        org,
+        "agent-1",
+        call({ id: "call-2", userId: "admin-1", organizationId: "org-2" }),
+      ),
+      /This inbound call is unavailable/,
+    );
+    assert.deepEqual(started, ["cc-inbound"]);
   });
 });

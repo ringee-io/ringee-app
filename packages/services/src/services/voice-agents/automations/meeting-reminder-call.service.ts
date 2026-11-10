@@ -28,7 +28,9 @@ import {
 import {
   normalizePhoneE164,
   REMINDER_OFFSET_MIN_MINUTES,
-  type OrganizationOwnershipContext,
+  isInWorkspace,
+  isSameWorkspace,
+  workspaceOf,
   type OwnershipContext,
 } from "@ringee/platform";
 import {
@@ -46,7 +48,7 @@ import {
 } from "../voice-agent-call.service";
 import {
   assertVoiceAgentAutomations,
-  automationOrganizationFilter,
+  automationAdmissionFilter,
   voiceAgentAutomationsEnabled,
 } from "./automation-access";
 import { VoiceAgentConversationContextService } from "./conversation-context.service";
@@ -172,7 +174,7 @@ export class MeetingReminderCallService {
   ): Promise<ReminderCallNowResult> {
     assertVoiceAgentAutomations(ctx);
     const meeting = await this.meetings.findById(meetingId);
-    if (!meeting || meeting.organizationId !== ctx.organizationId) {
+    if (!meeting || !isInWorkspace(ctx, meeting)) {
       throw new NotFoundException("Meeting not found");
     }
     if (!isActive(meeting)) {
@@ -233,7 +235,7 @@ export class MeetingReminderCallService {
       const created = await this.executions.createMany([
         {
           userId: ctx.userId,
-          organizationId: ctx.organizationId,
+          organizationId: ctx.organizationId ?? null,
           meetingId: meeting.id,
           agentId,
           trigger: "manual",
@@ -296,6 +298,7 @@ export class MeetingReminderCallService {
       status: MeetingReminderExecutionStatus,
       reason: string,
       lastError?: string,
+      agentCallId?: string,
     ) => {
       await this.executions.finish(
         execution.id,
@@ -304,6 +307,7 @@ export class MeetingReminderCallService {
         {
           reason,
           lastError,
+          agentCallId,
         },
         claimToken,
       );
@@ -329,16 +333,14 @@ export class MeetingReminderCallService {
       }
     }
 
-    if (!voiceAgentAutomationsEnabled(execution.organizationId)) {
+    // The execution's own, persisted workspace: never the owner's active one.
+    if (!voiceAgentAutomationsEnabled(execution)) {
       return end(S.skipped, "automations_disabled");
     }
-    const ctx: OrganizationOwnershipContext = {
-      userId: execution.userId,
-      organizationId: execution.organizationId,
-    };
+    const ctx: OwnershipContext = workspaceOf(execution);
 
     const meeting = await this.meetings.findById(execution.meetingId);
-    if (!meeting || meeting.organizationId !== execution.organizationId) {
+    if (!meeting || !isSameWorkspace(meeting, execution)) {
       return end(S.cancelled, "meeting_missing");
     }
     if (!isActive(meeting)) return end(S.cancelled, "meeting_cancelled");
@@ -460,13 +462,13 @@ export class MeetingReminderCallService {
             await end(status, reason);
             throw new BadRequestException(reason);
           };
-          if (!voiceAgentAutomationsEnabled(execution.organizationId)) {
+          if (!voiceAgentAutomationsEnabled(execution)) {
             await reject("automations_disabled", S.skipped);
           }
           const current = await this.meetings.findById(execution.meetingId);
           if (
             !current ||
-            current.organizationId !== ctx.organizationId ||
+            !isInWorkspace(ctx, current) ||
             !isActive(current) ||
             current.scheduleVersion !== execution.scheduleVersion
           ) {
@@ -583,9 +585,15 @@ export class MeetingReminderCallService {
         }
       }
 
+      // The try's own call row is the evidence: failed with no provider leg,
+      // it tells the contact's daily cap that nothing was placed.
+      const tried =
+        error instanceof VoiceAgentCallStartError
+          ? (error.agentCallId ?? undefined)
+          : undefined;
       return outcome === VoiceAgentCallStartOutcome.terminal_rejection
-        ? end(S.skipped, "rejected", message)
-        : end(S.failed, "not_placed", message);
+        ? end(S.skipped, "rejected", message, tried)
+        : end(S.failed, "not_placed", message, tried);
     }
 
     // Outside the dial's own error handling on purpose: the leg exists, so a
@@ -633,50 +641,67 @@ export class MeetingReminderCallService {
       const rows = await this.executions.listUnansweredForRetry(
         now,
         afterId,
-        automationOrganizationFilter(),
+        automationAdmissionFilter(),
       );
       afterId = rows.length === 100 ? rows[rows.length - 1].id : undefined;
+      const retries: Parameters<
+        MeetingReminderExecutionRepository["createMany"]
+      >[0] = [];
       for (const prior of rows) {
         if (
-          !voiceAgentAutomationsEnabled(prior.organizationId) ||
+          !voiceAgentAutomationsEnabled(prior) ||
           !prior.policy ||
           prior.policyVersion !== prior.policy.version ||
           prior.scheduleVersion !== prior.meeting.scheduleVersion
         )
           continue;
+        // An hour after the first call, by what it left behind: its dispatch
+        // commit, its call row, its end. A row with none of them gets no
+        // retry — never one timed from its plan, which can precede the dial.
+        const happened = [
+          prior.dispatchCommittedAt,
+          prior.agentCall?.createdAt,
+          prior.agentCall?.call?.endedAt,
+        ].filter((at): at is Date => at instanceof Date);
+        if (!happened.length) continue;
         const fireAt = new Date(
           Math.max(
             now.getTime(),
-            (prior.dispatchCommittedAt ?? prior.fireAt).getTime() + 60 * 60_000,
+            ...happened.map((at) => at.getTime() + 60 * 60_000),
           ),
         );
+        // The meeting's calendar, or the workspace's default one for a meeting
+        // without its own — the zone the first call was planned in.
+        const calendar = prior.meeting.calendarId
+          ? prior.meeting.calendar
+          : await this.calendars.findDefault(workspaceOf(prior));
         if (
           prior.meeting.scheduledAt.getTime() - fireAt.getTime() <
             20 * 60_000 ||
           !isWithinCallingWindow(
             fireAt,
             readCallingWindow(prior.policy),
-            prior.meeting.calendar?.timezone ?? "UTC",
+            calendar?.timezone ?? "UTC",
           )
         )
           continue;
-        await this.executions.createMany([
-          {
-            userId: prior.userId,
-            organizationId: prior.organizationId,
-            meetingId: prior.meetingId,
-            policyId: prior.policyId,
-            agentId: prior.agentId,
-            trigger: "policy",
-            scheduleVersion: prior.scheduleVersion,
-            policyVersion: prior.policyVersion,
-            offsetMinutes: prior.offsetMinutes,
-            attempt: 2,
-            fireAt,
-            idempotencyKey: `retry:${prior.id}:a2`,
-          },
-        ]);
+        retries.push({
+          userId: prior.userId,
+          organizationId: prior.organizationId,
+          meetingId: prior.meetingId,
+          policyId: prior.policyId,
+          agentId: prior.agentId,
+          trigger: "policy",
+          scheduleVersion: prior.scheduleVersion,
+          policyVersion: prior.policyVersion,
+          offsetMinutes: prior.offsetMinutes,
+          attempt: 2,
+          fireAt,
+          idempotencyKey: `retry:${prior.id}:a2`,
+        });
       }
+      // One insert per page; a retry already planned is skipped by its key.
+      if (retries.length) await this.executions.createMany(retries);
     } while (afterId);
   }
 
@@ -703,7 +728,7 @@ export class MeetingReminderCallService {
    * the workspace's reminders quick action.
    */
   private async reminderAgentFor(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     meeting: Meeting,
   ): Promise<string | null> {
     const calendar = meeting.calendarId
@@ -726,7 +751,7 @@ export class MeetingReminderCallService {
    * agent shares once it knows it is talking to the lead.
    */
   private async variables(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     meeting: Meeting & { contact?: Contact | null },
     contact: Contact,
     options: {

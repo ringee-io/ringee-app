@@ -15,7 +15,11 @@ import {
   UserRepository,
   ContactRepository,
 } from "@ringee/database";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import {
+  isSameWorkspace,
+  workspaceOf,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { voiceAgentAutomationsEnabled } from "../voice-agents/automations/automation-access";
 import {
   REMINDER_CHANNELS,
@@ -129,24 +133,22 @@ export class ReminderService {
    * offset that already has a call is never planned a second time.
    */
   async planMeetingCalls(meeting: Meeting): Promise<number> {
+    // The meeting's own workspace — an organization, or its owner's personal
+    // one — admitted to automated work or not.
     if (
-      !meeting.organizationId ||
-      !voiceAgentAutomationsEnabled(meeting.organizationId) ||
+      !voiceAgentAutomationsEnabled(meeting) ||
       (meeting.status !== MeetingStatus.scheduled &&
         meeting.status !== MeetingStatus.rescheduled)
     ) {
       return 0;
     }
-    const ctx: OrganizationOwnershipContext = {
-      userId: meeting.userId,
-      organizationId: meeting.organizationId,
-    };
+    const ctx: OwnershipContext = workspaceOf(meeting);
     const calendar = meeting.calendarId
       ? await this.calendarRepo.findByIdForOwner(ctx, meeting.calendarId)
       : await this.calendarRepo.findDefault(ctx);
     if (!calendar) return 0;
     const policy = await this.callPolicies.findEnabledForCalendar(calendar.id);
-    if (!policy || policy.organizationId !== meeting.organizationId) return 0;
+    if (!policy || !isSameWorkspace(policy, meeting)) return 0;
 
     const used = await this.callExecutions.listUsedOffsets([meeting.id]);
     return this.callExecutions.createMany(
@@ -177,10 +179,10 @@ export class ReminderService {
    * policy never calls anyone late.
    */
   async planPolicyCalls(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     policy: MeetingReminderPolicy,
   ): Promise<number> {
-    if (!policy.enabled || !voiceAgentAutomationsEnabled(ctx.organizationId)) {
+    if (!policy.enabled || !voiceAgentAutomationsEnabled(ctx)) {
       return 0;
     }
     const calendar = await this.calendarRepo.findByIdForOwner(
@@ -208,7 +210,7 @@ export class ReminderService {
   }
 
   private async *upcomingMeetingPages(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     calendar: { id: string; isDefault: boolean },
     now: Date,
   ): AsyncGenerator<Meeting[]> {
@@ -242,7 +244,7 @@ export class ReminderService {
    * called late.
    */
   async previewPolicyCalls(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     input: { calendarIds: string[]; offsetMinutes: number },
   ): Promise<{ meetings: number; calls: number }> {
     const now = new Date();
@@ -290,7 +292,6 @@ export class ReminderService {
     }>,
     now: Date,
   ): Prisma.MeetingReminderExecutionCreateManyInput[] {
-    if (!meeting.organizationId) return [];
     // An answer already given for this version needs no reminder.
     if (meeting.attendanceStatus !== "pending") return [];
     const window = readCallingWindow(policy);
@@ -318,9 +319,10 @@ export class ReminderService {
       return [
         {
           // Placed as the admin who switched the policy on: the call is the
-          // automation's, accountable to whoever configured it.
+          // automation's, accountable to whoever configured it. In a personal
+          // workspace that is its owner, and the organization stays null.
           userId: policy.userId,
-          organizationId: meeting.organizationId!,
+          organizationId: meeting.organizationId,
           meetingId: meeting.id,
           policyId: policy.id,
           agentId: policy.agentId,

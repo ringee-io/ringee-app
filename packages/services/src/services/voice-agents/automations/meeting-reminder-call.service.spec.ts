@@ -609,6 +609,7 @@ describe("Four-hour reminder recovery", () => {
       meeting: {
         scheduleVersion: 2,
         scheduledAt: new Date(NOW.getTime() + 4 * 3600000),
+        calendarId: "calendar-1",
         calendar: { timezone: "America/New_York" },
       },
       policy: {
@@ -625,7 +626,31 @@ describe("Four-hour reminder recovery", () => {
     assert.equal(retry[0].fireAt.getTime(), NOW.getTime() + 3600000);
     assert.equal(retry[0].scheduleVersion, 2);
     assert.equal(retry[0].idempotencyKey, "retry:first:a2");
+    // A row older than the dispatch marker is timed from its call: an hour
+    // after the call ended, never from its plan.
+    const legacy = build({
+      unanswered: [
+        {
+          ...prior,
+          dispatchCommittedAt: null,
+          fireAt: new Date(NOW.getTime() - 3 * 3600000),
+          agentCall: {
+            createdAt: new Date(NOW.getTime() - 10 * 60000),
+            call: { endedAt: new Date(NOW.getTime() - 9 * 60000) },
+          },
+        },
+      ],
+    });
+    await legacy.service.processDue(NOW);
+    const legacyRetry = legacy.events.find((event) => event.retry)
+      ?.retry as Row[];
+    assert.equal(
+      legacyRetry[0].fireAt.getTime(),
+      NOW.getTime() - 9 * 60000 + 3600000,
+    );
     for (const row of [
+      // Nothing tells when the first call happened: no retry at all.
+      { ...prior, dispatchCommittedAt: null },
       { ...prior, scheduleVersion: 1 },
       { ...prior, policyVersion: 4 },
       {
@@ -643,6 +668,91 @@ describe("Four-hour reminder recovery", () => {
         invalid.events.some((event) => event.retry),
         false,
       );
+    }
+  });
+});
+
+// ── Stage 4A: a freelancer's reminder calls ─────────────────────────────────
+
+describe("MeetingReminderCallService in a personal workspace", () => {
+  const personalMeeting = (over: Row = {}) => ({
+    id: "meeting-1",
+    organizationId: null,
+    userId: "owner-1",
+    status: "scheduled",
+    scheduleVersion: 2,
+    scheduledAt: MEETING_AT,
+    attendanceStatus: "pending",
+    calendarId: "calendar-1",
+    contactId: "contact-1",
+    callId: null,
+    title: "Demo",
+    location: null,
+    leadEmail: "elena@acme.test",
+    responsibleUserId: "owner-1",
+    contact: {
+      id: "contact-1",
+      firstName: "Elena",
+      lastName: "Ruiz",
+      name: "Elena Ruiz",
+      phoneNumber: "+13055550123",
+      email: null,
+    },
+    ...over,
+  });
+  const execution = { userId: "owner-1", organizationId: null };
+  const withPilot = async (users: string[], run: () => Promise<void>) => {
+    const previous = config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = users;
+    try {
+      await run();
+    } finally {
+      config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = previous;
+    }
+  };
+
+  it("dials an enrolled owner's reminder in the persisted personal scope", async () => {
+    await withPilot(["owner-1"], async () => {
+      const { service, starts, events } = build({
+        execution,
+        meeting: personalMeeting(),
+      });
+      assert.equal(await service.processDue(NOW), 1);
+      assert.deepEqual(starts[0]!.ctx, {
+        userId: "owner-1",
+        organizationId: null,
+      });
+      assert.deepEqual(events.at(-1), { placed: "agent-call-9" });
+    });
+  });
+
+  it("never dials about another freelancer's meeting, though both have no organization", async () => {
+    await withPilot(["owner-1"], async () => {
+      const { service, starts, events } = build({
+        execution,
+        meeting: personalMeeting({ userId: "stranger-1" }),
+      });
+      await service.processDue(NOW);
+      assert.equal(starts.length, 0);
+      assert.equal(events.at(-1)!.reason, "meeting_missing");
+    });
+  });
+
+  it("does nothing for a personal workspace outside the pilot, even with every organization admitted", async () => {
+    const previous = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["*"];
+    try {
+      await withPilot([], async () => {
+        const { service, starts, events } = build({
+          execution,
+          meeting: personalMeeting(),
+        });
+        await service.processDue(NOW);
+        assert.equal(starts.length, 0);
+        assert.equal(events.at(-1)!.reason, "automations_disabled");
+      });
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = previous;
     }
   });
 });

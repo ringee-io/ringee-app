@@ -759,3 +759,61 @@ describe("ConcurrentCallGuardService.releasePendingLease", () => {
     assert.notEqual(h.store.get(LEASE_KEY), undefined);
   });
 });
+
+// ── Stage 4A: a freelancer's AI follow-up beside their own calling ──────────
+
+describe("ConcurrentCallGuardService with personal AI voice agent calls", () => {
+  const started = new Date(Date.now() - 2 * 60_000);
+  const agentCall = (id: string) =>
+    buildCall({
+      id,
+      callControlId: `agent-${id}`,
+      source: "ai_voice_agent",
+      organizationId: null,
+      status: CallStatus.answered,
+      startedAt: started,
+      createdAt: started,
+      answeredAt: started,
+    });
+
+  it("lets the owner dial while their agents are on other calls (CALL-003)", async () => {
+    const h = harness({
+      calls: [agentCall("agent-1"), agentCall("agent-2")],
+      alive: true,
+    });
+    const decision = await h.guard.requestDial(USER, {
+      deviceId: "device-a",
+      source: "web",
+      organizationId: null,
+    });
+    assert.equal(decision.allowed, true);
+    assert.equal(h.aliveChecks(), 0, "agent legs are not even confirmed");
+  });
+
+  it("still refuses a second human call beside an agent's (CALL-001)", async () => {
+    const h = harness({
+      calls: [
+        agentCall("agent-1"),
+        buildCall({
+          id: "human-1",
+          status: CallStatus.answered,
+          startedAt: started,
+          answeredAt: started,
+        }),
+      ],
+      alive: true,
+      lease: { deviceId: "device-a", deviceLabel: "Chrome · macOS" },
+    });
+    const decision = await h.guard.requestDial(USER, {
+      deviceId: "device-b",
+      source: "web",
+      organizationId: null,
+    });
+    assert.equal(decision.allowed, false);
+    assert.equal(
+      (await h.guard.findOccupyingCall(USER))?.id,
+      "human-1",
+      "the human call, never the agent's, is what occupies the owner",
+    );
+  });
+});
