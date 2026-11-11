@@ -103,9 +103,10 @@ export function useSavedRecharge() {
       setPhase('processing');
 
       try {
+        const entryPoint = useCreditStore.getState().checkoutEntryPoint;
         const res = await api.post<SavedRechargeResponse>(
           '/stripe/checkout/credit/saved',
-          { amount }
+          { amount, ...(entryPoint ? { entryPoint } : {}) }
         );
 
         let status: string = res?.status;

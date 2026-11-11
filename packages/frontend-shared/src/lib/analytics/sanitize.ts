@@ -1,0 +1,222 @@
+/**
+ * What the browser may send to the analytics provider (Stage 4B), mirrored
+ * from the server's `@ringee/platform` sanitizer, which the dashboard may not
+ * import (ARCH-003). Deliberately blunt: a contact's number, an email, a token
+ * or a free-text note never leaves in a URL, a property or an error message.
+ *
+ * Every scan is linear in its capped input — no backtracking expression runs
+ * on untrusted text.
+ */
+
+export type AnalyticsValue = string | number | boolean | null;
+
+const MAX_SCANNED = 4_000;
+const MAX_TEXT = 300;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Query parameters that may stay on a URL: campaign attribution only. */
+const ALLOWED_QUERY = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "ref",
+  "gclid",
+  "fbclid",
+]);
+
+/** A path with every segment that may identify a person replaced. */
+export function sanitizePath(pathname: string): string {
+  return pathname
+    .slice(0, 512)
+    .split("/")
+    .map((segment) => {
+      if (!segment) return segment;
+      let decoded = segment;
+      try {
+        decoded = decodeURIComponent(segment);
+      } catch {
+        return ":segment";
+      }
+      if (UUID.test(decoded)) return ":id";
+      if (decoded.includes("@")) return ":email";
+      if (decoded.replace(/[^0-9]/g, "").length >= 7) return ":number";
+      if (decoded.length >= 32) return ":token";
+      return segment;
+    })
+    .join("/");
+}
+
+/**
+ * A URL safe to export: origin, the sanitized path and only attribution
+ * parameters. Fragments are dropped (they carry settings panes and tokens).
+ */
+export function sanitizeUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw.slice(0, MAX_SCANNED));
+  } catch {
+    return "[url]";
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return "[url]";
+  const kept = [...url.searchParams.entries()].filter(([key]) =>
+    ALLOWED_QUERY.has(key.toLowerCase()),
+  );
+  const query = kept.length
+    ? `?${kept
+        .map(
+          ([key, value]) =>
+            `${encodeURIComponent(key)}=${encodeURIComponent(
+              redactText(value, 80),
+            )}`,
+        )
+        .join("&")}`
+    : "";
+  return `${url.protocol}//${url.host}${sanitizePath(url.pathname)}${query}`;
+}
+
+/**
+ * Redacts what may identify a person or grant access in free text: quoted
+ * spans, emails, phone-like digit runs, URLs beyond their host, long opaque
+ * tokens and `key=value` pairs with a sensitive key. UUIDs are kept.
+ */
+export function redactText(input: unknown, max = MAX_TEXT): string {
+  if (input === null || input === undefined) return "";
+  let text = String(input).slice(0, MAX_SCANNED);
+  text = redactQuoted(text);
+  text = text
+    .split(/(\s+)/)
+    .map((token) => (/^\s*$/.test(token) ? token : redactToken(token)))
+    .join("");
+  text = redactDigitRuns(text);
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+const SENSITIVE_KEYS = new Set([
+  "password",
+  "secret",
+  "token",
+  "apikey",
+  "api_key",
+  "authorization",
+  "auth",
+  "signature",
+  "otp",
+  "code",
+  "session",
+  "cookie",
+  "email",
+  "phone",
+  "to",
+  "from",
+]);
+
+function redactToken(raw: string): string {
+  let start = 0;
+  let end = raw.length;
+  while (start < end && "([{<\"'".includes(raw[start]!)) start += 1;
+  while (end > start && ".,;:!?)]}>\"'".includes(raw[end - 1]!)) end -= 1;
+  const lead = raw.slice(0, start);
+  const core = raw.slice(start, end);
+  const trail = raw.slice(end);
+  if (!core || UUID.test(core)) return raw;
+  const lower = core.toLowerCase();
+  if (lower.startsWith("http://") || lower.startsWith("https://")) {
+    try {
+      return `${lead}${new URL(core).origin}/…${trail}`;
+    } catch {
+      return `${lead}[url]${trail}`;
+    }
+  }
+  const at = core.indexOf("@");
+  if (at > 0 && core.indexOf(".", at) > at + 1) return `${lead}[email]${trail}`;
+  const eq = core.indexOf("=");
+  if (eq > 0) {
+    const key = core
+      .slice(0, eq)
+      .replace(/[^a-z_]/gi, "")
+      .toLowerCase();
+    if (SENSITIVE_KEYS.has(key)) {
+      return `${lead}${core.slice(0, eq + 1)}[redacted]${trail}`;
+    }
+  }
+  if (core.length >= 32 && /^[A-Za-z0-9_\-+/=.]+$/.test(core)) {
+    return `${lead}[token]${trail}`;
+  }
+  return raw;
+}
+
+function redactQuoted(text: string): string {
+  let out = "";
+  let i = 0;
+  const pairs: Record<string, string> = { '"': '"', "“": "”", "«": "»" };
+  while (i < text.length) {
+    const ch = text[i]!;
+    const close = pairs[ch];
+    if (close) {
+      const end = text.indexOf(close, i + 1);
+      if (end > i && end - i <= 200) {
+        out += `${ch}…${close}`;
+        i = end + 1;
+        continue;
+      }
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+const PHONE_CHARS = new Set("0123456789+()-. /".split(""));
+
+/** Runs of digits and phone separators with seven or more digits. */
+function redactDigitRuns(text: string): string {
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i]!;
+    if (!((ch >= "0" && ch <= "9") || ch === "+" || ch === "(")) {
+      out += ch;
+      i += 1;
+      continue;
+    }
+    let j = i;
+    let digits = 0;
+    while (j < text.length && PHONE_CHARS.has(text[j]!)) {
+      if (text[j]! >= "0" && text[j]! <= "9") digits += 1;
+      j += 1;
+    }
+    const run = text.slice(i, j);
+    out += digits >= 7 && !/^\d{4}-\d{2}-\d{2}/.test(run) ? "[phone]" : run;
+    i = j;
+  }
+  return out;
+}
+
+/** A bounded scalar for a property; undefined drops it. */
+export function sanitizeValue(
+  value: unknown,
+): AnalyticsValue | string[] | undefined {
+  if (value === null) return null;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Math.round(value * 100) / 100 : undefined;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^[A-Za-z0-9_:\-.+<>]{1,64}$/.test(trimmed) && !/\d{7}/.test(trimmed)) {
+      return trimmed;
+    }
+    if (UUID.test(trimmed)) return trimmed;
+    return redactText(trimmed, 64);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => /^[a-z0-9_:-]{1,40}$/i.test(item))
+      .slice(0, 12);
+  }
+  return undefined;
+}

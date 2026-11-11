@@ -1705,7 +1705,9 @@ export class VoiceAgentAutomationService {
   ): Promise<FollowUpReview> {
     assertVoiceAgentAutomations(ctx);
     await this.assertCanConfigure(ctx, viewer);
-    const draft = parseFollowUpDraft(input.draft);
+    // A save names only the rows it changed: it is merged over what was
+    // saved before (null clears a field), never a replacement of the draft.
+    const draft = await this.mergedDraft(ctx, parseFollowUpDraft(input.draft));
     await this.authorizeDraft(ctx, viewer, draft);
     const write = await this.activations.saveConfiguration(ctx, {
       version: FOLLOW_UP_ONBOARDING_VERSION,
@@ -1782,7 +1784,10 @@ export class VoiceAgentAutomationService {
     }
 
     if (input.draft !== undefined) {
-      const draft = parseFollowUpDraft(input.draft);
+      const draft = await this.mergedDraft(
+        ctx,
+        parseFollowUpDraft(input.draft),
+      );
       await this.authorizeDraft(ctx, viewer, draft);
       const write = await this.activations.saveConfiguration(ctx, {
         version: FOLLOW_UP_ONBOARDING_VERSION,
@@ -2077,6 +2082,20 @@ export class VoiceAgentAutomationService {
       review,
       meetingCoverage: review.sourceMeeting?.coverage ?? null,
     };
+  }
+
+  /** The saved draft with `changes` over it, field by field. */
+  private async mergedDraft(
+    ctx: OwnershipContext,
+    changes: FollowUpConfigurationDraft,
+  ): Promise<FollowUpConfigurationDraft> {
+    const saved = readSavedDraft(
+      await this.activations.findForWorkspace(
+        ctx,
+        FOLLOW_UP_ONBOARDING_VERSION,
+      ),
+    );
+    return { ...saved, ...changes };
   }
 
   private async assertCanConfigure(

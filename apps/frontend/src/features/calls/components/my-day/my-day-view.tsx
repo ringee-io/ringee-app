@@ -1,12 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { CountryCode } from '@ringee/dialer-core/phone';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
+import { formatForDisplay } from '@ringee/dialer-core/phone';
+import { CreditPopover } from '@/features/credit/components/credit.popover';
+import {
+  followUpHref,
+  rememberFollowUpReturn
+} from '@/features/ai-voice-agents/automations/follow-up/entry';
+import { FollowUpInvitationCard } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
+import { FirstResultCard } from '@/features/ai-voice-agents/automations/follow-up/first-result-card';
+import { useVoiceAgentsRail } from '@/features/ai-voice-agents/automations/store';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useRotationEnabled } from '@/features/number-rotation';
 import { FirstListDialog } from '@/features/onboarding/components/first-list/first-list-dialog';
@@ -107,6 +118,17 @@ export function MyDayView() {
   const [listSetupOpen, setListSetupOpen] = useState(false);
   const [spotlight, setSpotlight] = useState(false);
   const fetchBalance = useCreditStore((s) => s.fetchBalance);
+  const router = useRouter();
+  const { capture } = useAnalytics();
+  // "Make a test call": the first-list flow opened on typing one number.
+  const [testCall, setTestCall] = useState(false);
+  const testDialPending = useRef(false);
+  const followUpAdmitted = useVoiceAgentsRail(
+    (state) => state.summary?.enabled === true
+  );
+  const schedulingActive = useVoiceAgentsRail(
+    (state) => state.summary?.capabilities.scheduling === 'active'
+  );
 
   const refreshQueue = queue.refresh;
   const refreshSummary = summary.refresh;
@@ -186,6 +208,7 @@ export function MyDayView() {
   const hasLists = callList.lists.length > 0;
   const startCalling = useCallback(() => {
     setListPickerOpen(false);
+    setTestCall(false);
     setListSetupOpen(true);
   }, []);
 
@@ -235,6 +258,41 @@ export function MyDayView() {
 
   const selected = useNumbersStore((s) => s.selectedNumber);
   const rotationEnabled = useRotationEnabled();
+  const balance = useCreditStore((s) => s.balance);
+  const balanceLoaded = useCreditStore((s) => s.hasLoaded);
+  const { canAccessAdminFeatures, isLoaded: roleLoaded } = useOrgRole();
+  const seesBalance = roleLoaded && canAccessAdminFeatures;
+  // The line and credit the first call would use, shown before "Call".
+  const lineKind: 'own_number' | 'shared_number' | 'none' = selected
+    ? selected.id === 'public'
+      ? selected.phoneNumber
+        ? 'shared_number'
+        : 'none'
+      : 'own_number'
+    : 'none';
+  const startTestCall = useCallback(() => {
+    capture('test_call_intent', { surface: 'my_day', line: lineKind });
+    setListPickerOpen(false);
+    setTestCall(true);
+    testDialPending.current = true;
+    setListSetupOpen(true);
+  }, [capture, lineKind]);
+
+  // The gift is offered only once the server confirmed it is owed (BILL-022).
+  const offerShown = useRef(false);
+  useEffect(() => {
+    if (offerShown.current || hasLists || firstList.reward <= 0) return;
+    offerShown.current = true;
+    capture('first_list_offer_shown', { reward_usd: firstList.reward });
+  }, [capture, firstList.reward, hasLists]);
+
+  const configureFollowUp = useCallback(() => {
+    rememberFollowUpReturn({
+      path: '/dashboard/call',
+      label: callList.selected?.name ?? null
+    });
+    router.push(followUpHref({ from: 'first_list' }));
+  }, [callList.selected?.name, router]);
   const fromLabel =
     rotationEnabled && selected?.source !== 'external_carrier'
       ? t('next.fromAuto')
@@ -320,6 +378,7 @@ export function MyDayView() {
           listsLoading={callList.listsLoading}
           onChooseList={() => setListPickerOpen(true)}
           onStart={startCalling}
+          onTestCall={startTestCall}
           reward={firstList.reward}
           spotlight={spotlight}
           onSpotlightDone={endSpotlight}
@@ -331,9 +390,21 @@ export function MyDayView() {
           dialing={next !== null && dialingKey === next.item.key}
           busy={busy}
           skipping={callList.skipping}
-          onCall={(item) => void callItem(item)}
+          onCall={(item) => {
+            if (testDialPending.current) {
+              testDialPending.current = false;
+              capture('test_call_dial_attempted', {
+                line: lineKind,
+                has_credit: seesBalance ? balance > 0 : null
+              });
+            }
+            void callItem(item);
+          }}
           onSkip={skip}
         />
+
+        {/* One discreet follow-up invitation after a saved result (4C). */}
+        <FollowUpInvitationCard />
 
         <TodayQueue
           items={queueItems}
@@ -360,6 +431,7 @@ export function MyDayView() {
       </div>
 
       <aside className='flex flex-col gap-4' aria-label={t('asideLabel')}>
+        <FirstResultCard />
         <YourLineCard />
         <TodayCard
           summary={summary.summary}
@@ -383,6 +455,25 @@ export function MyDayView() {
         defaultCountry={region}
         onListReady={listReady}
         onFinish={() => setSpotlight(true)}
+        startWith={testCall ? 'typed' : null}
+        line={{
+          kind: lineKind,
+          number:
+            lineKind === 'own_number' && selected?.phoneNumber
+              ? formatForDisplay(selected.phoneNumber)
+              : null,
+          hasCredit: seesBalance && balanceLoaded ? balance > 0 : null,
+          topUp: (
+            <CreditPopover fetch={false} entryPoint='test_call'>
+              <Button size='sm' variant='outline'>
+                {t('addCredit')}
+              </Button>
+            </CreditPopover>
+          )
+        }}
+        onConfigureFollowUp={
+          followUpAdmitted && !schedulingActive ? configureFollowUp : null
+        }
       />
     </div>
   );

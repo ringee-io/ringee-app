@@ -563,7 +563,8 @@
         "title": "Prepara a quién llamar",
         "hint": "Sube un archivo o escribe algunos números. Ringee te muestra la siguiente persona cada vez.",
         "cta": "Empezar a llamar",
-        "reward": "+{amount} de crédito gratis al terminar"
+        "reward": "+{amount} de crédito gratis al terminar",
+        "testCall": "Hacer una llamada de prueba"
       },
       "role": "{title} en <strong>{company}</strong>",
       "detail": {
@@ -654,7 +655,8 @@
       "companyWebsite": "Sitio web de la empresa",
       "none": "No hay LinkedIn ni sitio web guardados de {name}.",
       "failed": "No se cargaron sus enlaces."
-    }
+    },
+    "addCredit": "Añadir saldo"
   },
   "automaticFollowUp": {
     "preparing": "Guardando resultado y preparando seguimiento…",

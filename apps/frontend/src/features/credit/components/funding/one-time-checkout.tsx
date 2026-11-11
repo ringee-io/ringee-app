@@ -92,10 +92,12 @@ export function OneTimeCheckout({
   const chargeUsd = coupon ? coupon.chargeUsd : amount;
 
   const createIntent = useCallback(async (): Promise<CreatedIntent> => {
+    const entryPoint = useCreditStore.getState().checkoutEntryPoint;
     const res = await api.post('/stripe/checkout/credit/intent', {
       amount,
       savePaymentMethod,
-      invoiceEmail: user?.primaryEmailAddress?.emailAddress
+      invoiceEmail: user?.primaryEmailAddress?.emailAddress,
+      ...(entryPoint ? { entryPoint } : {})
     });
     // A brand-new intent carries no discount — reset the coupon UI to match.
     setPaymentIntentId(res.paymentIntentId ?? null);

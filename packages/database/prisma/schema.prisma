@@ -5105,7 +5105,7 @@ model FollowUpActivation {
   /// What adoption authorized: capabilities, calendar, offset and which
   /// already-booked meetings were explicitly included.
   scope              Json?
-  /// Capability → `{ reason, at, userId }`. Survives the deletion of the
+  /// Per capability: the reason, when and who. Survives the deletion of the
   /// automation row and future reconciliations.
   optOuts            Json?
   /// The bounded entry point the review was first saved from.

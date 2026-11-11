@@ -7,6 +7,11 @@ import type {
   AutomationCard,
   AutomationPanel,
   AutomationSummary,
+  FollowUpDraft,
+  FollowUpEntrySource,
+  FollowUpMeetingCoverage,
+  FollowUpResultSummary,
+  FollowUpReview,
   InboundNumberRef,
   InboundRouteOption,
   ReminderCallNowResult,
@@ -109,7 +114,46 @@ export function useAutomationApi() {
 
       /** The numbers the receptionist could answer, and what each does today. */
       inboundNumbers: () =>
-        api.get<InboundRouteOption[]>('/inbound-routes/numbers')
+        api.get<InboundRouteOption[]>('/inbound-routes/numbers'),
+
+      // ── Shared follow-up review (Stage 4C) ──
+      /** Read-only: opening the review never creates or plans anything. */
+      followUpReview: (params: {
+        meetingId?: string | null;
+        timeZone?: string;
+      }) =>
+        api.get<FollowUpReview>(`${BASE}/follow-up`, {
+          ...(params.meetingId ? { meetingId: params.meetingId } : {}),
+          ...(params.timeZone ? { timeZone: params.timeZone } : {})
+        }),
+      /** "Configuration saved" — a draft, nothing authorized. Admins only. */
+      saveFollowUp: (body: {
+        draft: Partial<FollowUpDraft>;
+        expectedRevision: number | null;
+        entrySource?: FollowUpEntrySource;
+        timeZone?: string;
+        meetingId?: string;
+      }) => api.put<FollowUpReview>(`${BASE}/follow-up/configuration`, body),
+      /** "Activate automatic follow-up": the explicit adoption. */
+      adoptFollowUp: (body: {
+        requestKey: string;
+        expectedRevision: number | null;
+        draft?: Partial<FollowUpDraft>;
+        entrySource?: FollowUpEntrySource;
+        timeZone?: string;
+        language?: string;
+        meetingVersion?: number;
+      }) =>
+        api.post<{
+          review: FollowUpReview;
+          meetingCoverage: FollowUpMeetingCoverage | null;
+        }>(`${BASE}/follow-up/adoption`, body),
+      followUpMeetingCoverage: (meetingId: string) =>
+        api.get<FollowUpMeetingCoverage>(
+          `${BASE}/follow-up/meetings/${meetingId}/coverage`
+        ),
+      followUpResults: () =>
+        api.get<FollowUpResultSummary>(`${BASE}/follow-up/results`)
     }),
     [api]
   );

@@ -644,3 +644,76 @@ contacts: reminder → handoff → move/cancel audio and tools, agreed and recov
 callbacks, receipt delivery and reply-to, and AI/voice settlement against the
 personal balance. Stage 4B (PostHog) and 4C (native provisioning, shared
 onboarding, 240-minute defaults) are not part of this delivery.
+
+## Stage 4B/4C: shared activation and product analytics
+
+The shared **Automatic follow-up** review (`/dashboard/ai-voice-agents/follow-up`)
+is one screen for freelancers and organizations, opened from the first list,
+an Interested outcome, a booked meeting and the AI Voice Agents rail
+(`entry_source`). Rules: AGENT-023 (activation) and OBS-001..004 (analytics);
+analytics owners and dashboards: [ANALYTICS.md](ANALYTICS.md).
+
+- **Review is read-only.** `followUpReview` gathers what Ringee already has
+  (company profile, numbers, calendars and their hours, policies, specialists,
+  balance for managers) and proposes the rest — both specialists on, 240-minute
+  confirmations, weekday 09:00–18:00 calling hours. It creates no calendar,
+  agent, policy or plan.
+- **Saving is a draft.** `PUT …/follow-up/configuration` merges the changed rows
+  over the saved draft, compared on `revision` under the workspace lock.
+- **Adoption is the authorization.** `POST …/follow-up/adoption` re-checks every
+  requirement, applies the draft through the existing owners (company profile,
+  calendar and availability, `setupScheduling` with `humanFollowUp`, the one
+  reminder-policy writer) and records adoption, scope, version and opt-outs. A
+  retried request key returns what it adopted; agents, claims and policies are
+  reused.
+- **Coverage of existing meetings is explicit.** A policy created by adoption
+  covers bookings made from adoption on (`coversMeetingsFrom`), plus meetings
+  explicitly included (`includedMeetingIds`) — the meeting the review was opened
+  from, re-checked at the schedule version the review showed — or every upcoming
+  one when the person chose it. Policies set up before keep covering everything.
+  The planner, calling windows, close-booking rule and per-version keys are
+  unchanged; a confirmation is shown as planned only when its execution exists.
+- **Opt-outs survive.** A capability switched off in the review or a trigger
+  removed in the rail is stored on the activation and proposed off again.
+- **States:** `needs_configuration`, `add_credit` (configuration saved, no money
+  to call), `ready_to_activate`, `pending` (adopted, blocked, with the reason),
+  `active`, `paused`. Manual calling readiness is reported separately: the shared
+  number can place a manual test call while AI follow-up stays pending, because AI
+  calls need an authorized workspace number.
+
+### Deployment
+
+1. Apply `migrations-pending/20261111120000_follow_up_activation_and_product_analytics/migration.sql`
+   to the target database (transactional, additive, no backfill; new tables come
+   with their indexes). Run `pnpm prisma:generate` in the build.
+2. Deploy API and orchestrator together. Older workers ignore the new columns
+   and tables; a pre-4C planner would plan calls for older meetings of a
+   "new bookings only" policy, so no workspace may adopt through the review until
+   every worker runs this release (check the running task definitions first).
+   The analytics schedule converges on boot (`ringee.product-analytics-drain`).
+3. Deploy the frontend. Without `NEXT_PUBLIC_POSTHOG_KEY` / `POSTHOG_PROJECT_TOKEN`
+   analytics stays dark; set them per environment when the PostHog projects
+   exist (staging first, inspect payloads, then production).
+4. Admission is unchanged: personal workspaces still need the Stage 4A pilot
+   list; organizations the existing allowlist.
+
+**Rollback:** the API/worker can be rolled back with the tables in place. A
+workspace that adopted keeps its agents and policies; a rolled-back planner would
+ignore `coversMeetingsFrom`, so pause reminders of adopted "new bookings only"
+policies before rolling back. Dropping the tables discards adoptions, opt-outs and
+undelivered facts.
+
+### Validation (2026-11-11)
+
+- Real SQL on PostgreSQL 17 (`test/prepare-follow-up-database.mjs`, now through
+  4C): `prisma migrate diff` against `schema.prisma` is empty; the workspace-key
+  and adoption CHECKs, the activation uniqueness and the outbox key reject bad
+  rows; `follow-up-activation.postgres.spec.ts` (6) and the Stage 1–4A suites
+  (74) pass.
+- Services 1581 + new specs, platform suites, backend/orchestrator/platform/
+  services `tsc --noEmit`, frontend type-check of every changed file.
+- Inert orchestrator DI boot: every touched service resolves; without a token
+  the analytics tick is a no-op; with a local stand-in host a projected fact
+  survived a 503 and was re-sent with the same UUID and original timestamp.
+- Not validated live: real PostHog ingestion and dashboards, browser sessions,
+  calls, emails or a real adoption — they belong to the pilot steps.

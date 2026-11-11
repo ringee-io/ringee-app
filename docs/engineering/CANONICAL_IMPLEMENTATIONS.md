@@ -161,6 +161,33 @@ Adding a second implementation of one of these is a defect, not a refactor.
   it shares the objective lock with controls. The existing callback tick is the
   executor. See [FOLLOW_UP.md](FOLLOW_UP.md).
 
+## Automatic follow-up activation (Stage 4C, AGENT-023)
+
+- `VoiceAgentAutomationService.followUpReview` / `saveFollowUpConfiguration` /
+  `adoptFollowUp` own the shared review; pure decisions (draft parsing, state,
+  proposal defaults) live in `voice-agents/automations/follow-up-activation.ts`.
+- `FollowUpActivationRepository` persists the row per workspace and version.
+- Reminder coverage of an adopted policy: `policyCoversMeeting`
+  (`reminders/reminder-call-schedule.ts`); policies are written only through the
+  existing reminder-policy path (`configureReminders`).
+- Frontend: `features/ai-voice-agents/automations/follow-up/` — the screen, its
+  entry helpers (`followUpHref`, `useFollowUpInvitation`) and the first-result
+  card. Entry points offer it through `offerOutcomeInvitation` /
+  `offerMeetingInvitation`, never by building their own invitation.
+
+## Product analytics and error tracking (Stage 4B, OBS)
+
+| Responsibility               | Owner                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| Provider SDK                 | `platform/src/analytics/` (`PRODUCT_ANALYTICS_PROVIDER`)                                      |
+| Event contract / sanitizer   | `platform/src/analytics/event-contract.ts`, `sanitize.ts`                                     |
+| Backend facts and delivery   | `ProductAnalyticsService` (`services/analytics/`) + schedule `ringee.product-analytics-drain` |
+| Server exception capture     | `captureJourneyException` → `ProductAnalyticsService.captureException`                        |
+| Browser events               | `useAnalytics` (`frontend-shared/hooks/use.analytics.ts`) → `lib/analytics/posthog.ts`        |
+| Browser identity / pageviews | `useAnalyticsIdentity`; `PostHogPageviews` (root layout)                                      |
+
+See [ANALYTICS.md](ANALYTICS.md).
+
 ## Contacts and lists
 
 | Responsibility                            | Owner                                                                                                                                                                       |

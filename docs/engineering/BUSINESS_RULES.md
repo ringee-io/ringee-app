@@ -2383,3 +2383,64 @@ verification at first sign-in still applies (`phoneRequired`).
   `ClerkUserRepository.createUser`
 - **Risk if violated:** a password readable from the database or the logs; a
   second login, or a reset password, on somebody's existing account.
+
+### AGENT-023 — Automatic follow-up is adopted explicitly, once per workspace and version
+
+The shared review (Stage 4C) is the same for a personal workspace and an
+organization. Opening it never creates, provisions or plans anything; saving it
+is "configuration saved"; only **Activate automatic follow-up** — by the
+personal owner or an organization administrator, re-checked on the server —
+authorizes Ringee to call. One `FollowUpActivation` row per workspace key
+(`personal:<owner>` / `organization:<id>`) and onboarding version, written under
+the workspace lock and compared on `revision`; a retried adoption with the same
+request key returns what it adopted.
+
+- New reminder policies default to 240 minutes; existing offsets, windows,
+  pauses, recipients and opt-outs win over the proposal.
+- A policy created by adoption covers bookings made from adoption on, plus
+  meetings explicitly included; it never reaches an older meeting by accident,
+  also not after a move or a resume. Pre-existing policies keep their coverage.
+- A capability switched off in the review, or a trigger removed in the rail, is
+  a durable opt-out that later proposals and reconciliations respect.
+- The screen claims a scheduled confirmation only when an execution exists for
+  the meeting's current version.
+- Insufficient balance is "configuration saved, add credit", never "ready".
+- **Source of truth:** `VoiceAgentAutomationService` (`followUpReview`,
+  `saveFollowUpConfiguration`, `adoptFollowUp`), `follow-up-activation.ts`,
+  `FollowUpActivationRepository`, `policyCoversMeeting`.
+- **Risk if violated:** Ringee calls contacts nobody authorized it to call, or
+  confirms meetings booked before the person chose to cover them.
+
+## Product analytics (`OBS`)
+
+### OBS-001 — Analytics never touches a business operation
+
+Facts are recorded after the write they describe committed (or projected from
+durable evidence), shipped by the orchestrator drain, and every analytics or
+error-tracking call swallows its own failures. Without a configured project
+nothing is stored or sent. A provider outage leaves facts pending, retried with
+backoff, then `failed` for reconciliation — never a failed call, booking,
+activation or charge.
+
+- **Source of truth:** `ProductAnalyticsService`, `journey-exceptions.ts`.
+
+### OBS-002 — One fact per evidence key, with its original time
+
+The outbox key is `<event>:<evidence key>` and the provider UUID derives from it,
+so a retried producer, a re-projection or a resend is the same event. A business
+action that also resolves an objective counts once (its action id). Grants are
+never purchases; a paid top-up comes only from the completed ledger row.
+
+### OBS-003 — Workspace identity, human and machine actors kept apart
+
+The human distinct id is the internal user id on client and server; the group is
+the effective workspace (`workspaceKeyOf`), carried on every scoped event. AI and
+system facts use technical ids and never count as human activity or acquisition.
+A key is correlation only, never authorization.
+
+### OBS-004 — Only allowlisted, sanitized data leaves Ringee
+
+Per-event property allowlists on both sides; URLs, messages, causes and stacks
+are sanitized before export. Contact data, meeting titles, notes, transcripts,
+recordings, credentials and sensitive URLs are never captured. Session replay,
+surveys and flags stay off until their own review (ANALYTICS.md).

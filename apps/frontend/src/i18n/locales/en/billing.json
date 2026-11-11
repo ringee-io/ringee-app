@@ -24,7 +24,8 @@
         "chooseAmount": "Choose amount",
         "customAmountLabel": "Or enter custom amount",
         "minAmountError": "Minimum purchase is ${amount}",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "minAmountHint": "Any amount from {amount}, your account's minimum."
       },
       "oneTime": {
         "customPlaceholder": "e.g. 40",

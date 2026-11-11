@@ -42,6 +42,7 @@ import {
 } from '../hooks/use-inbox';
 import { ContactPicker, PickableContact } from './contact-picker';
 
+import { offerMeetingInvitation } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
 interface Props {
   thread: InboxThread;
   onChanged: () => void;
@@ -528,12 +529,13 @@ function SchedulePopover({
         });
         toast.success(t('callbackScheduled'));
       } else {
-        await api.post('/meetings', {
+        const meeting = await api.post<{ id?: string } | null>('/meetings', {
           contactId,
           scheduledAt: scheduledAt.toISOString(),
           title: contactName ? `Meeting with ${contactName}` : undefined,
           notes: note.trim() || undefined
         });
+        offerMeetingInvitation({ meetingId: meeting?.id });
         toast.success(t('meetingScheduled'));
       }
       setOpen(false);

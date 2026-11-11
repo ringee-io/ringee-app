@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import AppSidebar from './app-sidebar';
 import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
+import { useAnalyticsIdentity } from '@ringee/frontend-shared/hooks/use.analytics-identity';
 import { CallQueuePanel } from '@/features/calls/components/call.queue.panel';
 import { useTelnyxClient } from '@/features/calls/hooks/use.telnyx';
 import { useIncomingCallToasts } from '@/features/calls/hooks/use.incoming.calls';
@@ -19,6 +20,8 @@ export default function AppMainSidebar({ useMock }: any) {
   useAnalytics({
     topLevel: true
   });
+  // The PostHog identity and workspace group of this session (Stage 4B).
+  useAnalyticsIdentity();
 
   if (!useMock) {
     const api = useApi();

@@ -21,6 +21,8 @@ export interface Option {
   value: string;
   count?: number;
   icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+  /** Extra words the option's search matches (a country's ISO code). */
+  keywords?: string[];
 }
 
 export type FilterOperator = DataTableConfig["operators"][number];

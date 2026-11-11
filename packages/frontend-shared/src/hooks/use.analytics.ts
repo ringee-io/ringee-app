@@ -3,6 +3,12 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import {
+  captureClientEvent,
+  captureClientException,
+  type ClientExceptionContext,
+} from "../lib/analytics/posthog";
+import type { ClientAnalyticsEvent } from "../lib/analytics/events";
 
 function safeGtag(...args: any[]) {
   if (typeof window === "undefined") return;
@@ -32,6 +38,13 @@ function safeAhrefs(event: string, data: Record<string, any> = {}) {
   }
 }
 
+/**
+ * The dashboard's single analytics owner: gtag/Ahrefs marketing events, as
+ * before, and the product events of Stage 4B through PostHog
+ * (`lib/analytics/posthog`). PostHog pageviews are not sent from here — the
+ * root `PostHogPageviews` sends them once for every route — so `topLevel`
+ * keeps firing only the gtag/Ahrefs pageview it always did.
+ */
 export function useAnalytics(
   { topLevel }: { topLevel?: boolean } = { topLevel: false },
 ) {
@@ -97,11 +110,23 @@ export function useAnalytics(
     });
   };
 
+  /** An allowlisted product interaction or exposure (PostHog). */
+  const capture = (
+    event: ClientAnalyticsEvent,
+    properties: Record<string, unknown> = {},
+  ) => captureClientEvent(event, properties);
+
+  /** A technical failure of a scoped journey; never an expected blocker. */
+  const captureException = (error: unknown, context: ClientExceptionContext) =>
+    captureClientException(error, context);
+
   return {
     trackNewCall,
     trackUserSignup,
     trackNumberPurchase,
     trackCreditPurchase,
     trackCallsReceived,
+    capture,
+    captureException,
   };
 }

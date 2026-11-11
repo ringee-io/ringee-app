@@ -155,3 +155,243 @@ export interface InboundRouteOption {
     label: string | null;
   } | null;
 }
+
+// ── Shared follow-up review (Stage 4C) ───────────────────────────────
+// Mirrors `FollowUpReview` in `@ringee/services` (GET …/follow-up).
+
+export type FollowUpEntrySource =
+  | 'first_list'
+  | 'interested_outcome'
+  | 'meeting_booked'
+  | 'ai_voice_agents_navigation';
+
+export type FollowUpState =
+  | 'not_admitted'
+  | 'needs_configuration'
+  | 'add_credit'
+  | 'ready_to_activate'
+  | 'pending'
+  | 'active'
+  | 'paused';
+
+export type FollowUpRequirementCode =
+  | 'get_number'
+  | 'choose_number'
+  | 'number_pending'
+  | 'set_availability'
+  | 'add_credit'
+  | 'fix_agent';
+
+export type FollowUpRowKey =
+  | 'identity'
+  | 'shareable'
+  | 'number'
+  | 'callbacks'
+  | 'calendar'
+  | 'calling_hours'
+  | 'time_zone'
+  | 'responsible';
+
+export type FollowUpRowStatus = 'ok' | 'missing' | 'locked' | 'info';
+
+export interface CallingWindow {
+  /** 0–6, Sunday first. */
+  days: number[];
+  startMinute: number;
+  endMinute: number;
+}
+
+export interface FollowUpNumberOption {
+  id: string;
+  phoneNumber: string;
+  isoCountry: string;
+  kind: 'purchased' | 'verified_caller_id';
+}
+
+export interface FollowUpMeetingCoverage {
+  covered: boolean;
+  fireAt: string | null;
+  reason:
+    | null
+    | 'not_admitted'
+    | 'not_adopted'
+    | 'reminders_off'
+    | 'reminders_paused'
+    | 'calendar_not_covered'
+    | 'not_included'
+    | 'too_close'
+    | 'already_answered'
+    | 'cancelled';
+}
+
+export interface FollowUpSourceMeeting {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  version: number;
+  calendarId: string | null;
+  contactName: string | null;
+  eligible: boolean;
+  reason:
+    | null
+    | 'not_found'
+    | 'cancelled'
+    | 'too_soon'
+    | 'already_answered'
+    | 'other_calendar'
+    | 'reminders_off'
+    | 'outside_window';
+  plannedFireAt: string | null;
+  coverage: FollowUpMeetingCoverage;
+}
+
+export interface FollowUpDraft {
+  identity?: { companyName: string | null; companyWebsite: string | null };
+  shareable?: { companyDescription: string | null };
+  numberId?: string | null;
+  calendarId?: string | null;
+  availability?: CallingWindow | null;
+  callingHours: CallingWindow;
+  timeZone: string;
+  capabilities: { scheduling: boolean; reminders: boolean };
+  reminderOffsetMinutes: number;
+  existingMeetings: 'none' | 'all_upcoming';
+  includeMeetingId?: string | null;
+}
+
+export interface FollowUpReview {
+  version: string;
+  workspaceType: 'personal' | 'organization';
+  admitted: boolean;
+  canConfigure: boolean;
+  adminNames: string[];
+  state: FollowUpState;
+  activation: {
+    status: 'none' | 'configured' | 'adopted';
+    revision: number | null;
+    savedAt: string | null;
+    adoptedAt: string | null;
+    adoptedByName: string | null;
+    entrySource: FollowUpEntrySource | null;
+    optOuts: Partial<
+      Record<'scheduling' | 'reminders', { reason: string; at: string }>
+    >;
+  };
+  draft: FollowUpDraft;
+  rows: {
+    identity: {
+      status: FollowUpRowStatus;
+      kind: 'company' | 'person';
+      companyName: string | null;
+      companyWebsite: string | null;
+      personName: string | null;
+    };
+    shareable: { status: FollowUpRowStatus; companyDescription: string | null };
+    number: {
+      status: FollowUpRowStatus;
+      requirement: FollowUpRequirementCode | null;
+      selected: FollowUpNumberOption | null;
+      candidates: FollowUpNumberOption[];
+      pending: Array<{
+        phoneNumber: string;
+        kind: 'purchase' | 'verification';
+      }>;
+      sharedNumberAvailable: boolean;
+    };
+    callbacks: {
+      status: FollowUpRowStatus;
+      kind: 'owner' | 'route' | 'unrouted' | 'unknown';
+      label: string | null;
+    };
+    calendar: {
+      status: FollowUpRowStatus;
+      requirement: FollowUpRequirementCode | null;
+      selected: {
+        id: string;
+        name: string;
+        timezone: string;
+        isDefault: boolean;
+        provider: 'google' | 'microsoft' | null;
+        accountEmail: string | null;
+      } | null;
+      candidates: Array<{ id: string; name: string; isDefault: boolean }>;
+      willCreate: boolean;
+      availability: {
+        source: 'calendar' | 'draft' | 'missing';
+        window: CallingWindow | null;
+        windowCount: number;
+      };
+    };
+    callingHours: {
+      status: FollowUpRowStatus;
+      source: 'policy' | 'draft' | 'proposed';
+      window: CallingWindow;
+    };
+    timeZone: {
+      status: FollowUpRowStatus;
+      source: 'calendar' | 'draft' | 'browser' | 'default';
+      value: string;
+    };
+    responsible: {
+      status: FollowUpRowStatus;
+      kind: 'owner' | 'caller';
+      ownerName: string | null;
+      adminCount: number;
+    };
+  };
+  capabilities: {
+    scheduling: {
+      existing: AutomationState;
+      agentName: string | null;
+      humanFollowUpEnabled: boolean;
+      optedOut: boolean;
+    };
+    reminders: {
+      existing: AutomationState;
+      agentName: string | null;
+      existingOffsetMinutes: number | null;
+      optedOut: boolean;
+      offsetChoices: number[];
+      upcomingExisting: { meetings: number; calls: number } | null;
+    };
+  };
+  requirements: Array<{
+    code: FollowUpRequirementCode;
+    row: FollowUpRowKey | null;
+  }>;
+  progress: { done: number; total: number };
+  balance: { visible: boolean; amount: number | null };
+  manualCalling: {
+    ready: boolean;
+    line: 'own_number' | 'shared_number' | 'none';
+    reason: 'no_line' | 'no_credit' | null;
+  };
+  sourceMeeting: FollowUpSourceMeeting | null;
+  nextActions: Array<{
+    fireAt: string;
+    meetingId: string;
+    meetingAt: string;
+    contactName: string | null;
+  }>;
+}
+
+export interface FollowUpResultSummary {
+  results: Array<{
+    id: string;
+    kind: string;
+    at: string;
+    meetingId: string;
+    meetingAt: string;
+    previousMeetingAt: string | null;
+    contactName: string | null;
+    callId: string | null;
+    consumption: {
+      voiceUsd: number | null;
+      aiUsd: number | null;
+      settled: boolean;
+    };
+  }>;
+  firstResultAt: string | null;
+  firstSinceAdoption: boolean;
+  adoptedAt: string | null;
+}

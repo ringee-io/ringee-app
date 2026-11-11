@@ -125,7 +125,27 @@
       "skipped": "{count, plural, one {# fila quedó fuera} other {# filas quedaron fuera}}",
       "why": "Ver por qué",
       "cta": "Empezar a llamar",
-      "keyHint": "Pulsa <key>N</key> cuando quieras para llamar a quien sigue."
+      "keyHint": "Pulsa <key>N</key> cuando quieras para llamar a quien sigue.",
+      "line": {
+        "own": "Llamas desde {number}",
+        "ownHint": "El número de tu espacio: las devoluciones te llegan a ti.",
+        "shared": "Puedes llamar con el número compartido de Ringee",
+        "sharedHint": "Para probar sin comprar nada. Si alguien devuelve la llamada a ese número, no te llegará.",
+        "none": "Todavía no tienes línea para llamar",
+        "noneHint": "Consigue un número de Ringee o verifica uno tuyo en el siguiente paso.",
+        "noCredit": "Tu saldo está en $0.00: añade saldo para hacer la llamada.",
+        "buyTitle": "Un número tuyo en Ringee",
+        "buyText": "Listo en un minuto y sirve para llamar a números locales. Te reconocen y las devoluciones te llegan aquí.",
+        "buyCta": "Buscar un número en Ringee",
+        "verifyTitle": "El número que ya tienes",
+        "verifyText": "Solo para llamadas internacionales. Las devoluciones llegan a ese teléfono, no a Ringee. Verificarlo tiene una pequeña tarifa de tu saldo.",
+        "verifyCta": "Verificar un número que ya tengo"
+      },
+      "followUp": {
+        "text": "Ringee puede dar seguimiento a tus oportunidades, agendar citas y confirmar reuniones.",
+        "hint": "Tu lista y la próxima persona te esperan aquí cuando vuelvas.",
+        "cta": "Configurar seguimiento automático"
+      }
     },
     "completionPending": "Tu primera lista está guardada. Finaliza la configuración para recibir el crédito para llamadas que te corresponda.",
     "completionFailed": "Tu lista está guardada, pero no se pudo finalizar la configuración. Inténtalo de nuevo.",

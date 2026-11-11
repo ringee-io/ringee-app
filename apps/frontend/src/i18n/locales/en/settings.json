@@ -253,6 +253,22 @@
         "use": "Use document"
       },
       "submitAddressInvalid": "We couldn't validate the address with the carrier. Open the address step and use “Validate address” to fix it."
+    },
+    "lookup": {
+      "emptyTitle": "No {type} numbers available in {country} with these filters",
+      "emptyHint": "The provider answered, but it has no matching numbers right now.",
+      "failedTitle": "We couldn't check the available numbers",
+      "failedHint": "The provider didn't answer. This says nothing about the inventory: try again in a moment.",
+      "retry": "Try again",
+      "clearFilters": "Clear filters",
+      "tryType": "Try {type} numbers",
+      "verifyOwn": "Verify a number you already have",
+      "callbackNote": "A Ringee number receives returned calls. A verified number only shows as caller ID on international calls, and returned calls reach that phone, not Ringee.",
+      "types": {
+        "local": "local",
+        "mobile": "mobile",
+        "toll_free": "toll-free"
+      }
     }
   },
   "tabs": {

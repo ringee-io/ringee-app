@@ -12,6 +12,7 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
 import './theme.css';
 import Script from 'next/script';
+import { PostHogPageviews } from '@/components/analytics/posthog-pageviews';
 
 const META_THEME_COLORS = {
   light: '#ffffff',
@@ -220,6 +221,8 @@ export default async function RootLayout({
         )}
       >
         <NextTopLoader color='var(--primary)' showSpinner={false} />
+        {/* Product analytics pageviews (Stage 4B); no-op without a key. */}
+        <PostHogPageviews />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <NuqsAdapter>
             <ThemeProvider
