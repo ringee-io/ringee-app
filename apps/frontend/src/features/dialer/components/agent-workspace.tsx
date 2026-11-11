@@ -34,6 +34,12 @@ import { ArrowLeft, Loader2, Users, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import posthog from 'posthog-js';
+
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 interface Props {
   campaignId: string;
@@ -99,6 +105,7 @@ export function AgentWorkspace({
     setStartError(null);
     try {
       await startSession();
+      if (posthogConfigured) posthog.capture('dialer_session_started');
     } catch (err: any) {
       const message =
         err?.status === 403
