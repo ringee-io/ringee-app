@@ -677,11 +677,14 @@ const DAYS = [1, 2, 3, 4, 5, 6, 0];
 function WindowFields({
   value,
   onChange,
-  idPrefix
+  idPrefix,
+  lastEndMinute = 24 * 60
 }: {
   value: CallingWindow;
   onChange: (value: CallingWindow) => void;
   idPrefix: string;
+  /** Calling hours may end at midnight; bookable hours end by 23:59. */
+  lastEndMinute?: number;
 }) {
   const t = useTranslations('aiVoiceAgents.followUp');
   const locale = useLocale();
@@ -754,13 +757,16 @@ function WindowFields({
             onChange({ ...value, endMinute: Number(event.target.value) })
           }
         >
-          {steps.slice(1).map((minute) => (
-            <option key={minute} value={minute}>
-              {minute === 1440
-                ? t('editor.midnight')
-                : formatMinute(minute, locale)}
-            </option>
-          ))}
+          {steps
+            .slice(1)
+            .filter((minute) => minute <= lastEndMinute)
+            .map((minute) => (
+              <option key={minute} value={minute}>
+                {minute === 1440
+                  ? t('editor.midnight')
+                  : formatMinute(minute, locale)}
+              </option>
+            ))}
         </select>
       </div>
     </div>
@@ -866,6 +872,7 @@ function CalendarEditor({
             value={hours}
             onChange={setHours}
             idPrefix='availability'
+            lastEndMinute={24 * 60 - 30}
           />
         </div>
       ) : (

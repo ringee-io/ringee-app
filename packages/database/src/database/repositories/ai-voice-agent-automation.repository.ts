@@ -11,6 +11,10 @@ import {
 } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
 import { lockWorkspace } from "./calendar.repository";
+import {
+  writeFollowUpOptOut,
+  type FollowUpOptOutInput,
+} from "./follow-up-activation.repository";
 import { workspaceOwnershipSql } from "./workspace-scope";
 
 type AutomationSetup = {
@@ -190,16 +194,33 @@ export class AiVoiceAgentAutomationRepository {
    * Deletes the card's trigger — the row, never the agent — so the next setup
    * starts from nothing. Only while the row still names that agent: a setup
    * that moved the card on meanwhile is left alone.
+   *
+   * With `optOut`, the follow-up review's durable opt-out (Stage 4C) is
+   * written in the same transaction: the trigger is gone and the removal is
+   * remembered, or neither happened.
    */
   async removeForOwner(
     ctx: OwnershipContext,
     id: string,
     agentId: string,
+    options: { optOut?: FollowUpOptOutInput } = {},
   ): Promise<boolean> {
-    const { count } = await this.prisma.aiVoiceAgentAutomation.deleteMany({
-      where: { id, ...buildOwnershipFilter(ctx), agentId },
+    const where = { id, ...buildOwnershipFilter(ctx), agentId };
+    const optOut = options.optOut;
+    if (!optOut) {
+      const { count } = await this.prisma.aiVoiceAgentAutomation.deleteMany({
+        where,
+      });
+      return count === 1;
+    }
+    return this.prisma.$transaction(async (tx) => {
+      // The workspace lock the activation row's writes take.
+      await lockWorkspace(tx, ctx);
+      const { count } = await tx.aiVoiceAgentAutomation.deleteMany({ where });
+      if (count !== 1) return false;
+      await writeFollowUpOptOut(tx, ctx, optOut);
+      return true;
     });
-    return count === 1;
   }
 
   /**

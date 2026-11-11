@@ -220,12 +220,18 @@ export class StripeController {
       amountUsd: amount,
       organizationId: user.activeOrgId,
     });
-    void this.productAnalytics.checkoutStarted(createOwnershipContext(user), {
-      reference: checkoutReference(intent),
-      amountUsd: amount,
-      kind: "saved_card",
-      entryPoint: body.entryPoint,
-    });
+    // A checkout started once Stripe created its PaymentIntent — a declined
+    // confirmation still is one. A creation Stripe refused leaves no intent
+    // (`failed` without an id) and is not.
+    const reference = checkoutReference(intent);
+    if (reference) {
+      void this.productAnalytics.checkoutStarted(createOwnershipContext(user), {
+        reference,
+        amountUsd: amount,
+        kind: "saved_card",
+        entryPoint: body.entryPoint,
+      });
+    }
     return intent;
   }
 

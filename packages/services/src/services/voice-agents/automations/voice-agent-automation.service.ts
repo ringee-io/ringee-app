@@ -30,7 +30,9 @@ import {
   NumberPurchasedRepository,
   OrganizationRepository,
   UserRepository,
+  readAdoptionAttempt,
   type FollowUpActivation,
+  type FollowUpActivationWrite,
   type Meeting,
   type MeetingReminderPolicy,
   type Prisma,
@@ -144,6 +146,11 @@ const DEFAULT_NAMES: Record<AutomationCapability, string> = {
 
 /** A setup older than this that never finished may be taken over. */
 const CLAIM_STALE_MS = 2 * 60_000;
+/**
+ * A follow-up adoption that reserved its revision longer ago than this and
+ * never finished has died: it no longer holds the review.
+ */
+const ADOPTION_ATTEMPT_STALE_MS = 2 * 60_000;
 /** How far back the rail's activity list looks. */
 const ACTIVITY_WINDOW_MS = 14 * 24 * 60 * 60_000;
 const ACTIVITY_ITEMS = 3;
@@ -1092,35 +1099,32 @@ export class VoiceAgentAutomationService {
     }
 
     // Deleted only while the row still drives this agent: another window may
-    // have moved the card to another one meanwhile.
+    // have moved the card to another one meanwhile. Removing a trigger on
+    // purpose is a durable opt-out (Stage 4C), stored in the same
+    // transaction as the deletion: the follow-up review proposes it switched
+    // off, and no later reconciliation brings it back without the person
+    // choosing it again.
+    const followUpCapability = toFollowUpCapability(capability);
     const removed = await this.automations.removeForOwner(
       ctx,
       automation.id,
       agentId,
+      followUpCapability
+        ? {
+            optOut: {
+              version: FOLLOW_UP_ONBOARDING_VERSION,
+              capability: followUpCapability,
+              reason: "trigger_removed",
+              at: new Date(),
+              emptyConfiguration: {},
+            },
+          }
+        : {},
     );
     if (!removed) {
       throw new ConflictException(
         "This trigger changed in another window. Reload it.",
       );
-    }
-    // Removing a trigger on purpose is a durable opt-out (Stage 4C): the
-    // follow-up review proposes it switched off, and no later reconciliation
-    // brings it back without the person choosing it again.
-    const followUpCapability = toFollowUpCapability(capability);
-    if (followUpCapability) {
-      await this.activations
-        .recordOptOut(ctx, {
-          version: FOLLOW_UP_ONBOARDING_VERSION,
-          capability: followUpCapability,
-          reason: "trigger_removed",
-          at: new Date(),
-          emptyConfiguration: {},
-        })
-        .catch((error: unknown) => {
-          this.logger.warn(
-            `Opt-out of ${followUpCapability} not recorded: ${describe(error)}`,
-          );
-        });
     }
     return this.card(ctx, capability);
   }
@@ -1238,7 +1242,15 @@ export class VoiceAgentAutomationService {
   async followUpReview(
     ctx: OwnershipContext,
     viewer: AutomationViewer,
-    options: { meetingId?: string | null; timeZoneHint?: string | null } = {},
+    options: {
+      meetingId?: string | null;
+      timeZoneHint?: string | null;
+      /**
+       * The row to review instead of reading it again — the revision an
+       * adoption reserved, so what it applies is that revision's draft.
+       */
+      activation?: FollowUpActivation;
+    } = {},
   ): Promise<FollowUpReview> {
     assertVoiceAgentAccess(ctx);
     const admitted = voiceAgentAutomationsEnabled(ctx);
@@ -1249,7 +1261,8 @@ export class VoiceAgentAutomationService {
 
     const [activation, env, profile, owner, calendars, owned, callerIds] =
       await Promise.all([
-        this.activations.findForWorkspace(ctx, FOLLOW_UP_ONBOARDING_VERSION),
+        options.activation ??
+          this.activations.findForWorkspace(ctx, FOLLOW_UP_ONBOARDING_VERSION),
         this.environment(ctx),
         this.companyProfiles.get(ctx).catch(() => null),
         this.users.findById(ctx.userId),
@@ -1436,9 +1449,10 @@ export class VoiceAgentAutomationService {
     }
     if (brokenAgent) requirements.push({ code: "fix_agent", row: null });
     // The balance is the manager's to see (CALL-014): a member's read-only
-    // view says an administrator has to act, without telling the balance.
-    const balanceKnown = canConfigure && env.balance !== null;
-    if (anyOn && balanceKnown && env.balance! <= 0) {
+    // view still says credit is needed — an administrator has to act — but
+    // never the amount (`balance` below is withheld from them).
+    const noCredit = env.balance !== null && env.balance <= 0;
+    if (anyOn && noCredit) {
       requirements.push({ code: "add_credit", row: null });
     }
 
@@ -1528,7 +1542,6 @@ export class VoiceAgentAutomationService {
       : sharedNumberAvailable
         ? ("shared_number" as const)
         : ("none" as const);
-    const noCredit = balanceKnown && env.balance! <= 0;
 
     const adoptedBy =
       activation?.adoptedByUserId && activation.adoptedByUserId !== ctx.userId
@@ -1588,23 +1601,25 @@ export class VoiceAgentAutomationService {
           : {}),
       },
       rows: {
+        // A saved section wins whole, a cleared field included: the rows show
+        // what `applyCompanyProfile` will adopt, never the value it replaces.
         identity: {
           status: "ok",
           kind: personal ? "person" : "company",
-          companyName:
-            saved.identity?.companyName ??
-            profile?.companyName ??
-            (personal ? null : (schedulingCard?.company ?? null)),
-          companyWebsite:
-            saved.identity?.companyWebsite ?? profile?.companyWebsite ?? null,
+          companyName: saved.identity
+            ? saved.identity.companyName
+            : (profile?.companyName ??
+              (personal ? null : (schedulingCard?.company ?? null))),
+          companyWebsite: saved.identity
+            ? saved.identity.companyWebsite
+            : (profile?.companyWebsite ?? null),
           personName: ownerName,
         },
         shareable: {
           status: "ok",
-          companyDescription:
-            saved.shareable?.companyDescription ??
-            profile?.companyDescription ??
-            null,
+          companyDescription: saved.shareable
+            ? saved.shareable.companyDescription
+            : (profile?.companyDescription ?? null),
         },
         number: {
           status: numberRequirement ? "missing" : "ok",
@@ -1714,13 +1729,9 @@ export class VoiceAgentAutomationService {
       configuration: draft as Prisma.InputJsonObject,
       entrySource: parseEntrySource(input.entrySource),
       expectedRevision: input.expectedRevision,
+      attemptStaleBefore: new Date(Date.now() - ADOPTION_ATTEMPT_STALE_MS),
     });
-    if (!write.ok) {
-      throw new ConflictException({
-        message: "This review changed in another window. Reload it.",
-        revision: write.row?.revision ?? null,
-      });
-    }
+    if (!write.ok) throw activationConflict(write);
     const review = await this.followUpReview(ctx, viewer, {
       meetingId: draft.includeMeetingId ?? input.meetingId ?? null,
       timeZoneHint: input.timeZoneHint,
@@ -1741,18 +1752,25 @@ export class VoiceAgentAutomationService {
   }
 
   /**
-   * "Activate automatic follow-up": the explicit authorization. The draft that
-   * was shown is saved (compared on its revision), every requirement is
-   * checked again, and the configuration is applied through the owners the
-   * rail and the editor already use — company profile, calendar and its hours,
-   * the scheduling and reminders setups — before the adoption, its scope,
-   * version and opt-outs are recorded. Retries reuse the same agents, claims
-   * and policies; replaying the same request returns what it adopted.
+   * "Activate automatic follow-up": the explicit authorization. Before
+   * anything live changes, the request reserves the revision it reviewed —
+   * the draft it carries is saved with its key, and saves from any window
+   * wait — and the review is computed from that reserved row, so what is
+   * applied is that revision's draft. Every requirement is checked again,
+   * and the configuration is applied through the owners the rail and the
+   * editor already use — company profile, calendar and its hours, the
+   * scheduling and reminders setups — before the adoption, its scope,
+   * version and opt-outs are recorded on the same revision. Those setups go
+   * through their own owners and providers and cannot be rolled back, so an
+   * attempt is resumable instead: a retry of the same request continues the
+   * revision it reserved, reusing the same agents, claims and policies, and
+   * replaying a recorded adoption returns what it adopted.
    *
    * Already-booked meetings are covered only within the explicit scope: the
-   * meeting the review was opened from when it is included (re-checked here at
-   * the version the review showed), or every upcoming one when the person
-   * chose that. Previously authorized reminder policies keep their coverage.
+   * meeting the review was opened from when it is included (re-checked at
+   * the version the review showed, and again atomically when it is added),
+   * or every upcoming one when the person chose that. Previously authorized
+   * reminder policies keep their coverage.
    */
   async adoptFollowUp(
     ctx: OwnershipContext,
@@ -1773,77 +1791,86 @@ export class VoiceAgentAutomationService {
     assertVoiceAgentAutomations(ctx);
     await this.assertCanConfigure(ctx, viewer);
 
-    let activation = await this.activations.findForWorkspace(
+    const stored = await this.activations.findForWorkspace(
       ctx,
       FOLLOW_UP_ONBOARDING_VERSION,
     );
-    const replayed = (activation?.scope as { requestKey?: string } | null)
+    const replayed = (stored?.scope as { requestKey?: string } | null)
       ?.requestKey;
-    if (activation?.status === "adopted" && replayed === input.requestKey) {
-      return this.adoptionResult(ctx, viewer, activation, input.timeZoneHint);
+    if (stored?.status === "adopted" && replayed === input.requestKey) {
+      return this.adoptionResult(ctx, viewer, stored, input.timeZoneHint);
     }
 
-    if (input.draft !== undefined) {
-      const draft = await this.mergedDraft(
-        ctx,
-        parseFollowUpDraft(input.draft),
-      );
-      await this.authorizeDraft(ctx, viewer, draft);
-      const write = await this.activations.saveConfiguration(ctx, {
+    const attempt = readAdoptionAttempt(stored);
+    let activation: FollowUpActivation;
+    if (
+      stored &&
+      attempt?.requestKey === input.requestKey &&
+      attempt.baseRevision === input.expectedRevision
+    ) {
+      // A retry of this very request: it resumes the revision it reserved
+      // rather than colliding with its own save.
+      activation = stored;
+    } else {
+      const draft =
+        input.draft === undefined
+          ? undefined
+          : await this.mergedDraft(ctx, parseFollowUpDraft(input.draft));
+      if (draft) await this.authorizeDraft(ctx, viewer, draft);
+      const reserved = await this.activations.reserveAdoption(ctx, {
         version: FOLLOW_UP_ONBOARDING_VERSION,
-        configuration: draft as Prisma.InputJsonObject,
-        entrySource: parseEntrySource(input.entrySource),
+        requestKey: input.requestKey,
         expectedRevision: input.expectedRevision,
+        ...(draft ? { configuration: draft as Prisma.InputJsonObject } : {}),
+        entrySource: parseEntrySource(input.entrySource),
+        at: new Date(),
+        attemptStaleBefore: new Date(Date.now() - ADOPTION_ATTEMPT_STALE_MS),
       });
-      if (!write.ok) {
-        throw new ConflictException({
-          message: "This review changed in another window. Reload it.",
-          revision: write.row?.revision ?? null,
+      if (!reserved.ok) throw activationConflict(reserved);
+      activation = reserved.row;
+    }
+
+    try {
+      const review = await this.followUpReview(ctx, viewer, {
+        timeZoneHint: input.timeZoneHint,
+        activation,
+      });
+      const blocking = review.requirements.filter(
+        (requirement) => requirement.code !== "add_credit",
+      );
+      if (blocking.length) {
+        throw new BadRequestException({
+          message: "Complete the configuration before activating it.",
+          requirements: blocking.map((requirement) => requirement.code),
         });
       }
-      activation = write.row;
-    } else if (!activation || activation.revision !== input.expectedRevision) {
-      throw new ConflictException({
-        message: "This review changed in another window. Reload it.",
-        revision: activation?.revision ?? null,
-      });
-    }
+      const draft = review.draft;
+      if (!draft.capabilities.scheduling && !draft.capabilities.reminders) {
+        throw new BadRequestException(
+          "Switch on at least one of the two capabilities to activate.",
+        );
+      }
+      // The meeting to include is re-checked at the version the person saw,
+      // which a request including one must name.
+      const includeMeeting =
+        draft.capabilities.reminders && draft.includeMeetingId
+          ? await this.meetingRepo.findByIdForOwner(ctx, draft.includeMeetingId)
+          : null;
+      if (includeMeeting && input.meetingVersion == null) {
+        throw new BadRequestException(
+          "Say which version of the meeting you reviewed to include it.",
+        );
+      }
+      if (
+        includeMeeting &&
+        includeMeeting.scheduleVersion !== input.meetingVersion
+      ) {
+        throw new ConflictException(
+          "That meeting changed after the review loaded. Review it again.",
+        );
+      }
 
-    const review = await this.followUpReview(ctx, viewer, {
-      timeZoneHint: input.timeZoneHint,
-    });
-    const blocking = review.requirements.filter(
-      (requirement) => requirement.code !== "add_credit",
-    );
-    if (blocking.length) {
-      throw new BadRequestException({
-        message: "Complete the configuration before activating it.",
-        requirements: blocking.map((requirement) => requirement.code),
-      });
-    }
-    const draft = review.draft;
-    if (!draft.capabilities.scheduling && !draft.capabilities.reminders) {
-      throw new BadRequestException(
-        "Switch on at least one of the two capabilities to activate.",
-      );
-    }
-    // The meeting to include is re-checked at the version the person saw.
-    const includeMeeting =
-      draft.capabilities.reminders && draft.includeMeetingId
-        ? await this.meetingRepo.findByIdForOwner(ctx, draft.includeMeetingId)
-        : null;
-    if (
-      includeMeeting &&
-      input.meetingVersion != null &&
-      includeMeeting.scheduleVersion !== input.meetingVersion
-    ) {
-      throw new ConflictException(
-        "That meeting changed after the review loaded. Review it again.",
-      );
-    }
-
-    const adoptedAt = new Date();
-    try {
+      const adoptedAt = new Date();
       await this.applyCompanyProfile(ctx, review);
       const calendar = await this.applyCalendar(ctx, review);
       const numberId = review.rows.number.selected?.id;
@@ -1877,6 +1904,7 @@ export class VoiceAgentAutomationService {
           numberId,
           language,
           adoptedAt,
+          timezoneChanged: calendar.timezoneChanged,
         });
       } else if (isRunning(review.capabilities.reminders.existing)) {
         await this.setEnabled(ctx, "reminders", false);
@@ -1892,7 +1920,7 @@ export class VoiceAgentAutomationService {
       }
 
       const optOuts: Record<string, unknown> = {
-        ...((activation?.optOuts as Record<string, unknown> | null) ?? {}),
+        ...((activation.optOuts as Record<string, unknown> | null) ?? {}),
       };
       for (const capability of ["scheduling", "reminders"] as const) {
         if (draft.capabilities[capability]) {
@@ -1908,7 +1936,7 @@ export class VoiceAgentAutomationService {
 
       const marked = await this.activations.markAdopted(ctx, {
         version: FOLLOW_UP_ONBOARDING_VERSION,
-        expectedRevision: activation!.revision,
+        expectedRevision: activation.revision,
         configuration: stripMeetingFromDraft(draft) as Prisma.InputJsonObject,
         scope: {
           requestKey: input.requestKey,
@@ -1931,12 +1959,7 @@ export class VoiceAgentAutomationService {
         entrySource: parseEntrySource(input.entrySource),
         adoptedAt,
       });
-      if (!marked.ok) {
-        throw new ConflictException({
-          message: "This review changed in another window. Reload it.",
-          revision: marked.row?.revision ?? null,
-        });
-      }
+      if (!marked.ok) throw activationConflict(marked);
       void this.analytics.record({
         event: "followup_adoption_authorized",
         key: `${marked.row.id}:${adoptedAt.toISOString()}`,
@@ -1968,6 +1991,14 @@ export class VoiceAgentAutomationService {
         meetingCoverage: meetingCoverage ?? result.meetingCoverage,
       };
     } catch (error) {
+      // The failed attempt stops holding the review; a retry of this same
+      // request may still resume it.
+      await this.activations
+        .markAdoptionFailed(ctx, {
+          version: FOLLOW_UP_ONBOARDING_VERSION,
+          requestKey: input.requestKey,
+        })
+        .catch(() => false);
       if (!isExpectedBlocker(error)) {
         this.analytics.captureException(error, {
           component: VoiceAgentAutomationService.name,
@@ -1975,7 +2006,7 @@ export class VoiceAgentAutomationService {
           journeyStep: "follow_up_activation",
           workspace: ctx,
           userId: ctx.userId,
-          correlation: { activation: activation?.id ?? null },
+          correlation: { activation: activation.id },
         });
       }
       throw error;
@@ -2272,8 +2303,10 @@ export class VoiceAgentAutomationService {
 
   /**
    * Adds the meeting the review came from to the confirmations: the policy's
-   * explicit inclusion, then the ordinary planner — calling window, the
-   * close-booking rule and the per-version keys that deduplicate it.
+   * explicit inclusion — refused if the meeting moved since the version the
+   * review showed (`meeting`, already checked against it) — then the
+   * ordinary planner — calling window, the close-booking rule and the
+   * per-version keys that deduplicate it.
    */
   private async includeMeetingInConfirmations(
     ctx: OwnershipContext,
@@ -2290,7 +2323,14 @@ export class VoiceAgentAutomationService {
     }
     const policy = await this.policies.findForCalendar(ctx, calendarId);
     if (policy?.coversMeetingsFrom) {
-      await this.policies.includeMeetings(ctx, policy.id, [meeting.id]);
+      const included = await this.policies.includeMeetings(ctx, policy.id, [
+        { id: meeting.id, scheduleVersion: meeting.scheduleVersion },
+      ]);
+      if (!included.ok) {
+        throw new ConflictException(
+          "That meeting changed after the review loaded. Review it again.",
+        );
+      }
     }
     const fresh = await this.meetingRepo.findByIdForOwner(ctx, meeting.id);
     if (fresh) await this.reminders.planMeetingCalls(fresh);
@@ -2359,13 +2399,14 @@ export class VoiceAgentAutomationService {
   private async applyCalendar(
     ctx: OwnershipContext,
     review: FollowUpReview,
-  ): Promise<{ id: string; timezone: string }> {
+  ): Promise<{ id: string; timezone: string; timezoneChanged: boolean }> {
     const calendarRow = review.rows.calendar;
     let calendar = calendarRow.selected
       ? { id: calendarRow.selected.id, timezone: calendarRow.selected.timezone }
       : await this.calendarService
           .ensureGlobalCalendar(ctx)
           .then((created) => ({ id: created.id, timezone: created.timezone }));
+    let timezoneChanged = false;
     const zone = review.rows.timeZone;
     if (
       (zone.source === "draft" || zone.source === "browser") &&
@@ -2378,6 +2419,7 @@ export class VoiceAgentAutomationService {
           timezone: zone.value,
         },
       );
+      timezoneChanged = updated.timezone !== calendar.timezone;
       calendar = { id: updated.id, timezone: updated.timezone };
     }
     if (
@@ -2399,7 +2441,7 @@ export class VoiceAgentAutomationService {
         calendar.id,
       );
     }
-    return calendar;
+    return { ...calendar, timezoneChanged };
   }
 
   /**
@@ -2407,6 +2449,10 @@ export class VoiceAgentAutomationService {
    * coverage, calendars and offset unless the review changed them, and a
    * paused one is resumed only because the person switched it on here. A new
    * policy covers new bookings only, unless every upcoming meeting was chosen.
+   * The setup is re-run — replanning what it had planned, never a call
+   * already placed — when the review picked another number for the agent or
+   * the adoption moved the calendar to another time zone: planned calls were
+   * placed in the old zone's calling window.
    */
   private async applyReminders(
     ctx: OwnershipContext,
@@ -2416,6 +2462,7 @@ export class VoiceAgentAutomationService {
       numberId: string | undefined;
       language: string | null;
       adoptedAt: Date;
+      timezoneChanged: boolean;
     },
   ): Promise<void> {
     const draft = review.draft;
@@ -2426,11 +2473,16 @@ export class VoiceAgentAutomationService {
     const existing = automation?.agentId
       ? await this.policies.listForOwner(ctx, { agentId: automation.agentId })
       : [];
+    const agent = automation?.agentId
+      ? await this.agentRepo.findByIdForOwner(ctx, automation.agentId)
+      : null;
     const onCalendar = existing.find(
       (policy) => policy.calendarId === input.calendarId,
     );
     const unchanged =
       onCalendar &&
+      !input.timezoneChanged &&
+      (!input.numberId || agent?.callerNumberId === input.numberId) &&
       onCalendar.offsetsMinutes.length === 1 &&
       onCalendar.offsetsMinutes[0] === draft.reminderOffsetMinutes &&
       sameWindow(
@@ -3229,6 +3281,19 @@ function sameWindow(a: CallingWindowInput, b: CallingWindowInput): boolean {
     a.days.length === b.days.length &&
     a.days.every((day, index) => day === b.days[index])
   );
+}
+
+/** The 409 for a write on the review that lost its compare-and-set. */
+function activationConflict(
+  write: Extract<FollowUpActivationWrite, { ok: false }>,
+): ConflictException {
+  return new ConflictException({
+    message:
+      write.reason === "adoption_in_progress"
+        ? "Automatic follow-up is being activated in another window. Try again in a moment."
+        : "This review changed in another window. Reload it.",
+    revision: write.row?.revision ?? null,
+  });
 }
 
 /** Expected product blockers are answers, not exceptions to track. */

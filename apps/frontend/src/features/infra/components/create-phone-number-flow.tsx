@@ -108,6 +108,15 @@ export function CreatePhoneNumberFlow({
         areaCode: areaCode.trim() || undefined,
         limit: 20
       });
+      if (res.lookupStatus === 'failed') {
+        // The inventory did not answer: that is not "no numbers". Stay on
+        // the criteria and offer the same search again.
+        toast.error('The number inventory did not answer.', {
+          description: 'Nothing was searched. Try again in a moment.',
+          action: { label: 'Retry', onClick: () => void handleSearch() }
+        });
+        return;
+      }
       setResults(res.numbers);
       setDocsRequired(res.documentsRequired);
       setStep('select');

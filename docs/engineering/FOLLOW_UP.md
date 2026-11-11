@@ -660,21 +660,40 @@ analytics owners and dashboards: [ANALYTICS.md](ANALYTICS.md).
   agent, policy or plan.
 - **Saving is a draft.** `PUT …/follow-up/configuration` merges the changed rows
   over the saved draft, compared on `revision` under the workspace lock.
-- **Adoption is the authorization.** `POST …/follow-up/adoption` re-checks every
-  requirement, applies the draft through the existing owners (company profile,
-  calendar and availability, `setupScheduling` with `humanFollowUp`, the one
-  reminder-policy writer) and records adoption, scope, version and opt-outs. A
-  retried request key returns what it adopted; agents, claims and policies are
-  reused.
+- **Adoption is the authorization.** `POST …/follow-up/adoption` first reserves
+  the revision it reviewed (`reserveAdoption`: the draft it carries, the request
+  key, the base revision and `applying` in `adoptionAttempt`, under the
+  workspace lock), so a stale window can neither save nor adopt over it and a
+  fresh save answers 409 until the adoption is recorded or fails. The review is
+  then computed from that reserved row, every requirement is re-checked, the
+  draft is applied through the existing owners (company profile, calendar and
+  availability, `setupScheduling` with `humanFollowUp`, the one reminder-policy
+  writer) and adoption, scope, version and opt-outs are recorded on the same
+  revision. Those setups cannot be rolled back, so an attempt is resumable: a
+  retry of the same request key resumes the revision it reserved, a recorded
+  one returns what it adopted, and agents, claims and policies are reused. An
+  attempt older than two minutes holds nothing. A reminders setup is re-run
+  (replanned, never re-called) when the review picked another number or the
+  adoption moved the calendar's time zone.
+- **An organization owns its row.** An organization's `FollowUpActivation` has
+  no owner user (`userId` null, held by the migration's CHECK); who saved and
+  who adopted are `configuredByUserId` / `adoptedByUserId`, so deleting a member
+  never cascades into the organization's adoption. A personal row is its
+  owner's and is deleted with them.
 - **Coverage of existing meetings is explicit.** A policy created by adoption
   covers bookings made from adoption on (`coversMeetingsFrom`), plus meetings
   explicitly included (`includedMeetingIds`) — the meeting the review was opened
-  from, re-checked at the schedule version the review showed — or every upcoming
-  one when the person chose it. Policies set up before keep covering everything.
+  from, re-checked at the schedule version the review showed, and again under a
+  row lock when it is added (a move that landed first is refused) — or every
+  upcoming one when the person chose it. Policies set up before keep covering
+  everything.
   The planner, calling windows, close-booking rule and per-version keys are
   unchanged; a confirmation is shown as planned only when its execution exists.
 - **Opt-outs survive.** A capability switched off in the review or a trigger
-  removed in the rail is stored on the activation and proposed off again.
+  removed in the rail is stored on the activation and proposed off again. A
+  rail removal is stored in the same transaction as the trigger's deletion and
+  also switches that capability off in a saved draft; only a later explicit
+  save switches it back on.
 - **States:** `needs_configuration`, `add_credit` (configuration saved, no money
   to call), `ready_to_activate`, `pending` (adopted, blocked, with the reason),
   `active`, `paused`. Manual calling readiness is reported separately: the shared

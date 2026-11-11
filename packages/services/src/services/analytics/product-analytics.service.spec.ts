@@ -38,6 +38,8 @@ function build(
     delivery?: AnalyticsDeliveryResult[];
     claimed?: Row[];
     earlierConnected?: boolean;
+    /** Extra repository methods (projection reads, cursors). */
+    repo?: Row;
   } = {},
 ) {
   const recorded: Row[] = [];
@@ -78,10 +80,14 @@ function build(
     skipDue: async () => 7,
     pruneSettled: async () => 0,
     hadEarlierConnectedHumanCall: async () => options.earlierConnected ?? false,
+    ...options.repo,
   } as unknown as ProductAnalyticsRepository;
   const service = new ProductAnalyticsService(
     repo,
-    {} as unknown as FollowUpActivationRepository,
+    {
+      listAdoptedAfter: async () => [],
+      findAdoptedForWorkspaceKeys: async () => [],
+    } as unknown as FollowUpActivationRepository,
     provider,
   );
   return { service, recorded, marks, batches, exceptions };
@@ -248,6 +254,63 @@ describe("ProductAnalyticsService — producers", () => {
       rewardGranted: 1,
     });
     assert.equal(recorded.length, 0);
+  });
+});
+
+describe("ProductAnalyticsService — projection", () => {
+  it("records rows committed late behind the cursor, page by page across ticks", async () => {
+    const now = new Date("2026-11-11T12:00:00Z");
+    const minute = 60_000;
+    // 250 sign-ups that committed after the main cursor had passed them.
+    const users = Array.from({ length: 250 }, (_, index) => ({
+      id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - 30 * minute + index * 2_000),
+    }));
+    const cursors = new Map<string, { at: Date; id: string | null }>([
+      ["signups", { at: new Date(now.getTime() - minute), id: null }],
+      ["signups:late", { at: new Date(now.getTime() - 31 * minute), id: null }],
+    ]);
+    const none = async () => [];
+    const { service, recorded } = build({
+      repo: {
+        organizationsAfter: none,
+        topupsAfter: none,
+        grantsAfter: none,
+        meetingActionsAfter: none,
+        remindersPlannedAfter: none,
+        objectiveEventsAfter: none,
+        linesAcquiredAfter: none,
+        getCursor: async (source: string) => cursors.get(source) ?? null,
+        saveCursor: async (
+          source: string,
+          position: { at: Date; id: string | null },
+        ) => {
+          cursors.set(source, position);
+        },
+        usersAfter: async (
+          cursor: { at: Date; id: string | null },
+          upTo: Date,
+          take: number,
+        ) =>
+          users
+            .filter(
+              (user) =>
+                user.createdAt <= upTo &&
+                (user.createdAt > cursor.at ||
+                  (cursor.id !== null &&
+                    user.createdAt.getTime() === cursor.at.getTime() &&
+                    user.id > cursor.id)),
+            )
+            .slice(0, take),
+      },
+    });
+    await service.project(now);
+    assert.equal(recorded.length, 200);
+    await service.project(new Date(now.getTime() + minute));
+    assert.deepEqual(
+      new Set(recorded.map((row) => row.eventKey)),
+      new Set(users.map((user) => `signup_completed:${user.id}`)),
+    );
   });
 });
 

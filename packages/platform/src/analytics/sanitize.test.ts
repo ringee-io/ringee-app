@@ -9,6 +9,7 @@ import {
   redactSensitiveText,
   sanitizeError,
   sanitizeFactProperties,
+  sanitizePropertyValue,
   sanitizePath,
   sanitizeStackTrace,
   sanitizeUrl,
@@ -198,6 +199,35 @@ describe("fact properties", () => {
     expect(JSON.stringify(out)).not.toContain(EMAIL);
     expect(out.country_code).toBe("NZ");
     expect(out.filters_used).toEqual(["area_code", "features"]);
+  });
+
+  it("never lets a phone number through as a code, in any format", () => {
+    for (const phone of ["+1-786-555-0193", "786-555-0193", "7865550193"]) {
+      expect(sanitizePropertyValue(phone)).not.toContain("0193");
+      expect(sanitizePropertyValue(`code_${phone}`)).not.toContain("0193");
+    }
+    expect(
+      sanitizePropertyValue([
+        "area_code",
+        "786-555-0193",
+        "7865550193",
+        "+1-786-555-0193",
+      ]),
+    ).toEqual(["area_code"]);
+  });
+
+  it("keeps opaque ids and ISO dates as they are", () => {
+    const allDigits = "12345678-1234-4234-8234-123456789012";
+    expect(sanitizePropertyValue(WORKSPACE_ID)).toBe(WORKSPACE_ID);
+    expect(sanitizePropertyValue(allDigits)).toBe(allDigits);
+    expect(sanitizePropertyValue(`personal:${allDigits}`)).toBe(
+      `personal:${allDigits}`,
+    );
+    expect(sanitizePropertyValue("2026-11-10")).toBe("2026-11-10");
+    expect(sanitizePropertyValue([allDigits, "2026-11-10"])).toEqual([
+      allDigits,
+      "2026-11-10",
+    ]);
   });
 
   it("names technical actors apart from people", () => {

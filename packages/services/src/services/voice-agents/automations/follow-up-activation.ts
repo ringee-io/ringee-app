@@ -137,7 +137,8 @@ export function parseFollowUpDraft(raw: unknown): FollowUpConfigurationDraft {
     draft.availability =
       input.availability === null
         ? null
-        : parseWindow(input.availability, "availability");
+        : // Bookable hours become HH:mm rules, whose last minute is 23:59.
+          parseWindow(input.availability, "availability", 24 * 60 - 1);
   }
   if (input.callingHours !== undefined) {
     draft.callingHours = parseWindow(input.callingHours, "callingHours");
@@ -302,7 +303,12 @@ function optionalUuid(value: unknown, field: string): string | null {
   return value;
 }
 
-function parseWindow(value: unknown, field: string): CallingWindowInput {
+function parseWindow(
+  value: unknown,
+  field: string,
+  /** The latest end a window may have; calling hours may end at midnight. */
+  maxEndMinute = 24 * 60,
+): CallingWindowInput {
   const window = asObject(value, field);
   const days = window.days;
   if (
@@ -326,6 +332,11 @@ function parseWindow(value: unknown, field: string): CallingWindowInput {
   ) {
     throw new BadRequestException(
       `${field} must start before it ends, at least 30 minutes apart.`,
+    );
+  }
+  if (end > maxEndMinute) {
+    throw new BadRequestException(
+      `${field} must end by ${minuteToTime(maxEndMinute)}.`,
     );
   }
   return {

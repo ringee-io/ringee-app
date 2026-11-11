@@ -227,22 +227,25 @@ export class ProductAnalyticsRepository {
     return count;
   }
 
-  /** Delivered, skipped or failed facts older than the retention window. */
+  /**
+   * Delivered or skipped facts older than the retention window. A fact that
+   * failed for good is kept: it is what reconciliation works from.
+   */
   async pruneSettled(before: Date, take: number): Promise<number> {
+    const settled = {
+      in: [
+        ProductAnalyticsDeliveryStatus.sent,
+        ProductAnalyticsDeliveryStatus.skipped,
+      ],
+    };
     const ids = await this.prisma.productAnalyticsEvent.findMany({
-      where: {
-        status: { not: ProductAnalyticsDeliveryStatus.pending },
-        createdAt: { lt: before },
-      },
+      where: { status: settled, createdAt: { lt: before } },
       select: { id: true },
       take,
     });
     if (!ids.length) return 0;
     const { count } = await this.prisma.productAnalyticsEvent.deleteMany({
-      where: {
-        id: { in: ids.map((row) => row.id) },
-        status: { not: ProductAnalyticsDeliveryStatus.pending },
-      },
+      where: { id: { in: ids.map((row) => row.id) }, status: settled },
     });
     return count;
   }

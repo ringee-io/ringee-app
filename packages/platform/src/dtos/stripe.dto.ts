@@ -7,10 +7,10 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
-import { CHECKOUT_ENTRY_POINTS } from "../analytics/event-contract";
 
 export type BillingInterval = "month" | "year";
 
@@ -46,10 +46,13 @@ export class CreateCreditCheckoutDto {
 
   /**
    * Where the dashboard started this top-up (analytics only, Stage 4B). It
-   * never changes the amount, the price or what the payment credits.
+   * never changes the amount, the price or what the payment credits, and a
+   * label this server does not know never blocks the payment:
+   * `ProductAnalyticsService.checkoutStarted` records it as `other`.
    */
   @IsOptional()
-  @IsIn([...CHECKOUT_ENTRY_POINTS])
+  @IsString()
+  @MaxLength(64)
   entryPoint?: string;
 }
 

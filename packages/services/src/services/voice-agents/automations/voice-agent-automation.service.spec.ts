@@ -64,6 +64,7 @@ function build(
   const automationUpdates: Row[] = [];
   const releasedClaims: string[] = [];
   const deleted: Row[] = [];
+  const optOuts: Row[] = [];
   const agent = over.agent === undefined ? AGENT() : over.agent;
   let removed = false;
 
@@ -93,9 +94,16 @@ function build(
         releasedClaims.push(id);
       },
       clearAgent: async () => true,
-      removeForOwner: async (_ctx: Row, id: string, agentId: string) => {
+      removeForOwner: async (
+        _ctx: Row,
+        id: string,
+        agentId: string,
+        options: Row = {},
+      ) => {
         if (over.removes === false) return false;
         deleted.push({ automation: id, agentId });
+        // Recorded in the same transaction as the deletion.
+        if (options.optOut) optOuts.push(options.optOut);
         removed = true;
         return true;
       },
@@ -256,6 +264,7 @@ function build(
     automationUpdates,
     releasedClaims,
     deleted,
+    optOuts,
   };
 }
 
@@ -723,7 +732,7 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
   });
 
   it("hands the receptionist's numbers back, and leaves the agent as it was", async () => {
-    const { service, deleted, statuses } = build({
+    const { service, deleted, statuses, optOuts } = build({
       agent: AGENT({ type: "receptionist" }),
       automation: RECEPTIONIST,
     });
@@ -732,6 +741,8 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
       { automation: "automation-2", agentId: "agent-1" },
     ]);
     assert.deepEqual(statuses, []);
+    // The receptionist is not part of the follow-up review.
+    assert.deepEqual(optOuts, []);
   });
 
   it("removes nothing while a receptionist's number cannot be handed back", async () => {
@@ -757,16 +768,18 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
   });
 
   it("reports a conflict when another window moved the card meanwhile", async () => {
-    const { service, deleted } = build({ removes: false });
+    const { service, deleted, optOuts } = build({ removes: false });
     await assert.rejects(
       () => service.removeAutomation(CTX, "reminders"),
       ConflictException,
     );
     assert.deepEqual(deleted, [{ policies: ["policy-1"] }]);
+    // Nothing deleted, nothing remembered as removed.
+    assert.deepEqual(optOuts, []);
   });
 
   it("puts the card back to not set up, offering the same agent again", async () => {
-    const { service, deleted } = build({
+    const { service, deleted, optOuts } = build({
       agent: AGENT({ type: "appointment_booking" }),
       automation: {
         id: "automation-3",
@@ -779,6 +792,10 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
     assert.deepEqual(deleted, [
       { automation: "automation-3", agentId: "agent-1" },
     ]);
+    // The removal is a durable opt-out, stored with the deletion itself.
+    assert.equal(optOuts.length, 1);
+    assert.equal(optOuts[0]!.capability, "scheduling");
+    assert.equal(optOuts[0]!.reason, "trigger_removed");
     assert.equal(card.state, "unconfigured");
     assert.deepEqual(
       card.candidates.map((candidate) => candidate.id),

@@ -250,7 +250,11 @@ export class ReminderService {
     input: {
       calendarIds: string[];
       offsetMinutes: number;
-      /** The window a policy that does not exist yet would get. */
+      /**
+       * The calling window to preview with — the hours the follow-up review
+       * edited, which adoption would apply. Without it, an existing policy
+       * keeps its own window and a new one gets the default.
+       */
       window?: CallingWindow;
       /**
        * Which meetings the previewed policy would cover. Without it, an
@@ -274,9 +278,9 @@ export class ReminderService {
       );
       if (!calendar || calendar.archivedAt) continue;
       const existing = await this.callPolicies.findForCalendar(ctx, calendarId);
-      const window = existing
-        ? readCallingWindow(existing)
-        : (input.window ?? DEFAULT_CALLING_WINDOW);
+      const window =
+        input.window ??
+        (existing ? readCallingWindow(existing) : DEFAULT_CALLING_WINDOW);
       const coverage = input.coverage ??
         existing ?? { coversMeetingsFrom: null };
       for await (const page of this.upcomingMeetingPages(ctx, calendar, now)) {

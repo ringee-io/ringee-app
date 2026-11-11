@@ -80,7 +80,10 @@ const MAX_ATTEMPTS = 8;
 const PROJECTION_BATCH = 200;
 /** Evidence younger than this may still be committing elsewhere. */
 const PROJECTION_LAG_MS = 30_000;
-/** A second, bounded pass that catches rows committed late. */
+/**
+ * How late a row may commit and still be recorded: a second, trailing pass
+ * reads every row again once it is this old.
+ */
 const LOOKBACK_MS = 15 * 60_000;
 const RETENTION_MS = 30 * 24 * 60 * 60_000;
 
@@ -412,7 +415,7 @@ export class ProductAnalyticsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Turns new evidence into facts, one bounded page per source and tick, plus
-   * a bounded look-back for rows committed after the cursor passed them.
+   * a trailing page for rows committed after the cursor passed them.
    * Safe to run twice: keys make every second recording a no-op.
    */
   async project(now = new Date()): Promise<number> {
@@ -442,8 +445,11 @@ export class ProductAnalyticsService implements OnModuleInit, OnModuleDestroy {
       at: upTo,
       id: null,
     };
+    const lateKey = `${source}:late`;
     if (!stored) {
       await this.repo.saveCursor(source, cursor);
+      // The late pass starts where the projection starts.
+      await this.repo.saveCursor(lateKey, cursor);
       return 0;
     }
     const page = await this.readSource(source, cursor, upTo);
@@ -454,17 +460,27 @@ export class ProductAnalyticsService implements OnModuleInit, OnModuleDestroy {
       );
     }
     if (page.last) await this.repo.saveCursor(source, page.last);
-    // Late commits: re-read a bounded window behind the cursor.
-    const lookback = await this.readSource(
+
+    // Late commits: a second cursor trails the first by LOOKBACK_MS and reads
+    // every row again, one page per tick, resuming where it stopped — so a row
+    // that committed up to that late behind the main cursor is recorded,
+    // however many rows its window holds.
+    let late = await this.repo.getCursor(lateKey);
+    if (!late) {
+      late = stored;
+      await this.repo.saveCursor(lateKey, late);
+    }
+    const latePage = await this.readSource(
       source,
-      { at: new Date(cursor.at.getTime() - LOOKBACK_MS), id: null },
-      cursor.at,
+      late,
+      new Date(upTo.getTime() - LOOKBACK_MS),
     );
-    if (lookback.facts.length) {
+    if (latePage.facts.length) {
       recorded += await this.repo.recordMany(
-        lookback.facts.map((fact) => this.toRow(fact)),
+        latePage.facts.map((fact) => this.toRow(fact)),
       );
     }
+    if (latePage.last) await this.repo.saveCursor(lateKey, latePage.last);
     return recorded;
   }
 
@@ -701,7 +717,10 @@ export class ProductAnalyticsService implements OnModuleInit, OnModuleDestroy {
               key: `${row.id}:${row.adoptedAt!.toISOString()}`,
               occurredAt: row.adoptedAt!,
               workspace: {
-                userId: row.userId,
+                // An organization's row has no owner user; its key is the
+                // organization's, and the person is the adopter.
+                userId:
+                  row.userId ?? row.adoptedByUserId ?? row.configuredByUserId,
                 organizationId: row.organizationId,
               },
               humanUserId: row.adoptedByUserId,

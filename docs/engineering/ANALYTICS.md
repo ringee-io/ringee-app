@@ -93,8 +93,11 @@ the build system — a provisioning step, not wired here.
 Common envelope: `schema_version`, `event_id` (the outbox UUID, derived from the
 key), `occurred_at`, `actor_type`, `environment`, `release_version`,
 `workspace_key`, `workspace_type`, `organization_id` when it applies. Projectors
-start at the time they first run (no silent backfill) and re-read a 15-minute
-window for late commits; keys make every re-read a no-op.
+start at the time they first run (no silent backfill). For late commits a second
+cursor per source (`<source>:late`) trails the first by 15 minutes and reads
+every row again, page by page across ticks, so no window is cut at one page;
+keys make every re-read a no-op. Retention prunes delivered and skipped facts
+after 30 days; `failed` ones stay for reconciliation.
 
 ## Browser events (allowlisted in `lib/analytics/events.ts`)
 

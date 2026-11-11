@@ -260,6 +260,14 @@ function redactPhoneRuns(text: string): string {
   return out;
 }
 
+/**
+ * Whether `text` holds a phone-like run, in any format — `+1-415-555-0100`
+ * as much as `4155550100`. ISO dates are not phone runs (`redactPhoneRuns`).
+ */
+function containsPhoneRun(text: string): boolean {
+  return redactPhoneRuns(text) !== text;
+}
+
 function truncate(text: string, maxLength: number): string {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
@@ -481,6 +489,8 @@ export function sanitizePropertyValue(
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim())
       .filter((item) => /^[a-z0-9_:-]{1,40}$/i.test(item))
+      // A list carries codes: a phone number, dashed or not, is dropped.
+      .filter((item) => UUID.test(item) || !containsPhoneRun(item))
       .slice(0, MAX_LIST_ITEMS);
     return codes;
   }
@@ -489,9 +499,6 @@ export function sanitizePropertyValue(
 
 function sanitizeStringValue(value: string): string {
   const trimmed = value.trim();
-  if (/^[A-Za-z0-9_:\-.+<>]{1,64}$/.test(trimmed) && !/\d{7}/.test(trimmed)) {
-    return trimmed;
-  }
   // Opaque ids and workspace keys are correlation keys, not personal data.
   if (UUID.test(trimmed)) return trimmed;
   const prefix = trimmed.slice(0, -36);
@@ -500,6 +507,14 @@ function sanitizeStringValue(value: string): string {
     prefix.endsWith(":") &&
     /^[a-z_:]+$/i.test(prefix) &&
     UUID.test(trimmed.slice(-36))
+  ) {
+    return trimmed;
+  }
+  // A plain code passes as it is — unless it holds a phone-like run, which a
+  // code's characters (digits, `+`, `-`, `.`) can spell.
+  if (
+    /^[A-Za-z0-9_:\-.+<>]{1,64}$/.test(trimmed) &&
+    !containsPhoneRun(trimmed)
   ) {
     return trimmed;
   }

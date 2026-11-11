@@ -51,7 +51,7 @@ import {
 } from "../interfaces/available.number";
 import { apiConfiguration } from "@ringee/configuration";
 import { TelephonyService } from "../interfaces/telephony.service";
-import Telnyx from "telnyx";
+import Telnyx, { APIConnectionTimeoutError } from "telnyx";
 import { AvailablePhoneNumberListParams } from "telnyx/resources/available-phone-numbers";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
@@ -787,8 +787,12 @@ export class TelnyxService implements TelephonyService {
         : { status: "empty", numbers: [] };
     } catch (error: any) {
       const status = Number(error?.status ?? error?.statusCode);
+      // The SDK's own timeout carries neither a status nor a telling `name`
+      // (its classes leave `Error`'s), so it is recognized by its class.
       const errorCode =
-        error?.name === "AbortError" || error?.name === "TimeoutError"
+        error instanceof APIConnectionTimeoutError ||
+        error?.name === "AbortError" ||
+        error?.name === "TimeoutError"
           ? "timeout"
           : Number.isInteger(status) && status >= 400 && status < 600
             ? `http_${status}`
@@ -821,9 +825,18 @@ export class TelnyxService implements TelephonyService {
         params.features as AvailablePhoneNumberListParams.Filter["features"];
     }
 
-    const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
+    const response = await telnyx.availablePhoneNumbers.list({
       filter: filters,
     });
+    const numbersList = response.data;
+    if (
+      (!Array.isArray(numbersList) || numbersList.length === 0) &&
+      Number(response.meta?.total_results ?? 0) > 0
+    ) {
+      // Telnyx counted matches it did not send: a failed answer, not an
+      // empty inventory. Only "no matches" is reported as empty.
+      throw new Error("Telnyx reported available numbers without sending them");
+    }
 
     return (numbersList || []).map((item: any) => {
       const features = Array.isArray(item.features)

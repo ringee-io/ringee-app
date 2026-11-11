@@ -5089,9 +5089,11 @@ enum FollowUpActivationStatus {
 /// what was decided, by whom and when.
 model FollowUpActivation {
   id                 String                   @id @default(uuid()) @db.Uuid
-  /// The personal workspace's owner, or the organization member who last
-  /// saved it. Ownership of an organization's row is `organizationId`.
-  userId             String                   @db.Uuid
+  /// The personal workspace's owner; null on an organization's row, which
+  /// the organization alone owns (`organizationId`), so deleting a member
+  /// never cascades into its adoption, scope or opt-outs. A check
+  /// constraint in the migration holds this shape.
+  userId             String?                  @db.Uuid
   organizationId     String?                  @db.Uuid
   /// `organization:<id>` or `personal:<ownerId>` — disjoint key spaces for
   /// uniqueness and correlation, never a proof of authorization. A check
@@ -5112,6 +5114,11 @@ model FollowUpActivation {
   entrySource        String?
   /// Optimistic concurrency: every save and adoption compares and bumps it.
   revision           Int                      @default(1)
+  /// The adoption a request is applying: its key, the revision it was based
+  /// on, `applying` or `failed`, and when it reserved the row. Saves wait
+  /// while a fresh one applies; a retry of the same request resumes it;
+  /// recording the adoption clears it.
+  adoptionAttempt    Json?
   configuredAt       DateTime                 @default(now())
   configuredByUserId String                   @db.Uuid
   adoptedAt          DateTime?
@@ -5119,7 +5126,7 @@ model FollowUpActivation {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceKey, version])

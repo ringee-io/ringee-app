@@ -66,7 +66,7 @@ CREATE TABLE "ProductAnalyticsCursor" (
 -- CreateTable
 CREATE TABLE "FollowUpActivation" (
     "id" UUID NOT NULL,
-    "userId" UUID NOT NULL,
+    "userId" UUID,
     "organizationId" UUID,
     "workspaceKey" TEXT NOT NULL,
     "version" TEXT NOT NULL,
@@ -76,6 +76,7 @@ CREATE TABLE "FollowUpActivation" (
     "optOuts" JSONB,
     "entrySource" TEXT,
     "revision" INTEGER NOT NULL DEFAULT 1,
+    "adoptionAttempt" JSONB,
     "configuredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "configuredByUserId" UUID NOT NULL,
     "adoptedAt" TIMESTAMP(3),
@@ -86,11 +87,16 @@ CREATE TABLE "FollowUpActivation" (
     CONSTRAINT "FollowUpActivation_pkey" PRIMARY KEY ("id"),
     -- The key is derived from the ownership columns, never chosen freely: an
     -- organization's row is keyed by the organization, a personal row by its
-    -- owner (WRK-001), so the two key spaces cannot collide.
+    -- owner (WRK-001), so the two key spaces cannot collide. An
+    -- organization's row has no owner user — deleting a member must never
+    -- cascade into the organization's adoption — while a personal row always
+    -- has one, and goes with its owner.
     CONSTRAINT "FollowUpActivation_workspace_key_check" CHECK (
         ("organizationId" IS NOT NULL
+            AND "userId" IS NULL
             AND "workspaceKey" = 'organization:' || "organizationId"::text)
         OR ("organizationId" IS NULL
+            AND "userId" IS NOT NULL
             AND "workspaceKey" = 'personal:' || "userId"::text)
     ),
     -- Adopted means an adopter and a time were recorded.

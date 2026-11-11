@@ -140,20 +140,44 @@ export class MeetingReminderPolicyRepository {
    * without a new version: what was planned stays valid, the included meeting
    * is simply planned too. A policy that already covers every meeting needs no
    * list and is left alone.
+   *
+   * Each meeting is included only at the version the person reviewed: its row
+   * is locked and re-read in this transaction, so a move that landed first is
+   * refused (`meeting_changed`) and one that comes later waits for the
+   * inclusion. Once included, a meeting stays covered when it moves — the
+   * inclusion is by id.
    */
   async includeMeetings(
     ctx: OwnershipContext,
     policyId: string,
-    meetingIds: string[],
-  ): Promise<MeetingReminderPolicy | null> {
+    meetings: Array<{ id: string; scheduleVersion: number }>,
+  ): Promise<
+    | { ok: true; policy: MeetingReminderPolicy | null }
+    | { ok: false; reason: "meeting_changed" }
+  > {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "MeetingReminderPolicy"
         WHERE "id" = ${policyId}::uuid FOR UPDATE`;
       const policy = await tx.meetingReminderPolicy.findFirst({
         where: { ...buildOwnershipFilter(ctx), id: policyId },
       });
-      if (!policy) return null;
-      if (!policy.coversMeetingsFrom) return policy;
+      if (!policy) return { ok: true as const, policy: null };
+      if (!policy.coversMeetingsFrom) return { ok: true as const, policy };
+      const meetingIds = [...new Set(meetings.map((meeting) => meeting.id))];
+      if (meetingIds.length) {
+        await tx.$queryRaw`SELECT "id" FROM "Meeting"
+          WHERE "id" = ANY(${meetingIds}::uuid[]) FOR SHARE`;
+        const current = await tx.meeting.findMany({
+          where: { ...buildOwnershipFilter(ctx), id: { in: meetingIds } },
+          select: { id: true, scheduleVersion: true },
+        });
+        const changed = meetings.some(
+          (meeting) =>
+            current.find((row) => row.id === meeting.id)?.scheduleVersion !==
+            meeting.scheduleVersion,
+        );
+        if (changed) return { ok: false as const, reason: "meeting_changed" };
+      }
       const included = [
         ...new Set([...(policy.includedMeetingIds ?? []), ...meetingIds]),
       ];
@@ -161,12 +185,13 @@ export class MeetingReminderPolicyRepository {
         throw new Error("Too many meetings included in one reminder policy");
       }
       if (included.length === (policy.includedMeetingIds ?? []).length) {
-        return policy;
+        return { ok: true as const, policy };
       }
-      return tx.meetingReminderPolicy.update({
+      const updated = await tx.meetingReminderPolicy.update({
         where: { id: policy.id },
         data: { includedMeetingIds: included },
       });
+      return { ok: true as const, policy: updated };
     });
   }
 
