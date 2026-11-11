@@ -134,7 +134,9 @@ function build(
   } as unknown as CreditService;
 
   return {
-    service: new OnboardingService(users, contactLists, credits),
+    service: new OnboardingService(users, contactLists, credits, {
+      firstListCompleted: async () => undefined,
+    } as never),
     lists,
     grants,
     balances,

@@ -129,6 +129,15 @@ const SCHEDULES: ScheduleDef[] = [
     catchupWindow: "1h",
   },
   {
+    // Product analytics (Stage 4B): projects facts from durable evidence and
+    // ships the outbox. Analytics tolerates minutes of lag; 60s keeps history
+    // volume with the other drains. Without POSTHOG_* it only skips due rows.
+    id: "ringee.product-analytics-drain",
+    workflow: WORKFLOW_NAMES.productAnalyticsDrain,
+    every: "60s",
+    catchupWindow: "5m",
+  },
+  {
     // Retention for the MCP / CLI usage log. Events only age out by the day,
     // so one run a day is enough; a missed day is simply caught up next run.
     id: "ringee.mcp-usage-prune",

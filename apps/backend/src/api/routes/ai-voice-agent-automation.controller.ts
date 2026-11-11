@@ -7,17 +7,21 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
 import {
+  AdoptFollowUpDto,
   CompleteMeetingEmailDto,
   CurrentUser,
   CurrentUserData,
+  FollowUpReviewQueryDto,
   OrgAdminOnly,
   ReceptionistAutomationSetupDto,
   ReminderAutomationSetupDto,
   ReminderScopeQueryDto,
+  SaveFollowUpConfigurationDto,
   SchedulingAutomationSetupDto,
   SetAutomationEnabledDto,
   StartSchedulingCallDto,
@@ -93,6 +97,87 @@ export class AiVoiceAgentAutomationController {
   @Get("reminders/upcoming")
   upcomingReminderCalls(@CurrentUser() user: CurrentUserData) {
     return this.automations.upcomingReminderCalls(createOwnershipContext(user));
+  }
+
+  // ── Shared follow-up review (Stage 4C) ───────────────────────
+
+  /**
+   * The activation review — the same screen for a freelancer and an
+   * organization. Read-only; a member gets it without configuration actions.
+   */
+  @Get("follow-up")
+  followUpReview(
+    @CurrentUser() user: CurrentUserData,
+    @Query() query: FollowUpReviewQueryDto,
+  ) {
+    return this.automations.followUpReview(
+      createOwnershipContext(user),
+      { admin: isAdmin(user) },
+      { meetingId: query.meetingId ?? null, timeZoneHint: query.timeZone },
+    );
+  }
+
+  /** Saves the review as a draft: configuration saved, nothing authorized. */
+  @OrgAdminOnly()
+  @Put("follow-up/configuration")
+  saveFollowUpConfiguration(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: SaveFollowUpConfigurationDto,
+  ) {
+    return this.automations.saveFollowUpConfiguration(
+      createOwnershipContext(user),
+      { admin: isAdmin(user) },
+      {
+        draft: dto.draft,
+        expectedRevision: dto.expectedRevision ?? null,
+        entrySource: dto.entrySource,
+        timeZoneHint: dto.timeZone,
+        meetingId: dto.meetingId ?? null,
+      },
+    );
+  }
+
+  /** "Activate automatic follow-up": the explicit adoption. */
+  @OrgAdminOnly()
+  @Post("follow-up/adoption")
+  adoptFollowUp(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: AdoptFollowUpDto,
+  ) {
+    return this.automations.adoptFollowUp(
+      createOwnershipContext(user),
+      { admin: isAdmin(user) },
+      {
+        requestKey: dto.requestKey,
+        expectedRevision: dto.expectedRevision ?? null,
+        draft: dto.draft,
+        entrySource: dto.entrySource,
+        timeZoneHint: dto.timeZone,
+        language: dto.language,
+        meetingVersion: dto.meetingVersion ?? null,
+      },
+    );
+  }
+
+  /** Whether a meeting's confirmation call is planned, or why not. */
+  @Get("follow-up/meetings/:meetingId/coverage")
+  followUpMeetingCoverage(
+    @CurrentUser() user: CurrentUserData,
+    @Param("meetingId", ParseUUIDPipe) meetingId: string,
+  ) {
+    return this.automations.followUpMeetingCoverage(
+      createOwnershipContext(user),
+      { admin: isAdmin(user) },
+      meetingId,
+    );
+  }
+
+  /** The newest verified AI results, for the first-value summary. */
+  @Get("follow-up/results")
+  followUpResults(@CurrentUser() user: CurrentUserData) {
+    return this.automations.followUpResults(createOwnershipContext(user), {
+      admin: isAdmin(user),
+    });
   }
 
   // ── Setup (admins) ───────────────────────────────────────────

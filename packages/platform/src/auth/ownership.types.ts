@@ -113,6 +113,29 @@ export function workspaceOf(row: {
 }
 
 /**
+ * A workspace's stable external key: `organization:<id>` or
+ * `personal:<ownerId>`. The two key spaces are disjoint, so a user's personal
+ * workspace and their organization never share a key, and neither do two
+ * freelancers (both have no organization). It is a correlation and
+ * deduplication key — the analytics `workspace` group and the follow-up
+ * activation's uniqueness — never a proof of authorization.
+ *
+ * Objective source keys keep their older shape (`followUpWorkspaceKey`).
+ */
+export function workspaceKeyOf(ctx: OwnershipContext): string {
+  return ctx.organizationId
+    ? `organization:${ctx.organizationId}`
+    : `personal:${ctx.userId}`;
+}
+
+/** `workspaceKeyOf`'s workspace type, for analytics and the activation screen. */
+export function workspaceTypeOf(
+  ctx: OwnershipContext,
+): "organization" | "personal" {
+  return ctx.organizationId ? "organization" : "personal";
+}
+
+/**
  * Builds the ownership fields to persist when creating a row.
  */
 export function buildOwnershipData(ctx: OwnershipContext): {

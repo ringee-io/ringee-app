@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentService } from "./voice-agent.service";
 import { handoffTargetName } from "./automations/voice-agent-handoff.service";
@@ -434,5 +434,43 @@ describe("VoiceAgentService inbound receptionist config", () => {
         inboundService(type).inboundConfig(CTX, AGENT.id),
         BadRequestException,
       );
+  });
+});
+
+describe("VoiceAgentService calendar accounts (CAL-004)", () => {
+  it("accepts only an account connected in the agent's own workspace", async () => {
+    const config = apiConfiguration as unknown as Record<string, unknown>;
+    const pilot = config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = ["user-1"];
+    const asked: Array<{ ctx: unknown; id: string }> = [];
+    const service = Object.assign(Object.create(VoiceAgentService.prototype), {
+      blueprints: { require: () => ({ requiresCalendar: true }) },
+      calendars: {
+        // The account is another workspace's: this one does not find it.
+        findByIdForOwner: async (ctx: unknown, id: string) => {
+          asked.push({ ctx, id });
+          return null;
+        },
+      },
+    }) as VoiceAgentService;
+    const personal = { userId: "user-1", organizationId: null };
+    try {
+      for (const ctx of [CTX, personal]) {
+        await assert.rejects(
+          service.create(ctx, {
+            type: "appointment_booking",
+            name: "Sofía",
+            calendarIntegrationId: "integration-elsewhere",
+          } as never),
+          NotFoundException,
+        );
+      }
+    } finally {
+      config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = pilot;
+    }
+    assert.deepEqual(asked, [
+      { ctx: CTX, id: "integration-elsewhere" },
+      { ctx: personal, id: "integration-elsewhere" },
+    ]);
   });
 });

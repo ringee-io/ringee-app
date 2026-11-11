@@ -1544,6 +1544,35 @@ predate it fall back to their creator.
 - **Risk if violated:** a lead's "yes" confirms a time they were never asked
   about, or a reminder names someone the meeting is not with
 
+### CAL-004 — A connected calendar account belongs to the workspace it was connected in
+
+A Google or Microsoft account (`CalendarIntegration`) is connected in one
+workspace — the one the OAuth round-trip started in — and only that workspace
+lists it, points a calendar or an agent at it, or pushes, moves and deletes
+events through it. An organization's accounts are the organization's, whoever
+connected them; a personal workspace's are its owner's from that workspace. The
+same person's accounts never cross between their personal workspace and an
+organization, or between two organizations. Connecting the same account in a
+second workspace gives that workspace its own row and credential; reconnecting
+in the same workspace refreshes the row its calendars already point at, whoever
+re-authorizes it. An account the provider returned no email for has no identity
+to match on, so only the person who connected it refreshes it by reconnecting.
+
+A pointer to another workspace's account (a calendar, an agent's legacy
+`calendarIntegrationId`, a meeting's recorded destination) resolves as "not
+connected": no event is pushed through it, and moving or deleting an event
+created through it is recorded as a failed sync until the workspace connects
+its own account.
+
+Until 2026-11-11 the lookup matched the connecting user too
+(`findByUserOrOrg`), so a member's personal account was usable inside their
+organization and the reverse. Links made that way stop resolving with this rule.
+
+- **Source of truth:** `CalendarIntegrationRepository.listForWorkspace` /
+  `findByIdForOwner` / `connectAccount`
+- **Risk if violated:** one workspace reads another's account, or books onto a
+  calendar the other workspace — or the person who left it — controls
+
 ## AI voice agents (`AGENT`)
 
 ### AGENT-001 — The blueprint owns defaults and enforcement; the user owns copy
@@ -2383,3 +2412,64 @@ verification at first sign-in still applies (`phoneRequired`).
   `ClerkUserRepository.createUser`
 - **Risk if violated:** a password readable from the database or the logs; a
   second login, or a reset password, on somebody's existing account.
+
+### AGENT-023 — Automatic follow-up is adopted explicitly, once per workspace and version
+
+The shared review (Stage 4C) is the same for a personal workspace and an
+organization. Opening it never creates, provisions or plans anything; saving it
+is "configuration saved"; only **Activate automatic follow-up** — by the
+personal owner or an organization administrator, re-checked on the server —
+authorizes Ringee to call. One `FollowUpActivation` row per workspace key
+(`personal:<owner>` / `organization:<id>`) and onboarding version, written under
+the workspace lock and compared on `revision`; a retried adoption with the same
+request key returns what it adopted.
+
+- New reminder policies default to 240 minutes; existing offsets, windows,
+  pauses, recipients and opt-outs win over the proposal.
+- A policy created by adoption covers bookings made from adoption on, plus
+  meetings explicitly included; it never reaches an older meeting by accident,
+  also not after a move or a resume. Pre-existing policies keep their coverage.
+- A capability switched off in the review, or a trigger removed in the rail, is
+  a durable opt-out that later proposals and reconciliations respect.
+- The screen claims a scheduled confirmation only when an execution exists for
+  the meeting's current version.
+- Insufficient balance is "configuration saved, add credit", never "ready".
+- **Source of truth:** `VoiceAgentAutomationService` (`followUpReview`,
+  `saveFollowUpConfiguration`, `adoptFollowUp`), `follow-up-activation.ts`,
+  `FollowUpActivationRepository`, `policyCoversMeeting`.
+- **Risk if violated:** Ringee calls contacts nobody authorized it to call, or
+  confirms meetings booked before the person chose to cover them.
+
+## Product analytics (`OBS`)
+
+### OBS-001 — Analytics never touches a business operation
+
+Facts are recorded after the write they describe committed (or projected from
+durable evidence), shipped by the orchestrator drain, and every analytics or
+error-tracking call swallows its own failures. Without a configured project
+nothing is stored or sent. A provider outage leaves facts pending, retried with
+backoff, then `failed` for reconciliation — never a failed call, booking,
+activation or charge.
+
+- **Source of truth:** `ProductAnalyticsService`, `journey-exceptions.ts`.
+
+### OBS-002 — One fact per evidence key, with its original time
+
+The outbox key is `<event>:<evidence key>` and the provider UUID derives from it,
+so a retried producer, a re-projection or a resend is the same event. A business
+action that also resolves an objective counts once (its action id). Grants are
+never purchases; a paid top-up comes only from the completed ledger row.
+
+### OBS-003 — Workspace identity, human and machine actors kept apart
+
+The human distinct id is the internal user id on client and server; the group is
+the effective workspace (`workspaceKeyOf`), carried on every scoped event. AI and
+system facts use technical ids and never count as human activity or acquisition.
+A key is correlation only, never authorization.
+
+### OBS-004 — Only allowlisted, sanitized data leaves Ringee
+
+Per-event property allowlists on both sides; URLs, messages, causes and stacks
+are sanitized before export. Contact data, meeting titles, notes, transcripts,
+recordings, credentials and sensitive URLs are never captured. Session replay,
+surveys and flags stay off until their own review (ANALYTICS.md).

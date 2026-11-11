@@ -29,6 +29,7 @@ import {
   OrganizationService,
   SubscriptionService,
   BillingNotificationService,
+  ProductAnalyticsService,
 } from "@ringee/services";
 import type { FailedSubscriptionKind } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
@@ -75,6 +76,7 @@ export class StripeController {
     private readonly billingNotifications: BillingNotificationService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
     private readonly stripeAbuse: StripeAbuseProtectionService,
+    private readonly productAnalytics: ProductAnalyticsService,
   ) {}
 
   private async getOrCreateCustomer(user: CurrentUserData): Promise<string> {
@@ -211,13 +213,26 @@ export class StripeController {
       throw new BadRequestException("No saved payment method on file.");
     }
 
-    return this.stripeService.createSavedCardTopupIntent({
+    const intent = await this.stripeService.createSavedCardTopupIntent({
       userId: user.id,
       customerId,
       paymentMethodId: pm.paymentMethodId,
       amountUsd: amount,
       organizationId: user.activeOrgId,
     });
+    // A checkout started once Stripe created its PaymentIntent — a declined
+    // confirmation still is one. A creation Stripe refused leaves no intent
+    // (`failed` without an id) and is not.
+    const reference = checkoutReference(intent);
+    if (reference) {
+      void this.productAnalytics.checkoutStarted(createOwnershipContext(user), {
+        reference,
+        amountUsd: amount,
+        kind: "saved_card",
+        entryPoint: body.entryPoint,
+      });
+    }
+    return intent;
   }
 
   /**
@@ -256,7 +271,7 @@ export class StripeController {
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
-    return this.stripeService.createOneTimePaymentSession(
+    const session = await this.stripeService.createOneTimePaymentSession(
       user.id,
       customerId,
       amount,
@@ -265,6 +280,13 @@ export class StripeController {
       user.activeOrgId, // Pass organizationId
       body.frontendOrigin, // Pass frontendOrigin
     );
+    void this.productAnalytics.checkoutStarted(createOwnershipContext(user), {
+      reference: session.sessionId,
+      amountUsd: amount,
+      kind: "hosted_checkout",
+      entryPoint: body.entryPoint,
+    });
+    return session;
   }
 
   /**
@@ -292,7 +314,7 @@ export class StripeController {
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
-    return this.stripeService.createCreditTopupPaymentIntent(
+    const intent = await this.stripeService.createCreditTopupPaymentIntent(
       user.id,
       customerId,
       amount,
@@ -303,6 +325,13 @@ export class StripeController {
       body.invoiceEmail,
       abuseIpHash,
     );
+    void this.productAnalytics.checkoutStarted(createOwnershipContext(user), {
+      reference: intent.paymentIntentId,
+      amountUsd: amount,
+      kind: "payment_intent",
+      entryPoint: body.entryPoint,
+    });
+    return intent;
   }
 
   /**
@@ -1216,4 +1245,10 @@ export class StripeController {
 
     return res.send({ received: true });
   }
+}
+
+/** The provider id of a saved-card intent, when its result carries one. */
+function checkoutReference(result: unknown): string | null {
+  const id = (result as { paymentIntentId?: unknown } | null)?.paymentIntentId;
+  return typeof id === "string" && id ? id : null;
 }

@@ -123,9 +123,17 @@ export function AmountStep({
             belowMin && 'border-red-500 focus-visible:ring-red-500'
           )}
         />
-        {belowMin && (
+        {belowMin ? (
           <p className='mt-1 text-xs text-red-500'>
             {t('common.minAmountError', { amount: minimumCreditPurchase })}
+          </p>
+        ) : (
+          // The account's own minimum, from the server — visible before a
+          // wrong amount is typed, not only after.
+          <p className='text-muted-foreground mt-1 text-xs'>
+            {t('common.minAmountHint', {
+              amount: money(minimumCreditPurchase)
+            })}
           </p>
         )}
       </div>

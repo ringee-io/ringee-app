@@ -59,7 +59,7 @@ function build(
 
   const service = new CalendarService(
     {
-      findByUserOrOrg: async () => [],
+      listForWorkspace: async () => [],
       findByIdForOwner: async () => null,
     } as never,
     {

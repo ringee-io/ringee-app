@@ -1610,11 +1610,8 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     calendarIntegrationId: string,
   ): Promise<void> {
-    const integrations = await this.calendars.findByUserOrOrg(
-      ctx.userId,
-      ctx.organizationId ?? null,
-    );
-    if (!integrations.some((i) => i.id === calendarIntegrationId)) {
+    // Only an account connected in this workspace (CAL-004).
+    if (!(await this.calendars.findByIdForOwner(ctx, calendarIntegrationId))) {
       throw new NotFoundException("Calendar integration not found");
     }
   }

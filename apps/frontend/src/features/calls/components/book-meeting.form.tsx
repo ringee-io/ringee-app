@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { useTranslations } from 'next-intl';
 
+import { offerMeetingInvitation } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
 interface AvailabilitySlot {
   time: string;
   available: boolean;
@@ -140,7 +141,7 @@ export function BookMeetingForm({
       const scheduledAt = new Date(selectedDate);
       scheduledAt.setHours(hours, minutes, 0, 0);
 
-      await api.post('/meetings', {
+      const meeting = await api.post<{ id?: string } | null>('/meetings', {
         contactId,
         callId: callId || undefined,
         scheduledAt: scheduledAt.toISOString(),
@@ -157,6 +158,8 @@ export function BookMeetingForm({
           time: format(scheduledAt, 'h:mm a')
         })
       );
+      // Only a meeting that came back with its id is a booking to build on.
+      offerMeetingInvitation({ meetingId: meeting?.id, callId });
       onBooked();
     } catch {
       toast.error(t('failed'));

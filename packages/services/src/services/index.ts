@@ -32,6 +32,7 @@ export * from "./outbound";
 export * from "./tag.service";
 export * from "./call-script.service";
 export * from "./onboarding.service";
+export * from "./analytics";
 export * from "./free-trial.service";
 export * from "./demo-requests";
 export * from "./accounts";

@@ -35,7 +35,7 @@ import {
   useFirstListBuilder
 } from '../../hooks/use.first.list.builder';
 import { ContactPicker, type PickedContact } from './contact-picker';
-import { ListReady } from './list-ready';
+import { ListReady, type ListReadyLine } from './list-ready';
 import { SourceChoice } from './source-choice';
 import { blankRow, type PersonRow, TypedPeople } from './typed-people';
 
@@ -86,6 +86,18 @@ export interface FirstListDialogProps {
   ) => void;
   /** Closed with a list made: time to call. */
   onFinish: () => void;
+  /**
+   * "Make a test call": open straight on typing one number (the person can
+   * still go back and import a list instead).
+   */
+  startWith?: FirstListSource | null;
+  /** The line and credit the first call would use, shown before "Call". */
+  line?: ListReadyLine | null;
+  /**
+   * Stage 4C: the secondary "Configure automatic follow-up" on the ready
+   * step, offered only where automated follow-up is admitted and not active.
+   */
+  onConfigureFollowUp?: (() => void) | null;
 }
 
 /**
@@ -102,7 +114,10 @@ export function FirstListDialog({
   firstTime,
   defaultCountry,
   onListReady,
-  onFinish
+  onFinish,
+  startWith = null,
+  line = null,
+  onConfigureFollowUp = null
 }: FirstListDialogProps) {
   const t = useTranslations('onboarding.firstList');
   const api = useApi();
@@ -133,6 +148,21 @@ export function FirstListDialog({
 
   const defaultName = firstTime ? t('name.first') : t('name.next');
   const rewardLabel = `$${reward.toFixed(2)}`;
+
+  // A test call opens on typing one number; the choice is one step back.
+  const startedWith = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      startedWith.current = false;
+      return;
+    }
+    if (startWith && !startedWith.current && step === 'choose') {
+      startedWith.current = true;
+      choose(startWith);
+    }
+    // `choose` only sets state; running it once per opening is the point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, startWith]);
 
   // "From your contacts" is offered only to a workspace that has some.
   useEffect(() => {
@@ -521,6 +551,17 @@ export function FirstListDialog({
                 rewardGranted={ready.rewardGranted}
                 skipped={ready.skipped}
                 onStart={close}
+                line={line}
+                onConfigureFollowUp={
+                  onConfigureFollowUp
+                    ? () => {
+                        // The list is made and picked: leaving keeps it.
+                        void builder.discard();
+                        onOpenChange(false);
+                        onConfigureFollowUp();
+                      }
+                    : null
+                }
               />
             ) : null}
           </motion.div>

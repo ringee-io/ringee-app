@@ -89,6 +89,7 @@ function build(
         notified.push({ callId: call.id, threadId });
       },
     } as never,
+    { callEnded: async () => undefined } as never,
   );
   return { service, created, updates, notified, lookups };
 }

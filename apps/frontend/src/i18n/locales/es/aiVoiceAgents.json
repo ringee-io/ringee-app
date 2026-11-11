@@ -657,6 +657,380 @@
       "calling": "Llamando al lead…",
       "notPlaced": "No se llamó: {reason}",
       "callError": "No se pudo iniciar la llamada."
+    },
+    "followUpLink": {
+      "title": "Seguimiento automático",
+      "hint": "Revisa, activa o ajusta lo que hace la IA por ti."
+    }
+  },
+  "followUp": {
+    "title": "Seguimiento automático",
+    "tagline": "Tú consigues oportunidades. Ringee se encarga del seguimiento.",
+    "subtitle": "La IA devuelve llamadas, agenda, confirma y reagenda con el contexto de cada contacto.",
+    "workspace": {
+      "personal": "Espacio personal",
+      "organization": "Organización"
+    },
+    "saved": "Avance guardado · {time}",
+    "savedJustNow": "Avance guardado hace un momento",
+    "back": "Volver a llamar a {name}",
+    "backGeneric": "Volver a llamar",
+    "loadError": "No pudimos cargar el seguimiento automático.",
+    "retry": "Reintentar",
+    "notAdmitted": {
+      "title": "El seguimiento automático aún no está disponible en este espacio",
+      "text": "Se abre de forma gradual. Puedes seguir llamando como siempre; tu avance queda guardado."
+    },
+    "window": "{days}, {start} a {end}",
+    "actions": {
+      "edit": "Editar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "fixed": "Fijo"
+    },
+    "editor": {
+      "days": "Días",
+      "from": "De",
+      "to": "a",
+      "midnight": "Medianoche",
+      "invalidWindow": "Elige al menos un día y una franja de 30 minutos o más."
+    },
+    "sections": {
+      "config": {
+        "title": "Tu configuración",
+        "hint": "Rellenamos lo que ya sabemos de tu cuenta. Lo que falta tiene su acción al lado."
+      },
+      "ai": {
+        "title": "Lo que hará la IA",
+        "proposed": "Configuración propuesta",
+        "hint": "Las dos vienen encendidas en la propuesta. Puedes apagarlas o ajustarlas: nada empieza hasta que actives en el paso 3."
+      },
+      "activation": {
+        "title": "Activación y consumo"
+      }
+    },
+    "rows": {
+      "identity": {
+        "label": "Identidad del negocio",
+        "unnamed": "Tu nombre",
+        "personHint": "De tu perfil. Sin empresa: el agente se presenta como asistente de {name}",
+        "companyHint": "El agente se presenta como asistente de {name}",
+        "companyName": "Nombre de la empresa",
+        "companyOptional": "Opcional",
+        "website": "Sitio web"
+      },
+      "shareable": {
+        "label": "Lo que puede compartir",
+        "empty": "Nada todavía",
+        "emptyHint": "Opcional: sin esto el agente solo agenda y confirma, sin explicar tu servicio",
+        "setHint": "Lo que el agente puede contar a tus contactos",
+        "placeholder": "Qué ofreces, qué puede mencionar, qué nunca debe prometer"
+      },
+      "number": {
+        "label": "Número para la IA",
+        "none": "Sin número para la IA",
+        "noneHint": "La IA llama desde un número tuyo en Ringee.",
+        "sharedHint": "El número compartido de EE. UU. es para probar; la IA necesita un número de Ringee en tu espacio.",
+        "get": "Configurar número para la IA",
+        "choose": "Elegir número",
+        "chooseTitle": "Varios números, ninguno elegido",
+        "chooseHint": "Elige desde cuál de los números de tu espacio llama la IA.",
+        "pendingTitle": "Número en camino",
+        "pendingHint": "{numbers} todavía se está activando o verificando. Puedes seguir llamando mientras tanto.",
+        "purchasedHint": "{country} · tu número en Ringee, también para tus llamadas locales",
+        "verifiedHint": "Caller ID verificado · solo destinos internacionales",
+        "another": "Conseguir otro número"
+      },
+      "callbacks": {
+        "label": "Devolución de llamadas",
+        "owner": "Suenan para ti",
+        "ownerHint": "Si un contacto devuelve la llamada al número de la IA, suena en tu navegador y tu app",
+        "route": "Van a {label}",
+        "routeHint": "Enrutamiento entrante de este número",
+        "someone": "su destino",
+        "unrouted": "Nadie atiende las devoluciones todavía",
+        "unroutedHint": "Elige a dónde van las llamadas a este número en el enrutamiento entrante",
+        "unknown": "Depende del número que elijas",
+        "unknownHint": "Elige el número de la IA para ver quién atiende las devoluciones"
+      },
+      "calendar": {
+        "label": "Calendario",
+        "notConnected": "Sin conectar",
+        "willCreate": "Calendario de Ringee · se crea al activar",
+        "connect": "Conectar calendario",
+        "setAvailability": "Completar disponibilidad",
+        "availabilityHint": "Marca tus horas libres para que la IA proponga horas.",
+        "free": "Libre {days}, {start} a {end}",
+        "defaultHours": "Horas libres según el horario del calendario",
+        "which": "Calendario",
+        "freeHours": "Tus horas libres",
+        "hoursInSettings": "Sus horas reservables se configuran en los ajustes del calendario.",
+        "provider": {
+          "google": "Google Calendar",
+          "microsoft": "Outlook"
+        }
+      },
+      "callingHours": {
+        "label": "Horario de llamadas",
+        "proposed": "Propuesto por Ringee · en la hora local de cada contacto",
+        "policy": "En la hora local de cada contacto",
+        "draft": "Editado por ti · en la hora local de cada contacto"
+      },
+      "timeZone": {
+        "label": "Zona horaria",
+        "browser": "Tomada de tu navegador",
+        "calendar": "Las reuniones se agendan en esta zona",
+        "default": "Zona por defecto",
+        "draft": "Elegida por ti"
+      },
+      "responsible": {
+        "label": "Responsable",
+        "owner": "{name} (tú)",
+        "ownerHint": "En tu espacio personal, el responsable eres tú",
+        "caller": "Quien hizo la llamada",
+        "callerHint": "Recibe lo que la IA no pueda resolver; {count, plural, =0 {sin administradores} one {# administrador} other {# administradores}} en copia"
+      }
+    },
+    "capabilities": {
+      "on": "Encendida",
+      "off": "Apagada",
+      "inUse": "Ya la usas",
+      "offset": "{hours} h antes",
+      "scheduling": {
+        "title": "Agendar citas",
+        "description": "Cuando guardas una llamada elegible como «Interesado» o acuerdas un callback, Ringee se encarga del seguimiento y puede agendar una reunión.",
+        "bookIn": "Agenda en",
+        "calendarValue": "{calendar} · reuniones de 30 min",
+        "yourCalendar": "tu calendario",
+        "callsFrom": "Llama desde",
+        "numberValue": "el número de la IA",
+        "eligible": "Elegible si",
+        "eligibleValue": "Tiene nombre, teléfono con código de país y no está en tu lista DNC"
+      },
+      "reminders": {
+        "title": "Recordatorios y confirmaciones",
+        "description": "Ringee intenta confirmar cada reunión {offset} de que empiece, dentro del horario de llamadas permitido. Si el contacto necesita cambiarla, Ringee le ayuda a buscar otra hora.",
+        "confirms": "Confirma",
+        "ofEach": "de cada reunión",
+        "ifNot": "Si no puede",
+        "ifNotValue": "Busca otra hora libre en tu calendario y mueve la reunión y la invitación",
+        "existing": {
+          "label": "Ya agendadas",
+          "none": "Solo las reuniones que se agenden desde ahora",
+          "all": "También las {meetings} próximas reuniones ya agendadas ({calls} llamadas)",
+          "allUnknown": "También las próximas reuniones ya agendadas"
+        }
+      },
+      "customize": {
+        "title": "Personalizar",
+        "hint": "Voz e instrucciones. Opcional: si no tocas nada, se usan los de Ringee.",
+        "existing": "Tus especialistas conservan su voz, intentos e instrucciones; cámbialos en AI Voice Agents.",
+        "openAgents": "Abrir AI Voice Agents",
+        "afterActivation": "Los especialistas se crean al activar; después puedes personalizarlos."
+      }
+    },
+    "panel": {
+      "calls": {
+        "title": "Llamadas",
+        "ready": "Listo para llamar",
+        "noLine": "Sin línea todavía",
+        "noCredit": "Añade saldo para llamar",
+        "shared": "Desde el número compartido de Ringee. Si alguien devuelve la llamada, no te llegará.",
+        "own": "Desde el número de tu espacio.",
+        "none": "Consigue o verifica un número para empezar a llamar."
+      },
+      "ai": {
+        "title": "Seguimiento IA",
+        "configLabel": "Tu configuración",
+        "progress": "{done} de {total} listos"
+      },
+      "state": {
+        "not_admitted": "No disponible",
+        "needs_configuration": "Pendiente",
+        "add_credit": "Falta saldo",
+        "ready_to_activate": "Listo para activar",
+        "pending": "Pendiente",
+        "active": "Activo",
+        "paused": "Pausado"
+      },
+      "missing": "Seguimiento automático pendiente: {count, plural, one {falta # dato} other {faltan # datos}}",
+      "keepCalling": "Puedes llamar mientras tanto; tu avance queda guardado.",
+      "readyText": "Todo listo. Al activar, Ringee empieza el seguimiento con esta configuración.",
+      "pausedText": "En pausa. Activarlo de nuevo lo reanuda con los mismos límites y horarios.",
+      "creditTitle": "Configuración guardada. Añade saldo para comenzar.",
+      "creditText": "Con el saldo en {balance} la IA no llama a nadie. Al añadirlo vuelves aquí, con todo como lo dejaste, para activar.",
+      "usage": "Las llamadas de IA consumen tokens y minutos del saldo de este espacio de trabajo.",
+      "balanceLabel": {
+        "personal": "Saldo de tu espacio personal",
+        "organization": "Saldo de la organización"
+      },
+      "activate": "Activar seguimiento automático",
+      "activating": "Activando…",
+      "addCredit": "Añadir saldo",
+      "footnote": "Los interruptores muestran la configuración propuesta. Activar es el paso que autoriza a Ringee a llamar a tus contactos en tu nombre. Puedes pausarlo cuando quieras en AI Voice Agents.",
+      "memberTitle": "Un administrador debe activar el seguimiento automático",
+      "memberAdmins": "Administradores: {names}",
+      "memberCalls": "Mientras tanto puedes seguir llamando.",
+      "requirement": {
+        "get_number": "Número para la IA",
+        "choose_number": "Número para la IA",
+        "number_pending": "Número en activación",
+        "set_availability": "Disponibilidad del calendario",
+        "add_credit": "Saldo",
+        "fix_agent": "Un especialista necesita atención"
+      },
+      "requirementAction": {
+        "get_number": "Configurar número para la IA",
+        "choose_number": "Elegir número",
+        "number_pending": "Ver el número",
+        "set_availability": "Completar disponibilidad",
+        "add_credit": "Añadir saldo",
+        "fix_agent": "Abrir AI Voice Agents"
+      },
+      "meeting": {
+        "title": "La reunión que acabas de agendar",
+        "include": "Incluir esta reunión en las confirmaciones",
+        "plannedAt": "Ringee llamaría el {date}",
+        "covered": "Llamada de confirmación planificada para el {date}"
+      }
+    },
+    "meetingReason": {
+      "not_found": "Esta reunión ya no está disponible.",
+      "cancelled": "Esta reunión se canceló.",
+      "too_soon": "Empieza demasiado pronto para confirmarla por teléfono.",
+      "already_answered": "El contacto ya respondió por esta reunión.",
+      "other_calendar": "Está en otro calendario distinto al que vigilará la IA.",
+      "reminders_off": "Los recordatorios y confirmaciones están apagados en esta propuesta.",
+      "outside_window": "Ningún momento de tu horario de llamadas cae antes de que empiece."
+    },
+    "coverageReason": {
+      "not_admitted": "El seguimiento automático aún no está disponible en este espacio.",
+      "not_adopted": "La confirmación automática aún no está activada.",
+      "reminders_off": "Los recordatorios y confirmaciones están apagados.",
+      "reminders_paused": "Los recordatorios y confirmaciones están en pausa.",
+      "calendar_not_covered": "Su calendario no está cubierto por las confirmaciones.",
+      "not_included": "Se agendó antes de activar y no se incluyó.",
+      "too_close": "No cabe una llamada de confirmación antes de que empiece.",
+      "already_answered": "El contacto ya respondió.",
+      "cancelled": "La reunión se canceló."
+    },
+    "objectiveReason": {
+      "unknown": "revisa el seguimiento",
+      "automation_paused": "agendar citas está en pausa",
+      "specialist_unavailable": "el especialista de agenda necesita atención",
+      "calendar_unavailable": "el calendario no está disponible",
+      "caller_id_unconfigured": "la IA no tiene número desde el que llamar",
+      "contact_phone_unavailable": "el teléfono del contacto no es válido",
+      "contact_name_unavailable": "el contacto no tiene nombre",
+      "contact_on_dnc": "el contacto está en tu lista DNC",
+      "callback_time_unavailable": "no hay una hora válida para llamar",
+      "callback_outside_objective_horizon": "la hora acordada está a más de 7 días",
+      "information_follow_up_not_supported": "los seguimientos informativos siguen contigo"
+    },
+    "activated": {
+      "eyebrow": "Seguimiento automático",
+      "title": "Tu seguimiento automático está activo.",
+      "text": "Cuando guardes una llamada elegible como «Interesado», Ringee se encargará del seguimiento.",
+      "pendingTitle": "El seguimiento automático está adoptado y en espera.",
+      "pendingText": "Algo le impide llamar; empieza solo en cuanto se resuelva.",
+      "pausedTitle": "El seguimiento automático está en pausa.",
+      "pausedText": "Mientras está en pausa no se llama a nadie nuevo. Las llamadas en curso terminan.",
+      "blocked": {
+        "get_number": "La IA necesita un número de tu espacio para llamar.",
+        "choose_number": "Elige desde qué número llama la IA.",
+        "number_pending": "El número de la IA todavía se está activando.",
+        "set_availability": "Marca tus horas libres para que la IA proponga horas.",
+        "add_credit": "Añade saldo: sin saldo la IA no llama a nadie.",
+        "fix_agent": "Un especialista necesita atención en AI Voice Agents."
+      },
+      "goCall": "Ir a llamar",
+      "edit": "Ver configuración",
+      "next": {
+        "title": "Próxima acción",
+        "call": "Llamada de confirmación a {name}",
+        "contact": "el contacto",
+        "detail": "{fire} · para la reunión de las {meeting}",
+        "none": "Aún no hay reuniones por confirmar"
+      },
+      "howTitle": "Lo que pasará la próxima vez",
+      "steps": {
+        "1": {
+          "title": "Guardas la llamada como «Interesado»",
+          "text": "O acuerdas un callback con el contacto. No tienes que llenar nada más."
+        },
+        "2": {
+          "title": "Ringee llama y propone horas",
+          "text": "En tu horario de llamadas, con horas libres de tu calendario."
+        },
+        "3": {
+          "title": "Agenda la reunión",
+          "text": "Le envía la invitación al contacto y la verás en Reuniones."
+        },
+        "4": {
+          "title": "La confirma {offset}",
+          "text": "Si el contacto no puede, le ayuda a buscar otra hora."
+        }
+      },
+      "activeTitle": "Lo que quedó activo",
+      "activeHint": "Lo cambias o lo pausas en AI Voice Agents",
+      "schedulingLine": "Empieza con «Interesado» o con un callback acordado.",
+      "remindersLine": "Confirma {offset}, {days} de {start} a {end} en la hora del contacto.",
+      "callsFrom": "La IA llama desde",
+      "booksIn": "Agenda en",
+      "responsible": "Responsable",
+      "you": "Tú",
+      "usageTitle": "Consumo",
+      "usageText": "Las llamadas de IA consumen tokens y minutos del saldo de este espacio de trabajo. Si el saldo se acaba, la IA se detiene y te lo decimos aquí.",
+      "topUp": "Recargar"
+    },
+    "toast": {
+      "saved": "Avance guardado",
+      "saveFailed": "No se pudo guardar. Inténtalo de nuevo.",
+      "conflict": "Esta revisión cambió en otra ventana. La recargamos.",
+      "activated": "El seguimiento automático está activo",
+      "activateFailed": "No se pudo activar. No cambió nada; inténtalo de nuevo."
+    },
+    "invitation": {
+      "interested": {
+        "title": "Ringee puede dar seguimiento a tus próximas oportunidades.",
+        "text": "Lo activas una vez y la IA agenda y confirma con quien guardes como «Interesado».",
+        "cta": "Configurar seguimiento"
+      },
+      "meeting": {
+        "title": "Ringee puede confirmar esta reunión por ti.",
+        "text": "Llama al contacto antes de la reunión y le ayuda a moverla si lo necesita.",
+        "cta": "Configurar confirmación automática"
+      },
+      "objective": {
+        "scheduled": "Ringee se encarga: llamará el {date}.",
+        "accepted": "Ringee se encarga: el seguimiento quedó aceptado.",
+        "blocked": "Ringee no pudo tomar este caso: {reason}."
+      },
+      "coverage": {
+        "covered": "Ringee la confirmará: llamará el {date}.",
+        "notCovered": "Sin confirmación automática: {reason}",
+        "unknown": "No pudimos comprobar si Ringee la confirmará."
+      },
+      "see": "Ver seguimiento",
+      "dismiss": "Descartar"
+    },
+    "result": {
+      "label": "Resultado de la IA",
+      "title": "Resultado de la IA",
+      "firstTitle": "Primer resultado de la IA",
+      "someone": "Un contacto",
+      "kind": {
+        "booked": "Agendó una reunión con {name} para el {date}",
+        "attendance_confirmed": "{name} confirmó la reunión del {date}",
+        "rescheduled": "{name} movió la reunión al {date}",
+        "replaced": "La reunión de {name} quedó reagendada para el {date}",
+        "other": "Nuevo resultado con {name}"
+      },
+      "cost": "Consumo: {amount}",
+      "costPending": "Consumo aún en liquidación",
+      "viewMeeting": "Ver reunión",
+      "continue": "Seguir prospectando",
+      "dismiss": "Descartar"
     }
   }
 }

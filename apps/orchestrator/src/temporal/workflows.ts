@@ -180,3 +180,7 @@ export async function voiceAgentSweepWorkflow(): Promise<void> {
 export async function mcpUsagePruneWorkflow(): Promise<void> {
   await periodicJobs.pruneMcpUsage();
 }
+
+export async function productAnalyticsDrainWorkflow(): Promise<void> {
+  await periodicJobs.drainProductAnalytics();
+}

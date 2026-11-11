@@ -657,6 +657,380 @@
       "calling": "Calling the lead…",
       "notPlaced": "Not called: {reason}",
       "callError": "The call could not be started."
+    },
+    "followUpLink": {
+      "title": "Automatic follow-up",
+      "hint": "Review, activate or adjust what the AI does for you."
+    }
+  },
+  "followUp": {
+    "title": "Automatic follow-up",
+    "tagline": "You find opportunities. Ringee handles the follow-up.",
+    "subtitle": "The AI returns calls, books, confirms and reschedules with each contact's context.",
+    "workspace": {
+      "personal": "Personal workspace",
+      "organization": "Organization"
+    },
+    "saved": "Progress saved · {time}",
+    "savedJustNow": "Progress saved a moment ago",
+    "back": "Back to calling {name}",
+    "backGeneric": "Back to calling",
+    "loadError": "We couldn't load automatic follow-up.",
+    "retry": "Try again",
+    "notAdmitted": {
+      "title": "Automatic follow-up isn't available in this workspace yet",
+      "text": "It opens gradually. You can keep calling as usual; your progress is saved."
+    },
+    "window": "{days}, {start} to {end}",
+    "actions": {
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "fixed": "Fixed"
+    },
+    "editor": {
+      "days": "Days",
+      "from": "From",
+      "to": "to",
+      "midnight": "Midnight",
+      "invalidWindow": "Choose at least one day and a window of 30 minutes or more."
+    },
+    "sections": {
+      "config": {
+        "title": "Your configuration",
+        "hint": "We filled in what we already know about your account. Whatever is missing has its action beside it."
+      },
+      "ai": {
+        "title": "What the AI will do",
+        "proposed": "Proposed configuration",
+        "hint": "Both are on in the proposal. You can switch them off or adjust them: nothing starts until you activate in step 3."
+      },
+      "activation": {
+        "title": "Activation and usage"
+      }
+    },
+    "rows": {
+      "identity": {
+        "label": "Business identity",
+        "unnamed": "Your name",
+        "personHint": "From your profile. No company: the agent introduces itself as {name}'s assistant",
+        "companyHint": "The agent introduces itself as {name}'s assistant",
+        "companyName": "Company name",
+        "companyOptional": "Optional",
+        "website": "Website"
+      },
+      "shareable": {
+        "label": "What it can share",
+        "empty": "Nothing yet",
+        "emptyHint": "Optional: without this the agent only books and confirms, without explaining your service",
+        "setHint": "What the agent may tell your contacts",
+        "placeholder": "What you offer, what it may mention, what it must never promise"
+      },
+      "number": {
+        "label": "Number for the AI",
+        "none": "No number for the AI",
+        "noneHint": "The AI calls from a number of your own in Ringee.",
+        "sharedHint": "The shared US number is for trying Ringee; the AI needs a Ringee number in your workspace.",
+        "get": "Set up a number for the AI",
+        "choose": "Choose a number",
+        "chooseTitle": "Several numbers, none chosen",
+        "chooseHint": "Choose which of your workspace's numbers the AI calls from.",
+        "pendingTitle": "Number on its way",
+        "pendingHint": "{numbers} is still being activated or verified. You can keep calling meanwhile.",
+        "purchasedHint": "{country} · your Ringee number, also for your local calls",
+        "verifiedHint": "Verified caller ID · international destinations only",
+        "another": "Get another number"
+      },
+      "callbacks": {
+        "label": "Returned calls",
+        "owner": "They ring for you",
+        "ownerHint": "If a contact calls the AI's number back, it rings in your browser and your app",
+        "route": "They go to {label}",
+        "routeHint": "Inbound routing of this number",
+        "someone": "its destination",
+        "unrouted": "Nobody answers returned calls yet",
+        "unroutedHint": "Choose where calls to this number go in inbound routing",
+        "unknown": "Depends on the number you choose",
+        "unknownHint": "Choose the AI's number to see who answers returned calls"
+      },
+      "calendar": {
+        "label": "Calendar",
+        "notConnected": "Not connected",
+        "willCreate": "Ringee calendar · created when you activate",
+        "connect": "Connect calendar",
+        "setAvailability": "Complete availability",
+        "availabilityHint": "Mark your free hours so the AI can propose times.",
+        "free": "Free {days}, {start} to {end}",
+        "defaultHours": "Free hours from the calendar's schedule",
+        "which": "Calendar",
+        "freeHours": "Your free hours",
+        "hoursInSettings": "Its bookable hours are set in the calendar's settings.",
+        "provider": {
+          "google": "Google Calendar",
+          "microsoft": "Outlook"
+        }
+      },
+      "callingHours": {
+        "label": "Calling hours",
+        "proposed": "Proposed by Ringee · in each contact's local time",
+        "policy": "In each contact's local time",
+        "draft": "Edited by you · in each contact's local time"
+      },
+      "timeZone": {
+        "label": "Time zone",
+        "browser": "Taken from your browser",
+        "calendar": "Meetings are booked in this zone",
+        "default": "Default zone",
+        "draft": "Chosen by you"
+      },
+      "responsible": {
+        "label": "Responsible",
+        "owner": "{name} (you)",
+        "ownerHint": "In your personal workspace, you are responsible",
+        "caller": "Whoever made the call",
+        "callerHint": "Receives what the AI can't resolve; {count, plural, =0 {no administrators} one {# administrator} other {# administrators}} in copy"
+      }
+    },
+    "capabilities": {
+      "on": "On",
+      "off": "Off",
+      "inUse": "Already in use",
+      "offset": "{hours} h before",
+      "scheduling": {
+        "title": "Book meetings",
+        "description": "When you save an eligible call as “Interested” or agree on a callback, Ringee handles the follow-up and can book a meeting.",
+        "bookIn": "Books in",
+        "calendarValue": "{calendar} · 30-min meetings",
+        "yourCalendar": "your calendar",
+        "callsFrom": "Calls from",
+        "numberValue": "the AI's number",
+        "eligible": "Eligible if",
+        "eligibleValue": "Has a name, a phone with country code and is not on your DNC list"
+      },
+      "reminders": {
+        "title": "Reminders and confirmations",
+        "description": "Ringee tries to confirm each meeting {offset} before it starts, within the allowed calling hours. If the contact needs to change it, Ringee helps find another time.",
+        "confirms": "Confirms",
+        "ofEach": "of each meeting",
+        "ifNot": "If they can't",
+        "ifNotValue": "Finds another free time in your calendar and moves the meeting and the invitation",
+        "existing": {
+          "label": "Already booked",
+          "none": "Only meetings booked from now on",
+          "all": "Also the {meetings} upcoming meetings already booked ({calls} calls)",
+          "allUnknown": "Also the upcoming meetings already booked"
+        }
+      },
+      "customize": {
+        "title": "Customize",
+        "hint": "Voice and instructions. Optional: if you don't touch anything, Ringee's are used.",
+        "existing": "Your specialists keep their voice, attempts and instructions; change them in AI Voice Agents.",
+        "openAgents": "Open AI Voice Agents",
+        "afterActivation": "The specialists are created when you activate; you can customize them afterwards."
+      }
+    },
+    "panel": {
+      "calls": {
+        "title": "Calls",
+        "ready": "Ready to call",
+        "noLine": "No line yet",
+        "noCredit": "Add credit to call",
+        "shared": "From Ringee's shared number. If someone calls it back, it won't reach you.",
+        "own": "From your workspace's number.",
+        "none": "Get or verify a number to start calling."
+      },
+      "ai": {
+        "title": "AI follow-up",
+        "configLabel": "Your configuration",
+        "progress": "{done} of {total} ready"
+      },
+      "state": {
+        "not_admitted": "Not available",
+        "needs_configuration": "Pending",
+        "add_credit": "Add credit",
+        "ready_to_activate": "Ready to activate",
+        "pending": "Pending",
+        "active": "Active",
+        "paused": "Paused"
+      },
+      "missing": "Automatic follow-up pending: {count, plural, one {# item missing} other {# items missing}}",
+      "keepCalling": "You can call meanwhile; your progress is saved.",
+      "readyText": "All set. When you activate, Ringee starts following up with this configuration.",
+      "pausedText": "Paused. Activating again resumes it with the same limits and calling hours.",
+      "creditTitle": "Configuration saved. Add credit to start.",
+      "creditText": "With the balance at {balance} the AI calls nobody. When you add it you come back here, with everything as you left it, to activate.",
+      "usage": "AI calls consume tokens and minutes from this workspace's balance.",
+      "balanceLabel": {
+        "personal": "Your personal workspace's balance",
+        "organization": "Organization balance"
+      },
+      "activate": "Activate automatic follow-up",
+      "activating": "Activating…",
+      "addCredit": "Add credit",
+      "footnote": "The switches show the proposed configuration. Activating is the step that authorizes Ringee to call your contacts on your behalf. You can pause it whenever you want in AI Voice Agents.",
+      "memberTitle": "An administrator must activate automatic follow-up",
+      "memberAdmins": "Administrators: {names}",
+      "memberCalls": "You can keep calling meanwhile.",
+      "requirement": {
+        "get_number": "Number for the AI",
+        "choose_number": "Number for the AI",
+        "number_pending": "Number being activated",
+        "set_availability": "Calendar availability",
+        "add_credit": "Balance",
+        "fix_agent": "A specialist needs attention"
+      },
+      "requirementAction": {
+        "get_number": "Set up a number for the AI",
+        "choose_number": "Choose a number",
+        "number_pending": "See the number",
+        "set_availability": "Complete availability",
+        "add_credit": "Add credit",
+        "fix_agent": "Open AI Voice Agents"
+      },
+      "meeting": {
+        "title": "The meeting you just booked",
+        "include": "Include this meeting in the confirmations",
+        "plannedAt": "Ringee would call on {date}",
+        "covered": "Confirmation call planned for {date}"
+      }
+    },
+    "meetingReason": {
+      "not_found": "This meeting is no longer available.",
+      "cancelled": "This meeting was cancelled.",
+      "too_soon": "It starts too soon to confirm by phone.",
+      "already_answered": "The contact already answered for this meeting.",
+      "other_calendar": "It is on another calendar than the one the AI will watch.",
+      "reminders_off": "Reminders and confirmations are off in this proposal.",
+      "outside_window": "No moment within your calling hours lands before it starts."
+    },
+    "coverageReason": {
+      "not_admitted": "Automatic follow-up isn't available in this workspace yet.",
+      "not_adopted": "Automatic confirmation isn't activated yet.",
+      "reminders_off": "Reminders and confirmations are off.",
+      "reminders_paused": "Reminders and confirmations are paused.",
+      "calendar_not_covered": "Its calendar isn't covered by confirmations.",
+      "not_included": "It was booked before activation and wasn't included.",
+      "too_close": "No confirmation call fits before it starts.",
+      "already_answered": "The contact already answered.",
+      "cancelled": "The meeting was cancelled."
+    },
+    "objectiveReason": {
+      "unknown": "see the follow-up",
+      "automation_paused": "scheduling is paused",
+      "specialist_unavailable": "the scheduling specialist needs attention",
+      "calendar_unavailable": "the calendar isn't available",
+      "caller_id_unconfigured": "the AI has no number to call from",
+      "contact_phone_unavailable": "the contact's phone isn't valid",
+      "contact_name_unavailable": "the contact has no first name",
+      "contact_on_dnc": "the contact is on your DNC list",
+      "callback_time_unavailable": "there is no valid time to call",
+      "callback_outside_objective_horizon": "the agreed time is more than 7 days away",
+      "information_follow_up_not_supported": "informational follow-ups stay with you"
+    },
+    "activated": {
+      "eyebrow": "Automatic follow-up",
+      "title": "Your automatic follow-up is active.",
+      "text": "When you save an eligible call as “Interested”, Ringee will handle the follow-up.",
+      "pendingTitle": "Automatic follow-up is adopted and waiting.",
+      "pendingText": "Something keeps it from calling; it starts on its own once that is fixed.",
+      "pausedTitle": "Automatic follow-up is paused.",
+      "pausedText": "Nothing new is called while it is paused. Calls already on the phone finish.",
+      "blocked": {
+        "get_number": "The AI needs a number of your workspace to call from.",
+        "choose_number": "Choose which number the AI calls from.",
+        "number_pending": "The AI's number is still being activated.",
+        "set_availability": "Mark your free hours so the AI can propose times.",
+        "add_credit": "Add credit: with no balance the AI calls nobody.",
+        "fix_agent": "A specialist needs attention in AI Voice Agents."
+      },
+      "goCall": "Go to calling",
+      "edit": "See configuration",
+      "next": {
+        "title": "Next action",
+        "call": "Confirmation call to {name}",
+        "contact": "the contact",
+        "detail": "{fire} · for the meeting at {meeting}",
+        "none": "No meetings to confirm yet"
+      },
+      "howTitle": "What happens next time",
+      "steps": {
+        "1": {
+          "title": "You save the call as “Interested”",
+          "text": "Or you agree on a callback with the contact. You don't have to fill in anything else."
+        },
+        "2": {
+          "title": "Ringee calls and proposes times",
+          "text": "Within your calling hours, with free times from your calendar."
+        },
+        "3": {
+          "title": "It books the meeting",
+          "text": "It sends the contact the invitation and you'll see it in Meetings."
+        },
+        "4": {
+          "title": "It confirms it {offset}",
+          "text": "If the contact can't make it, it helps find another time."
+        }
+      },
+      "activeTitle": "What stayed active",
+      "activeHint": "Change or pause it in AI Voice Agents",
+      "schedulingLine": "Starts with “Interested” or an agreed callback.",
+      "remindersLine": "Confirms {offset}, {days} {start} to {end} in the contact's time.",
+      "callsFrom": "The AI calls from",
+      "booksIn": "Books in",
+      "responsible": "Responsible",
+      "you": "You",
+      "usageTitle": "Usage",
+      "usageText": "AI calls consume tokens and minutes from this workspace's balance. If the balance runs out, the AI stops and we tell you here.",
+      "topUp": "Top up"
+    },
+    "toast": {
+      "saved": "Progress saved",
+      "saveFailed": "Couldn't save. Try again.",
+      "conflict": "This review changed in another window. We reloaded it.",
+      "activated": "Automatic follow-up is active",
+      "activateFailed": "Couldn't activate it. Nothing changed; try again."
+    },
+    "invitation": {
+      "interested": {
+        "title": "Ringee can follow up on your next opportunities.",
+        "text": "Activate it once and the AI books and confirms with whoever you save as “Interested”.",
+        "cta": "Configure follow-up"
+      },
+      "meeting": {
+        "title": "Ringee can confirm this meeting for you.",
+        "text": "It calls the contact before the meeting and helps them move it if they need to.",
+        "cta": "Configure automatic confirmation"
+      },
+      "objective": {
+        "scheduled": "Ringee is on it: it calls on {date}.",
+        "accepted": "Ringee is on it: the follow-up was accepted.",
+        "blocked": "Ringee couldn't take this one: {reason}."
+      },
+      "coverage": {
+        "covered": "Ringee will confirm it: it calls on {date}.",
+        "notCovered": "No automatic confirmation: {reason}",
+        "unknown": "We couldn't check whether Ringee will confirm it."
+      },
+      "see": "See follow-up",
+      "dismiss": "Dismiss"
+    },
+    "result": {
+      "label": "AI result",
+      "title": "AI result",
+      "firstTitle": "First AI result",
+      "someone": "A contact",
+      "kind": {
+        "booked": "Booked a meeting with {name} for {date}",
+        "attendance_confirmed": "{name} confirmed the meeting on {date}",
+        "rescheduled": "{name} moved the meeting to {date}",
+        "replaced": "{name}'s meeting was rebooked for {date}",
+        "other": "New result with {name}"
+      },
+      "cost": "Usage: {amount}",
+      "costPending": "Usage still settling",
+      "viewMeeting": "View meeting",
+      "continue": "Continue prospecting",
+      "dismiss": "Dismiss"
     }
   }
 }

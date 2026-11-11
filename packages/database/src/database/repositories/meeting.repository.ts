@@ -1567,6 +1567,92 @@ export class MeetingRepository {
     return count > 0;
   }
 
+  /**
+   * The newest definitive AI meeting actions of a workspace (AGENT-020), with
+   * what their calls cost so far — the first-result summary of Stage 4C. A
+   * member reads only actions on meetings that are theirs.
+   */
+  async latestAutomationActions(
+    ctx: OwnershipContext,
+    options: { kinds: string[]; take: number; memberUserId?: string | null },
+  ) {
+    const actions = await this.prisma.meetingAutomationAction.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        kind: { in: options.kinds },
+        ...(options.memberUserId
+          ? {
+              meeting: {
+                OR: [
+                  { responsibleUserId: options.memberUserId },
+                  { userId: options.memberUserId },
+                ],
+              },
+            }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: options.take,
+      select: {
+        id: true,
+        kind: true,
+        meetingId: true,
+        callId: true,
+        agentCallId: true,
+        createdAt: true,
+        scheduledAt: true,
+        previousScheduledAt: true,
+        meeting: {
+          select: {
+            id: true,
+            status: true,
+            scheduledAt: true,
+            contact: { select: { name: true } },
+          },
+        },
+        call: { select: { totalCost: true } },
+      },
+    });
+    const agentCalls = actions.length
+      ? await this.prisma.aiVoiceAgentCall.findMany({
+          where: {
+            id: { in: actions.map((action) => action.agentCallId) },
+            ...buildOwnershipFilter(ctx),
+          },
+          select: { id: true, aiChargedCredits: true, aiCostDebitedAt: true },
+        })
+      : [];
+    return actions.map((action) => {
+      const agentCall = agentCalls.find(
+        (candidate) => candidate.id === action.agentCallId,
+      );
+      return {
+        ...action,
+        aiChargedCredits: agentCall?.aiCostDebitedAt
+          ? (agentCall.aiChargedCredits ?? 0)
+          : null,
+      };
+    });
+  }
+
+  /** The workspace's first definitive AI action of these kinds, if any. */
+  async firstAutomationActionAt(
+    ctx: OwnershipContext,
+    kinds: string[],
+    since?: Date,
+  ): Promise<Date | null> {
+    const first = await this.prisma.meetingAutomationAction.findFirst({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        kind: { in: kinds },
+        ...(since ? { createdAt: { gte: since } } : {}),
+      },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    });
+    return first?.createdAt ?? null;
+  }
+
   /** The meeting row alone, only when it belongs to the workspace. */
   async findByIdForOwner(
     ctx: OwnershipContext,

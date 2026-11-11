@@ -66,6 +66,7 @@ describe(
         enqueue: async () => undefined,
       } as never),
       callbacks,
+      { outcomeRecorded: async () => undefined } as never,
     );
     const emails = new MeetingEmailService(
       {} as never,

@@ -772,7 +772,8 @@
         "title": "Line up who to call",
         "hint": "Upload a file or type a few numbers. Ringee hands you the next person, every time.",
         "cta": "Start calling",
-        "reward": "+{amount} free credit when you finish"
+        "reward": "+{amount} free credit when you finish",
+        "testCall": "Make a test call"
       },
       "role": "{title} at <strong>{company}</strong>",
       "detail": {
@@ -863,7 +864,8 @@
       "companyWebsite": "Company website",
       "none": "No LinkedIn or website saved for {name}.",
       "failed": "Their links didn't load."
-    }
+    },
+    "addCredit": "Add credit"
   },
   "automaticFollowUp": {
     "preparing": "Saving outcome and preparing follow-up…",

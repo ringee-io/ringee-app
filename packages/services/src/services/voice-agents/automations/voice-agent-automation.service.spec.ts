@@ -56,6 +56,8 @@ function build(
     lockedAutomation?: Row;
     /** What the conditional delete of the automation row reports. */
     removes?: boolean;
+    /** Overrides of the follow-up activation repository (Stage 4C). */
+    activations?: Row;
   } = {},
 ) {
   const calls: Row[] = [];
@@ -64,6 +66,7 @@ function build(
   const automationUpdates: Row[] = [];
   const releasedClaims: string[] = [];
   const deleted: Row[] = [];
+  const optOuts: Row[] = [];
   const agent = over.agent === undefined ? AGENT() : over.agent;
   let removed = false;
 
@@ -93,9 +96,16 @@ function build(
         releasedClaims.push(id);
       },
       clearAgent: async () => true,
-      removeForOwner: async (_ctx: Row, id: string, agentId: string) => {
+      removeForOwner: async (
+        _ctx: Row,
+        id: string,
+        agentId: string,
+        options: Row = {},
+      ) => {
         if (over.removes === false) return false;
         deleted.push({ automation: id, agentId });
+        // Recorded in the same transaction as the deletion.
+        if (options.optOut) optOuts.push(options.optOut);
         removed = true;
         return true;
       },
@@ -236,6 +246,18 @@ function build(
     {} as never,
     {} as never,
     { previousInteractions: async () => "" } as never,
+    // Stage 4C: activation, meetings, numbers and analytics.
+    {
+      recordOptOut: async () => ({}),
+      findForWorkspace: async () => null,
+      ...over.activations,
+    } as never,
+    {} as never,
+    {} as never,
+    {
+      record: async () => undefined,
+      captureException: () => undefined,
+    } as never,
   );
   return {
     service,
@@ -245,6 +267,7 @@ function build(
     automationUpdates,
     releasedClaims,
     deleted,
+    optOuts,
   };
 }
 
@@ -712,7 +735,7 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
   });
 
   it("hands the receptionist's numbers back, and leaves the agent as it was", async () => {
-    const { service, deleted, statuses } = build({
+    const { service, deleted, statuses, optOuts } = build({
       agent: AGENT({ type: "receptionist" }),
       automation: RECEPTIONIST,
     });
@@ -721,6 +744,8 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
       { automation: "automation-2", agentId: "agent-1" },
     ]);
     assert.deepEqual(statuses, []);
+    // The receptionist is not part of the follow-up review.
+    assert.deepEqual(optOuts, []);
   });
 
   it("removes nothing while a receptionist's number cannot be handed back", async () => {
@@ -746,16 +771,18 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
   });
 
   it("reports a conflict when another window moved the card meanwhile", async () => {
-    const { service, deleted } = build({ removes: false });
+    const { service, deleted, optOuts } = build({ removes: false });
     await assert.rejects(
       () => service.removeAutomation(CTX, "reminders"),
       ConflictException,
     );
     assert.deepEqual(deleted, [{ policies: ["policy-1"] }]);
+    // Nothing deleted, nothing remembered as removed.
+    assert.deepEqual(optOuts, []);
   });
 
   it("puts the card back to not set up, offering the same agent again", async () => {
-    const { service, deleted } = build({
+    const { service, deleted, optOuts } = build({
       agent: AGENT({ type: "appointment_booking" }),
       automation: {
         id: "automation-3",
@@ -768,6 +795,10 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
     assert.deepEqual(deleted, [
       { automation: "automation-3", agentId: "agent-1" },
     ]);
+    // The removal is a durable opt-out, stored with the deletion itself.
+    assert.equal(optOuts.length, 1);
+    assert.equal(optOuts[0]!.capability, "scheduling");
+    assert.equal(optOuts[0]!.reason, "trigger_removed");
     assert.equal(card.state, "unconfigured");
     assert.deepEqual(
       card.candidates.map((candidate) => candidate.id),
@@ -802,6 +833,69 @@ describe("VoiceAgentAutomationService pilot flag", () => {
         ),
       /not enabled/,
     );
+  });
+});
+
+describe("VoiceAgentAutomationService.adoptFollowUp retries", () => {
+  const ATTEMPT = {
+    requestKey: "request-1",
+    baseRevision: 1,
+    status: "failed",
+    at: new Date().toISOString(),
+  };
+  const STORED = (revision: number) => ({
+    id: "activation-1",
+    status: "configured",
+    scope: null,
+    revision,
+    adoptionAttempt: ATTEMPT,
+  });
+
+  function adoptWith(stored: Row) {
+    const reservations: Row[] = [];
+    const reviewed: number[] = [];
+    const { service } = build({
+      activations: {
+        findForWorkspace: async () => stored,
+        reserveAdoption: async (_ctx: Row, input: Row) => {
+          reservations.push(input);
+          return { ok: false, reason: "stale_revision", row: stored };
+        },
+        markAdoptionFailed: async () => true,
+      },
+    });
+    // Stops the adoption right after it chose the revision to apply.
+    (service as unknown as Row).followUpReview = async (
+      _ctx: Row,
+      _viewer: Row,
+      options: Row,
+    ) => {
+      reviewed.push(options.activation.revision);
+      throw new BadRequestException("stop");
+    };
+    const adopt = () =>
+      service.adoptFollowUp(
+        CTX,
+        { admin: true },
+        { requestKey: "request-1", expectedRevision: 1 },
+      );
+    return { adopt, reservations, reviewed };
+  }
+
+  it("resumes the revision a retry of the same request reserved", async () => {
+    const { adopt, reservations, reviewed } = adoptWith(STORED(2));
+    await assert.rejects(adopt, /stop/);
+    assert.equal(reservations.length, 0);
+    assert.deepEqual(reviewed, [2]);
+  });
+
+  it("refuses the retry once a save moved the row past that revision", async () => {
+    const { adopt, reservations, reviewed } = adoptWith(STORED(3));
+    await assert.rejects(adopt, ConflictException);
+    // Reserved against the revision the request reviewed, which is stale.
+    assert.equal(reservations.length, 1);
+    assert.equal(reservations[0]!.expectedRevision, 1);
+    assert.deepEqual(reviewed, []);
   });
 });
 

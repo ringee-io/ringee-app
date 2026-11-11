@@ -72,6 +72,7 @@ describe(
       policies,
       new ComplianceService(new DNCEntryRepository(db), {} as never),
       callbacks,
+      { outcomeRecorded: async () => undefined } as never,
     );
     const handoffs = new VoiceAgentHandoffService(
       handoffRepo,

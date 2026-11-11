@@ -87,6 +87,11 @@ export interface InfraNumberSearchItem {
 }
 
 export interface InfraNumberSearchResult {
+  /**
+   * `results`/`empty`: the provider answered. `failed`: it could not be
+   * asked, so an empty `numbers` says nothing about the inventory.
+   */
+  lookupStatus: 'results' | 'empty' | 'failed';
   numbers: InfraNumberSearchItem[];
   documentsRequired: boolean;
 }

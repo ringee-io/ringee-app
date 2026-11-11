@@ -253,6 +253,22 @@
         "use": "Usar documento"
       },
       "submitAddressInvalid": "No pudimos validar la dirección con el operador. Abre el paso de dirección y usa «Validar dirección» para corregirla."
+    },
+    "lookup": {
+      "emptyTitle": "No hay números {type} disponibles en {country} con estos filtros",
+      "emptyHint": "El proveedor respondió, pero ahora no tiene números que coincidan.",
+      "failedTitle": "No pudimos consultar los números disponibles",
+      "failedHint": "El proveedor no respondió. Esto no dice nada del inventario: inténtalo de nuevo en un momento.",
+      "retry": "Reintentar",
+      "clearFilters": "Quitar filtros",
+      "tryType": "Probar números {type}",
+      "verifyOwn": "Verificar un número que ya tienes",
+      "callbackNote": "Un número de Ringee recibe las devoluciones de llamada. Un número verificado solo se muestra como caller ID en llamadas internacionales, y las devoluciones llegan a ese teléfono, no a Ringee.",
+      "types": {
+        "local": "locales",
+        "mobile": "móviles",
+        "toll_free": "gratuitos"
+      }
     }
   },
   "tabs": {

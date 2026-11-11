@@ -52,6 +52,7 @@ import type {
   RingeeCalendar
 } from './types';
 
+import { offerMeetingInvitation } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
 /** A saved contact, as `GET /contacts` lists it. */
 interface ContactOption {
   id: string;
@@ -389,6 +390,7 @@ export function NewMeetingDrawer({
         requireAvailableSlot: true,
         bookingTimeZone: browserTimeZone()
       });
+      offerMeetingInvitation({ meetingId: meeting?.id });
       onBooked(meeting, person?.first ?? '');
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {

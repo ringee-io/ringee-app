@@ -809,13 +809,15 @@ export class InfrastructureService {
       limit?: number;
     },
   ): Promise<InfraNumberSearchResult> {
-    const found =
-      (await this.telephonyService.searchAvailableNumbers({
-        countryCode: params.country,
-        areaCode: params.areaCode,
-        numberType: params.numberType,
-        limit: params.limit ?? 20,
-      })) ?? [];
+    // A provider failure is kept apart from an empty answer (additive
+    // `lookupStatus`), so the builder can offer a retry instead of "none".
+    const lookup = await this.telephonyService.lookupAvailableNumbers({
+      countryCode: params.country,
+      areaCode: params.areaCode,
+      numberType: params.numberType,
+      limit: params.limit ?? 20,
+    });
+    const found = lookup.numbers;
 
     let documentsRequired = false;
     try {
@@ -830,6 +832,7 @@ export class InfrastructureService {
     }
 
     return {
+      lookupStatus: lookup.status,
       numbers: found.map((n) => ({
         phoneNumber: n.phoneNumber,
         countryCode: n.countryCode,

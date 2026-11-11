@@ -14,7 +14,16 @@ export interface MeetingReminderPolicyInput {
   windowStartMinute?: number;
   windowEndMinute?: number;
   windowDays?: number[];
+  /**
+   * Which meetings the policy covers (Stage 4C adoption). Only applied when
+   * the policy is created; an existing policy keeps the coverage it was
+   * adopted with — editing its offset is not a new scope decision.
+   */
+  coverage?: { coversMeetingsFrom: Date | null };
 }
+
+/** How many already-booked meetings one policy may include explicitly. */
+export const MAX_INCLUDED_MEETINGS = 50;
 
 /**
  * Reminder-call policies, one per calendar. Whether a write changes which
@@ -86,6 +95,9 @@ export class MeetingReminderPolicyRepository {
         calendarId: input.calendarId,
         enabled: true,
         activatedAt: now,
+        ...(input.coverage
+          ? { coversMeetingsFrom: input.coverage.coversMeetingsFrom }
+          : {}),
         ...settings,
       },
       update: {
@@ -120,6 +132,86 @@ export class MeetingReminderPolicyRepository {
     return this.prisma.meetingReminderPolicy.findMany({
       where: { ...buildOwnershipFilter(ctx), id: { in: ids } },
     });
+  }
+
+  /**
+   * Adds already-booked meetings to a "new bookings only" policy — the
+   * explicit "Include this meeting" of the adoption. Additive, bounded and
+   * without a new version: what was planned stays valid, the included meeting
+   * is simply planned too. A policy that already covers every meeting needs no
+   * list and is left alone.
+   *
+   * Each meeting is included only at the version the person reviewed: its row
+   * is locked and re-read in this transaction, so a move that landed first is
+   * refused (`meeting_changed`) and one that comes later waits for the
+   * inclusion. Once included, a meeting stays covered when it moves — the
+   * inclusion is by id.
+   */
+  async includeMeetings(
+    ctx: OwnershipContext,
+    policyId: string,
+    meetings: Array<{ id: string; scheduleVersion: number }>,
+  ): Promise<
+    | { ok: true; policy: MeetingReminderPolicy | null }
+    | { ok: false; reason: "meeting_changed" }
+  > {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "MeetingReminderPolicy"
+        WHERE "id" = ${policyId}::uuid FOR UPDATE`;
+      const policy = await tx.meetingReminderPolicy.findFirst({
+        where: { ...buildOwnershipFilter(ctx), id: policyId },
+      });
+      if (!policy) return { ok: true as const, policy: null };
+      if (!policy.coversMeetingsFrom) return { ok: true as const, policy };
+      const meetingIds = [...new Set(meetings.map((meeting) => meeting.id))];
+      if (meetingIds.length) {
+        await tx.$queryRaw`SELECT "id" FROM "Meeting"
+          WHERE "id" = ANY(${meetingIds}::uuid[]) FOR SHARE`;
+        const current = await tx.meeting.findMany({
+          where: { ...buildOwnershipFilter(ctx), id: { in: meetingIds } },
+          select: { id: true, scheduleVersion: true },
+        });
+        const changed = meetings.some(
+          (meeting) =>
+            current.find((row) => row.id === meeting.id)?.scheduleVersion !==
+            meeting.scheduleVersion,
+        );
+        if (changed) return { ok: false as const, reason: "meeting_changed" };
+      }
+      const included = [
+        ...new Set([...(policy.includedMeetingIds ?? []), ...meetingIds]),
+      ];
+      if (included.length > MAX_INCLUDED_MEETINGS) {
+        throw new Error("Too many meetings included in one reminder policy");
+      }
+      if (included.length === (policy.includedMeetingIds ?? []).length) {
+        return { ok: true as const, policy };
+      }
+      const updated = await tx.meetingReminderPolicy.update({
+        where: { id: policy.id },
+        data: { includedMeetingIds: included },
+      });
+      return { ok: true as const, policy: updated };
+    });
+  }
+
+  /**
+   * An explicit "also confirm the meetings already booked": the policy covers
+   * every upcoming meeting from now on, like a policy set up in the rail.
+   */
+  async coverAllMeetings(
+    ctx: OwnershipContext,
+    policyId: string,
+  ): Promise<MeetingReminderPolicy | null> {
+    const { count } = await this.prisma.meetingReminderPolicy.updateMany({
+      where: { ...buildOwnershipFilter(ctx), id: policyId },
+      data: { coversMeetingsFrom: null },
+    });
+    return count === 1
+      ? this.prisma.meetingReminderPolicy.findUnique({
+          where: { id: policyId },
+        })
+      : null;
   }
 
   /** Removes the policies of calendars no longer covered by an agent's setup. */

@@ -16,6 +16,7 @@ import { useCongrats } from '@ringee/frontend-shared/hooks/use.congrats';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
+import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
 import { useFundingFlow } from '@/features/credit/hooks/use-funding-flow';
 import { FundingFlow } from './funding/funding-flow';
 
@@ -60,11 +61,19 @@ const MyButton = ({ onClick }: { onClick?: () => void }) => {
 export function CreditPopover({
   children,
   fetch = true,
-  useMock = false
+  useMock = false,
+  entryPoint = 'credit_popover'
 }: {
   children?: React.ReactElement;
   fetch?: boolean;
   useMock?: boolean;
+  /** Where this top-up starts (analytics only; bounded on the server). */
+  entryPoint?:
+    | 'credit_popover'
+    | 'my_day_line'
+    | 'test_call'
+    | 'follow_up_review'
+    | 'low_balance_prompt';
 }) {
   const t = useTranslations('billing.credits.popover');
   const auth = useAuth();
@@ -73,6 +82,7 @@ export function CreditPopover({
 
   const [open, setOpen] = useState(false);
   const flow = useFundingFlow();
+  const { capture } = useAnalytics();
 
   const { balance, freeCallTrial, fetchBalance, hasLoaded } = useCreditStore();
 
@@ -113,6 +123,8 @@ export function CreditPopover({
     // Always land on the compact hub, so the width matches the step shown.
     flow.reset();
     if (next) {
+      useCreditStore.getState().setCheckoutEntryPoint(entryPoint);
+      capture('credit_topup_opened', { entry_point: entryPoint });
       fetchBalance(api, useMock, true);
       flow.refreshFunding(useMock);
       flow.presetLastTopup();

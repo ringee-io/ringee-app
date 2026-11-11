@@ -109,6 +109,51 @@ export class TelephonyController {
     });
   }
 
+  /**
+   * The dashboard's number search (authenticated): the same inventory as
+   * `numbers/available/:country`, but a provider failure is answered as
+   * `status: "failed"` instead of an empty list, so the screen can offer a
+   * retry rather than "no numbers". The public route keeps its array.
+   */
+  @Get("numbers/lookup/:country")
+  async lookupNumbers(
+    @CurrentUser() user: CurrentUserData,
+    @Param("country") country: string,
+    @Query("areaCode") areaCode?: string,
+    @Query("numberType") numberType?: string,
+    @Query("features") features?: string | string[],
+    @Query("limit") limit?: string,
+  ) {
+    const countryCode = (country ?? "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(countryCode)) {
+      throw new BadRequestException("Choose a country.");
+    }
+    const type =
+      numberType === "local" ||
+      numberType === "toll_free" ||
+      numberType === "mobile"
+        ? numberType
+        : undefined;
+    const area = areaCode?.trim();
+    if (area && !/^\d{1,6}$/.test(area)) {
+      throw new BadRequestException("The area code is a few digits.");
+    }
+    const parsedLimit = Number(limit);
+    return this.numberPurchasedService.lookupInventory(
+      createOwnershipContext(user),
+      {
+        countryCode,
+        numberType: type,
+        areaCode: area || undefined,
+        features: parseFeatures(features),
+        limit:
+          Number.isInteger(parsedLimit) && parsedLimit > 0
+            ? Math.min(parsedLimit, 100)
+            : 50,
+      },
+    );
+  }
+
   @Public()
   @Get("numbers/requirements/:country")
   async getNumberRequirements(

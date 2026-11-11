@@ -497,6 +497,7 @@ model User {
   meetingReminderCalls    MeetingReminderExecution[]
   meetingEmailDeliveries  MeetingEmailDelivery[]
   aiVoiceAgentHandoffs    AiVoiceAgentHandoff[]
+  followUpActivations     FollowUpActivation[]
 
   @@index([clerkId])
 }
@@ -630,6 +631,7 @@ model Organization {
   meetingReminderCalls    MeetingReminderExecution[]
   meetingEmailDeliveries  MeetingEmailDelivery[]
   aiVoiceAgentHandoffs    AiVoiceAgentHandoff[]
+  followUpActivations     FollowUpActivation[]
   voiceAgentParticipants  AiVoiceAgentCallParticipant[]
 
   @@index([clerkId])
@@ -2573,6 +2575,57 @@ model TriggerLoopOutboxEvent {
 
   @@index([status, nextAttemptAt])
   @@index([createdAt])
+}
+
+/// Delivery state of one backend product-analytics fact (Stage 4B).
+enum ProductAnalyticsDeliveryStatus {
+  pending
+  sent
+  /// Retries exhausted. Kept for reconciliation; never resent blindly.
+  failed
+  /// Analytics was switched off when it came due: dropped, not sent.
+  skipped
+}
+
+/// A backend product-analytics fact waiting for the analytics provider. Rows
+/// are recorded after the business transaction that produced the evidence —
+/// or projected from durable evidence by a cursor — keyed by that evidence, and
+/// shipped by the orchestrator drain with the original time and a stable id.
+/// Delivery never blocks, fails or retries a business operation.
+model ProductAnalyticsEvent {
+  /// Also the provider's event UUID, so a resend deduplicates there.
+  id            String                         @id @default(uuid()) @db.Uuid
+  /// Stable identity of the fact (`<event>:<evidence key>`): a replayed
+  /// projection or retried producer is the same row.
+  eventKey      String                         @unique
+  event         String
+  distinctId    String
+  /// When the fact happened. Kept across retries.
+  occurredAt    DateTime
+  /// Allowlisted, sanitized properties (see the platform event contract).
+  properties    Json
+  workspaceKey  String?
+  status        ProductAnalyticsDeliveryStatus @default(pending)
+  attemptCount  Int                            @default(0)
+  nextAttemptAt DateTime                       @default(now())
+  /// A bounded error code — never a provider message.
+  lastError     String?
+  sentAt        DateTime?
+  /// Drain lease; a token mismatch fences a worker whose lease expired.
+  claimToken    String?                        @db.Uuid
+  claimedUntil  DateTime?
+  createdAt     DateTime                       @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+/// How far each analytics projector has read its evidence table.
+model ProductAnalyticsCursor {
+  source    String   @id
+  cursorAt  DateTime
+  cursorId  String?
+  updatedAt DateTime @updatedAt
 }
 
 // Per-user derived activity state. Source of truth for "has the user ever
@@ -5018,6 +5071,70 @@ model AiVoiceAgentAutomation {
   @@index([userId])
 }
 
+/// Where a workspace's automatic follow-up onboarding stands (Stage 4C).
+enum FollowUpActivationStatus {
+  /// The review was saved; nothing was authorized yet.
+  configured
+  /// The owner (personal) or an administrator (organization) explicitly
+  /// adopted it: Ringee may call on the workspace's behalf within `scope`.
+  adopted
+}
+
+/// The shared "Automatic follow-up" review of one workspace and onboarding
+/// version: the configuration the person saved, the explicit adoption that
+/// authorizes Ringee to call, and the durable opt-outs every later
+/// reconciliation must respect (a capability switched off in the review, a
+/// trigger deliberately removed). It never replaces the automation, policy or
+/// agent rows: adoption drives the existing setup paths, and this row records
+/// what was decided, by whom and when.
+model FollowUpActivation {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  /// The personal workspace's owner; null on an organization's row, which
+  /// the organization alone owns (`organizationId`), so deleting a member
+  /// never cascades into its adoption, scope or opt-outs. A check
+  /// constraint in the migration holds this shape.
+  userId             String?                  @db.Uuid
+  organizationId     String?                  @db.Uuid
+  /// `organization:<id>` or `personal:<ownerId>` — disjoint key spaces for
+  /// uniqueness and correlation, never a proof of authorization. A check
+  /// constraint ties it to the ownership columns.
+  workspaceKey       String
+  /// Onboarding version, e.g. `followup-v1`.
+  version            String
+  status             FollowUpActivationStatus @default(configured)
+  /// The reviewed choices as the server validated them (bounded JSON).
+  configuration      Json
+  /// What adoption authorized: capabilities, calendar, offset and which
+  /// already-booked meetings were explicitly included.
+  scope              Json?
+  /// Per capability: the reason, when and who. Survives the deletion of the
+  /// automation row and future reconciliations.
+  optOuts            Json?
+  /// The bounded entry point the review was first saved from.
+  entrySource        String?
+  /// Optimistic concurrency: every save and adoption compares and bumps it.
+  revision           Int                      @default(1)
+  /// The adoption a request is applying: its key, the revision it was based
+  /// on, `applying` or `failed`, and when it reserved the row. Saves wait
+  /// while a fresh one applies; a retry of the same request resumes it;
+  /// recording the adoption clears it.
+  adoptionAttempt    Json?
+  configuredAt       DateTime                 @default(now())
+  configuredByUserId String                   @db.Uuid
+  adoptedAt          DateTime?
+  adoptedByUserId    String?                  @db.Uuid
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceKey, version])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([adoptedAt])
+}
+
 /// Calls the lead of every eligible meeting on one calendar before it starts,
 /// through one reminders agent. One policy per calendar, so two agents never
 /// call the same lead about the same meeting.
@@ -5040,6 +5157,14 @@ model MeetingReminderPolicy {
   /// When the policy was last switched on. Offsets that were already in the
   /// past at that moment are never called late.
   activatedAt       DateTime @default(now())
+  /// Set when automatic follow-up was adopted to cover new bookings only
+  /// (Stage 4C): a meeting created before it gets a call only when it is in
+  /// `includedMeetingIds`. Null keeps the policy's original meaning — every
+  /// upcoming meeting on the calendar.
+  coversMeetingsFrom DateTime?
+  /// Meetings created before `coversMeetingsFrom` that the adopting owner or
+  /// administrator explicitly included ("Include this meeting"). Bounded.
+  includedMeetingIds String[] @default([]) @db.Uuid
   /// Bumped on every change to which calls are due; a pending execution
   /// planned for an older version is cancelled and replanned.
   version           Int      @default(1)

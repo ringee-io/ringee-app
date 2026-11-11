@@ -69,6 +69,28 @@ export function answeredCallWhere(
   ];
 }
 
+/**
+ * `answeredCallWhere` for a row already in memory — the same CALL-012 rule, for
+ * a producer that decides on the call it just ended (the connected-call
+ * analytics fact). An outcome recorded later can still overrule the pickup;
+ * counting queries keep reading the stored row.
+ */
+export function isAnsweredCall(
+  call: {
+    answeredAt: Date | null;
+    outcome: CallOutcome | null;
+    clientState: string | null;
+  },
+  unreached: CallOutcome[] = UNANSWERED_OUTCOMES,
+): boolean {
+  return (
+    call.answeredAt !== null &&
+    (call.outcome === null || !unreached.includes(call.outcome)) &&
+    (call.clientState === null ||
+      !call.clientState.startsWith(VOICEMAIL_DROP_STATE_PREFIX))
+  );
+}
+
 /** `<the call is answered>` for the `"Call"` row that `alias` names. */
 export function isAnsweredCallSql(alias: string): string {
   return `(${alias}."answeredAt" IS NOT NULL

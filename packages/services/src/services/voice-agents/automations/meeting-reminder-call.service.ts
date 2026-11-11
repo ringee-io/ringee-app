@@ -54,6 +54,7 @@ import {
 import { VoiceAgentConversationContextService } from "./conversation-context.service";
 import { personName } from "./person-name";
 import { executionStatusFor } from "./reminder-execution-status";
+import { captureJourneyException } from "../../analytics/journey-exceptions";
 
 const S = MeetingReminderExecutionStatus;
 
@@ -157,6 +158,21 @@ export class MeetingReminderCallService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        captureJourneyException(error, {
+          component: MeetingReminderCallService.name,
+          operation: "reminders.execute",
+          journeyStep: "reminder_call",
+          workspace: execution.userId
+            ? {
+                userId: execution.userId,
+                organizationId: execution.organizationId ?? null,
+              }
+            : null,
+          correlation: {
+            execution: execution.id,
+            meeting: execution.meetingId,
+          },
+        });
       }
     }
     return placed;
@@ -632,6 +648,13 @@ export class MeetingReminderCallService {
           error instanceof Error ? error.message : String(error)
         }`,
       );
+      captureJourneyException(error, {
+        component: MeetingReminderCallService.name,
+        operation: "reminders.record_placement",
+        journeyStep: "reminder_call",
+        severity: "critical",
+        correlation: { execution: execution.id, agent_call: agentCallId },
+      });
     }
   }
 

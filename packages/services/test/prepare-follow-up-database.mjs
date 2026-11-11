@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 // Test-only bootstrap, never a production migration runner. Start with an empty
-// local database; derive the preceding schema and apply the real Stage 1/2/3/4A SQL.
+// local database; derive the preceding schema and apply the real Stage 1–4C SQL.
 const url = new URL(process.env.FOLLOWUP_DATABASE_URL);
 if (
   !["localhost", "127.0.0.1"].includes(url.hostname) ||
@@ -46,6 +46,12 @@ for (const name of [
   "FollowUpState",
   "FollowUpExecutionMode",
   "FollowUpClosureReason",
+  // Stage 4B/4C, before 20261111120000_follow_up_activation_and_product_analytics.
+  "FollowUpActivation",
+  "FollowUpActivationStatus",
+  "ProductAnalyticsEvent",
+  "ProductAnalyticsCursor",
+  "ProductAnalyticsDeliveryStatus",
 ]) {
   const block = new RegExp(`(?:model|enum) ${name} \\{[^}]*\\}`, "g");
   if (!block.test(schema)) throw new Error(`Missing schema block ${name}`);
@@ -55,12 +61,14 @@ for (const name of [
 // (it once dropped `@@index([requestStatus, reviewAt])` from the baseline).
 schema = schema.replace(/^.*\bPendingActionFollowUp\b.*$/gm, "");
 schema = schema.replace(/^.*\bMeetingAutomationAction\b.*$/gm, "");
+schema = schema.replace(/^.*\bFollowUpActivation\b.*$/gm, "");
 for (const [model, fields] of [
   ["Call", ["outcomeRevision", "outcomeCommitment"]],
   ["Meeting", ["replacesMeetingId"]],
   ["ContactNote", ["automationActionId", "actorType", "agentId"]],
   ["MeetingEmailDelivery", ["actionId", "audience"]],
   ["MeetingReminderExecution", ["dispatchCommittedAt"]],
+  ["MeetingReminderPolicy", ["coversMeetingsFrom", "includedMeetingIds"]],
   [
     "CallbackTask",
     ["followUpId", "sourceRevision", "objectiveAttempt", "dispatchCommittedAt"],
@@ -136,6 +144,7 @@ try {
     "pending-migrations/20261105090100_follow_up_resolution_indexes.sql",
     "migrations-pending/20261107120000_personal_voice_agent_scope/migration.sql",
     "pending-migrations/20261107120100_personal_voice_agent_scope_indexes.sql",
+    "migrations-pending/20261111120000_follow_up_activation_and_product_analytics/migration.sql",
   ])
     sql(read(path));
   console.log(

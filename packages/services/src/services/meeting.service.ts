@@ -47,6 +47,7 @@ import {
   DispositionService,
   isCallOutcome,
 } from "./outbound/disposition.service";
+import { captureJourneyException } from "./analytics/journey-exceptions";
 
 /** How far apart a failing automation-action repair is retried. */
 const MAINTENANCE_RETRY_MIN_MS = 60_000;
@@ -364,6 +365,15 @@ export class MeetingService {
       this.logger.warn(
         `Could not plan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
       );
+      captureJourneyException(err, {
+        component: MeetingService.name,
+        operation: "booking.plan_confirmations",
+        journeyStep: "meeting_booking",
+        severity: "warning",
+        workspace: ctx,
+        userId: ctx.userId,
+        correlation: { meeting: meeting.id },
+      });
     }
 
     // `createCalendarEvent` persists these fields after Ringee creates the
