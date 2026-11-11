@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useApi } from "./use.api";
 import {
   analyticsEnabled,
   applyAnalyticsIdentity,
   clearAnalyticsIdentity,
+  clearAnalyticsWorkspace,
   type AnalyticsIdentity,
 } from "../lib/analytics/posthog";
 
@@ -15,18 +16,32 @@ import {
  * internal user id the backend reports with, and the effective workspace as
  * the `workspace` group — re-read whenever the person or the active
  * organization changes, so every later event carries the workspace it was
- * captured in. Signing out resets it. Mounted once, in the dashboard shell.
+ * captured in. Until the new identity arrives, events carry no workspace
+ * rather than the one being left. Signing out resets it. Mounted once, in the
+ * dashboard shell, which owns it: when the shell unmounts — signing out
+ * removes it — the identity ends with it, so pages outside the dashboard
+ * never carry this person or their workspace.
  */
 export function useAnalyticsIdentity(): void {
   const { isLoaded, isSignedIn, userId, orgId } = useAuth();
   const api = useApi();
+  // The person whose identity was asked for last: another person starts
+  // anonymous, the same person switching workspace keeps their identity.
+  const requestedFor = useRef<string | null>(null);
 
   useEffect(() => {
     if (!analyticsEnabled() || !isLoaded) return;
     if (!isSignedIn) {
+      requestedFor.current = null;
       clearAnalyticsIdentity();
       return;
     }
+    if (requestedFor.current && requestedFor.current !== userId) {
+      clearAnalyticsIdentity();
+    } else {
+      clearAnalyticsWorkspace();
+    }
+    requestedFor.current = userId ?? null;
     let cancelled = false;
     api
       .get<AnalyticsIdentity>("/analytics/identity")
@@ -44,4 +59,12 @@ export function useAnalyticsIdentity(): void {
     // `api` is stable per session; the identity depends on who and where.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn, userId, orgId]);
+
+  useEffect(
+    () => () => {
+      requestedFor.current = null;
+      clearAnalyticsIdentity();
+    },
+    [],
+  );
 }

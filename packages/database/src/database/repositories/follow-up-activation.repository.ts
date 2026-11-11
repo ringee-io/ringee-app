@@ -72,6 +72,16 @@ export function readAdoptionAttempt(
 }
 
 /**
+ * The revision `reserveAdoption` gave the row for this attempt: a first
+ * reservation creates the row at its initial revision (the schema's default,
+ * 1), any other moves it to the next. A row at another revision has moved
+ * past what the attempt reviewed.
+ */
+export function reservedRevisionOf(attempt: FollowUpAdoptionAttempt): number {
+  return attempt.baseRevision === null ? 1 : attempt.baseRevision + 1;
+}
+
+/**
  * Whether another request is applying an adoption on this row right now. An
  * attempt older than `staleBefore` holds nothing: its request died.
  */

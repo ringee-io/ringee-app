@@ -46,8 +46,17 @@ export function FollowUpReviewScreen() {
     ? (fromParam as FollowUpEntrySource)
     : null;
   const meetingId = params.get('meetingId');
-  const { review, status, load, save, savedAt, adopt, adopting, coverage } =
-    useFollowUpReview({ meetingId, entrySource });
+  const {
+    review,
+    status,
+    load,
+    save,
+    saving,
+    savedAt,
+    adopt,
+    adopting,
+    coverage
+  } = useFollowUpReview({ meetingId, entrySource });
   const [openRow, setOpenRow] = useState<FollowUpRowKey | null>(null);
   const [editing, setEditing] = useState(false);
   const [includeMeeting, setIncludeMeeting] = useState(true);
@@ -270,6 +279,7 @@ export function FollowUpReviewScreen() {
               }}
               onActivate={() => void activate()}
               activating={adopting}
+              saving={saving}
             />
           </section>
         </div>

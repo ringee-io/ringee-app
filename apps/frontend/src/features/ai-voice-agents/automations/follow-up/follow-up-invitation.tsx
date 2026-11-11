@@ -103,11 +103,16 @@ export function FollowUpInvitationCard() {
   const [coverage, setCoverage] = useState<FollowUpMeetingCoverage | null>(
     null
   );
+  // A coverage that could not be read is said as unknown, with a retry —
+  // never as covered, and never by hiding the invitation.
+  const [coverageFailed, setCoverageFailed] = useState(false);
+  const [coverageAttempt, setCoverageAttempt] = useState(0);
   const shown = useRef<string | null>(null);
 
   const meetingId = invitation?.meetingId ?? null;
   useEffect(() => {
     setCoverage(null);
+    setCoverageFailed(false);
     if (!meetingId || !remindersOn) return;
     let active = true;
     api
@@ -115,11 +120,13 @@ export function FollowUpInvitationCard() {
       .then((value) => {
         if (active) setCoverage(value);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setCoverageFailed(true);
+      });
     return () => {
       active = false;
     };
-  }, [api, meetingId, remindersOn]);
+  }, [api, meetingId, remindersOn, coverageAttempt]);
 
   const state = !invitation
     ? null
@@ -141,7 +148,8 @@ export function FollowUpInvitationCard() {
   }, [capture, invitation, state]);
 
   if (!invitation || !state) return null;
-  if (state === 'coverage' && !coverage) return null;
+  // Still asking: the answer is a moment away.
+  if (state === 'coverage' && !coverage && !coverageFailed) return null;
 
   const meeting = invitation.entrySource === 'meeting_booked';
   const href = followUpHref({
@@ -189,6 +197,17 @@ export function FollowUpInvitationCard() {
             {t('coverage.covered', {
               date: formatMoment(coverage.fireAt, locale)
             })}
+          </p>
+        ) : coverageFailed ? (
+          <p className='text-sm'>
+            {t('coverage.unknown')}{' '}
+            <button
+              type='button'
+              className='text-primary font-medium underline-offset-2 hover:underline'
+              onClick={() => setCoverageAttempt((attempt) => attempt + 1)}
+            >
+              {tReason('retry')}
+            </button>
           </p>
         ) : (
           <p className='text-sm'>

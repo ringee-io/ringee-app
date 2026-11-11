@@ -56,6 +56,8 @@ function build(
     lockedAutomation?: Row;
     /** What the conditional delete of the automation row reports. */
     removes?: boolean;
+    /** Overrides of the follow-up activation repository (Stage 4C). */
+    activations?: Row;
   } = {},
 ) {
   const calls: Row[] = [];
@@ -248,6 +250,7 @@ function build(
     {
       recordOptOut: async () => ({}),
       findForWorkspace: async () => null,
+      ...over.activations,
     } as never,
     {} as never,
     {} as never,
@@ -830,6 +833,69 @@ describe("VoiceAgentAutomationService pilot flag", () => {
         ),
       /not enabled/,
     );
+  });
+});
+
+describe("VoiceAgentAutomationService.adoptFollowUp retries", () => {
+  const ATTEMPT = {
+    requestKey: "request-1",
+    baseRevision: 1,
+    status: "failed",
+    at: new Date().toISOString(),
+  };
+  const STORED = (revision: number) => ({
+    id: "activation-1",
+    status: "configured",
+    scope: null,
+    revision,
+    adoptionAttempt: ATTEMPT,
+  });
+
+  function adoptWith(stored: Row) {
+    const reservations: Row[] = [];
+    const reviewed: number[] = [];
+    const { service } = build({
+      activations: {
+        findForWorkspace: async () => stored,
+        reserveAdoption: async (_ctx: Row, input: Row) => {
+          reservations.push(input);
+          return { ok: false, reason: "stale_revision", row: stored };
+        },
+        markAdoptionFailed: async () => true,
+      },
+    });
+    // Stops the adoption right after it chose the revision to apply.
+    (service as unknown as Row).followUpReview = async (
+      _ctx: Row,
+      _viewer: Row,
+      options: Row,
+    ) => {
+      reviewed.push(options.activation.revision);
+      throw new BadRequestException("stop");
+    };
+    const adopt = () =>
+      service.adoptFollowUp(
+        CTX,
+        { admin: true },
+        { requestKey: "request-1", expectedRevision: 1 },
+      );
+    return { adopt, reservations, reviewed };
+  }
+
+  it("resumes the revision a retry of the same request reserved", async () => {
+    const { adopt, reservations, reviewed } = adoptWith(STORED(2));
+    await assert.rejects(adopt, /stop/);
+    assert.equal(reservations.length, 0);
+    assert.deepEqual(reviewed, [2]);
+  });
+
+  it("refuses the retry once a save moved the row past that revision", async () => {
+    const { adopt, reservations, reviewed } = adoptWith(STORED(3));
+    await assert.rejects(adopt, ConflictException);
+    // Reserved against the revision the request reviewed, which is stale.
+    assert.equal(reservations.length, 1);
+    assert.equal(reservations[0]!.expectedRevision, 1);
+    assert.deepEqual(reviewed, []);
   });
 });
 

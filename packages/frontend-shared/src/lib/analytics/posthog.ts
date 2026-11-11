@@ -7,7 +7,13 @@ import {
   CLIENT_ENVELOPE,
   type ClientAnalyticsEvent,
 } from "./events";
-import { redactText, sanitizeUrl, sanitizeValue } from "./sanitize";
+import {
+  redactText,
+  sanitizeFrameUrl,
+  sanitizeStackFrame,
+  sanitizeUrl,
+  sanitizeValue,
+} from "./sanitize";
 
 /**
  * The dashboard's PostHog client (Stage 4B), owned by `useAnalytics`.
@@ -16,6 +22,8 @@ import { redactText, sanitizeUrl, sanitizeValue } from "./sanitize";
  *   personal or management key ever reaches the browser.
  * - One identity with the backend: the internal user id, and the effective
  *   workspace as the `workspace` group — both from `GET /analytics/identity`.
+ *   It lives in the page that applied it: one PostHog restored from an
+ *   earlier page is dropped when the SDK loads (`ensureAnalytics`).
  * - No autocapture, no session replay, no surveys, no flags, no automatic
  *   exception capture (Sentry owns uncaught errors in the browser): every
  *   event is an allowlisted one, and `before_send` sanitizes URLs once more.
@@ -45,7 +53,29 @@ export interface AnalyticsIdentity {
 }
 
 let started = false;
-let identity: AnalyticsIdentity | null = null;
+/**
+ * The person and the workspace applied now. The workspace is dropped on its
+ * own while the person switches workspace, so no event carries the one being
+ * left before the next identity arrives.
+ */
+let person: string | null = null;
+let workspace: AnalyticsIdentity["workspace"] | null = null;
+
+/** The envelope every event carries, as super properties. */
+function registerEnvelope(): void {
+  posthog.register({
+    schema_version: CLIENT_ANALYTICS_SCHEMA_VERSION,
+    actor_type: "human",
+    environment: ENVIRONMENT,
+    release_version: RELEASE,
+  });
+}
+
+/** `reset` clears super properties too: the envelope is registered again. */
+function resetPerson(): void {
+  posthog.reset();
+  registerEnvelope();
+}
 
 export function analyticsEnabled(): boolean {
   return typeof window !== "undefined" && Boolean(KEY);
@@ -83,12 +113,13 @@ export function ensureAnalytics(): boolean {
       ip: false,
       before_send: scrubEvent,
     });
-    posthog.register({
-      schema_version: CLIENT_ANALYTICS_SCHEMA_VERSION,
-      actor_type: "human",
-      environment: ENVIRONMENT,
-      release_version: RELEASE,
-    });
+    // A page starts without an identity: the person PostHog kept from an
+    // earlier page may have signed out since — outside the dashboard, or by
+    // the session expiring — and their workspace need not be this page's.
+    // The dashboard names the current one again (`useAnalyticsIdentity`);
+    // until it does, and if it cannot, events are anonymous.
+    if (posthog.get_property("$user_state") === "identified") posthog.reset();
+    registerEnvelope();
   } catch {
     // Telemetry never breaks the page.
   }
@@ -103,37 +134,56 @@ export function ensureAnalytics(): boolean {
 export function applyAnalyticsIdentity(next: AnalyticsIdentity): void {
   if (!ensureAnalytics()) return;
   try {
-    if (identity && identity.distinctId !== next.distinctId) {
-      posthog.reset();
-    }
-    if (!identity || identity.distinctId !== next.distinctId) {
-      posthog.identify(next.distinctId);
-    }
-    if (!identity || identity.workspace.key !== next.workspace.key) {
+    const anotherPerson = person !== next.distinctId;
+    if (person && anotherPerson) resetPerson();
+    if (anotherPerson) posthog.identify(next.distinctId);
+    // A new person is grouped even in the same workspace: reset dropped it.
+    if (anotherPerson || workspace?.key !== next.workspace.key) {
       posthog.group(ANALYTICS_WORKSPACE_GROUP, next.workspace.key, {
         workspace_type: next.workspace.type,
       });
     }
-    identity = next;
+    person = next.distinctId;
+    workspace = next.workspace;
   } catch {
     // Ignore: analytics is optional.
   }
 }
 
-/** Sign-out: the next person on this browser starts anonymous. */
+/**
+ * Sign-out, another person, or the dashboard closing: the next events on
+ * this browser are anonymous.
+ */
 export function clearAnalyticsIdentity(): void {
-  if (!identity) return;
-  identity = null;
+  if (!person && !workspace) return;
+  person = null;
+  workspace = null;
   if (!started) return;
   try {
-    posthog.reset();
+    resetPerson();
+  } catch {
+    // Ignore.
+  }
+}
+
+/**
+ * The same person switching workspace: they stay identified (no reset, which
+ * would split their session), but events carry no workspace until the next
+ * identity names the new one.
+ */
+export function clearAnalyticsWorkspace(): void {
+  if (!workspace) return;
+  workspace = null;
+  if (!started) return;
+  try {
+    posthog.resetGroups();
   } catch {
     // Ignore.
   }
 }
 
 export function currentAnalyticsIdentity(): AnalyticsIdentity | null {
-  return identity;
+  return person && workspace ? { distinctId: person, workspace } : null;
 }
 
 /** One allowlisted interaction or exposure, with its workspace. */
@@ -153,9 +203,9 @@ export function captureClientEvent(
       const sanitized = sanitizeValue(value);
       if (sanitized !== undefined) clean[key] = sanitized;
     }
-    if (identity) {
-      clean.workspace_key = identity.workspace.key;
-      clean.workspace_type = identity.workspace.type;
+    if (workspace) {
+      clean.workspace_key = workspace.key;
+      clean.workspace_type = workspace.type;
     }
     posthog.capture(event, clean);
   } catch {
@@ -169,10 +219,10 @@ export function capturePageview(): void {
   try {
     posthog.capture("$pageview", {
       $current_url: sanitizeUrl(window.location.href),
-      ...(identity
+      ...(workspace
         ? {
-            workspace_key: identity.workspace.key,
-            workspace_type: identity.workspace.type,
+            workspace_key: workspace.key,
+            workspace_type: workspace.type,
           }
         : {}),
     });
@@ -214,7 +264,7 @@ export function captureClientException(
       .slice(0, 30)
       .map((line) =>
         line.trimStart().startsWith("at ")
-          ? line.replace(/\?[^:)\s]*/g, "")
+          ? sanitizeStackFrame(line)
           : redactText(line),
       )
       .join("\n");
@@ -233,10 +283,10 @@ export function captureClientException(
       journey_step: bounded(context.journeyStep),
       severity: context.severity ?? "error",
       error_code: bounded(context.errorCode ?? normalizeCode(error)),
-      ...(identity
+      ...(workspace
         ? {
-            workspace_key: identity.workspace.key,
-            workspace_type: identity.workspace.type,
+            workspace_key: workspace.key,
+            workspace_type: workspace.type,
           }
         : {}),
       ...correlation,
@@ -299,6 +349,13 @@ function scrubEvent(event: CaptureResult | null): CaptureResult | null {
       if (!entry || typeof entry !== "object") return entry;
       const item = { ...(entry as Record<string, unknown>) };
       if (typeof item.value === "string") item.value = redactText(item.value);
+      const stacktrace = item.stacktrace as { frames?: unknown } | undefined;
+      if (stacktrace && Array.isArray(stacktrace.frames)) {
+        item.stacktrace = {
+          ...stacktrace,
+          frames: stacktrace.frames.map(scrubFrame),
+        };
+      }
       return item;
     });
   }
@@ -306,4 +363,23 @@ function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   delete properties.$elements;
   delete properties.$elements_chain;
   return { ...event, properties } as CaptureResult;
+}
+
+/**
+ * A frame as the SDK parsed it: its script URLs sanitized once more, and no
+ * source context or variables — as the server's `scrubFrame` does.
+ */
+function scrubFrame(frame: unknown): unknown {
+  if (!frame || typeof frame !== "object") return frame;
+  const clean = { ...(frame as Record<string, unknown>) };
+  for (const key of ["context_line", "pre_context", "post_context", "vars"]) {
+    delete clean[key];
+  }
+  for (const key of ["filename", "abs_path"]) {
+    const value = clean[key];
+    if (typeof value === "string" && value.includes("://")) {
+      clean[key] = sanitizeFrameUrl(value);
+    }
+  }
+  return clean;
 }

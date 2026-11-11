@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertTriangle, RotateCw, SearchX } from 'lucide-react';
 import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -40,6 +40,7 @@ export function NumberLookupRecovery({
   filtersUsed: boolean;
 }) {
   const t = useTranslations('settings.numbers.lookup');
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -70,9 +71,18 @@ export function NumberLookupRecovery({
       lookup_status: status
     });
 
-  const country =
-    new Intl.DisplayNames(undefined, { type: 'region' }).of(countryCode) ??
-    countryCode;
+  // Named in the interface's language, not the browser's; a code taken from
+  // the URL that is not a region keeps the code itself.
+  const country = (() => {
+    try {
+      return (
+        new Intl.DisplayNames([locale], { type: 'region' }).of(countryCode) ??
+        countryCode
+      );
+    } catch {
+      return countryCode;
+    }
+  })();
 
   return (
     <section

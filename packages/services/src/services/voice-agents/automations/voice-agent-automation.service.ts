@@ -31,6 +31,7 @@ import {
   OrganizationRepository,
   UserRepository,
   readAdoptionAttempt,
+  reservedRevisionOf,
   type FollowUpActivation,
   type FollowUpActivationWrite,
   type Meeting,
@@ -1806,10 +1807,14 @@ export class VoiceAgentAutomationService {
     if (
       stored &&
       attempt?.requestKey === input.requestKey &&
-      attempt.baseRevision === input.expectedRevision
+      attempt.baseRevision === input.expectedRevision &&
+      stored.revision === reservedRevisionOf(attempt)
     ) {
       // A retry of this very request: it resumes the revision it reserved
-      // rather than colliding with its own save.
+      // rather than colliding with its own save — only while the row is
+      // still at that revision. Once a save or another adoption moved it,
+      // what the request reviewed is gone, and the reservation below refuses
+      // it against the revision it sent.
       activation = stored;
     } else {
       const draft =

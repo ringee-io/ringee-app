@@ -379,7 +379,7 @@ export class CalendarService {
     await this.ensureGlobalCalendar(ctx);
     const [calendars, integrations, agentCounts] = await Promise.all([
       this.calendars.list(ctx, options),
-      this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId),
+      this.calendarRepo.listForWorkspace(ctx),
       this.calendars.countAgentsByCalendar(ctx),
     ]);
     return calendars.map((calendar) =>
@@ -395,7 +395,7 @@ export class CalendarService {
   async peekCalendars(ctx: OwnershipContext): Promise<CalendarSummary[]> {
     const [calendars, integrations] = await Promise.all([
       this.calendars.list(ctx),
-      this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId),
+      this.calendarRepo.listForWorkspace(ctx),
     ]);
     return calendars
       .filter((calendar) => !calendar.archivedAt)
@@ -424,7 +424,7 @@ export class CalendarService {
   ): Promise<CalendarSummary> {
     const calendar = await this.requireCalendar(ctx, calendarId);
     const [integrations, agentCounts] = await Promise.all([
-      this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId),
+      this.calendarRepo.listForWorkspace(ctx),
       this.calendars.countAgentsByCalendar(ctx),
     ]);
     return this.toSummary(
@@ -878,7 +878,7 @@ export class CalendarService {
     },
   ): Promise<CalendarIntegration> {
     const integration = await this.calendarRepo.connectAccount(
-      ctx.userId,
+      ctx,
       dto.provider,
       {
         accessToken: dto.accessToken,
@@ -886,7 +886,6 @@ export class CalendarService {
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
         calendarId: dto.calendarId,
         email: dto.email,
-        organizationId: ctx.organizationId,
       },
     );
 
@@ -912,10 +911,7 @@ export class CalendarService {
   async getIntegrations(
     ctx: OwnershipContext,
   ): Promise<CalendarIntegrationView[]> {
-    const integrations = await this.calendarRepo.findByUserOrOrg(
-      ctx.userId,
-      ctx.organizationId,
-    );
+    const integrations = await this.calendarRepo.listForWorkspace(ctx);
     return integrations.map(toCalendarIntegrationView);
   }
 
@@ -1261,10 +1257,7 @@ export class CalendarService {
     provider?: CalendarProvider,
     integrationId?: string | null,
   ): Promise<CalendarIntegration> {
-    const integrations = await this.calendarRepo.findByUserOrOrg(
-      ctx.userId,
-      ctx.organizationId,
-    );
+    const integrations = await this.calendarRepo.listForWorkspace(ctx);
     const integration = integrationId
       ? integrations.find((i) => i.id === integrationId)
       : provider

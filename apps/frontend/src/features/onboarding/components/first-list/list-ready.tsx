@@ -59,169 +59,178 @@ export function ListReady({
 
   return (
     <>
-      <div className='flex flex-col items-center px-6 pt-7 pb-5 text-center'>
-        <motion.span
-          initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 360, damping: 18 }}
-          className='flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 dark:bg-emerald-500'
-        >
-          <Check className='size-7' strokeWidth={2.75} />
-        </motion.span>
-        <DialogTitle className='mt-4 text-xl font-semibold tracking-tight'>
-          {t('title')}
-        </DialogTitle>
-        <DialogDescription className='mt-1.5 max-w-sm text-[14px] leading-relaxed'>
-          {t('description', { count, name })}
-        </DialogDescription>
-      </div>
-
-      <div className='space-y-3 px-6 pb-6'>
-        {rewardGranted > 0 ? (
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18, duration: 0.25 }}
-            className='flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-500/25 dark:bg-emerald-500/[0.08]'
+      {/* Scrolls inside the dialog's capped height, like every other step, so
+          "Start calling" below stays reachable on a short screen. */}
+      <div className='min-h-0 flex-1 overflow-y-auto'>
+        <div className='flex flex-col items-center px-6 pt-7 pb-5 text-center'>
+          <motion.span
+            initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 18 }}
+            className='flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 dark:bg-emerald-500'
           >
-            <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white dark:bg-emerald-500'>
-              <Gift className='size-5' />
-            </span>
-            <span className='min-w-0'>
-              <span className='block text-[15px] font-semibold'>
-                {t('rewardTitle', {
-                  amount: `$${rewardGranted.toFixed(2)}`
-                })}
-              </span>
-              <span className='text-muted-foreground block text-[13px] leading-snug'>
-                {t('rewardHint')}
-              </span>
-            </span>
-          </motion.div>
-        ) : null}
+            <Check className='size-7' strokeWidth={2.75} />
+          </motion.span>
+          <DialogTitle className='mt-4 text-xl font-semibold tracking-tight'>
+            {t('title')}
+          </DialogTitle>
+          <DialogDescription className='mt-1.5 max-w-sm text-[14px] leading-relaxed'>
+            {t('description', { count, name })}
+          </DialogDescription>
+        </div>
 
-        {line ? (
-          <div className='rounded-xl border p-3.5 text-[13px]'>
-            <p className='flex items-center gap-2 font-semibold'>
-              <PhoneCall className='size-4 shrink-0 text-emerald-600 dark:text-emerald-400' />
-              {line.kind === 'own_number' && line.number
-                ? t('line.own', { number: line.number })
-                : line.kind === 'shared_number'
-                  ? t('line.shared')
-                  : t('line.none')}
-            </p>
-            <p className='text-muted-foreground mt-1 leading-snug'>
-              {line.kind === 'shared_number'
-                ? t('line.sharedHint')
-                : line.kind === 'none'
-                  ? t('line.noneHint')
-                  : t('line.ownHint')}
-            </p>
-            {line.kind === 'none' ? (
-              <div className='mt-3 grid gap-2'>
-                <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] p-3'>
-                  <p className='font-semibold'>{t('line.buyTitle')}</p>
-                  <p className='text-muted-foreground mt-0.5 leading-snug'>
-                    {t('line.buyText')}
-                  </p>
-                  <Button asChild size='sm' className='mt-2'>
-                    <Link href='/dashboard/buy-number?tab=buy'>
-                      {t('line.buyCta')}
-                    </Link>
-                  </Button>
-                </div>
-                <div className='rounded-lg border p-3'>
-                  <p className='font-semibold'>{t('line.verifyTitle')}</p>
-                  <p className='text-muted-foreground mt-0.5 leading-snug'>
-                    {t('line.verifyText')}
-                  </p>
-                  <Button asChild size='sm' variant='outline' className='mt-2'>
-                    <Link href='/dashboard/buy-number?tab=caller-ids'>
-                      {t('line.verifyCta')}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {line.hasCredit === false ? (
-              <div className='mt-2 flex flex-wrap items-center justify-between gap-2'>
-                <p className='text-amber-700 dark:text-amber-300'>
-                  {t('line.noCredit')}
-                </p>
-                {line.topUp}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {onConfigureFollowUp ? (
-          <div className='bg-muted/40 flex gap-3 rounded-xl border p-3.5'>
-            <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-500'>
-              <Cpu className='size-4' aria-hidden />
-            </span>
-            <div className='min-w-0'>
-              <p className='text-[14px] leading-snug font-semibold'>
-                {t('followUp.text')}
-              </p>
-              <p className='text-muted-foreground mt-0.5 text-[12px]'>
-                {t('followUp.hint')}
-              </p>
-              <Button
-                variant='outline'
-                size='sm'
-                className='mt-2'
-                onClick={onConfigureFollowUp}
-              >
-                {t('followUp.cta')}
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {skipped.length > 0 ? (
-          <div className='rounded-lg border text-sm'>
-            <button
-              type='button'
-              onClick={() => setShowSkipped((open) => !open)}
-              aria-expanded={showSkipped}
-              className='hover:bg-muted/40 flex w-full items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-left transition-colors'
+        <div className='space-y-3 px-6 pb-6'>
+          {rewardGranted > 0 ? (
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18, duration: 0.25 }}
+              className='flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-500/25 dark:bg-emerald-500/[0.08]'
             >
-              <span className='flex items-center gap-2 font-medium'>
-                <AlertTriangle className='size-4 shrink-0 text-amber-600 dark:text-amber-400' />
-                {t('skipped', { count: skipped.length })}
+              <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white dark:bg-emerald-500'>
+                <Gift className='size-5' />
               </span>
-              <span className='text-muted-foreground flex items-center gap-1 text-xs'>
-                {t('why')}
-                <ChevronDown
-                  className={cn(
-                    'size-4 transition-transform',
-                    showSkipped && 'rotate-180'
-                  )}
-                />
+              <span className='min-w-0'>
+                <span className='block text-[15px] font-semibold'>
+                  {t('rewardTitle', {
+                    amount: `$${rewardGranted.toFixed(2)}`
+                  })}
+                </span>
+                <span className='text-muted-foreground block text-[13px] leading-snug'>
+                  {t('rewardHint')}
+                </span>
               </span>
-            </button>
-            {showSkipped ? (
-              <ul className='text-muted-foreground max-h-32 space-y-1 overflow-y-auto border-t px-3.5 py-2.5 text-xs'>
-                {skipped.map((person, index) => (
-                  <li key={index}>
-                    {person.row !== undefined
-                      ? tList('skippedRow', {
-                          row: person.row,
-                          message: person.message
-                        })
-                      : tList('skippedPerson', {
-                          phone: formatForDisplay(person.phoneNumber ?? ''),
-                          message: person.message
-                        })}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
+            </motion.div>
+          ) : null}
+
+          {line ? (
+            <div className='rounded-xl border p-3.5 text-[13px]'>
+              <p className='flex items-center gap-2 font-semibold'>
+                <PhoneCall className='size-4 shrink-0 text-emerald-600 dark:text-emerald-400' />
+                {line.kind === 'own_number' && line.number
+                  ? t('line.own', { number: line.number })
+                  : line.kind === 'shared_number'
+                    ? t('line.shared')
+                    : t('line.none')}
+              </p>
+              <p className='text-muted-foreground mt-1 leading-snug'>
+                {line.kind === 'shared_number'
+                  ? t('line.sharedHint')
+                  : line.kind === 'none'
+                    ? t('line.noneHint')
+                    : t('line.ownHint')}
+              </p>
+              {line.kind === 'none' ? (
+                <div className='mt-3 grid gap-2'>
+                  <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] p-3'>
+                    <p className='font-semibold'>{t('line.buyTitle')}</p>
+                    <p className='text-muted-foreground mt-0.5 leading-snug'>
+                      {t('line.buyText')}
+                    </p>
+                    <Button asChild size='sm' className='mt-2'>
+                      <Link href='/dashboard/buy-number?tab=buy'>
+                        {t('line.buyCta')}
+                      </Link>
+                    </Button>
+                  </div>
+                  <div className='rounded-lg border p-3'>
+                    <p className='font-semibold'>{t('line.verifyTitle')}</p>
+                    <p className='text-muted-foreground mt-0.5 leading-snug'>
+                      {t('line.verifyText')}
+                    </p>
+                    <Button
+                      asChild
+                      size='sm'
+                      variant='outline'
+                      className='mt-2'
+                    >
+                      <Link href='/dashboard/buy-number?tab=caller-ids'>
+                        {t('line.verifyCta')}
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              {line.hasCredit === false ? (
+                <div className='mt-2 flex flex-wrap items-center justify-between gap-2'>
+                  <p className='text-amber-700 dark:text-amber-300'>
+                    {t('line.noCredit')}
+                  </p>
+                  {line.topUp}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {onConfigureFollowUp ? (
+            <div className='bg-muted/40 flex gap-3 rounded-xl border p-3.5'>
+              <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-500'>
+                <Cpu className='size-4' aria-hidden />
+              </span>
+              <div className='min-w-0'>
+                <p className='text-[14px] leading-snug font-semibold'>
+                  {t('followUp.text')}
+                </p>
+                <p className='text-muted-foreground mt-0.5 text-[12px]'>
+                  {t('followUp.hint')}
+                </p>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='mt-2'
+                  onClick={onConfigureFollowUp}
+                >
+                  {t('followUp.cta')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {skipped.length > 0 ? (
+            <div className='rounded-lg border text-sm'>
+              <button
+                type='button'
+                onClick={() => setShowSkipped((open) => !open)}
+                aria-expanded={showSkipped}
+                className='hover:bg-muted/40 flex w-full items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-left transition-colors'
+              >
+                <span className='flex items-center gap-2 font-medium'>
+                  <AlertTriangle className='size-4 shrink-0 text-amber-600 dark:text-amber-400' />
+                  {t('skipped', { count: skipped.length })}
+                </span>
+                <span className='text-muted-foreground flex items-center gap-1 text-xs'>
+                  {t('why')}
+                  <ChevronDown
+                    className={cn(
+                      'size-4 transition-transform',
+                      showSkipped && 'rotate-180'
+                    )}
+                  />
+                </span>
+              </button>
+              {showSkipped ? (
+                <ul className='text-muted-foreground max-h-32 space-y-1 overflow-y-auto border-t px-3.5 py-2.5 text-xs'>
+                  {skipped.map((person, index) => (
+                    <li key={index}>
+                      {person.row !== undefined
+                        ? tList('skippedRow', {
+                            row: person.row,
+                            message: person.message
+                          })
+                        : tList('skippedPerson', {
+                            phone: formatForDisplay(person.phoneNumber ?? ''),
+                            message: person.message
+                          })}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <div className='border-t px-6 py-4'>
+      <div className='shrink-0 border-t px-6 py-4'>
         <Button
           autoFocus
           onClick={onStart}

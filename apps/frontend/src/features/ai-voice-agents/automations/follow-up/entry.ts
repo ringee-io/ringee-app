@@ -107,7 +107,14 @@ function rememberDismissed(key: string): void {
 export const useFollowUpInvitation = create<InvitationState>((set, get) => ({
   invitation: null,
   offer: (next) => {
-    if (wasDismissed(next.interactionKey)) return;
+    // The call's own key too: dismissing a call's outcome also dismisses a
+    // meeting booked on that call.
+    if (
+      wasDismissed(next.interactionKey) ||
+      (next.callId !== null && wasDismissed(`call:${next.callId}`))
+    ) {
+      return;
+    }
     const current = get().invitation;
     const sameInteraction =
       current &&
@@ -126,7 +133,9 @@ export const useFollowUpInvitation = create<InvitationState>((set, get) => ({
     const current = get().invitation;
     if (current) {
       rememberDismissed(current.interactionKey);
-      if (current.callId) rememberDismissed(current.callId);
+      // The call's own key, as its saved outcome offers it: dismissing a
+      // meeting booked on a call also dismisses that call's outcome.
+      if (current.callId) rememberDismissed(`call:${current.callId}`);
     }
     set({ invitation: null });
   }

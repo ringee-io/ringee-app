@@ -823,7 +823,12 @@ function CalendarEditor({
 }) {
   const t = useTranslations('aiVoiceAgents.followUp');
   const calendar = review.rows.calendar;
-  const [calendarId, setCalendarId] = useState(calendar.selected?.id ?? null);
+  // The calendar the picker shows is the one saved: with none selected yet,
+  // the first candidate it displays — never a selection that is not sent.
+  const [calendarId, setCalendarId] = useState(
+    calendar.selected?.id ??
+      (calendar.candidates.length > 1 ? calendar.candidates[0]!.id : null)
+  );
   const needsHours = calendar.availability.source !== 'calendar';
   const [hours, setHours] = useState<CallingWindow>(
     calendar.availability.window ?? {

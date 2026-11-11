@@ -77,6 +77,52 @@ export function sanitizeUrl(raw: string): string {
 }
 
 /**
+ * A stack frame's script URL, without its query or fragment. The app's own
+ * build assets keep their path — a chunk's name identifies code, never a
+ * person, and symbolication matches on it; any other URL (the page of an
+ * inline script, another origin) is sanitized like a page URL.
+ */
+export function sanitizeFrameUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw.slice(0, MAX_SCANNED));
+  } catch {
+    return "[url]";
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return "[url]";
+  if (url.pathname.startsWith("/_next/static/")) {
+    return `${url.protocol}//${url.host}${url.pathname}`;
+  }
+  return sanitizeUrl(`${url.protocol}//${url.host}${url.pathname}`);
+}
+
+/**
+ * One `at …` line of a stack trace with every URL in it sanitized
+ * (`sanitizeFrameUrl`) and its `:line:column` kept.
+ */
+export function sanitizeStackFrame(line: string): string {
+  return line.slice(0, MAX_SCANNED).replace(/[^\s()]+/g, (token) => {
+    if (!token.includes("://")) return token;
+    const [url, location] = splitFrameLocation(token);
+    return `${sanitizeFrameUrl(url)}${location}`;
+  });
+}
+
+/** `https://…/app.js:12:34` → [`https://…/app.js`, `:12:34`]. Linear. */
+function splitFrameLocation(token: string): [string, string] {
+  let end = token.length;
+  for (let part = 0; part < 2; part += 1) {
+    let start = end;
+    while (start > 0 && token[start - 1]! >= "0" && token[start - 1]! <= "9") {
+      start -= 1;
+    }
+    if (start === end || start === 0 || token[start - 1] !== ":") break;
+    end = start - 1;
+  }
+  return [token.slice(0, end), token.slice(end)];
+}
+
+/**
  * Redacts what may identify a person or grant access in free text: quoted
  * spans, emails, phone-like digit runs, URLs beyond their host, long opaque
  * tokens and `key=value` pairs with a sensitive key. UUIDs are kept.
@@ -194,6 +240,14 @@ function redactDigitRuns(text: string): string {
   return out;
 }
 
+/**
+ * Whether `text` holds a phone-like run in any format — `+1-415-555-0100` as
+ * much as `4155550100`. ISO dates are not phone runs.
+ */
+function containsPhoneRun(text: string): boolean {
+  return redactDigitRuns(text) !== text;
+}
+
 /** A bounded scalar for a property; undefined drops it. */
 export function sanitizeValue(
   value: unknown,
@@ -205,18 +259,28 @@ export function sanitizeValue(
   }
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (/^[A-Za-z0-9_:\-.+<>]{1,64}$/.test(trimmed) && !/\d{7}/.test(trimmed)) {
+    // A plain code passes as it is — unless it holds a phone-like run, which
+    // a code's characters (digits, `+`, `-`, `.`) can spell.
+    if (
+      /^[A-Za-z0-9_:\-.+<>]{1,64}$/.test(trimmed) &&
+      !/\d{7}/.test(trimmed) &&
+      !containsPhoneRun(trimmed)
+    ) {
       return trimmed;
     }
     if (UUID.test(trimmed)) return trimmed;
     return redactText(trimmed, 64);
   }
   if (Array.isArray(value)) {
-    return value
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter((item) => /^[a-z0-9_:-]{1,40}$/i.test(item))
-      .slice(0, 12);
+    return (
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter((item) => /^[a-z0-9_:-]{1,40}$/i.test(item))
+        // A list carries codes: a phone number, dashed or not, is dropped.
+        .filter((item) => UUID.test(item) || !containsPhoneRun(item))
+        .slice(0, 12)
+    );
   }
   return undefined;
 }

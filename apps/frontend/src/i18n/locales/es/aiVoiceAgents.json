@@ -1008,7 +1008,8 @@
       },
       "coverage": {
         "covered": "Ringee la confirmará: llamará el {date}.",
-        "notCovered": "Sin confirmación automática: {reason}"
+        "notCovered": "Sin confirmación automática: {reason}",
+        "unknown": "No pudimos comprobar si Ringee la confirmará."
       },
       "see": "Ver seguimiento",
       "dismiss": "Descartar"

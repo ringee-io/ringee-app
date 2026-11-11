@@ -546,8 +546,11 @@ Bitácora: «Tu configuración», «Lo que hará la IA», «Activación y consum
 estado activado) para freelancers y organizaciones; revisión de solo lectura,
 borrador guardado por filas, adopción explícita e idempotente con alcance,
 versión (`followup-v1`), estado y opt-outs durables; 240 minutos para políticas
-nuevas sin tocar las existentes; cobertura de reuniones existentes solo explícita
-(«Incluir esta reunión en las confirmaciones»); cuatro puntos de entrada
+nuevas sin tocar las existentes; una política creada al adoptar cubre las reservas
+nuevas, y las reuniones ya agendadas solo entran de forma explícita («Incluir esta
+reunión en las confirmaciones» o todas las próximas), mientras que las políticas
+que ya existían conservan su cobertura sin requerir esa inclusión; cuatro puntos
+de entrada
 (primera lista, «Interesado», reunión agendada, AI Voice Agents), una sola
 invitación por interacción con preferencia por la reunión; estados distintos para
 llamada manual lista y seguimiento IA pendiente/activo/en pausa/bloqueado.

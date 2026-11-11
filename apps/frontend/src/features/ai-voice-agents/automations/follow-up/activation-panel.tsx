@@ -36,7 +36,8 @@ export function ActivationPanel({
   onIncludeMeetingChange,
   onOpenRow,
   onActivate,
-  activating
+  activating,
+  saving = false
 }: {
   review: FollowUpReview;
   returnTo: FollowUpReturn | null;
@@ -45,6 +46,8 @@ export function ActivationPanel({
   onOpenRow: (row: FollowUpRowKey) => void;
   onActivate: () => void;
   activating: boolean;
+  /** A row is still being saved: activating waits until it is. */
+  saving?: boolean;
 }) {
   const t = useTranslations('aiVoiceAgents.followUp');
   const locale = useLocale();
@@ -108,12 +111,17 @@ export function ActivationPanel({
         </CreditPopover>
       );
     }
-    if (state === 'ready_to_activate' || state === 'pending') {
+    // Paused: activating again resumes it, as the panel says.
+    if (
+      state === 'ready_to_activate' ||
+      state === 'pending' ||
+      state === 'paused'
+    ) {
       return (
         <Button
           size='lg'
           className='w-full bg-emerald-600 text-white hover:bg-emerald-700'
-          disabled={activating}
+          disabled={activating || saving}
           onClick={onActivate}
         >
           {activating ? t('panel.activating') : t('panel.activate')}

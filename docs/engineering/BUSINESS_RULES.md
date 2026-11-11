@@ -1544,6 +1544,33 @@ predate it fall back to their creator.
 - **Risk if violated:** a lead's "yes" confirms a time they were never asked
   about, or a reminder names someone the meeting is not with
 
+### CAL-004 — A connected calendar account belongs to the workspace it was connected in
+
+A Google or Microsoft account (`CalendarIntegration`) is connected in one
+workspace — the one the OAuth round-trip started in — and only that workspace
+lists it, points a calendar or an agent at it, or pushes, moves and deletes
+events through it. An organization's accounts are the organization's, whoever
+connected them; a personal workspace's are its owner's from that workspace. The
+same person's accounts never cross between their personal workspace and an
+organization, or between two organizations. Connecting the same account in a
+second workspace gives that workspace its own row and credential; reconnecting
+in the same workspace refreshes the row its calendars already point at.
+
+A pointer to another workspace's account (a calendar, an agent's legacy
+`calendarIntegrationId`, a meeting's recorded destination) resolves as "not
+connected": no event is pushed through it, and moving or deleting an event
+created through it is recorded as a failed sync until the workspace connects
+its own account.
+
+Until 2026-11-11 the lookup matched the connecting user too
+(`findByUserOrOrg`), so a member's personal account was usable inside their
+organization and the reverse. Links made that way stop resolving with this rule.
+
+- **Source of truth:** `CalendarIntegrationRepository.listForWorkspace` /
+  `findByIdForOwner` / `connectAccount`
+- **Risk if violated:** one workspace reads another's account, or books onto a
+  calendar the other workspace — or the person who left it — controls
+
 ## AI voice agents (`AGENT`)
 
 ### AGENT-001 — The blueprint owns defaults and enforcement; the user owns copy

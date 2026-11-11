@@ -1,16 +1,23 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CalendarIntegration, CalendarProvider } from "@prisma/client";
-import { OwnershipContext } from "@ringee/platform";
+import { buildOwnershipFilter, OwnershipContext } from "@ringee/platform";
 import { lockWorkspace } from "./calendar.repository";
 
+/**
+ * Connected calendar accounts (Google, Microsoft). An account belongs to the
+ * workspace it was connected in, and only that workspace reads, lists or uses
+ * it (CAL-004): an organization sees the accounts connected in it, a personal
+ * workspace the ones its owner connected there — never the same person's
+ * accounts from their other workspace.
+ */
 @Injectable()
 export class CalendarIntegrationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Connects an external calendar account, or refreshes the one already
-   * connected.
+   * Connects an external calendar account to the workspace `ctx` names, or
+   * refreshes the one that person already connected there.
    *
    * A workspace may hold several accounts of the same provider, because
    * different Ringee calendars may push their events to different Google
@@ -20,13 +27,14 @@ export class CalendarIntegrationRepository {
    * them behind a fourth row. An account whose email the provider did not
    * return has no identity to match on and is treated as the workspace's single
    * unnamed account of that provider, which is how every connection made before
-   * this existed behaves.
+   * this existed behaves. Connecting the same account in another workspace
+   * gives that workspace its own row and never touches this one.
    *
    * The workspace lock is what keeps two concurrent OAuth callbacks from
    * creating the same account twice.
    */
   async connectAccount(
-    userId: string,
+    ctx: OwnershipContext,
     provider: CalendarProvider,
     data: {
       accessToken: string;
@@ -34,17 +42,19 @@ export class CalendarIntegrationRepository {
       expiresAt?: Date;
       calendarId?: string;
       email?: string;
-      organizationId?: string | null;
     },
   ): Promise<CalendarIntegration> {
-    const organizationId = data.organizationId ?? null;
-    const ctx: OwnershipContext = { userId, organizationId };
     const email = data.email ?? null;
 
     return this.prisma.$transaction(async (tx) => {
       await lockWorkspace(tx, ctx);
       const existing = await tx.calendarIntegration.findFirst({
-        where: { userId, provider, email },
+        where: {
+          ...buildOwnershipFilter(ctx),
+          userId: ctx.userId,
+          provider,
+          email,
+        },
         orderBy: { createdAt: "asc" },
       });
 
@@ -63,70 +73,33 @@ export class CalendarIntegrationRepository {
         });
       }
       return tx.calendarIntegration.create({
-        data: { userId, provider, organizationId, ...credentials },
+        data: {
+          userId: ctx.userId,
+          organizationId: ctx.organizationId ?? null,
+          provider,
+          ...credentials,
+        },
       });
     });
   }
 
   /**
-   * Workspace-scoped, so an id from another tenant reads as "not found".
-   *
-   * Visibility is deliberately the same rule `findByUserOrOrg` already applies
-   * to this model — the account a member connected personally is reachable in
-   * their organization context — rather than the stricter
-   * `buildOwnershipFilter`, which would hide accounts agents are already
-   * pointed at.
+   * Workspace-scoped, so an id from another workspace — another tenant's, or
+   * the same person's other workspace — reads as "not found".
    */
   findByIdForOwner(
     ctx: OwnershipContext,
     id: string,
   ): Promise<CalendarIntegration | null> {
     return this.prisma.calendarIntegration.findFirst({
-      where: {
-        id,
-        isActive: true,
-        OR: [
-          { userId: ctx.userId },
-          ...(ctx.organizationId
-            ? [{ organizationId: ctx.organizationId }]
-            : []),
-        ],
-      },
+      where: { id, isActive: true, ...buildOwnershipFilter(ctx) },
     });
   }
 
-  async findByUser(userId: string): Promise<CalendarIntegration[]> {
+  /** The workspace's connected accounts. */
+  listForWorkspace(ctx: OwnershipContext): Promise<CalendarIntegration[]> {
     return this.prisma.calendarIntegration.findMany({
-      where: { userId, isActive: true },
-    });
-  }
-
-  async findByOrganization(
-    organizationId: string,
-  ): Promise<CalendarIntegration[]> {
-    return this.prisma.calendarIntegration.findMany({
-      where: { organizationId, isActive: true },
-    });
-  }
-
-  async findByUserOrOrg(
-    userId: string,
-    organizationId?: string | null,
-  ): Promise<CalendarIntegration[]> {
-    return this.prisma.calendarIntegration.findMany({
-      where: {
-        isActive: true,
-        OR: [{ userId }, ...(organizationId ? [{ organizationId }] : [])],
-      },
-    });
-  }
-
-  async findByOrgAndProvider(
-    organizationId: string,
-    provider: CalendarProvider,
-  ): Promise<CalendarIntegration | null> {
-    return this.prisma.calendarIntegration.findFirst({
-      where: { organizationId, provider, isActive: true },
+      where: { isActive: true, ...buildOwnershipFilter(ctx) },
     });
   }
 

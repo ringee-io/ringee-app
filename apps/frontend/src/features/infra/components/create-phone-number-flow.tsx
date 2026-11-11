@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, useReducedMotion } from 'framer-motion';
 import { InfraDialog } from './infra-dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -70,6 +71,8 @@ export function CreatePhoneNumberFlow({
   onClose: () => void;
 }) {
   const api = useInfraApi();
+  // The same copy as the Buy number page's failed lookup.
+  const tLookup = useTranslations('settings.numbers.lookup');
   const reduce = useReducedMotion();
   const [step, setStep] = useState<Step>('criteria');
   const [country, setCountry] = useState('US');
@@ -111,9 +114,12 @@ export function CreatePhoneNumberFlow({
       if (res.lookupStatus === 'failed') {
         // The inventory did not answer: that is not "no numbers". Stay on
         // the criteria and offer the same search again.
-        toast.error('The number inventory did not answer.', {
-          description: 'Nothing was searched. Try again in a moment.',
-          action: { label: 'Retry', onClick: () => void handleSearch() }
+        toast.error(tLookup('failedTitle'), {
+          description: tLookup('failedHint'),
+          action: {
+            label: tLookup('retry'),
+            onClick: () => void handleSearch()
+          }
         });
         return;
       }

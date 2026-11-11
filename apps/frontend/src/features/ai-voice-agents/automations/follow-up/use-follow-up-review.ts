@@ -27,7 +27,7 @@ export function useFollowUpReview(input: {
   const api = useAutomationApi();
   const locale = useLocale();
   const { captureException } = useAnalytics();
-  const [review, setReview] = useState<FollowUpReview | null>(null);
+  const [review, setReviewState] = useState<FollowUpReview | null>(null);
   const [status, setStatus] = useState<ReviewStatus>('loading');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,16 +37,33 @@ export function useFollowUpReview(input: {
   );
   const timeZone = useRef(browserTimeZone()).current;
   const meetingId = input.meetingId;
+  // Which load the screen is waiting for: every load takes a new one, and an
+  // answer meant for an earlier one — another meeting's, or one a newer load
+  // replaced — is dropped, so Activate never acts on a review not on screen.
+  const generation = useRef(0);
+  // The review on screen, readable after an await, where state is stale.
+  const reviewRef = useRef<FollowUpReview | null>(null);
+  // The save still on its way. Saves run one after another and adoption waits
+  // for them, so each uses the revision the previous one produced.
+  const pendingSave = useRef<Promise<unknown> | null>(null);
+
+  const setReview = useCallback((next: FollowUpReview | null) => {
+    reviewRef.current = next;
+    setReviewState(next);
+  }, []);
 
   const load = useCallback(
     async (quiet = false) => {
+      const request = ++generation.current;
       if (!quiet) setStatus('loading');
       try {
         const next = await api.followUpReview({ meetingId, timeZone });
+        if (request !== generation.current) return null;
         setReview(next);
         setStatus('ready');
         return next;
       } catch (error) {
+        if (request !== generation.current) return null;
         if (!(error instanceof ApiError) || error.status >= 500) {
           captureException(error, {
             component: 'FollowUpReview',
@@ -58,12 +75,16 @@ export function useFollowUpReview(input: {
         return null;
       }
     },
-    [api, captureException, meetingId, timeZone]
+    [api, captureException, meetingId, setReview, timeZone]
   );
 
   useEffect(() => {
+    // Another meeting is another review: the previous one — and its
+    // meeting's coverage — is neither shown nor activated while this loads.
+    setReview(null);
+    setCoverage(null);
     void load();
-  }, [load]);
+  }, [load, setReview]);
 
   /**
    * Saves the rows that changed; the server merges them over what was
@@ -71,55 +92,75 @@ export function useFollowUpReview(input: {
    */
   const save = useCallback(
     async (changes: Partial<FollowUpDraft>) => {
-      if (!review) return { ok: false as const, conflict: false };
-      setSaving(true);
+      const previous = pendingSave.current;
+      const run = (async () => {
+        if (previous) await previous.catch(() => undefined);
+        const current = reviewRef.current;
+        if (!current) return { ok: false as const, conflict: false };
+        const request = generation.current;
+        setSaving(true);
+        try {
+          const next = await api.saveFollowUp({
+            draft: changes,
+            expectedRevision: current.activation.revision,
+            ...(input.entrySource ? { entrySource: input.entrySource } : {}),
+            ...(timeZone ? { timeZone } : {}),
+            ...(meetingId ? { meetingId } : {})
+          });
+          if (request === generation.current) setReview(next);
+          setSavedAt(new Date());
+          return { ok: true as const, conflict: false };
+        } catch (error) {
+          const conflict = error instanceof ApiError && error.status === 409;
+          if (conflict) await load(true);
+          return { ok: false as const, conflict, error };
+        } finally {
+          setSaving(false);
+        }
+      })();
+      pendingSave.current = run;
       try {
-        const next = await api.saveFollowUp({
-          draft: changes,
-          expectedRevision: review.activation.revision,
-          ...(input.entrySource ? { entrySource: input.entrySource } : {}),
-          ...(timeZone ? { timeZone } : {}),
-          ...(meetingId ? { meetingId } : {})
-        });
-        setReview(next);
-        setSavedAt(new Date());
-        return { ok: true as const, conflict: false };
-      } catch (error) {
-        const conflict = error instanceof ApiError && error.status === 409;
-        if (conflict) await load(true);
-        return { ok: false as const, conflict, error };
+        return await run;
       } finally {
-        setSaving(false);
+        if (pendingSave.current === run) pendingSave.current = null;
       }
     },
-    [api, input.entrySource, load, meetingId, review, timeZone]
+    [api, input.entrySource, load, meetingId, setReview, timeZone]
   );
 
   /** "Activate automatic follow-up". One request key per click. */
   const adopt = useCallback(
     async (options: { includeMeeting: boolean }) => {
-      if (!review) return { ok: false as const };
       setAdopting(true);
       const requestKey = crypto.randomUUID();
       try {
+        // A save still on its way is part of what the person activates.
+        if (pendingSave.current) {
+          await pendingSave.current.catch(() => undefined);
+        }
+        const current = reviewRef.current;
+        if (!current) return { ok: false as const };
+        const request = generation.current;
         const result = await api.adoptFollowUp({
           requestKey,
-          expectedRevision: review.activation.revision,
+          expectedRevision: current.activation.revision,
           draft: {
             includeMeetingId:
-              options.includeMeeting && review.sourceMeeting
-                ? review.sourceMeeting.id
+              options.includeMeeting && current.sourceMeeting
+                ? current.sourceMeeting.id
                 : null
           },
           ...(input.entrySource ? { entrySource: input.entrySource } : {}),
           ...(timeZone ? { timeZone } : {}),
           language: locale,
-          ...(options.includeMeeting && review.sourceMeeting
-            ? { meetingVersion: review.sourceMeeting.version }
+          ...(options.includeMeeting && current.sourceMeeting
+            ? { meetingVersion: current.sourceMeeting.version }
             : {})
         });
-        setReview(result.review);
-        setCoverage(result.meetingCoverage);
+        if (request === generation.current) {
+          setReview(result.review);
+          setCoverage(result.meetingCoverage);
+        }
         setSavedAt(new Date());
         return { ok: true as const };
       } catch (error) {
@@ -134,13 +175,24 @@ export function useFollowUpReview(input: {
             journeyStep: 'follow_up_activation'
           });
         }
-        if (error instanceof ApiError && error.status === 409) await load(true);
+        // Whatever failed, the screen reads the review again: the server
+        // reserves a new revision before it applies anything, and a request
+        // that never answered may have been applied.
+        await load(true);
         return { ok: false as const, error };
       } finally {
         setAdopting(false);
       }
     },
-    [api, captureException, input.entrySource, load, locale, review, timeZone]
+    [
+      api,
+      captureException,
+      input.entrySource,
+      load,
+      locale,
+      setReview,
+      timeZone
+    ]
   );
 
   return {
