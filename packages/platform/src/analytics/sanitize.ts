@@ -219,11 +219,15 @@ function isJwtLike(value: string): boolean {
 }
 
 const PHONE_CHARS = new Set("0123456789+()-. /".split(""));
+/** A whole ISO date, `2026-11-10`, not glued to another digit. */
+const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?!\d)/;
 
 /**
  * Replaces runs of digits and phone separators holding seven or more digits.
- * Linear: each character is visited once. An ISO date (`2026-11-10`) is left
- * alone; a time of day has too few digits to match.
+ * Linear: each character is visited once. A complete ISO date (`2026-11-10`)
+ * is left alone and the scan goes on right after it, so a number that follows
+ * a date (`2026-11-10 415-555-0100`) is still a phone run; a time of day has
+ * too few digits to match.
  */
 function redactPhoneRuns(text: string): string {
   let out = "";
@@ -234,6 +238,11 @@ function redactPhoneRuns(text: string): string {
     if (!startsRun) {
       out += ch;
       i += 1;
+      continue;
+    }
+    if (ISO_DATE.test(text.slice(i, i + 11))) {
+      out += text.slice(i, i + 10);
+      i += 10;
       continue;
     }
     let j = i;
@@ -250,7 +259,7 @@ function redactPhoneRuns(text: string): string {
       trailing = run[run.length - 1]! + trailing;
       run = run.slice(0, -1);
     }
-    if (digits >= 7 && !/^\d{4}-\d{2}-\d{2}/.test(run)) {
+    if (digits >= 7) {
       out += `[phone]${trailing}`;
     } else {
       out += run + trailing;
@@ -262,7 +271,8 @@ function redactPhoneRuns(text: string): string {
 
 /**
  * Whether `text` holds a phone-like run, in any format — `+1-415-555-0100`
- * as much as `4155550100`. ISO dates are not phone runs (`redactPhoneRuns`).
+ * as much as `4155550100`. A complete ISO date is not one, but it does not
+ * hide a number after it (`redactPhoneRuns`).
  */
 function containsPhoneRun(text: string): boolean {
   return redactPhoneRuns(text) !== text;

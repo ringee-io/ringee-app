@@ -1554,7 +1554,9 @@ connected them; a personal workspace's are its owner's from that workspace. The
 same person's accounts never cross between their personal workspace and an
 organization, or between two organizations. Connecting the same account in a
 second workspace gives that workspace its own row and credential; reconnecting
-in the same workspace refreshes the row its calendars already point at.
+in the same workspace refreshes the row its calendars already point at, whoever
+re-authorizes it. An account the provider returned no email for has no identity
+to match on, so only the person who connected it refreshes it by reconnecting.
 
 A pointer to another workspace's account (a calendar, an agent's legacy
 `calendarIntegrationId`, a meeting's recorded destination) resolves as "not

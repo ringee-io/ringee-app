@@ -78,9 +78,11 @@ export function sanitizeUrl(raw: string): string {
 
 /**
  * A stack frame's script URL, without its query or fragment. The app's own
- * build assets keep their path — a chunk's name identifies code, never a
- * person, and symbolication matches on it; any other URL (the page of an
- * inline script, another origin) is sanitized like a page URL.
+ * build assets — `/_next/static/` on the page's own origin, where Next serves
+ * them (no `assetPrefix`) — keep their path: a chunk's name identifies code,
+ * never a person, and symbolication matches on it. Any other URL (the page of
+ * an inline script, another origin, the same path on another origin) is
+ * sanitized like a page URL.
  */
 export function sanitizeFrameUrl(raw: string): string {
   let url: URL;
@@ -90,7 +92,9 @@ export function sanitizeFrameUrl(raw: string): string {
     return "[url]";
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return "[url]";
-  if (url.pathname.startsWith("/_next/static/")) {
+  const appOrigin =
+    typeof window !== "undefined" ? window.location.origin : null;
+  if (url.origin === appOrigin && url.pathname.startsWith("/_next/static/")) {
     return `${url.protocol}//${url.host}${url.pathname}`;
   }
   return sanitizeUrl(`${url.protocol}//${url.host}${url.pathname}`);
@@ -215,8 +219,14 @@ function redactQuoted(text: string): string {
 }
 
 const PHONE_CHARS = new Set("0123456789+()-. /".split(""));
+/** A whole ISO date, `2026-11-10`, not glued to another digit. */
+const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?!\d)/;
 
-/** Runs of digits and phone separators with seven or more digits. */
+/**
+ * Runs of digits and phone separators with seven or more digits. A complete
+ * ISO date is kept and the scan goes on right after it, so a number that
+ * follows a date (`2026-11-10 415-555-0100`) is still a phone run.
+ */
 function redactDigitRuns(text: string): string {
   let out = "";
   let i = 0;
@@ -227,6 +237,11 @@ function redactDigitRuns(text: string): string {
       i += 1;
       continue;
     }
+    if (ISO_DATE.test(text.slice(i, i + 11))) {
+      out += text.slice(i, i + 10);
+      i += 10;
+      continue;
+    }
     let j = i;
     let digits = 0;
     while (j < text.length && PHONE_CHARS.has(text[j]!)) {
@@ -234,7 +249,7 @@ function redactDigitRuns(text: string): string {
       j += 1;
     }
     const run = text.slice(i, j);
-    out += digits >= 7 && !/^\d{4}-\d{2}-\d{2}/.test(run) ? "[phone]" : run;
+    out += digits >= 7 ? "[phone]" : run;
     i = j;
   }
   return out;
@@ -242,7 +257,8 @@ function redactDigitRuns(text: string): string {
 
 /**
  * Whether `text` holds a phone-like run in any format — `+1-415-555-0100` as
- * much as `4155550100`. ISO dates are not phone runs.
+ * much as `4155550100`. A complete ISO date is not one, but it does not hide
+ * a number after it.
  */
 function containsPhoneRun(text: string): boolean {
   return redactDigitRuns(text) !== text;

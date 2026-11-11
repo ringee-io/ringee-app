@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useApi } from "./use.api";
 import {
@@ -29,7 +29,11 @@ export function useAnalyticsIdentity(): void {
   // anonymous, the same person switching workspace keeps their identity.
   const requestedFor = useRef<string | null>(null);
 
-  useEffect(() => {
+  // A layout effect: the workspace being left is cleared in the commit that
+  // switches it, before any passive effect of that commit — the pages' own,
+  // which run before this shell's — can capture an event with it. Each run's
+  // `cancelled` drops the answer to an earlier run's request.
+  useLayoutEffect(() => {
     if (!analyticsEnabled() || !isLoaded) return;
     if (!isSignedIn) {
       requestedFor.current = null;

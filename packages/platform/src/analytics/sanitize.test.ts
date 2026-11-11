@@ -71,6 +71,20 @@ describe("redactSensitiveText", () => {
     expect(redactSensitiveText("x".repeat(1_000))).toBe("[token]");
   });
 
+  it("still redacts a phone number that follows an ISO date", () => {
+    expect(redactSensitiveText("2026-11-10 415-555-0100")).toBe(
+      "2026-11-10 [phone]",
+    );
+    for (const text of [
+      "2026-11-10-4155550100",
+      "2026-11-10/+1 415 555 0100",
+      // Digits glued to it: not a date at all.
+      "2026-11-1012345678",
+    ]) {
+      expect(redactSensitiveText(text)).not.toMatch(/0100|5678/);
+    }
+  });
+
   it("stays linear on adversarial input", () => {
     const hostile = `${"a@".repeat(20_000)}${"1-".repeat(20_000)}`;
     const started = Date.now();
@@ -228,6 +242,15 @@ describe("fact properties", () => {
       allDigits,
       "2026-11-10",
     ]);
+  });
+
+  it("does not let an ISO date carry a phone number after it", () => {
+    expect(sanitizePropertyValue("2026-11-10-415-555-0100")).not.toContain(
+      "0100",
+    );
+    expect(
+      sanitizePropertyValue(["2026-11-10-4155550100", "2026-11-10"]),
+    ).toEqual(["2026-11-10"]);
   });
 
   it("names technical actors apart from people", () => {

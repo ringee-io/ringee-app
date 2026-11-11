@@ -74,7 +74,12 @@ describe("calendar accounts per workspace (CAL-004)", () => {
   });
 
   it("reconnects only an account of the same workspace, and creates it there otherwise", async () => {
-    for (const ctx of [PERSONAL, ORGANIZATION]) {
+    // An organization's account matches whichever member reconnects it.
+    const workspaces = [
+      [PERSONAL, { userId: "user-1", organizationId: null }],
+      [ORGANIZATION, { organizationId: "org-1" }],
+    ] as const;
+    for (const [ctx, workspace] of workspaces) {
       const { repo, reads, created } = fakePrisma();
       await repo.connectAccount(ctx, CalendarProvider.google, {
         accessToken: "token",
@@ -82,8 +87,7 @@ describe("calendar accounts per workspace (CAL-004)", () => {
       });
       assert.deepEqual(reads, [
         {
-          organizationId: ctx.organizationId,
-          userId: "user-1",
+          ...workspace,
           provider: CalendarProvider.google,
           email: "ana@example.com",
         },
@@ -92,5 +96,20 @@ describe("calendar accounts per workspace (CAL-004)", () => {
       assert.equal(created[0]!.userId, "user-1");
       assert.equal(created[0]!.organizationId, ctx.organizationId);
     }
+  });
+
+  it("matches an account without an email only to the same person's", async () => {
+    const { repo, reads } = fakePrisma();
+    await repo.connectAccount(ORGANIZATION, CalendarProvider.google, {
+      accessToken: "token",
+    });
+    assert.deepEqual(reads, [
+      {
+        organizationId: "org-1",
+        userId: "user-1",
+        provider: CalendarProvider.google,
+        email: null,
+      },
+    ]);
   });
 });

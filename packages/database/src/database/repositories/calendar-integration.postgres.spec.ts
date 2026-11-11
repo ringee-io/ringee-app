@@ -119,4 +119,36 @@ describe("Calendar accounts are isolated per workspace", { skip: !url }, () => {
     });
     assert.equal(other.accessToken, "ana-organization");
   });
+
+  it("refreshes the organization's row when another member reconnects the same account", async () => {
+    const again = await repo.connectAccount(
+      colleagueInOrganization,
+      CalendarProvider.google,
+      { accessToken: "colleague-organization", email: "ana@example.com" },
+    );
+    assert.equal(again.id, ids.anaOrganization);
+    assert.equal(again.accessToken, "colleague-organization");
+    assert.deepEqual(await list(anaInOrganization), [ids.anaOrganization]);
+    const personal = await prisma.calendarIntegration.findUniqueOrThrow({
+      where: { id: ids.anaPersonal! },
+    });
+    assert.equal(personal.accessToken, "ana-personal-2");
+  });
+
+  it("keeps two members' accounts without an email apart", async () => {
+    const connect = (ctx: OwnershipContext, accessToken: string) =>
+      repo.connectAccount(ctx, CalendarProvider.google, { accessToken });
+    const anas = await connect(anaInOrganization, "ana-unnamed");
+    const colleagues = await connect(
+      colleagueInOrganization,
+      "colleague-unnamed",
+    );
+    assert.notEqual(colleagues.id, anas.id);
+    const anasAgain = await connect(anaInOrganization, "ana-unnamed-2");
+    assert.equal(anasAgain.id, anas.id);
+    const untouched = await prisma.calendarIntegration.findUniqueOrThrow({
+      where: { id: colleagues.id },
+    });
+    assert.equal(untouched.accessToken, "colleague-unnamed");
+  });
 });

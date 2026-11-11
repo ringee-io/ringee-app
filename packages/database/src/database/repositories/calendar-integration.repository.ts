@@ -17,18 +17,22 @@ export class CalendarIntegrationRepository {
 
   /**
    * Connects an external calendar account to the workspace `ctx` names, or
-   * refreshes the one that person already connected there.
+   * refreshes the one already connected there.
    *
    * A workspace may hold several accounts of the same provider, because
    * different Ringee calendars may push their events to different Google
    * accounts. "The same account" is the same provider and the same email, which
    * is what reconnecting updates in place — so re-authorizing an account that
    * three calendars already point at renews one credential rather than orphaning
-   * them behind a fourth row. An account whose email the provider did not
-   * return has no identity to match on and is treated as the workspace's single
-   * unnamed account of that provider, which is how every connection made before
-   * this existed behaves. Connecting the same account in another workspace
-   * gives that workspace its own row and never touches this one.
+   * them behind a fourth row. In an organization that holds whoever
+   * re-authorizes it: the organization's accounts are the organization's
+   * (CAL-004). An account whose email the provider did not return has no
+   * identity to match on, so it is only the same person's unnamed account of
+   * that provider in this workspace — one row per person, which is how every
+   * connection made before this existed behaves — and one member's unnamed
+   * account never takes over another's. Connecting the same account in
+   * another workspace gives that workspace its own row and never touches this
+   * one.
    *
    * The workspace lock is what keeps two concurrent OAuth callbacks from
    * creating the same account twice.
@@ -51,7 +55,7 @@ export class CalendarIntegrationRepository {
       const existing = await tx.calendarIntegration.findFirst({
         where: {
           ...buildOwnershipFilter(ctx),
-          userId: ctx.userId,
+          ...(email === null ? { userId: ctx.userId } : {}),
           provider,
           email,
         },
