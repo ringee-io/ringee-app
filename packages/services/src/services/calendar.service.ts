@@ -387,6 +387,37 @@ export class CalendarService {
     );
   }
 
+  /**
+   * The workspace's calendars as they are, for previews: unlike
+   * `listCalendars` it never creates the global calendar, so reading a review
+   * leaves the workspace untouched. Archived calendars are left out.
+   */
+  async peekCalendars(ctx: OwnershipContext): Promise<CalendarSummary[]> {
+    const [calendars, integrations] = await Promise.all([
+      this.calendars.list(ctx),
+      this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId),
+    ]);
+    return calendars
+      .filter((calendar) => !calendar.archivedAt)
+      .map((calendar) => this.toSummary(calendar, integrations, 0));
+  }
+
+  /**
+   * A calendar's explicit bookable hours, read-only: `configured: false`
+   * means the backwards-compatible 09:00–18:00 every-day schedule applies.
+   */
+  async peekAvailability(
+    ctx: OwnershipContext,
+    calendarId: string,
+  ): Promise<{ configured: boolean; windows: CalendarAvailabilityWindow[] }> {
+    await this.requireCalendar(ctx, calendarId);
+    const rules = await this.availabilityRepo.list(ctx, calendarId);
+    return {
+      configured: rules.length > 0,
+      windows: rules.map((rule) => this.toAvailabilityWindow(rule)),
+    };
+  }
+
   async getCalendar(
     ctx: OwnershipContext,
     calendarId: string,

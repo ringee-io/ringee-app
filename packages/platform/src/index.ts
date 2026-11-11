@@ -7,6 +7,7 @@ export * from "./redis";
 export * from "./realtime";
 export * from "./temporal";
 export * from "./email";
+export * from "./analytics";
 export * from "./telephony";
 export * from "./voice-agents";
 export * from "./deepgram";

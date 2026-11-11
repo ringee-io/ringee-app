@@ -64,6 +64,10 @@ function setup(options: {
         return true;
       },
     } as never,
+    {
+      numberLookupCompleted: async () => undefined,
+      captureException: () => undefined,
+    } as never,
   );
   return { service, events };
 }

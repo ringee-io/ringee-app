@@ -15,6 +15,8 @@ import { Global, Module, Provider } from "@nestjs/common";
 import { UserService } from "./user.service";
 import {
   EMAIL_PROVIDER,
+  PRODUCT_ANALYTICS_PROVIDER,
+  createProductAnalyticsProvider,
   ResendProvider,
   AuthModule,
   NotificationModule,
@@ -58,6 +60,7 @@ import { CampaignLeadWriteService } from "./campaign-lead-write.service";
 import { TagService } from "./tag.service";
 import { CallScriptService } from "./call-script.service";
 import { OnboardingService } from "./onboarding.service";
+import { ProductAnalyticsService } from "./analytics/product-analytics.service";
 import { FreeTrialService } from "./free-trial.service";
 import { DemoRequestReviewService, DemoRequestService } from "./demo-requests";
 import { AccountProvisioningService } from "./accounts";
@@ -250,6 +253,7 @@ const servicesProviders = [
   TagService,
   CallScriptService,
   OnboardingService,
+  ProductAnalyticsService,
   FreeTrialService,
   DemoRequestService,
   DemoRequestReviewService,
@@ -464,6 +468,12 @@ const reminderChannelsProvider: Provider = {
 
 const allProviders: Provider[] = [
   { provide: EMAIL_PROVIDER, useClass: ResendProvider },
+  // Product analytics and scoped error tracking (Stage 4B): PostHog when a
+  // project token is configured, a disabled provider otherwise.
+  {
+    provide: PRODUCT_ANALYTICS_PROVIDER,
+    useFactory: createProductAnalyticsProvider,
+  },
   ...servicesProviders,
   reminderChannelsProvider,
   pipelineDefinitionsProvider,

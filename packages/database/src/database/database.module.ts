@@ -46,6 +46,8 @@ import { CalendarIntegrationRepository } from "./repositories/calendar-integrati
 import { CalendarAvailabilityRepository } from "./repositories/calendar-availability.repository";
 import { TriggerLoopActionExecutionRepository } from "./repositories/triggerloop-action-execution.repository";
 import { TriggerLoopOutboxRepository } from "./repositories/triggerloop-outbox.repository";
+import { ProductAnalyticsRepository } from "./repositories/product-analytics.repository";
+import { FollowUpActivationRepository } from "./repositories/follow-up-activation.repository";
 import { UserActivitySnapshotRepository } from "./repositories/user-activity-snapshot.repository";
 import { ContactPhoneRepository } from "./repositories/contact-phone.repository";
 import { ContactEmailRepository } from "./repositories/contact-email.repository";
@@ -153,6 +155,8 @@ const databaseProviders = [
   CalendarAvailabilityRepository,
   TriggerLoopActionExecutionRepository,
   TriggerLoopOutboxRepository,
+  ProductAnalyticsRepository,
+  FollowUpActivationRepository,
   UserActivitySnapshotRepository,
   ContactPhoneRepository,
   ContactEmailRepository,

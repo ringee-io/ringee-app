@@ -33,6 +33,7 @@ import {
 } from "./voice-agents/automations/automation-access";
 import { normalizeEmail } from "./meeting.service";
 import { CompanyProfileService } from "./voice-agents/company-profile.service";
+import { captureJourneyException } from "./analytics/journey-exceptions";
 
 const D = MeetingEmailDeliveryStatus;
 
@@ -122,6 +123,19 @@ export class MeetingEmailService {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.error(`Meeting email ${delivery.id} failed: ${message}`);
+        captureJourneyException(error, {
+          component: MeetingEmailService.name,
+          operation: "receipts.deliver",
+          journeyStep: "receipt_delivery",
+          severity: delivery.attempts >= MAX_ATTEMPTS ? "error" : "warning",
+          workspace: delivery.userId
+            ? {
+                userId: delivery.userId,
+                organizationId: delivery.organizationId ?? null,
+              }
+            : null,
+          correlation: { delivery: delivery.id, meeting: delivery.meetingId },
+        });
         await this.deliveries.release(
           delivery.id,
           delivery.attempts >= MAX_ATTEMPTS ? D.failed : D.pending,

@@ -19,6 +19,7 @@ import { CreditService } from "../credit.service";
 import { calculateCallCharge } from "../call-cost.util";
 import { RecordingProcessingService } from "../recording-processing.service";
 import { VoiceAgentResultService } from "./voice-agent-result.service";
+import { captureJourneyException } from "../analytics/journey-exceptions";
 
 /** Rounding unit for a USD amount, matching the rest of the ledger. */
 const USD_PRECISION = 1e6;
@@ -198,6 +199,12 @@ export class VoiceAgentBillingService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        captureJourneyException(error, {
+          component: VoiceAgentBillingService.name,
+          operation: "settlement.settle",
+          journeyStep: "ai_settlement",
+          correlation: { agent_call: call.id },
+        });
       }
     }
 
@@ -460,6 +467,13 @@ export class VoiceAgentBillingService {
           error instanceof Error ? error.message : String(error)
         }`,
       );
+      captureJourneyException(error, {
+        component: VoiceAgentBillingService.name,
+        operation: "settlement.debit",
+        journeyStep: "ai_settlement",
+        severity: "critical",
+        correlation: { agent_call: agentCall.id },
+      });
       throw error;
     }
     await this.agentCalls.markAiCostDebited(agentCall.id);

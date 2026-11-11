@@ -36,6 +36,7 @@ import {
 } from "../voice-agents/automations/voice-agent-handoff.service";
 
 import { PendingActionService } from "../ai-pipeline/pending-action.service";
+import { captureJourneyException } from "../analytics/journey-exceptions";
 
 const MAX_AUTOMATED_CALLBACK_ATTEMPTS = 3;
 /** How long a worker owns a claimed agent callback before another may take it. */
@@ -678,6 +679,12 @@ export class CallbackService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        captureJourneyException(error, {
+          component: CallbackService.name,
+          operation: "callbacks.plan_recovery",
+          journeyStep: "agent_callback",
+          correlation: { handoff: plan.handoff.id },
+        });
       }
     }
     return planned;
@@ -713,6 +720,18 @@ export class CallbackService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        captureJourneyException(error, {
+          component: CallbackService.name,
+          operation: "callbacks.execute",
+          journeyStep: "agent_callback",
+          workspace: callback.userId
+            ? {
+                userId: callback.userId,
+                organizationId: callback.organizationId ?? null,
+              }
+            : null,
+          correlation: { callback: callback.id },
+        });
       }
     }
     return placed;

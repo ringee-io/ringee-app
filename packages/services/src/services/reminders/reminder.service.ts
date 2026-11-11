@@ -31,7 +31,9 @@ import {
 import {
   DEFAULT_CALLING_WINDOW,
   planReminderCallAt,
+  policyCoversMeeting,
   readCallingWindow,
+  type CallingWindow,
 } from "./reminder-call-schedule";
 
 /**
@@ -245,7 +247,21 @@ export class ReminderService {
    */
   async previewPolicyCalls(
     ctx: OwnershipContext,
-    input: { calendarIds: string[]; offsetMinutes: number },
+    input: {
+      calendarIds: string[];
+      offsetMinutes: number;
+      /** The window a policy that does not exist yet would get. */
+      window?: CallingWindow;
+      /**
+       * Which meetings the previewed policy would cover. Without it, an
+       * existing policy's own coverage applies, and a new one covers every
+       * upcoming meeting — what a rail setup does.
+       */
+      coverage?: {
+        coversMeetingsFrom: Date | null;
+        includedMeetingIds?: string[];
+      };
+    },
   ): Promise<{ meetings: number; calls: number }> {
     const now = new Date();
     const notBefore = new Date(now.getTime() + CALL_PLANNING_MARGIN_MS);
@@ -260,10 +276,14 @@ export class ReminderService {
       const existing = await this.callPolicies.findForCalendar(ctx, calendarId);
       const window = existing
         ? readCallingWindow(existing)
-        : DEFAULT_CALLING_WINDOW;
+        : (input.window ?? DEFAULT_CALLING_WINDOW);
+      const coverage = input.coverage ??
+        existing ?? { coversMeetingsFrom: null };
       for await (const page of this.upcomingMeetingPages(ctx, calendar, now)) {
         const upcoming = page.filter(
-          (meeting) => meeting.attendanceStatus === "pending",
+          (meeting) =>
+            meeting.attendanceStatus === "pending" &&
+            policyCoversMeeting(coverage, meeting),
         );
         meetings += upcoming.length;
         calls += upcoming.filter((meeting) =>
@@ -294,6 +314,9 @@ export class ReminderService {
   ): Prisma.MeetingReminderExecutionCreateManyInput[] {
     // An answer already given for this version needs no reminder.
     if (meeting.attendanceStatus !== "pending") return [];
+    // A policy adopted for new bookings only never reaches an older meeting
+    // that was not explicitly included — also when it moves or on a resume.
+    if (!policyCoversMeeting(policy, meeting)) return [];
     const window = readCallingWindow(policy);
     const notBefore = new Date(
       Math.max(now.getTime(), policy.activatedAt.getTime()) +

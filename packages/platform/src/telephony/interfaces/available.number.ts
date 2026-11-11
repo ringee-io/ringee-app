@@ -279,6 +279,17 @@ export interface SearchAvailableParams {
 }
 
 /**
+ * One live inventory lookup, with the provider's answer kept apart from an
+ * empty one: `results` and `empty` mean the provider answered; `failed`
+ * means it could not be asked or did not answer, and nothing is known about
+ * the inventory. `errorCode` is a bounded code, never the provider's message.
+ */
+export type AvailableNumberLookup =
+  | { status: "results"; numbers: AvailableNumber[] }
+  | { status: "empty"; numbers: [] }
+  | { status: "failed"; numbers: []; errorCode: string };
+
+/**
  * A country the provider can issue numbers in, and the number types it lists
  * there. Coverage is not stock: a listed type can still have nothing available
  * to order right now, which only a number search answers.

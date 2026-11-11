@@ -34,6 +34,7 @@ import {
   AddressValidationResult,
   AssignedNumber,
   AvailableNumber,
+  AvailableNumberLookup,
   CostInformation,
   NumberCoverageCountry,
   NumberListPrice,
@@ -767,72 +768,102 @@ export class TelnyxService implements TelephonyService {
   async searchAvailableNumbers(
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]> {
+    const lookup = await this.lookupAvailableNumbers(params);
+    return lookup.numbers;
+  }
+
+  /**
+   * The live inventory, keeping a provider failure apart from an empty
+   * answer — `searchAvailableNumbers` folds both into `[]` for its legacy
+   * consumers.
+   */
+  async lookupAvailableNumbers(
+    params: SearchAvailableParams,
+  ): Promise<AvailableNumberLookup> {
     try {
-      const filters = {
-        country_code: params.countryCode,
-        limit: params.limit,
-      } as AvailablePhoneNumberListParams.Filter;
-
-      if (params.numberType) {
-        filters.phone_number_type = params.numberType;
-      }
-
-      if (params.areaCode) {
-        filters.national_destination_code = params.areaCode;
-      }
-
-      if (params.features && params.features.length > 0) {
-        filters.features =
-          params.features as AvailablePhoneNumberListParams.Filter["features"];
-      }
-
-      const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
-        filter: filters,
-      });
-
-      return (numbersList || []).map((item: any) => {
-        const features = Array.isArray(item.features)
-          ? item.features.map((feature: any) => feature.name)
-          : [];
-
-        const regionInformation = Array.isArray(item.region_information)
-          ? item.region_information
-          : [];
-
-        const getRegionName = (regionType: string): string =>
-          regionInformation.find(
-            (region: any) => region.region_type === regionType,
-          )?.region_name || "";
-
-        const monthlyCost = Number(item?.cost_information?.monthly_cost || 0);
-        const upfrontCost = Number(item?.cost_information?.upfront_cost || 0);
-
-        return {
-          phoneNumber: item.phone_number,
-          countryCode: getRegionName("country_code"),
-          locality: getRegionName("location"),
-          region: getRegionName("state"),
-          numberType: item.phone_number_type,
-          costInformation: {
-            currency: item?.cost_information?.currency || "USD",
-            monthlyCost: this.applyNumberProfitMargin(monthlyCost),
-            upfrontCost: this.applyNumberProfitMargin(upfrontCost),
-          },
-          capabilities: {
-            sms: features.includes("sms"),
-            voice: features.includes("voice"),
-            fax: features.includes("fax"),
-            hdVoice: features.includes("hd_voice"),
-            internationalSms: features.includes("international_sms"),
-            emergency: features.includes("emergency"),
-            mms: features.includes("mms"),
-          },
-        };
-      });
+      const numbers = await this.queryAvailableNumbers(params);
+      return numbers.length
+        ? { status: "results", numbers }
+        : { status: "empty", numbers: [] };
     } catch (error: any) {
-      this.logger.error("Error searching available numbers", error);
-      return [];
+      const status = Number(error?.status ?? error?.statusCode);
+      const errorCode =
+        error?.name === "AbortError" || error?.name === "TimeoutError"
+          ? "timeout"
+          : Number.isInteger(status) && status >= 400 && status < 600
+            ? `http_${status}`
+            : "provider_unavailable";
+      this.logger.error(
+        `Error searching available numbers (${params.countryCode}, ${errorCode})`,
+      );
+      return { status: "failed", numbers: [], errorCode };
     }
+  }
+
+  private async queryAvailableNumbers(
+    params: SearchAvailableParams,
+  ): Promise<AvailableNumber[]> {
+    const filters = {
+      country_code: params.countryCode,
+      limit: params.limit,
+    } as AvailablePhoneNumberListParams.Filter;
+
+    if (params.numberType) {
+      filters.phone_number_type = params.numberType;
+    }
+
+    if (params.areaCode) {
+      filters.national_destination_code = params.areaCode;
+    }
+
+    if (params.features && params.features.length > 0) {
+      filters.features =
+        params.features as AvailablePhoneNumberListParams.Filter["features"];
+    }
+
+    const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
+      filter: filters,
+    });
+
+    return (numbersList || []).map((item: any) => {
+      const features = Array.isArray(item.features)
+        ? item.features.map((feature: any) => feature.name)
+        : [];
+
+      const regionInformation = Array.isArray(item.region_information)
+        ? item.region_information
+        : [];
+
+      const getRegionName = (regionType: string): string =>
+        regionInformation.find(
+          (region: any) => region.region_type === regionType,
+        )?.region_name || "";
+
+      const monthlyCost = Number(item?.cost_information?.monthly_cost || 0);
+      const upfrontCost = Number(item?.cost_information?.upfront_cost || 0);
+
+      return {
+        phoneNumber: item.phone_number,
+        countryCode: getRegionName("country_code"),
+        locality: getRegionName("location"),
+        region: getRegionName("state"),
+        numberType: item.phone_number_type,
+        costInformation: {
+          currency: item?.cost_information?.currency || "USD",
+          monthlyCost: this.applyNumberProfitMargin(monthlyCost),
+          upfrontCost: this.applyNumberProfitMargin(upfrontCost),
+        },
+        capabilities: {
+          sms: features.includes("sms"),
+          voice: features.includes("voice"),
+          fax: features.includes("fax"),
+          hdVoice: features.includes("hd_voice"),
+          internationalSms: features.includes("international_sms"),
+          emergency: features.includes("emergency"),
+          mms: features.includes("mms"),
+        },
+      };
+    });
   }
 
   /**

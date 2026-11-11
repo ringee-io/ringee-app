@@ -20,6 +20,38 @@ export const DEFAULT_CALLING_WINDOW: CallingWindow = {
 };
 
 /**
+ * What the shared follow-up review proposes for a calendar that has no policy
+ * yet (Stage 4C): weekdays, 09:00–18:00 in the calendar's time zone. Shown and
+ * editable before adoption; an existing policy keeps its own window.
+ */
+export const PROPOSED_CALLING_WINDOW: CallingWindow = {
+  startMinute: 9 * 60,
+  endMinute: 18 * 60,
+  days: [1, 2, 3, 4, 5],
+};
+
+/**
+ * Whether a reminder policy covers a meeting (Stage 4C). A policy without
+ * `coversMeetingsFrom` covers every meeting on its calendar, as policies always
+ * did. One adopted for "new bookings only" covers meetings created from that
+ * moment, plus those explicitly included — never an older booking by
+ * accident, also not when it later moves or the policy is resumed.
+ */
+export function policyCoversMeeting(
+  policy: {
+    coversMeetingsFrom?: Date | null;
+    includedMeetingIds?: string[] | null;
+  },
+  meeting: { id: string; createdAt: Date },
+): boolean {
+  if (!policy.coversMeetingsFrom) return true;
+  if (meeting.createdAt.getTime() >= policy.coversMeetingsFrom.getTime()) {
+    return true;
+  }
+  return (policy.includedMeetingIds ?? []).includes(meeting.id);
+}
+
+/**
  * How far back a reminder may be pulled to land inside the window. A window
  * that leaves no minute in a whole week has nothing to offer.
  */

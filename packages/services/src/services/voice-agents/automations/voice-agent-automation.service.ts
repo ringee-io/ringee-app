@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -16,6 +17,7 @@ import {
   AiVoiceAgentRepository,
   AiVoiceAgentStatus,
   AiVoiceAgentType,
+  FollowUpActivationRepository,
   InboundDestinationType,
   InboundRouteRepository,
   MeetingEmailDeliveryRepository,
@@ -23,17 +25,36 @@ import {
   MeetingReminderExecutionRepository,
   MeetingReminderExecutionStatus,
   MeetingReminderPolicyRepository,
+  MeetingRepository,
+  MeetingStatus,
+  NumberPurchasedRepository,
   OrganizationRepository,
   UserRepository,
+  type FollowUpActivation,
+  type Meeting,
+  type MeetingReminderPolicy,
+  type Prisma,
 } from "@ringee/database";
-import type { OwnershipContext } from "@ringee/platform";
+import {
+  isInWorkspace,
+  type AnalyticsEntrySource,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { CalendarService } from "../../calendar.service";
 import { ContactService } from "../../contact.service";
 import { CreditService } from "../../credit.service";
 import { InboundRouteService } from "../../inbound-routing/inbound-route.service";
 import type { InboundNumberRef } from "../../inbound-routing/inbound-routing.types";
 import { MeetingService, normalizeEmail } from "../../meeting.service";
+import { ProductAnalyticsService } from "../../analytics/product-analytics.service";
 import { ReminderService } from "../../reminders/reminder.service";
+import {
+  PROPOSED_CALLING_WINDOW,
+  planReminderCallAt,
+  policyCoversMeeting,
+  readCallingWindow,
+} from "../../reminders/reminder-call-schedule";
+import { assertVoiceAgentAccess } from "../voice-agent-access";
 import { CompanyProfileService } from "../company-profile.service";
 import {
   VoiceAgentCallService,
@@ -48,6 +69,24 @@ import {
   voiceAgentAutomationsEnabled,
 } from "./automation-access";
 import { VoiceAgentConversationContextService } from "./conversation-context.service";
+import {
+  FOLLOW_UP_OFFSET_CHOICES,
+  FOLLOW_UP_ONBOARDING_VERSION,
+  PROPOSED_REMINDER_OFFSET_MINUTES,
+  followUpState,
+  fromCallingWindow,
+  isTimeZone,
+  minuteToTime,
+  parseEntrySource,
+  parseFollowUpDraft,
+  toPolicyWindow,
+  type CallingWindowInput,
+  type FollowUpCapability,
+  type FollowUpConfigurationDraft,
+  type FollowUpRequirementCode,
+  type FollowUpRowKey,
+  type FollowUpState,
+} from "./follow-up-activation";
 import { personName } from "./person-name";
 import {
   MeetingReminderCallService,
@@ -229,6 +268,223 @@ export interface AutomationSummary {
   capabilities: Partial<Record<AutomationCapability, AutomationState>>;
 }
 
+// ── Shared follow-up review (Stage 4C) ───────────────────────────────
+
+/** A row's state on "Your configuration". */
+export type FollowUpRowStatus = "ok" | "missing" | "locked" | "info";
+
+export interface FollowUpNumberOption {
+  id: string;
+  phoneNumber: string;
+  isoCountry: string;
+  /** A verified caller ID only reaches international destinations. */
+  kind: "purchased" | "verified_caller_id";
+}
+
+/** Why the meeting a review was opened from cannot be included. */
+export type FollowUpMeetingIneligibility =
+  | "not_found"
+  | "cancelled"
+  | "too_soon"
+  | "already_answered"
+  | "other_calendar"
+  | "reminders_off"
+  | "outside_window";
+
+/** Whether a meeting's confirmation call is planned — scheduler evidence only. */
+export interface FollowUpMeetingCoverage {
+  /** True only when an execution for the current version exists. */
+  covered: boolean;
+  /** When the planned confirmation call fires. */
+  fireAt: string | null;
+  reason:
+    | null
+    | "not_admitted"
+    | "not_adopted"
+    | "reminders_off"
+    | "reminders_paused"
+    | "calendar_not_covered"
+    | "not_included"
+    | "too_close"
+    | "already_answered"
+    | "cancelled";
+}
+
+export interface FollowUpSourceMeeting {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  /** The schedule version the review saw; adoption re-checks it. */
+  version: number;
+  calendarId: string | null;
+  contactName: string | null;
+  eligible: boolean;
+  reason: FollowUpMeetingIneligibility | null;
+  /** When its confirmation call would ring if it is included. */
+  plannedFireAt: string | null;
+  coverage: FollowUpMeetingCoverage;
+}
+
+/** The review the shared activation screen renders (Stage 4C). */
+export interface FollowUpReview {
+  version: string;
+  workspaceType: "personal" | "organization";
+  /** Admitted to automated work (the pilot gate). */
+  admitted: boolean;
+  /** UX only — save and adopt re-check administration on the server. */
+  canConfigure: boolean;
+  /** Who can activate it, for a member's read-only view. */
+  adminNames: string[];
+  state: FollowUpState;
+  activation: {
+    status: "none" | "configured" | "adopted";
+    revision: number | null;
+    savedAt: string | null;
+    adoptedAt: string | null;
+    adoptedByName: string | null;
+    entrySource: AnalyticsEntrySource | null;
+    optOuts: Partial<
+      Record<FollowUpCapability, { reason: string; at: string }>
+    >;
+  };
+  /** The configuration in effect: the saved draft over the proposal. */
+  draft: FollowUpConfigurationDraft & {
+    capabilities: { scheduling: boolean; reminders: boolean };
+    reminderOffsetMinutes: number;
+    existingMeetings: "none" | "all_upcoming";
+    callingHours: CallingWindowInput;
+    timeZone: string;
+  };
+  rows: {
+    identity: {
+      status: FollowUpRowStatus;
+      kind: "company" | "person";
+      companyName: string | null;
+      companyWebsite: string | null;
+      personName: string | null;
+    };
+    shareable: {
+      status: FollowUpRowStatus;
+      companyDescription: string | null;
+    };
+    number: {
+      status: FollowUpRowStatus;
+      requirement: FollowUpRequirementCode | null;
+      selected: FollowUpNumberOption | null;
+      candidates: FollowUpNumberOption[];
+      pending: Array<{
+        phoneNumber: string;
+        kind: "purchase" | "verification";
+      }>;
+      sharedNumberAvailable: boolean;
+    };
+    callbacks: {
+      status: FollowUpRowStatus;
+      kind: "owner" | "route" | "unrouted" | "unknown";
+      label: string | null;
+    };
+    calendar: {
+      status: FollowUpRowStatus;
+      requirement: FollowUpRequirementCode | null;
+      selected: {
+        id: string;
+        name: string;
+        timezone: string;
+        isDefault: boolean;
+        provider: "google" | "microsoft" | null;
+        accountEmail: string | null;
+      } | null;
+      candidates: Array<{ id: string; name: string; isDefault: boolean }>;
+      /** No calendar exists yet: adoption creates the global one. */
+      willCreate: boolean;
+      availability: {
+        source: "calendar" | "draft" | "missing";
+        window: CallingWindowInput | null;
+        windowCount: number;
+      };
+    };
+    callingHours: {
+      status: FollowUpRowStatus;
+      source: "policy" | "draft" | "proposed";
+      window: CallingWindowInput;
+    };
+    timeZone: {
+      status: FollowUpRowStatus;
+      source: "calendar" | "draft" | "browser" | "default";
+      value: string;
+    };
+    responsible: {
+      status: FollowUpRowStatus;
+      kind: "owner" | "caller";
+      ownerName: string | null;
+      adminCount: number;
+    };
+  };
+  capabilities: {
+    scheduling: {
+      existing: AutomationState;
+      agentName: string | null;
+      humanFollowUpEnabled: boolean;
+      optedOut: boolean;
+    };
+    reminders: {
+      existing: AutomationState;
+      agentName: string | null;
+      existingOffsetMinutes: number | null;
+      optedOut: boolean;
+      offsetChoices: number[];
+      /** Already-booked upcoming meetings, if every one were covered. */
+      upcomingExisting: { meetings: number; calls: number } | null;
+    };
+  };
+  /** Every open requirement; `row` is the configuration row that fixes it. */
+  requirements: Array<{
+    code: FollowUpRequirementCode;
+    row: FollowUpRowKey | null;
+  }>;
+  progress: { done: number; total: number };
+  /** Shown only to whoever manages the balance (CALL-014). */
+  balance: { visible: boolean; amount: number | null };
+  manualCalling: {
+    ready: boolean;
+    line: "own_number" | "shared_number" | "none";
+    reason: "no_line" | "no_credit" | null;
+  };
+  sourceMeeting: FollowUpSourceMeeting | null;
+  /** The next confirmation calls the scheduler accepted (admins). */
+  nextActions: Array<{
+    fireAt: string;
+    meetingId: string;
+    meetingAt: string;
+    contactName: string | null;
+  }>;
+}
+
+/** The newest verified AI results, for the first-value summary. */
+export interface FollowUpResultSummary {
+  results: Array<{
+    id: string;
+    kind: string;
+    at: string;
+    meetingId: string;
+    meetingAt: string;
+    previousMeetingAt: string | null;
+    contactName: string | null;
+    callId: string | null;
+    consumption: {
+      voiceUsd: number | null;
+      aiUsd: number | null;
+      /** Both halves settled; otherwise the known part is shown as pending. */
+      settled: boolean;
+    };
+  }>;
+  /** When the workspace's first verified result of all time happened. */
+  firstResultAt: string | null;
+  /** Whether the newest result is the first since this version was adopted. */
+  firstSinceAdoption: boolean;
+  adoptedAt: string | null;
+}
+
 interface ReceptionistSettings {
   numbers: InboundNumberRef[];
   fallback: {
@@ -280,6 +536,11 @@ export class VoiceAgentAutomationService {
     private readonly reminderCalls: MeetingReminderCallService,
     private readonly meetings: MeetingService,
     private readonly context: VoiceAgentConversationContextService,
+    // Stage 4B/4C: the shared follow-up review, its adoption and analytics.
+    private readonly activations: FollowUpActivationRepository,
+    private readonly meetingRepo: MeetingRepository,
+    private readonly numberRepo: NumberPurchasedRepository,
+    private readonly analytics: ProductAnalyticsService,
   ) {}
 
   // ── Reads ──────────────────────────────────────────────────────────
@@ -394,6 +655,30 @@ export class VoiceAgentAutomationService {
     },
   ): Promise<AutomationCard> {
     assertVoiceAgentAutomations(ctx);
+    // The rail previews every upcoming meeting before switching on, so a
+    // policy it creates covers them all, as it always did.
+    await this.configureReminders(ctx, input, {});
+    return this.card(ctx, "reminders");
+  }
+
+  /**
+   * The one path that writes reminder policies — the rail's setup and the
+   * follow-up adoption. A policy it creates takes `coverage` (Stage 4C: new
+   * bookings only, unless the person chose every upcoming meeting) and
+   * `window`; an existing policy keeps the coverage it was adopted with.
+   */
+  private async configureReminders(
+    ctx: OwnershipContext,
+    input: QuickAgentInput & {
+      callerNumberId?: string;
+      calendarIds: string[];
+      offsetMinutes: number;
+    },
+    options: {
+      coverage?: { coversMeetingsFrom: Date | null };
+      window?: CallingWindowInput;
+    },
+  ): Promise<{ agent: AiVoiceAgent; policies: MeetingReminderPolicy[] }> {
     const calendarIds = [...new Set(input.calendarIds)];
     for (const calendarId of calendarIds) {
       const calendar = await this.calendarService.getCalendar(ctx, calendarId);
@@ -434,17 +719,22 @@ export class VoiceAgentAutomationService {
       dropped.map((policy) => policy.id),
     );
 
+    const saved: MeetingReminderPolicy[] = [];
     for (const calendarId of calendarIds) {
       const previous = await this.policies.findForCalendar(ctx, calendarId);
       const policy = await this.policies.upsertForCalendar(ctx, {
         agentId: agent.id,
         calendarId,
         offsetsMinutes: [input.offsetMinutes],
+        ...(options.window ? toPolicyWindow(options.window) : {}),
+        ...(options.coverage ? { coverage: options.coverage } : {}),
       });
       if (previous) {
         await this.reminders.cancelPolicyCalls(policy.id, "policy_changed");
       }
+      // A "new bookings only" policy plans only what it covers (Stage 4C).
       await this.reminders.planPolicyCalls(ctx, policy);
+      saved.push(policy);
     }
 
     await this.automations.upsertForOwner(ctx, AGENT_TYPE.reminders, {
@@ -452,7 +742,7 @@ export class VoiceAgentAutomationService {
       enabled: true,
       settings: { calendarIds, offsetMinutes: input.offsetMinutes },
     });
-    return this.card(ctx, "reminders");
+    return { agent, policies: saved };
   }
 
   /**
@@ -735,6 +1025,14 @@ export class VoiceAgentAutomationService {
     }
 
     await this.automations.updateForOwner(ctx, automation.id, { enabled });
+    void this.analytics.record({
+      event: "followup_control_applied",
+      key: `${automation.id}:${enabled ? "resume" : "pause"}:${Date.now()}`,
+      occurredAt: new Date(),
+      workspace: ctx,
+      humanUserId: ctx.userId,
+      properties: { capability, control: enabled ? "resume" : "pause" },
+    });
     return this.card(ctx, capability);
   }
 
@@ -804,6 +1102,25 @@ export class VoiceAgentAutomationService {
       throw new ConflictException(
         "This trigger changed in another window. Reload it.",
       );
+    }
+    // Removing a trigger on purpose is a durable opt-out (Stage 4C): the
+    // follow-up review proposes it switched off, and no later reconciliation
+    // brings it back without the person choosing it again.
+    const followUpCapability = toFollowUpCapability(capability);
+    if (followUpCapability) {
+      await this.activations
+        .recordOptOut(ctx, {
+          version: FOLLOW_UP_ONBOARDING_VERSION,
+          capability: followUpCapability,
+          reason: "trigger_removed",
+          at: new Date(),
+          emptyConfiguration: {},
+        })
+        .catch((error: unknown) => {
+          this.logger.warn(
+            `Opt-out of ${followUpCapability} not recorded: ${describe(error)}`,
+          );
+        });
     }
     return this.card(ctx, capability);
   }
@@ -907,6 +1224,1238 @@ export class VoiceAgentAutomationService {
     if (!delivery) throw new NotFoundException("Email not found");
     await this.meetings.completeLeadEmail(ctx, delivery.meetingId, email);
     return { queued: true };
+  }
+
+  // ── Shared follow-up review (Stage 4C) ─────────────────────────────
+
+  /**
+   * The shared "Automatic follow-up" review: what Ringee already has for this
+   * workspace, the proposal for what it does not, the saved draft over both,
+   * and every concrete thing in the way. Read-only on purpose — nothing is
+   * created, provisioned or planned here, not even the global calendar — so
+   * opening the screen from any entry point is free of side effects.
+   */
+  async followUpReview(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    options: { meetingId?: string | null; timeZoneHint?: string | null } = {},
+  ): Promise<FollowUpReview> {
+    assertVoiceAgentAccess(ctx);
+    const admitted = voiceAgentAutomationsEnabled(ctx);
+    const personal = !ctx.organizationId;
+    const canConfigure =
+      viewer.admin && (await this.organizations.isWorkspaceAdmin(ctx));
+    const now = new Date();
+
+    const [activation, env, profile, owner, calendars, owned, callerIds] =
+      await Promise.all([
+        this.activations.findForWorkspace(ctx, FOLLOW_UP_ONBOARDING_VERSION),
+        this.environment(ctx),
+        this.companyProfiles.get(ctx).catch(() => null),
+        this.users.findById(ctx.userId),
+        this.calendarService.peekCalendars(ctx),
+        this.numberRepo.findByOwner(ctx),
+        this.numberRepo.listCallerIds(ctx),
+      ]);
+    // The existing specialists, read without details: that path resolves no
+    // global calendar and writes nothing.
+    const cards = await this.cards(ctx, {
+      details: false,
+      capabilities: ["scheduling", "reminders"],
+    });
+    const schedulingCard = cards.find(
+      (card) => card.capability === "scheduling",
+    );
+    const remindersCard = cards.find((card) => card.capability === "reminders");
+    const remindersPolicies = remindersCard?.agent
+      ? await this.policies.listForOwner(ctx, {
+          agentId: remindersCard.agent.id,
+        })
+      : [];
+    const saved = readSavedDraft(activation);
+    const optOuts = readOptOuts(activation);
+
+    // ── Capabilities: existing settings, pauses and opt-outs win over the
+    //    proposal (both specialists on, confirmation 240 minutes before).
+    const proposedOn = (
+      card: AutomationCard | undefined,
+      capability: FollowUpCapability,
+    ) =>
+      card && card.state !== "unconfigured"
+        ? card.state !== "paused"
+        : !optOuts[capability];
+    const capabilities = saved.capabilities ?? {
+      scheduling: proposedOn(schedulingCard, "scheduling"),
+      reminders: proposedOn(remindersCard, "reminders"),
+    };
+    const existingOffset = remindersPolicies[0]?.offsetsMinutes[0] ?? null;
+    const reminderOffsetMinutes =
+      saved.reminderOffsetMinutes ??
+      existingOffset ??
+      PROPOSED_REMINDER_OFFSET_MINUTES;
+    const anyOn = capabilities.scheduling || capabilities.reminders;
+
+    // ── Number: a workspace number the AI may present (AGENT-008). The shared
+    //    number never qualifies: a returned call to it reaches nobody here.
+    const candidates: FollowUpNumberOption[] = env.numbers
+      .filter(
+        (number) =>
+          number.kind === "purchased" || number.kind === "verified_caller_id",
+      )
+      .map((number) => ({
+        id: number.id,
+        phoneNumber: number.phoneNumber,
+        isoCountry: number.isoCountry,
+        kind: number.kind as FollowUpNumberOption["kind"],
+      }));
+    const findCandidate = (id: string | null | undefined) =>
+      id ? (candidates.find((number) => number.id === id) ?? null) : null;
+    const selectedNumber =
+      findCandidate(saved.numberId) ??
+      findCandidate(schedulingCard?.agent?.callerNumberId) ??
+      findCandidate(remindersCard?.agent?.callerNumberId) ??
+      (candidates.length === 1 ? candidates[0]! : null);
+    const pending = [
+      ...owned
+        .filter(
+          (number) =>
+            number.kind === "purchased" && number.status === "pending",
+        )
+        .map((number) => ({
+          phoneNumber: number.phoneNumber,
+          kind: "purchase" as const,
+        })),
+      ...callerIds
+        .filter((number) => number.verificationStatus === "pending")
+        .map((number) => ({
+          phoneNumber: number.phoneNumber,
+          kind: "verification" as const,
+        })),
+    ];
+    const numberRequirement: FollowUpRequirementCode | null = !anyOn
+      ? null
+      : candidates.length === 0
+        ? pending.length
+          ? "number_pending"
+          : "get_number"
+        : selectedNumber
+          ? null
+          : "choose_number";
+
+    // ── Calendar, its bookable hours and time zone.
+    const findCalendar = (id: string | null | undefined) =>
+      id ? (calendars.find((calendar) => calendar.id === id) ?? null) : null;
+    const selectedCalendar =
+      findCalendar(saved.calendarId) ??
+      findCalendar(schedulingCard?.agent?.calendarId) ??
+      findCalendar(remindersPolicies[0]?.calendarId) ??
+      calendars.find((calendar) => calendar.isDefault) ??
+      null;
+    const calendarAvailability = selectedCalendar
+      ? await this.calendarService
+          .peekAvailability(ctx, selectedCalendar.id)
+          .catch(() => ({ configured: false, windows: [] }))
+      : { configured: false, windows: [] };
+    const availability = saved.availability
+      ? {
+          source: "draft" as const,
+          window: saved.availability,
+          windowCount: 1,
+        }
+      : calendarAvailability.configured
+        ? {
+            source: "calendar" as const,
+            window: windowFromAvailability(calendarAvailability.windows[0]),
+            windowCount: calendarAvailability.windows.length,
+          }
+        : { source: "missing" as const, window: null, windowCount: 0 };
+    const hint =
+      options.timeZoneHint && isTimeZone(options.timeZoneHint)
+        ? options.timeZoneHint
+        : null;
+    const calendarZoneIsDeliberate =
+      !!selectedCalendar &&
+      (calendarAvailability.configured || selectedCalendar.timezone !== "UTC");
+    const timeZone = saved.timeZone
+      ? { source: "draft" as const, value: saved.timeZone }
+      : calendarZoneIsDeliberate
+        ? { source: "calendar" as const, value: selectedCalendar!.timezone }
+        : hint
+          ? { source: "browser" as const, value: hint }
+          : {
+              source: "default" as const,
+              value: selectedCalendar?.timezone ?? "UTC",
+            };
+    const calendarPolicy = selectedCalendar
+      ? remindersPolicies.find(
+          (policy) => policy.calendarId === selectedCalendar.id,
+        )
+      : undefined;
+    const callingHours = saved.callingHours
+      ? { source: "draft" as const, window: saved.callingHours }
+      : calendarPolicy
+        ? {
+            source: "policy" as const,
+            window: fromCallingWindow(readCallingWindow(calendarPolicy)),
+          }
+        : {
+            source: "proposed" as const,
+            window: fromCallingWindow(PROPOSED_CALLING_WINDOW),
+          };
+    const availabilityRequirement: FollowUpRequirementCode | null =
+      capabilities.scheduling && availability.source === "missing"
+        ? "set_availability"
+        : null;
+
+    // ── Who receives what, and who calls back.
+    const callbacks = await this.callbackRouting(ctx, selectedNumber);
+    const adminRows = personal
+      ? []
+      : await this.organizations
+          .findAdminMembersWithEmails(ctx.organizationId!)
+          .catch(() => []);
+    const ownerName =
+      [owner?.firstName, owner?.lastName].filter(Boolean).join(" ").trim() ||
+      null;
+
+    // ── What stops the existing specialists themselves.
+    const brokenAgent = [
+      capabilities.scheduling ? schedulingCard : undefined,
+      capabilities.reminders ? remindersCard : undefined,
+    ].some(
+      (card) =>
+        card?.nextStep?.code === "fix_agent" ||
+        card?.nextStep?.code === "turn_on_agent",
+    );
+
+    const requirements: FollowUpReview["requirements"] = [];
+    if (numberRequirement)
+      requirements.push({ code: numberRequirement, row: "number" });
+    if (availabilityRequirement) {
+      requirements.push({ code: availabilityRequirement, row: "calendar" });
+    }
+    if (brokenAgent) requirements.push({ code: "fix_agent", row: null });
+    // The balance is the manager's to see (CALL-014): a member's read-only
+    // view says an administrator has to act, without telling the balance.
+    const balanceKnown = canConfigure && env.balance !== null;
+    if (anyOn && balanceKnown && env.balance! <= 0) {
+      requirements.push({ code: "add_credit", row: null });
+    }
+
+    const adopted = activation?.status === "adopted";
+    const adoptedScope = (activation?.scope ?? {}) as Record<string, unknown>;
+    const state = followUpState({
+      admitted,
+      requirements: requirements.map((requirement) => requirement.code),
+      adopted,
+      adoptedCapabilities: (["scheduling", "reminders"] as const)
+        .filter((capability) => adoptedScope[capability] === true)
+        .map((capability) => {
+          const card =
+            capability === "scheduling" ? schedulingCard : remindersCard;
+          return {
+            capability,
+            on:
+              !!card &&
+              card.state !== "paused" &&
+              card.state !== "unconfigured",
+          };
+        }),
+    });
+
+    const rowsMissing = [numberRequirement, availabilityRequirement].filter(
+      Boolean,
+    ).length;
+
+    // ── The meeting the review was opened from, if any.
+    const draftForMeeting = {
+      reminders: capabilities.reminders,
+      calendarId: selectedCalendar?.id ?? null,
+      offsetMinutes: reminderOffsetMinutes,
+      window: callingHours.window,
+      timeZone: timeZone.value,
+    };
+    const meetingId = saved.includeMeetingId ?? options.meetingId ?? null;
+    const sourceMeeting = meetingId
+      ? await this.sourceMeeting(
+          ctx,
+          viewer,
+          meetingId,
+          calendars,
+          draftForMeeting,
+          now,
+        )
+      : null;
+
+    const upcomingExisting =
+      canConfigure && capabilities.reminders && selectedCalendar
+        ? await this.reminders
+            .previewPolicyCalls(ctx, {
+              calendarIds: [selectedCalendar.id],
+              offsetMinutes: reminderOffsetMinutes,
+              window: callingHours.window,
+              coverage: { coversMeetingsFrom: null },
+            })
+            .catch(() => null)
+        : null;
+
+    const nextActions =
+      canConfigure && admitted
+        ? (
+            await this.executions
+              .listUpcomingForOwner(ctx, { from: now, take: 3 })
+              .catch(() => [])
+          ).map((row) => ({
+            fireAt: row.fireAt.toISOString(),
+            meetingId: row.meeting.id,
+            meetingAt: row.meeting.scheduledAt.toISOString(),
+            contactName: row.meeting.contact?.name ?? null,
+          }))
+        : [];
+
+    const ownLine = owned.some(
+      (number) =>
+        (number.kind === "purchased" &&
+          (number.status === "active" || number.status === "assigned")) ||
+        (number.kind === "verified_caller_id" &&
+          number.verificationStatus === "verified"),
+    );
+    const sharedNumberAvailable = Boolean(
+      apiConfiguration.RINGEE_PUBLIC_CALLER_ID,
+    );
+    const line = ownLine
+      ? ("own_number" as const)
+      : sharedNumberAvailable
+        ? ("shared_number" as const)
+        : ("none" as const);
+    const noCredit = balanceKnown && env.balance! <= 0;
+
+    const adoptedBy =
+      activation?.adoptedByUserId && activation.adoptedByUserId !== ctx.userId
+        ? await this.users
+            .findById(activation.adoptedByUserId)
+            .catch(() => null)
+        : activation?.adoptedByUserId
+          ? owner
+          : null;
+
+    return {
+      version: FOLLOW_UP_ONBOARDING_VERSION,
+      workspaceType: personal ? "personal" : "organization",
+      admitted,
+      canConfigure,
+      adminNames: canConfigure
+        ? []
+        : adminRows
+            .map((admin) =>
+              [admin.firstName, admin.lastName]
+                .filter(Boolean)
+                .join(" ")
+                .trim(),
+            )
+            .filter(Boolean)
+            .slice(0, 5),
+      state,
+      activation: {
+        status: !activation ? "none" : adopted ? "adopted" : "configured",
+        revision: activation?.revision ?? null,
+        savedAt: activation?.configuredAt.toISOString() ?? null,
+        adoptedAt: activation?.adoptedAt?.toISOString() ?? null,
+        adoptedByName: adoptedBy
+          ? [adoptedBy.firstName, adoptedBy.lastName]
+              .filter(Boolean)
+              .join(" ") || null
+          : null,
+        entrySource: parseEntrySource(activation?.entrySource),
+        optOuts: Object.fromEntries(
+          Object.entries(optOuts).map(([capability, optOut]) => [
+            capability,
+            { reason: optOut.reason, at: optOut.at },
+          ]),
+        ),
+      },
+      draft: {
+        ...saved,
+        capabilities,
+        reminderOffsetMinutes,
+        existingMeetings: saved.existingMeetings ?? "none",
+        callingHours: callingHours.window,
+        timeZone: timeZone.value,
+        ...(selectedNumber ? { numberId: selectedNumber.id } : {}),
+        ...(selectedCalendar ? { calendarId: selectedCalendar.id } : {}),
+        ...(sourceMeeting?.eligible && saved.includeMeetingId === undefined
+          ? { includeMeetingId: sourceMeeting.id }
+          : {}),
+      },
+      rows: {
+        identity: {
+          status: "ok",
+          kind: personal ? "person" : "company",
+          companyName:
+            saved.identity?.companyName ??
+            profile?.companyName ??
+            (personal ? null : (schedulingCard?.company ?? null)),
+          companyWebsite:
+            saved.identity?.companyWebsite ?? profile?.companyWebsite ?? null,
+          personName: ownerName,
+        },
+        shareable: {
+          status: "ok",
+          companyDescription:
+            saved.shareable?.companyDescription ??
+            profile?.companyDescription ??
+            null,
+        },
+        number: {
+          status: numberRequirement ? "missing" : "ok",
+          requirement: numberRequirement,
+          selected: selectedNumber,
+          candidates,
+          pending,
+          sharedNumberAvailable,
+        },
+        callbacks: {
+          status: personal ? "locked" : "info",
+          ...callbacks,
+        },
+        calendar: {
+          status: availabilityRequirement ? "missing" : "ok",
+          requirement: availabilityRequirement,
+          selected: selectedCalendar
+            ? {
+                id: selectedCalendar.id,
+                name: selectedCalendar.name,
+                timezone: selectedCalendar.timezone,
+                isDefault: selectedCalendar.isDefault,
+                provider: selectedCalendar.integration?.provider ?? null,
+                accountEmail: canConfigure
+                  ? (selectedCalendar.integration?.email ?? null)
+                  : null,
+              }
+            : null,
+          candidates: calendars.map((calendar) => ({
+            id: calendar.id,
+            name: calendar.name,
+            isDefault: calendar.isDefault,
+          })),
+          willCreate: !selectedCalendar,
+          availability,
+        },
+        callingHours: {
+          status: "ok",
+          source: callingHours.source,
+          window: callingHours.window,
+        },
+        timeZone: { status: "ok", ...timeZone },
+        responsible: {
+          status: personal ? "locked" : "info",
+          kind: personal ? "owner" : "caller",
+          ownerName: personal ? ownerName : null,
+          adminCount: adminRows.length,
+        },
+      },
+      capabilities: {
+        scheduling: {
+          existing: schedulingCard?.state ?? "unconfigured",
+          agentName: schedulingCard?.agent?.name ?? null,
+          humanFollowUpEnabled:
+            schedulingCard?.scheduling?.humanFollowUpEnabled === true,
+          optedOut: Boolean(optOuts.scheduling),
+        },
+        reminders: {
+          existing: remindersCard?.state ?? "unconfigured",
+          agentName: remindersCard?.agent?.name ?? null,
+          existingOffsetMinutes: existingOffset,
+          optedOut: Boolean(optOuts.reminders),
+          offsetChoices: [...FOLLOW_UP_OFFSET_CHOICES],
+          upcomingExisting,
+        },
+      },
+      requirements,
+      progress: { done: 8 - rowsMissing, total: 8 },
+      balance: {
+        visible: canConfigure,
+        amount: canConfigure ? env.balance : null,
+      },
+      manualCalling: {
+        ready: line !== "none" && !noCredit,
+        line,
+        reason: line === "none" ? "no_line" : noCredit ? "no_credit" : null,
+      },
+      sourceMeeting,
+      nextActions,
+    };
+  }
+
+  /**
+   * Saves the review as a draft: "configuration saved", not authorized. Only
+   * the personal owner or an organization administrator, re-read now. Every id
+   * it names is authorized against the workspace before it is stored.
+   */
+  async saveFollowUpConfiguration(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    input: {
+      draft: unknown;
+      expectedRevision: number | null;
+      entrySource?: unknown;
+      timeZoneHint?: string | null;
+      meetingId?: string | null;
+    },
+  ): Promise<FollowUpReview> {
+    assertVoiceAgentAutomations(ctx);
+    await this.assertCanConfigure(ctx, viewer);
+    const draft = parseFollowUpDraft(input.draft);
+    await this.authorizeDraft(ctx, viewer, draft);
+    const write = await this.activations.saveConfiguration(ctx, {
+      version: FOLLOW_UP_ONBOARDING_VERSION,
+      configuration: draft as Prisma.InputJsonObject,
+      entrySource: parseEntrySource(input.entrySource),
+      expectedRevision: input.expectedRevision,
+    });
+    if (!write.ok) {
+      throw new ConflictException({
+        message: "This review changed in another window. Reload it.",
+        revision: write.row?.revision ?? null,
+      });
+    }
+    const review = await this.followUpReview(ctx, viewer, {
+      meetingId: draft.includeMeetingId ?? input.meetingId ?? null,
+      timeZoneHint: input.timeZoneHint,
+    });
+    void this.analytics.record({
+      event: "followup_configuration_saved",
+      key: `${write.row.id}:r${write.row.revision}`,
+      occurredAt: write.row.configuredAt,
+      workspace: ctx,
+      humanUserId: ctx.userId,
+      properties: {
+        entry_source: write.row.entrySource,
+        onboarding_version: FOLLOW_UP_ONBOARDING_VERSION,
+        missing_requirements: review.requirements.map((item) => item.code),
+      },
+    });
+    return review;
+  }
+
+  /**
+   * "Activate automatic follow-up": the explicit authorization. The draft that
+   * was shown is saved (compared on its revision), every requirement is
+   * checked again, and the configuration is applied through the owners the
+   * rail and the editor already use — company profile, calendar and its hours,
+   * the scheduling and reminders setups — before the adoption, its scope,
+   * version and opt-outs are recorded. Retries reuse the same agents, claims
+   * and policies; replaying the same request returns what it adopted.
+   *
+   * Already-booked meetings are covered only within the explicit scope: the
+   * meeting the review was opened from when it is included (re-checked here at
+   * the version the review showed), or every upcoming one when the person
+   * chose that. Previously authorized reminder policies keep their coverage.
+   */
+  async adoptFollowUp(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    input: {
+      requestKey: string;
+      expectedRevision: number | null;
+      draft?: unknown;
+      entrySource?: unknown;
+      timeZoneHint?: string | null;
+      language?: string | null;
+      meetingVersion?: number | null;
+    },
+  ): Promise<{
+    review: FollowUpReview;
+    meetingCoverage: FollowUpMeetingCoverage | null;
+  }> {
+    assertVoiceAgentAutomations(ctx);
+    await this.assertCanConfigure(ctx, viewer);
+
+    let activation = await this.activations.findForWorkspace(
+      ctx,
+      FOLLOW_UP_ONBOARDING_VERSION,
+    );
+    const replayed = (activation?.scope as { requestKey?: string } | null)
+      ?.requestKey;
+    if (activation?.status === "adopted" && replayed === input.requestKey) {
+      return this.adoptionResult(ctx, viewer, activation, input.timeZoneHint);
+    }
+
+    if (input.draft !== undefined) {
+      const draft = parseFollowUpDraft(input.draft);
+      await this.authorizeDraft(ctx, viewer, draft);
+      const write = await this.activations.saveConfiguration(ctx, {
+        version: FOLLOW_UP_ONBOARDING_VERSION,
+        configuration: draft as Prisma.InputJsonObject,
+        entrySource: parseEntrySource(input.entrySource),
+        expectedRevision: input.expectedRevision,
+      });
+      if (!write.ok) {
+        throw new ConflictException({
+          message: "This review changed in another window. Reload it.",
+          revision: write.row?.revision ?? null,
+        });
+      }
+      activation = write.row;
+    } else if (!activation || activation.revision !== input.expectedRevision) {
+      throw new ConflictException({
+        message: "This review changed in another window. Reload it.",
+        revision: activation?.revision ?? null,
+      });
+    }
+
+    const review = await this.followUpReview(ctx, viewer, {
+      timeZoneHint: input.timeZoneHint,
+    });
+    const blocking = review.requirements.filter(
+      (requirement) => requirement.code !== "add_credit",
+    );
+    if (blocking.length) {
+      throw new BadRequestException({
+        message: "Complete the configuration before activating it.",
+        requirements: blocking.map((requirement) => requirement.code),
+      });
+    }
+    const draft = review.draft;
+    if (!draft.capabilities.scheduling && !draft.capabilities.reminders) {
+      throw new BadRequestException(
+        "Switch on at least one of the two capabilities to activate.",
+      );
+    }
+    // The meeting to include is re-checked at the version the person saw.
+    const includeMeeting =
+      draft.capabilities.reminders && draft.includeMeetingId
+        ? await this.meetingRepo.findByIdForOwner(ctx, draft.includeMeetingId)
+        : null;
+    if (
+      includeMeeting &&
+      input.meetingVersion != null &&
+      includeMeeting.scheduleVersion !== input.meetingVersion
+    ) {
+      throw new ConflictException(
+        "That meeting changed after the review loaded. Review it again.",
+      );
+    }
+
+    const adoptedAt = new Date();
+    try {
+      await this.applyCompanyProfile(ctx, review);
+      const calendar = await this.applyCalendar(ctx, review);
+      const numberId = review.rows.number.selected?.id;
+      const language = normalizeLanguage(input.language);
+
+      if (draft.capabilities.scheduling) {
+        const current = await this.automations.findForOwner(
+          ctx,
+          AGENT_TYPE.scheduling,
+        );
+        const objective = (
+          current?.settings as {
+            humanFollowUp?: { interestedObjective?: string };
+          } | null
+        )?.humanFollowUp?.interestedObjective;
+        await this.setupScheduling(ctx, {
+          callerNumberId: numberId,
+          calendarId: calendar.id,
+          humanFollowUpEnabled: true,
+          interestedObjective:
+            objective === "information" ? "information" : "booking",
+          ...(language ? { language } : {}),
+        });
+      } else if (isRunning(review.capabilities.scheduling.existing)) {
+        await this.setEnabled(ctx, "scheduling", false);
+      }
+
+      if (draft.capabilities.reminders) {
+        await this.applyReminders(ctx, review, {
+          calendarId: calendar.id,
+          numberId,
+          language,
+          adoptedAt,
+        });
+      } else if (isRunning(review.capabilities.reminders.existing)) {
+        await this.setEnabled(ctx, "reminders", false);
+      }
+
+      let meetingCoverage: FollowUpMeetingCoverage | null = null;
+      if (includeMeeting && review.sourceMeeting?.eligible) {
+        meetingCoverage = await this.includeMeetingInConfirmations(
+          ctx,
+          includeMeeting,
+          calendar.id,
+        );
+      }
+
+      const optOuts: Record<string, unknown> = {
+        ...((activation?.optOuts as Record<string, unknown> | null) ?? {}),
+      };
+      for (const capability of ["scheduling", "reminders"] as const) {
+        if (draft.capabilities[capability]) {
+          delete optOuts[capability];
+        } else {
+          optOuts[capability] = {
+            reason: "disabled_in_review",
+            at: adoptedAt.toISOString(),
+            userId: ctx.userId,
+          };
+        }
+      }
+
+      const marked = await this.activations.markAdopted(ctx, {
+        version: FOLLOW_UP_ONBOARDING_VERSION,
+        expectedRevision: activation!.revision,
+        configuration: stripMeetingFromDraft(draft) as Prisma.InputJsonObject,
+        scope: {
+          requestKey: input.requestKey,
+          scheduling: draft.capabilities.scheduling,
+          reminders: draft.capabilities.reminders,
+          calendarId: calendar.id,
+          numberId: numberId ?? null,
+          reminderOffsetMinutes: draft.capabilities.reminders
+            ? draft.reminderOffsetMinutes
+            : null,
+          callingHours: { ...draft.callingHours },
+          timeZone: draft.timeZone,
+          existingMeetings: draft.existingMeetings,
+          includedMeetingIds:
+            meetingCoverage && includeMeeting ? [includeMeeting.id] : [],
+          readinessState: review.state,
+          missingRequirements: review.requirements.map((item) => item.code),
+        },
+        optOuts: optOuts as Prisma.InputJsonObject,
+        entrySource: parseEntrySource(input.entrySource),
+        adoptedAt,
+      });
+      if (!marked.ok) {
+        throw new ConflictException({
+          message: "This review changed in another window. Reload it.",
+          revision: marked.row?.revision ?? null,
+        });
+      }
+      void this.analytics.record({
+        event: "followup_adoption_authorized",
+        key: `${marked.row.id}:${adoptedAt.toISOString()}`,
+        occurredAt: adoptedAt,
+        workspace: ctx,
+        humanUserId: ctx.userId,
+        properties: {
+          entry_source: marked.row.entrySource,
+          onboarding_version: FOLLOW_UP_ONBOARDING_VERSION,
+          scheduling_enabled: draft.capabilities.scheduling,
+          reminders_enabled: draft.capabilities.reminders,
+          reminder_offset_minutes: draft.capabilities.reminders
+            ? draft.reminderOffsetMinutes
+            : null,
+          existing_meetings_scope: draft.existingMeetings,
+          included_meeting: Boolean(meetingCoverage),
+          readiness_state: review.state,
+          missing_requirements: review.requirements.map((item) => item.code),
+        },
+      });
+      const result = await this.adoptionResult(
+        ctx,
+        viewer,
+        marked.row,
+        input.timeZoneHint,
+      );
+      return {
+        ...result,
+        meetingCoverage: meetingCoverage ?? result.meetingCoverage,
+      };
+    } catch (error) {
+      if (!isExpectedBlocker(error)) {
+        this.analytics.captureException(error, {
+          component: VoiceAgentAutomationService.name,
+          operation: "follow_up.adopt",
+          journeyStep: "follow_up_activation",
+          workspace: ctx,
+          userId: ctx.userId,
+          correlation: { activation: activation?.id ?? null },
+        });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Whether one meeting's confirmation call is planned — only when the
+   * scheduler accepted it (an execution exists for the meeting's current
+   * version) — and otherwise the specific reason. A member asks only about a
+   * meeting that is theirs.
+   */
+  async followUpMeetingCoverage(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    meetingId: string,
+  ): Promise<FollowUpMeetingCoverage> {
+    assertVoiceAgentAccess(ctx);
+    const meeting = await this.authorizedMeeting(ctx, viewer, meetingId);
+    if (!meeting) throw new NotFoundException("Meeting not found");
+    return this.meetingCoverage(ctx, meeting);
+  }
+
+  /**
+   * The newest verified AI results — bookings, confirmations and moves the
+   * agents recorded (AGENT-020) — with what each call cost so far. A member
+   * sees only results on meetings that are theirs.
+   */
+  async followUpResults(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+  ): Promise<FollowUpResultSummary> {
+    assertVoiceAgentAccess(ctx);
+    const memberUserId =
+      ctx.organizationId && !viewer.admin ? ctx.userId : null;
+    const [actions, firstAt, activation] = await Promise.all([
+      this.meetingRepo.latestAutomationActions(ctx, {
+        kinds: [...FOLLOW_UP_VALUE_RESULTS],
+        take: 3,
+        memberUserId,
+      }),
+      this.meetingRepo.firstAutomationActionAt(ctx, [
+        ...FOLLOW_UP_VALUE_RESULTS,
+      ]),
+      this.activations.findForWorkspace(ctx, FOLLOW_UP_ONBOARDING_VERSION),
+    ]);
+    const adoptedAt = activation?.adoptedAt ?? null;
+    const firstSinceAdoption = adoptedAt
+      ? await this.meetingRepo.firstAutomationActionAt(
+          ctx,
+          [...FOLLOW_UP_VALUE_RESULTS],
+          adoptedAt,
+        )
+      : null;
+    const newest = actions[0];
+    return {
+      results: actions.map((action) => {
+        const voiceUsd = action.call?.totalCost ?? null;
+        const aiUsd = action.aiChargedCredits;
+        return {
+          id: action.id,
+          kind: action.kind,
+          at: action.createdAt.toISOString(),
+          meetingId: action.meetingId,
+          meetingAt: action.scheduledAt.toISOString(),
+          previousMeetingAt: action.previousScheduledAt?.toISOString() ?? null,
+          contactName: action.meeting?.contact?.name ?? null,
+          callId: action.callId,
+          consumption: {
+            voiceUsd: voiceUsd === null ? null : Number(voiceUsd),
+            aiUsd,
+            settled: voiceUsd !== null && aiUsd !== null,
+          },
+        };
+      }),
+      firstResultAt: firstAt?.toISOString() ?? null,
+      firstSinceAdoption: Boolean(
+        newest &&
+          firstSinceAdoption &&
+          newest.createdAt.getTime() === firstSinceAdoption.getTime(),
+      ),
+      adoptedAt: adoptedAt?.toISOString() ?? null,
+    };
+  }
+
+  private async adoptionResult(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    activation: FollowUpActivation,
+    timeZoneHint: string | null | undefined,
+  ): Promise<{
+    review: FollowUpReview;
+    meetingCoverage: FollowUpMeetingCoverage | null;
+  }> {
+    const included = (
+      (activation.scope as { includedMeetingIds?: unknown } | null)
+        ?.includedMeetingIds as string[] | undefined
+    )?.[0];
+    const review = await this.followUpReview(ctx, viewer, {
+      meetingId: included ?? null,
+      timeZoneHint,
+    });
+    return {
+      review,
+      meetingCoverage: review.sourceMeeting?.coverage ?? null,
+    };
+  }
+
+  private async assertCanConfigure(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+  ): Promise<void> {
+    if (!viewer.admin || !(await this.organizations.isWorkspaceAdmin(ctx))) {
+      throw new ForbiddenException(
+        "Only an administrator can configure automatic follow-up.",
+      );
+    }
+  }
+
+  /** Every id a draft names, authorized against this workspace. */
+  private async authorizeDraft(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    draft: FollowUpConfigurationDraft,
+  ): Promise<void> {
+    if (draft.numberId) {
+      const numbers = await this.voiceAgents.listCallerNumbers(ctx);
+      if (!numbers.some((number) => number.id === draft.numberId)) {
+        throw new BadRequestException(
+          "Choose one of this workspace's numbers for the AI.",
+        );
+      }
+    }
+    if (draft.calendarId) {
+      const calendars = await this.calendarService.peekCalendars(ctx);
+      if (!calendars.some((calendar) => calendar.id === draft.calendarId)) {
+        throw new BadRequestException(
+          "Choose one of this workspace's calendars.",
+        );
+      }
+    }
+    if (draft.includeMeetingId) {
+      const meeting = await this.authorizedMeeting(
+        ctx,
+        viewer,
+        draft.includeMeetingId,
+      );
+      if (!meeting) throw new NotFoundException("Meeting not found");
+    }
+  }
+
+  /** A meeting of this workspace; for a member, only one that is theirs. */
+  private async authorizedMeeting(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    meetingId: string,
+  ): Promise<Meeting | null> {
+    const meeting = await this.meetingRepo.findByIdForOwner(ctx, meetingId);
+    if (!meeting || !isInWorkspace(meeting, ctx)) return null;
+    if (ctx.organizationId && !viewer.admin) {
+      const own =
+        meeting.userId === ctx.userId ||
+        meeting.responsibleUserId === ctx.userId;
+      if (!own) return null;
+    }
+    return meeting;
+  }
+
+  private async sourceMeeting(
+    ctx: OwnershipContext,
+    viewer: AutomationViewer,
+    meetingId: string,
+    calendars: Array<{ id: string; isDefault: boolean }>,
+    draft: {
+      reminders: boolean;
+      calendarId: string | null;
+      offsetMinutes: number;
+      window: CallingWindowInput;
+      timeZone: string;
+    },
+    now: Date,
+  ): Promise<FollowUpSourceMeeting | null> {
+    const meeting = await this.authorizedMeeting(ctx, viewer, meetingId);
+    if (!meeting) return null;
+    const contact = await this.contacts
+      .findContactByIdForOwner(ctx, meeting.contactId)
+      .catch(() => null);
+    const meetingCalendarId =
+      meeting.calendarId ??
+      calendars.find((calendar) => calendar.isDefault)?.id ??
+      null;
+    const plannedFireAt = planReminderCallAt({
+      meetingAt: meeting.scheduledAt,
+      offsetMinutes: draft.offsetMinutes,
+      allowNearMeeting: draft.offsetMinutes === 240,
+      window: {
+        startMinute: draft.window.startMinute,
+        endMinute: draft.window.endMinute,
+        days: draft.window.days,
+      },
+      timeZone: draft.timeZone,
+      notBefore: new Date(now.getTime() + 2 * 60_000),
+    });
+    const reason: FollowUpMeetingIneligibility | null =
+      meeting.status !== MeetingStatus.scheduled &&
+      meeting.status !== MeetingStatus.rescheduled
+        ? "cancelled"
+        : meeting.attendanceStatus !== "pending"
+          ? "already_answered"
+          : meeting.scheduledAt.getTime() <= now.getTime() + 20 * 60_000
+            ? "too_soon"
+            : !draft.reminders
+              ? "reminders_off"
+              : draft.calendarId && meetingCalendarId !== draft.calendarId
+                ? "other_calendar"
+                : !plannedFireAt
+                  ? "outside_window"
+                  : null;
+    return {
+      id: meeting.id,
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      durationMinutes: meeting.duration,
+      version: meeting.scheduleVersion,
+      calendarId: meetingCalendarId,
+      contactName: contact?.name ?? null,
+      eligible: reason === null,
+      reason,
+      plannedFireAt: plannedFireAt?.toISOString() ?? null,
+      coverage: await this.meetingCoverage(ctx, meeting),
+    };
+  }
+
+  private async meetingCoverage(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+  ): Promise<FollowUpMeetingCoverage> {
+    const none = (
+      reason: FollowUpMeetingCoverage["reason"],
+    ): FollowUpMeetingCoverage => ({ covered: false, fireAt: null, reason });
+    if (!voiceAgentAutomationsEnabled(ctx)) return none("not_admitted");
+    if (
+      meeting.status !== MeetingStatus.scheduled &&
+      meeting.status !== MeetingStatus.rescheduled
+    ) {
+      return none("cancelled");
+    }
+    const open = await this.executions.findOpenForMeetingVersion(
+      meeting.id,
+      meeting.scheduleVersion,
+      "policy",
+    );
+    if (open) {
+      return { covered: true, fireAt: open.fireAt.toISOString(), reason: null };
+    }
+    if (meeting.attendanceStatus !== "pending") return none("already_answered");
+    const calendarId =
+      meeting.calendarId ??
+      (await this.calendarService.peekCalendars(ctx)).find(
+        (calendar) => calendar.isDefault,
+      )?.id ??
+      null;
+    const policy = calendarId
+      ? await this.policies.findForCalendar(ctx, calendarId)
+      : null;
+    if (!policy) {
+      const activation = await this.activations.findForWorkspace(
+        ctx,
+        FOLLOW_UP_ONBOARDING_VERSION,
+      );
+      return none(
+        activation?.status === "adopted"
+          ? "calendar_not_covered"
+          : "not_adopted",
+      );
+    }
+    if (!policy.enabled) return none("reminders_paused");
+    if (!policyCoversMeeting(policy, meeting)) return none("not_included");
+    return none("too_close");
+  }
+
+  /**
+   * Adds the meeting the review came from to the confirmations: the policy's
+   * explicit inclusion, then the ordinary planner — calling window, the
+   * close-booking rule and the per-version keys that deduplicate it.
+   */
+  private async includeMeetingInConfirmations(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+    calendarId: string,
+  ): Promise<FollowUpMeetingCoverage> {
+    const meetingCalendarId =
+      meeting.calendarId ??
+      (await this.calendarService.peekCalendars(ctx)).find(
+        (calendar) => calendar.isDefault,
+      )?.id;
+    if (meetingCalendarId !== calendarId) {
+      return { covered: false, fireAt: null, reason: "calendar_not_covered" };
+    }
+    const policy = await this.policies.findForCalendar(ctx, calendarId);
+    if (policy?.coversMeetingsFrom) {
+      await this.policies.includeMeetings(ctx, policy.id, [meeting.id]);
+    }
+    const fresh = await this.meetingRepo.findByIdForOwner(ctx, meeting.id);
+    if (fresh) await this.reminders.planMeetingCalls(fresh);
+    return this.meetingCoverage(ctx, fresh ?? meeting);
+  }
+
+  /** Who a returned call to the AI's number reaches today. */
+  private async callbackRouting(
+    ctx: OwnershipContext,
+    number: FollowUpNumberOption | null,
+  ): Promise<{
+    kind: FollowUpReview["rows"]["callbacks"]["kind"];
+    label: string | null;
+  }> {
+    if (!ctx.organizationId) return { kind: "owner", label: null };
+    if (!number || number.kind !== "purchased") {
+      return { kind: "unknown", label: null };
+    }
+    try {
+      const view = await this.inboundRoutes.getForNumber(ctx, {
+        kind: "ringee",
+        id: number.id,
+      });
+      return view.destinationId || view.destinationLabel
+        ? { kind: "route", label: view.destinationLabel ?? null }
+        : { kind: "unrouted", label: null };
+    } catch {
+      return { kind: "unknown", label: null };
+    }
+  }
+
+  /** The reviewed identity and approved information, through their owner. */
+  private async applyCompanyProfile(
+    ctx: OwnershipContext,
+    review: FollowUpReview,
+  ): Promise<void> {
+    const { identity, shareable } = review.draft;
+    if (!identity && !shareable) return;
+    const current = await this.companyProfiles.get(ctx).catch(() => null);
+    const next = {
+      companyName: identity
+        ? identity.companyName
+        : (current?.companyName ?? null),
+      companyWebsite: identity
+        ? identity.companyWebsite
+        : (current?.companyWebsite ?? null),
+      companyDescription: shareable
+        ? shareable.companyDescription
+        : (current?.companyDescription ?? null),
+    };
+    if (
+      next.companyName === (current?.companyName ?? null) &&
+      next.companyWebsite === (current?.companyWebsite ?? null) &&
+      next.companyDescription === (current?.companyDescription ?? null)
+    ) {
+      return;
+    }
+    await this.companyProfiles.save(ctx, next);
+  }
+
+  /**
+   * The calendar the review named — created only now when the workspace had
+   * none — with the reviewed time zone and, when the person set them in the
+   * review, its bookable hours.
+   */
+  private async applyCalendar(
+    ctx: OwnershipContext,
+    review: FollowUpReview,
+  ): Promise<{ id: string; timezone: string }> {
+    const calendarRow = review.rows.calendar;
+    let calendar = calendarRow.selected
+      ? { id: calendarRow.selected.id, timezone: calendarRow.selected.timezone }
+      : await this.calendarService
+          .ensureGlobalCalendar(ctx)
+          .then((created) => ({ id: created.id, timezone: created.timezone }));
+    const zone = review.rows.timeZone;
+    if (
+      (zone.source === "draft" || zone.source === "browser") &&
+      zone.value !== calendar.timezone
+    ) {
+      const updated = await this.calendarService.updateCalendar(
+        ctx,
+        calendar.id,
+        {
+          timezone: zone.value,
+        },
+      );
+      calendar = { id: updated.id, timezone: updated.timezone };
+    }
+    if (
+      calendarRow.availability.source === "draft" &&
+      calendarRow.availability.window
+    ) {
+      const window = calendarRow.availability.window;
+      await this.calendarService.updateAvailabilitySettings(
+        ctx,
+        [
+          {
+            daysOfWeek: window.days,
+            startTime: minuteToTime(window.startMinute),
+            endTime: minuteToTime(window.endMinute),
+            // One booking at a time, like the default schedule.
+            capacity: 1,
+          },
+        ],
+        calendar.id,
+      );
+    }
+    return calendar;
+  }
+
+  /**
+   * Reminders through the one policy writer: an existing setup keeps its
+   * coverage, calendars and offset unless the review changed them, and a
+   * paused one is resumed only because the person switched it on here. A new
+   * policy covers new bookings only, unless every upcoming meeting was chosen.
+   */
+  private async applyReminders(
+    ctx: OwnershipContext,
+    review: FollowUpReview,
+    input: {
+      calendarId: string;
+      numberId: string | undefined;
+      language: string | null;
+      adoptedAt: Date;
+    },
+  ): Promise<void> {
+    const draft = review.draft;
+    const automation = await this.automations.findForOwner(
+      ctx,
+      AGENT_TYPE.reminders,
+    );
+    const existing = automation?.agentId
+      ? await this.policies.listForOwner(ctx, { agentId: automation.agentId })
+      : [];
+    const onCalendar = existing.find(
+      (policy) => policy.calendarId === input.calendarId,
+    );
+    const unchanged =
+      onCalendar &&
+      onCalendar.offsetsMinutes.length === 1 &&
+      onCalendar.offsetsMinutes[0] === draft.reminderOffsetMinutes &&
+      sameWindow(
+        fromCallingWindow(readCallingWindow(onCalendar)),
+        draft.callingHours,
+      );
+    if (unchanged) {
+      if (automation && !automation.enabled) {
+        await this.setEnabled(ctx, "reminders", true);
+      }
+    } else {
+      await this.configureReminders(
+        ctx,
+        {
+          calendarIds: [
+            ...new Set([
+              ...existing.map((policy) => policy.calendarId),
+              input.calendarId,
+            ]),
+          ],
+          offsetMinutes: draft.reminderOffsetMinutes,
+          ...(input.numberId ? { callerNumberId: input.numberId } : {}),
+          ...(input.language ? { language: input.language } : {}),
+        },
+        {
+          window: draft.callingHours,
+          coverage: {
+            coversMeetingsFrom:
+              draft.existingMeetings === "all_upcoming"
+                ? null
+                : input.adoptedAt,
+          },
+        },
+      );
+    }
+    if (draft.existingMeetings === "all_upcoming") {
+      // An explicit "also confirm what is already booked" reaches a policy
+      // that existed with a narrower coverage, too.
+      const policy = await this.policies.findForCalendar(ctx, input.calendarId);
+      if (policy?.coversMeetingsFrom) {
+        const widened = await this.policies.coverAllMeetings(ctx, policy.id);
+        if (widened) await this.reminders.planPolicyCalls(ctx, widened);
+      }
+    }
   }
 
   // ── Internals ──────────────────────────────────────────────────────
@@ -1543,4 +3092,132 @@ function uniqueRefs(refs: InboundNumberRef[]): InboundNumberRef[] {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+// ── Follow-up review helpers (Stage 4C) ──────────────────────────────
+
+/**
+ * Definitive AI meeting actions that are value for the customer (AGENT-020):
+ * a booking, a confirmed attendance, a move or a linked replacement. A
+ * cancellation or a decline is a resolution, never a success.
+ */
+export const FOLLOW_UP_VALUE_RESULTS = [
+  "booked",
+  "attendance_confirmed",
+  "rescheduled",
+  "replaced",
+] as const;
+
+/** The review's capability behind a rail capability, if it has one. */
+function toFollowUpCapability(
+  capability: AutomationCapability,
+): FollowUpCapability | null {
+  if (capability === "scheduling" || capability === "reminders") {
+    return capability;
+  }
+  return null;
+}
+
+/** The stored draft, re-validated; a field that no longer parses is dropped. */
+function readSavedDraft(
+  activation: FollowUpActivation | null,
+): FollowUpConfigurationDraft {
+  const raw = activation?.configuration;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const draft: FollowUpConfigurationDraft = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    try {
+      Object.assign(draft, parseFollowUpDraft({ [key]: value }));
+    } catch {
+      // A field an older version stored differently is simply not reused.
+    }
+  }
+  return draft;
+}
+
+function readOptOuts(
+  activation: FollowUpActivation | null,
+): Partial<
+  Record<FollowUpCapability, { reason: string; at: string; userId?: string }>
+> {
+  const raw = activation?.optOuts;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Partial<
+    Record<FollowUpCapability, { reason: string; at: string; userId?: string }>
+  > = {};
+  for (const capability of ["scheduling", "reminders"] as const) {
+    const entry = (raw as Record<string, unknown>)[capability] as
+      | { reason?: unknown; at?: unknown; userId?: unknown }
+      | undefined;
+    if (
+      entry &&
+      typeof entry.reason === "string" &&
+      typeof entry.at === "string"
+    ) {
+      out[capability] = {
+        reason: entry.reason,
+        at: entry.at,
+        ...(typeof entry.userId === "string" ? { userId: entry.userId } : {}),
+      };
+    }
+  }
+  return out;
+}
+
+/** The first availability rule as a window, for the row's summary. */
+function windowFromAvailability(
+  rule:
+    | { daysOfWeek: number[]; startTime: string; endTime: string }
+    | undefined,
+): CallingWindowInput | null {
+  if (!rule) return null;
+  const toMinute = (time: string) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    return (hours ?? 0) * 60 + (minutes ?? 0);
+  };
+  return {
+    days: [...rule.daysOfWeek],
+    startMinute: toMinute(rule.startTime),
+    endMinute: toMinute(rule.endTime),
+  };
+}
+
+/** A capability that is switched on today, whatever its readiness. */
+function isRunning(state: AutomationState): boolean {
+  return (
+    state === "active" || state === "needs_attention" || state === "activating"
+  );
+}
+
+function normalizeLanguage(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const base = value.split("-")[0]!.toLowerCase();
+  return /^[a-z]{2}$/.test(base) ? base : null;
+}
+
+/** The adopted configuration, without the one-off meeting inclusion. */
+function stripMeetingFromDraft(
+  draft: FollowUpConfigurationDraft,
+): FollowUpConfigurationDraft {
+  const { includeMeetingId: _included, ...rest } = draft;
+  return rest;
+}
+
+function sameWindow(a: CallingWindowInput, b: CallingWindowInput): boolean {
+  return (
+    a.startMinute === b.startMinute &&
+    a.endMinute === b.endMinute &&
+    a.days.length === b.days.length &&
+    a.days.every((day, index) => day === b.days[index])
+  );
+}
+
+/** Expected product blockers are answers, not exceptions to track. */
+function isExpectedBlocker(error: unknown): boolean {
+  return (
+    error instanceof BadRequestException ||
+    error instanceof ConflictException ||
+    error instanceof ForbiddenException ||
+    error instanceof NotFoundException
+  );
 }

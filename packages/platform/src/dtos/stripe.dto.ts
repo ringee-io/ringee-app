@@ -10,6 +10,7 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
+import { CHECKOUT_ENTRY_POINTS } from "../analytics/event-contract";
 
 export type BillingInterval = "month" | "year";
 
@@ -42,6 +43,14 @@ export class CreateCreditCheckoutDto {
   @IsOptional()
   @IsEmail()
   invoiceEmail?: string;
+
+  /**
+   * Where the dashboard started this top-up (analytics only, Stage 4B). It
+   * never changes the amount, the price or what the payment credits.
+   */
+  @IsOptional()
+  @IsIn([...CHECKOUT_ENTRY_POINTS])
+  entryPoint?: string;
 }
 
 /** Change the billing email on the customer (and, if given, a live top-up). */

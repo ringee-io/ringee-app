@@ -236,6 +236,17 @@ function build(
     {} as never,
     {} as never,
     { previousInteractions: async () => "" } as never,
+    // Stage 4C: activation, meetings, numbers and analytics.
+    {
+      recordOptOut: async () => ({}),
+      findForWorkspace: async () => null,
+    } as never,
+    {} as never,
+    {} as never,
+    {
+      record: async () => undefined,
+      captureException: () => undefined,
+    } as never,
   );
   return {
     service,

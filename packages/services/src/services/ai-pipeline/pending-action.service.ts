@@ -42,6 +42,7 @@ import {
   type OwnershipContext,
 } from "@ringee/platform";
 import { ComplianceService } from "../outbound/compliance.service";
+import { ProductAnalyticsService } from "../analytics/product-analytics.service";
 import {
   assertVoiceAgentAutomations,
   voiceAgentAutomationsEnabled,
@@ -102,6 +103,7 @@ export class PendingActionService {
     private readonly reminderPolicies: MeetingReminderPolicyRepository,
     private readonly compliance: ComplianceService,
     private readonly callbacks: CallbackTaskRepository,
+    private readonly analytics: ProductAnalyticsService,
   ) {}
 
   /**
@@ -327,6 +329,13 @@ export class PendingActionService {
           : undefined,
       );
       if (dncEntry) this.compliance.publishDncCreated(dncEntry);
+      // The accepted outcome as an analytics fact (Stage 4B), after the
+      // write committed; keyed by the call's outcome revision.
+      void this.analytics.outcomeRecorded(
+        ctx,
+        recorded.call,
+        recorded.followUp?.state ?? null,
+      );
       return recorded;
     };
     // A personal workspace outside the pilot saves exactly as before: nothing

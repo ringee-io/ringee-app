@@ -14,6 +14,7 @@ import {
   MeetingReminderCallService,
   NumberPurchasedService,
   PipelineRunService,
+  ProductAnalyticsService,
   RecordingProcessingService,
   ReminderService,
   RetryEngine,
@@ -67,6 +68,7 @@ export function createActivities(app: INestApplicationContext) {
   const voiceAgentBilling = app.get(VoiceAgentBillingService);
   const voiceAgentTestSessions = app.get(VoiceAgentTestSessionService);
   const mcpUsage = app.get(McpUsageService);
+  const productAnalytics = app.get(ProductAnalyticsService);
   const demoRequestReview = app.get(DemoRequestReviewService);
 
   return {
@@ -245,6 +247,20 @@ export function createActivities(app: INestApplicationContext) {
       const deleted = await mcpUsage.pruneExpired();
       if (deleted > 0)
         logger.log(`McpUsagePrune: deleted ${deleted} expired usage events`);
+    },
+
+    /**
+     * Product analytics (Stage 4B): project new evidence into facts, then
+     * ship due facts with their original time and stable ids. Never throws —
+     * analytics cannot fail a tick — and does nothing without a project.
+     */
+    async drainProductAnalytics() {
+      const { projected, sent, retried, failed, skipped } =
+        await productAnalytics.tick();
+      if (projected || sent || retried || failed || skipped)
+        logger.debug(
+          `ProductAnalytics: projected ${projected}, sent ${sent}, retried ${retried}, failed ${failed}, skipped ${skipped}`,
+        );
     },
 
     async recomputeCallerIdHealth() {

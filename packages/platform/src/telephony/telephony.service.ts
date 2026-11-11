@@ -18,6 +18,7 @@ import {
   PurchaseNumbers,
   AssignedNumber,
   AvailableNumber,
+  AvailableNumberLookup,
   NumberOrderRequirements,
   RegulatoryRequirementsQuery,
   RegulatoryRequirementsResult,
@@ -134,6 +135,12 @@ export class TelephonyService implements TelephonyServiceInterface {
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]> {
     return this.getServiceProvider().searchAvailableNumbers(params);
+  }
+
+  lookupAvailableNumbers(
+    params: SearchAvailableParams,
+  ): Promise<AvailableNumberLookup> {
+    return this.getServiceProvider().lookupAvailableNumbers(params);
   }
 
   getNumberListPrices(): Promise<NumberListPrice[]> {
