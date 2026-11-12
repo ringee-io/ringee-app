@@ -40,6 +40,7 @@ import {
 import { useMyDaySummary } from '../../hooks/use.my.day.summary';
 import { useQueueDial } from '../../hooks/use.queue.dial';
 import { useContactBriefStore } from '../../store/contact-brief.store';
+import { useDialerStore } from '../../store/dialer.store';
 import { useNumbersStore } from '../../store/number.selector.store';
 import type {
   MyDayList,
@@ -136,9 +137,11 @@ export function MyDayView() {
   const { capture } = useAnalytics();
   const { isLoaded: authLoaded, userId, orgId } = useAuth();
   const callActive = useCallActivity();
-  // Set once the test call's list is ready: the person's next explicit dial
-  // is the test call's attempt.
-  const testDialPending = useRef(false);
+  // A number typed into the quick dialer is a number in hand too.
+  const quickDialTyped = useDialerStore((s) => s.number.trim() !== '');
+  // The test call's list, once it is ready: the person's explicit dial of
+  // its entry is the test call's attempt — not a callback that came due.
+  const testListId = useRef<string | null>(null);
   const followUpAdmitted = useVoiceAgentsRail(
     (state) => state.summary?.enabled === true
   );
@@ -260,19 +263,24 @@ export function MyDayView() {
       void refreshLists();
       // A retried completion can report zero after the first response was lost.
       void fetchBalance(api, false, true);
-      if (fromTestCall) testDialPending.current = true;
+      if (fromTestCall) testListId.current = list.id;
     },
     [api, fetchBalance, markFirstListDone, refreshLists, selectList]
   );
   const endSpotlight = useCallback(() => setSpotlight(false), []);
 
-  // "Call next", by button or by N — the explicit dial. After the test
-  // call's list is ready, the first one is the test call's attempt.
+  // "Call next", by button or by N — the explicit dial. Dialing the test
+  // call list's entry is the test call's attempt, counted once.
   const callNext = useCallback(
     (item: MyDayQueueItem) => {
       if (busy) return;
-      if (testDialPending.current) {
-        testDialPending.current = false;
+      if (
+        testListId.current !== null &&
+        next?.source === 'list' &&
+        next.list.id === testListId.current &&
+        next.item.key === item.key
+      ) {
+        testListId.current = null;
         capture('test_call_dial_attempted', {
           line: lineKind,
           has_credit: hasCredit
@@ -280,7 +288,7 @@ export function MyDayView() {
       }
       void callItem(item);
     },
-    [busy, callItem, capture, hasCredit, lineKind]
+    [busy, callItem, capture, hasCredit, lineKind, next]
   );
 
   const skipListEntry = callList.skip;
@@ -328,20 +336,27 @@ export function MyDayView() {
   }, [capture, firstList.reward, lineKind]);
   useFirstCallPrompt({
     workspace: authLoaded && userId ? { userId, orgId: orgId ?? null } : null,
+    // Rotation decides the line the dialog shows: `null` is pending or a
+    // failed read, and either way the prompt waits — the hook reads again
+    // on focus.
     loaded:
       roleLoaded &&
       firstList.loaded &&
       !callList.listsLoading &&
       !callList.listsFailed &&
       queueReady &&
-      (numbersStatus === 'success' || numbersStatus === 'error'),
+      (numbersStatus === 'success' || numbersStatus === 'error') &&
+      rotationEnabled !== null,
     hasWork:
       hasLists ||
       queue.items.length > 0 ||
       queue.incoming.length > 0 ||
       firstList.completed ||
       firstList.pendingListId !== null,
-    numberInHand: !!searchParams.get('phoneNumber') || query.trim() !== '',
+    numberInHand:
+      !!searchParams.get('phoneNumber') ||
+      query.trim() !== '' ||
+      quickDialTyped,
     onOpen: openTestCall
   });
 
