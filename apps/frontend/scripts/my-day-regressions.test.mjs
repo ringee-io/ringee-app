@@ -323,3 +323,240 @@ test('recovered completion does not mark setup done until the server confirms it
     '/onboarding/first-list/original'
   ]);
 });
+
+// ---------------------------------------------------------------------------
+// The first-call prompt My day opens on its own (useFirstCallPrompt).
+// ---------------------------------------------------------------------------
+
+/** A tiny hook runtime: state, refs and effects that re-run on changed deps. */
+function hookRuntime() {
+  const cells = [];
+  const refs = [];
+  const deps = [];
+  const cleanups = [];
+  let cursor = 0;
+  let refCursor = 0;
+  let effectCursor = 0;
+  let pending = [];
+  const react = {
+    useState: (initial) => {
+      const index = cursor++;
+      if (!(index in cells)) cells[index] = initial;
+      return [
+        cells[index],
+        (next) => {
+          cells[index] = typeof next === 'function' ? next(cells[index]) : next;
+        }
+      ];
+    },
+    useRef: (current) => {
+      const index = refCursor++;
+      if (!(index in refs)) refs[index] = { current };
+      return refs[index];
+    },
+    useEffect: (fn, list) => {
+      const index = effectCursor++;
+      const before = deps[index];
+      if (
+        !before ||
+        !list ||
+        list.some((value, i) => !Object.is(value, before[i]))
+      ) {
+        deps[index] = list;
+        pending.push([index, fn]);
+      }
+    }
+  };
+  const render = (hook, props) => {
+    cursor = 0;
+    refCursor = 0;
+    effectCursor = 0;
+    pending = [];
+    hook(props);
+    for (const [index, fn] of pending) {
+      cleanups[index]?.();
+      cleanups[index] = fn() ?? undefined;
+    }
+  };
+  return { react, render };
+}
+
+/** The browser around the hook: storage, open dialogs, timers, call state. */
+function promptPage(storage, call = { live: false }) {
+  const runtime = hookRuntime();
+  const timers = [];
+  const page = { overlay: false, timers };
+  globalThis.window = {
+    setTimeout: (fn) => timers.push(fn),
+    clearTimeout: () => {}
+  };
+  globalThis.document = {
+    querySelector: () => (page.overlay ? {} : null)
+  };
+  globalThis.localStorage = storage;
+  const store = (state) => (selector) => selector(state());
+  const load = loader({
+    react: runtime.react,
+    '@/features/dialer/store/dialer-session.store': {
+      useDialerSessionStore: store(() => ({ sessionId: null }))
+    },
+    '../store/call.store': {
+      useCallStore: store(() => ({ postCallPhase: false }))
+    },
+    '../store/dialer.store': {
+      useDialerStore: store(() => ({ dialingNumber: null }))
+    },
+    '../store/inbound-offers.store': {
+      useInboundOffersStore: store(() => ({ presented: {} }))
+    },
+    '../store/telnyx.store': {
+      useTelnyxStore: store(() => ({
+        activeCall: call.live ? { state: 'active' } : null
+      }))
+    }
+  });
+  const prompt = load(
+    frontend + 'features/calls/hooks/use.first.call.prompt.ts'
+  );
+  const opened = [];
+  const base = {
+    workspace: { userId: 'user_1', orgId: null },
+    loaded: true,
+    hasWork: false,
+    numberInHand: false,
+    onOpen: () => opened.push(true)
+  };
+  page.prompt = prompt;
+  page.opened = opened;
+  page.show = (props = {}) =>
+    runtime.render(prompt.useFirstCallPrompt, { ...base, ...props });
+  return page;
+}
+
+function memoryStorage() {
+  const values = new Map();
+  return {
+    values,
+    getItem: (key) => (values.has(key) ? values.get(key) : null),
+    setItem: (key, value) => values.set(key, String(value))
+  };
+}
+
+function withBrowserGlobals(run) {
+  const saved = {
+    window: globalThis.window,
+    document: globalThis.document,
+    localStorage: globalThis.localStorage
+  };
+  try {
+    return run();
+  } finally {
+    Object.assign(globalThis, saved);
+  }
+}
+
+test('first-call prompt: work in hand wins, nothing is decided while loading', () => {
+  const { prompt } = withBrowserGlobals(() => promptPage(memoryStorage()));
+  const { firstCallPromptStep } = prompt;
+  const clear = {
+    loaded: true,
+    hasWork: false,
+    numberInHand: false,
+    callSeen: false,
+    overlayOpen: false
+  };
+  assert.equal(firstCallPromptStep(clear), 'open');
+  assert.equal(firstCallPromptStep({ ...clear, loaded: false }), 'wait');
+  assert.equal(firstCallPromptStep({ ...clear, overlayOpen: true }), 'wait');
+  assert.equal(firstCallPromptStep({ ...clear, hasWork: true }), 'skip');
+  assert.equal(
+    firstCallPromptStep({ ...clear, loaded: false, numberInHand: true }),
+    'skip'
+  );
+  assert.equal(
+    firstCallPromptStep({ ...clear, loaded: false, callSeen: true }),
+    'skip'
+  );
+});
+
+test('first-call prompt: a new account sees it once, and not again after a reload', () =>
+  withBrowserGlobals(() => {
+    const storage = memoryStorage();
+    const first = promptPage(storage);
+    first.show({ loaded: false });
+    assert.equal(first.opened.length, 0, 'waits for everything to load');
+    first.show();
+    first.show();
+    assert.equal(first.opened.length, 1);
+    assert.ok(
+      storage.values.has('ringee:first-call-prompt:user_1:personal'),
+      'remembered per user and workspace'
+    );
+
+    // Dismissed, then the page reloads: same browser, fresh page.
+    const reloaded = promptPage(storage);
+    reloaded.show();
+    assert.equal(reloaded.opened.length, 0);
+
+    // Another workspace of the same person is its own first time.
+    const org = promptPage(storage);
+    org.show({ workspace: { userId: 'user_1', orgId: 'org_1' } });
+    assert.equal(org.opened.length, 1);
+  }));
+
+test('first-call prompt: an account with work continues, and keeps it for later', () =>
+  withBrowserGlobals(() => {
+    const storage = memoryStorage();
+    const page = promptPage(storage);
+    page.show({ hasWork: true });
+    // The queue empties during the visit: still nothing in the way.
+    page.show({ hasWork: false });
+    assert.equal(page.opened.length, 0);
+    assert.equal(storage.values.size, 0, 'nothing remembered');
+  }));
+
+test('first-call prompt: never over another dialog, but opens once it closes', () =>
+  withBrowserGlobals(() => {
+    const page = promptPage(memoryStorage());
+    page.overlay = true;
+    page.show();
+    assert.equal(page.opened.length, 0);
+    assert.equal(page.timers.length, 1, 'looks again shortly');
+    page.overlay = false;
+    page.timers.shift()();
+    page.show();
+    assert.equal(page.opened.length, 1);
+  }));
+
+test('first-call prompt: a number to call or a call in this visit keeps it away', () =>
+  withBrowserGlobals(() => {
+    const storage = memoryStorage();
+    const linked = promptPage(storage);
+    linked.show({ loaded: false, numberInHand: true });
+    linked.show({ numberInHand: false });
+    assert.equal(linked.opened.length, 0);
+
+    const call = { live: true };
+    const onCall = promptPage(storage, call);
+    onCall.show({ loaded: false });
+    call.live = false; // hung up and wrapped up before the page settled
+    onCall.show();
+    assert.equal(onCall.opened.length, 0);
+    assert.equal(storage.values.size, 0, 'left for a later visit');
+  }));
+
+test('first-call prompt: without storage it still opens only once per page', () =>
+  withBrowserGlobals(() => {
+    const broken = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      }
+    };
+    const page = promptPage(broken);
+    page.show();
+    page.show({ hasWork: false });
+    assert.equal(page.opened.length, 1);
+  }));

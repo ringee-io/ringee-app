@@ -65,8 +65,6 @@ interface NextCallPanelProps {
   onChooseList: () => void;
   /** With no list of their own: set one up, through the onboarding. */
   onStart: () => void;
-  /** "Make a test call": one number, the line and credit shown first. */
-  onTestCall?: () => void;
   /** USD finishing the onboarding adds; zero says nothing about credit. */
   reward: number;
   /**
@@ -98,7 +96,6 @@ export function NextCallPanel({
   listsLoading,
   onChooseList,
   onStart,
-  onTestCall,
   reward,
   spotlight,
   onSpotlightDone,
@@ -160,9 +157,7 @@ export function NextCallPanel({
   }
 
   if (!next && !picked && !hasLists && !queueFailed) {
-    return (
-      <StartCalling reward={reward} onStart={onStart} onTestCall={onTestCall} />
-    );
+    return <StartCalling reward={reward} onStart={onStart} />;
   }
 
   // A queue not read yet may hold someone due: the list waits for it (LIST-005).
@@ -356,13 +351,13 @@ function NextCallRole({
 
 /**
  * Nobody to call and no list of their own: the way in. It opens the
- * onboarding that makes a list in a minute and comes back to this panel.
+ * onboarding that makes a list in a minute and comes back to this panel —
+ * also after the first-call prompt My day opened on its own was dismissed.
  */
 function StartCalling({
   reward,
-  onStart,
-  onTestCall
-}: Pick<NextCallPanelProps, 'reward' | 'onStart' | 'onTestCall'>) {
+  onStart
+}: Pick<NextCallPanelProps, 'reward' | 'onStart'>) {
   const t = useTranslations('calls.myDay.next.start');
   const tNext = useTranslations('calls.myDay.next');
   return (
@@ -397,16 +392,6 @@ function StartCalling({
             N
           </Kbd>
         </Button>
-        {onTestCall ? (
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={onTestCall}
-            className='text-emerald-800 hover:text-emerald-900 dark:text-emerald-300'
-          >
-            {t('testCall')}
-          </Button>
-        ) : null}
         {reward > 0 ? (
           <p className='inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 sm:justify-end dark:text-emerald-300'>
             <Gift className='size-3.5 shrink-0' />

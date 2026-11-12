@@ -49,8 +49,12 @@ export const CLIENT_ANALYTICS_EVENTS = {
   // Readiness blockers and their recovery
   readiness_blocker_shown: ["blocker", "surface"],
   readiness_recovery_started: ["blocker", "action", "surface"],
-  // First call
+  // First call. Exposure, intent and attempt are separate on purpose: My day
+  // opens the test-call modal on its own (exposure); the person saving the
+  // number to call is the intent; their explicit "Call next" the attempt.
+  // The connected call is the backend's `human_call_connected`.
   first_list_offer_shown: ["reward_usd"],
+  test_call_modal_shown: ["trigger", "line", "reward_usd"],
   test_call_intent: ["surface", "line"],
   test_call_dial_attempted: ["line", "has_credit"],
   // Numbers

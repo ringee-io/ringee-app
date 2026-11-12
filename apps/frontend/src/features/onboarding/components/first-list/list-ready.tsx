@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
@@ -22,17 +21,9 @@ import {
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { SkippedPerson } from '../../hooks/use.first.list.builder';
+import { LineOptions, type ListReadyLine } from './call-line';
 
-/** The line a first call goes out on, and whether there is credit for it. */
-export interface ListReadyLine {
-  kind: 'own_number' | 'shared_number' | 'none';
-  /** The own number, formatted; null for the shared line or none. */
-  number: string | null;
-  /** False when the balance cannot pay for a call (managers only see it). */
-  hasCredit: boolean | null;
-  /** The top-up control for this step, rendered by the host. */
-  topUp?: React.ReactNode;
-}
+export type { ListReadyLine } from './call-line';
 
 /** The last step: the list is ready, the gift is in, and the way to call. */
 export function ListReady({
@@ -56,6 +47,9 @@ export function ListReady({
   const tList = useTranslations('onboarding.firstList');
   const reduceMotion = useReducedMotion();
   const [showSkipped, setShowSkipped] = useState(false);
+  // The gift just landed on an empty balance (BILL-022): the balance shown
+  // by the page may not have caught up with it yet.
+  const noCredit = line?.hasCredit === false && rewardGranted <= 0;
 
   return (
     <>
@@ -107,51 +101,27 @@ export function ListReady({
             <div className='rounded-xl border p-3.5 text-[13px]'>
               <p className='flex items-center gap-2 font-semibold'>
                 <PhoneCall className='size-4 shrink-0 text-emerald-600 dark:text-emerald-400' />
-                {line.kind === 'own_number' && line.number
-                  ? t('line.own', { number: line.number })
-                  : line.kind === 'shared_number'
-                    ? t('line.shared')
-                    : t('line.none')}
+                {line.kind === 'shared_number'
+                  ? t('line.shared')
+                  : line.kind === 'none'
+                    ? t('line.none')
+                    : line.auto || !line.number
+                      ? t('line.ownAuto')
+                      : t('line.own', { number: line.number })}
               </p>
               <p className='text-muted-foreground mt-1 leading-snug'>
                 {line.kind === 'shared_number'
                   ? t('line.sharedHint')
                   : line.kind === 'none'
                     ? t('line.noneHint')
-                    : t('line.ownHint')}
+                    : line.auto || !line.number
+                      ? t('line.ownAutoHint')
+                      : t('line.ownHint')}
               </p>
               {line.kind === 'none' ? (
-                <div className='mt-3 grid gap-2'>
-                  <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] p-3'>
-                    <p className='font-semibold'>{t('line.buyTitle')}</p>
-                    <p className='text-muted-foreground mt-0.5 leading-snug'>
-                      {t('line.buyText')}
-                    </p>
-                    <Button asChild size='sm' className='mt-2'>
-                      <Link href='/dashboard/buy-number?tab=buy'>
-                        {t('line.buyCta')}
-                      </Link>
-                    </Button>
-                  </div>
-                  <div className='rounded-lg border p-3'>
-                    <p className='font-semibold'>{t('line.verifyTitle')}</p>
-                    <p className='text-muted-foreground mt-0.5 leading-snug'>
-                      {t('line.verifyText')}
-                    </p>
-                    <Button
-                      asChild
-                      size='sm'
-                      variant='outline'
-                      className='mt-2'
-                    >
-                      <Link href='/dashboard/buy-number?tab=caller-ids'>
-                        {t('line.verifyCta')}
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
+                <LineOptions surface='first_list_ready' className='mt-3' />
               ) : null}
-              {line.hasCredit === false ? (
+              {noCredit ? (
                 <div className='mt-2 flex flex-wrap items-center justify-between gap-2'>
                   <p className='text-amber-700 dark:text-amber-300'>
                     {t('line.noCredit')}

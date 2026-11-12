@@ -105,10 +105,21 @@ Exposure and interaction only: `followup_invitation_shown/dismissed`,
 `followup_review_opened` (with `entry_source`), `followup_review_row_saved`,
 `followup_capability_toggled`, `followup_activation_clicked/failed`,
 `followup_value_summary_viewed/action`, `readiness_blocker_shown`,
-`readiness_recovery_started`, `first_list_offer_shown`, `test_call_intent`,
-`test_call_dial_attempted`, `number_search_recovery_clicked`,
+`readiness_recovery_started`, `first_list_offer_shown`, `test_call_modal_shown`,
+`test_call_intent`, `test_call_dial_attempted`, `number_search_recovery_clicked`,
 `credit_topup_opened`, plus `$pageview`/`$pageleave`. Autocapture, heatmaps,
 dead clicks, replay, surveys and flags are off.
+
+The first test call is measured in four separate steps, so an automatic
+exposure is never read as somebody's intent:
+
+| Step                     | Event                                                    | When                                                                                                                                |
+| ------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Exposure                 | `test_call_modal_shown` (`trigger: automatic`)           | My day opened the test-call modal on its own: no list, no queue, no first-list setup. Once per user and workspace in that browser   |
+| Intent                   | `test_call_intent` (`surface: test_call_modal`)          | The person saved the number to call in that modal (once per opening)                                                                |
+| Attempt                  | `test_call_dial_attempted`                               | Their next explicit dial after that list is ready — "Call next" or N. Nothing dials from the modal itself                           |
+| Connected                | `human_call_connected` (backend)                         | The call was answered (CALL-012); `is_first_for_workspace`, `caller_id_kind` tell the first call and the shared line apart          |
+| Blocker (no line at all) | `readiness_blocker_shown` / `readiness_recovery_started` | `blocker: no_line` with `surface: test_call_modal` or `first_list_ready`, and `action: buy_number` / `verify_number` on the way out |
 
 `entry_source` is one of `first_list`, `interested_outcome`, `meeting_booked`,
 `ai_voice_agents_navigation`.
@@ -164,6 +175,9 @@ workspaces (a cohort maintained in PostHog).
   list.
 - Time to first call: median time `signup_completed` → first
   `human_call_connected`.
+- Test call (workspaces): `test_call_modal_shown` → `test_call_intent` →
+  `test_call_dial_attempted` → `human_call_connected`
+  (`is_first_for_workspace`), 24-hour window, broken down by `line`.
 - Blockers: `readiness_blocker_shown` by `blocker` and `surface`; recovery:
   `readiness_recovery_started` → `line_acquired` / `credit_topup_confirmed`.
 - First paid top-up: only workspaces with no earlier paid top-up
@@ -208,7 +222,8 @@ split and data quality, and wait for cohort maturity, before reading results.
 
 **E1 — Clear test-call guidance vs the current presentation.**
 Population: new workspaces that reach My day with no list. Exposure: the start
-state rendered (`first_list_offer_shown` or `test_call_intent` surface). Primary
+state rendered (`test_call_modal_shown`, or `first_list_offer_shown` where the
+modal was not opened). Primary
 metric: workspaces with `human_call_connected` (first) within 24 h of exposure.
 Window 24 h; duration until both arms reach the sample computed from the
 measured baseline (≥ 2 weeks). Guardrails: blocked calls, `$exception` on the
