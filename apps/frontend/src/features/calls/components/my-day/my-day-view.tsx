@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -26,6 +27,10 @@ import { useCallFinished } from '../../hooks/use.call.finished';
 import { useCallList } from '../../hooks/use.call.list';
 import { useCallPageShortcuts } from '../../hooks/use.call.page.shortcuts';
 import { useDial } from '../../hooks/use.dial';
+import {
+  useCallActivity,
+  useFirstCallPrompt
+} from '../../hooks/use.first.call.prompt';
 import {
   isCallableNow,
   upcomingCall,
@@ -95,6 +100,10 @@ function listEntryItem(list: MyDayList, entry: MyDayListEntry): MyDayQueueItem {
  * nobody in the queue is due, "Call next" goes through the list the user
  * picked. With no list of their own, "Start calling" opens the onboarding
  * that makes one, picks it, and hands the focus back to the next call.
+ *
+ * Somebody with nothing at all to call — no list, no queue, no first-list
+ * setup — gets that onboarding once on its own, as the first test call: on
+ * the number to call, under the line it goes out on (`useFirstCallPrompt`).
  */
 export function MyDayView() {
   const t = useTranslations('calls.myDay');
@@ -116,12 +125,19 @@ export function MyDayView() {
   const [listPickerOpen, setListPickerOpen] = useState(false);
   const firstList = useFirstListOnboarding();
   const [listSetupOpen, setListSetupOpen] = useState(false);
+  // The setup as the person opened it, or as the first test call My day
+  // opened on its own.
+  const [setupVariant, setSetupVariant] = useState<'list' | 'test_call'>(
+    'list'
+  );
   const [spotlight, setSpotlight] = useState(false);
   const fetchBalance = useCreditStore((s) => s.fetchBalance);
   const router = useRouter();
   const { capture } = useAnalytics();
-  // "Make a test call": the first-list flow opened on typing one number.
-  const [testCall, setTestCall] = useState(false);
+  const { isLoaded: authLoaded, userId, orgId } = useAuth();
+  const callActive = useCallActivity();
+  // Set once the test call's list is ready: the person's next explicit dial
+  // is the test call's attempt.
   const testDialPending = useRef(false);
   const followUpAdmitted = useVoiceAgentsRail(
     (state) => state.summary?.enabled === true
@@ -208,24 +224,64 @@ export function MyDayView() {
   const hasLists = callList.lists.length > 0;
   const startCalling = useCallback(() => {
     setListPickerOpen(false);
-    setTestCall(false);
+    setSetupVariant('list');
     setListSetupOpen(true);
   }, []);
+
+  const selected = useNumbersStore((s) => s.selectedNumber);
+  const numbersStatus = useNumbersStore((s) => s.status);
+  const rotationEnabled = useRotationEnabled();
+  const balance = useCreditStore((s) => s.balance);
+  const balanceLoaded = useCreditStore((s) => s.hasLoaded);
+  const { canAccessAdminFeatures, isLoaded: roleLoaded } = useOrgRole();
+  const seesBalance = roleLoaded && canAccessAdminFeatures;
+  // The line the next manual call goes out on, the way the dial picks it:
+  // caller-ID rotation chooses one of the workspace's numbers for each call
+  // (not on the workspace's own carrier); otherwise the number picked in
+  // "Your line" — the shared public one until the person picks their own.
+  const autoLine =
+    rotationEnabled === true && selected?.source !== 'external_carrier';
+  const lineKind: 'own_number' | 'shared_number' | 'none' = autoLine
+    ? 'own_number'
+    : selected && selected.id !== 'public'
+      ? 'own_number'
+      : selected?.phoneNumber
+        ? 'shared_number'
+        : 'none';
+  const hasCredit = seesBalance && balanceLoaded ? balance > 0 : null;
 
   // The new list goes to work at once, behind the dialog's last step.
   const selectList = callList.select;
   const markFirstListDone = firstList.markCompleted;
   const listReady = useCallback(
-    (list: { id: string }) => {
+    (list: { id: string }, _rewardGranted: number, fromTestCall: boolean) => {
       markFirstListDone();
       selectList(list.id);
       void refreshLists();
       // A retried completion can report zero after the first response was lost.
       void fetchBalance(api, false, true);
+      if (fromTestCall) testDialPending.current = true;
     },
     [api, fetchBalance, markFirstListDone, refreshLists, selectList]
   );
   const endSpotlight = useCallback(() => setSpotlight(false), []);
+
+  // "Call next", by button or by N — the explicit dial. After the test
+  // call's list is ready, the first one is the test call's attempt.
+  const callNext = useCallback(
+    (item: MyDayQueueItem) => {
+      if (busy) return;
+      if (testDialPending.current) {
+        testDialPending.current = false;
+        capture('test_call_dial_attempted', {
+          line: lineKind,
+          has_credit: hasCredit
+        });
+      }
+      void callItem(item);
+    },
+    [busy, callItem, capture, hasCredit, lineKind]
+  );
 
   const skipListEntry = callList.skip;
   const skip = useCallback(
@@ -238,7 +294,7 @@ export function MyDayView() {
   useCallPageShortcuts({
     onCallNext: () => {
       if (next) {
-        if (!callList.skipping) void callItem(next.item);
+        if (!callList.skipping) callNext(next.item);
       } else if (
         !hasLists &&
         !callList.listsLoading &&
@@ -256,27 +312,38 @@ export function MyDayView() {
     }
   });
 
-  const selected = useNumbersStore((s) => s.selectedNumber);
-  const rotationEnabled = useRotationEnabled();
-  const balance = useCreditStore((s) => s.balance);
-  const balanceLoaded = useCreditStore((s) => s.hasLoaded);
-  const { canAccessAdminFeatures, isLoaded: roleLoaded } = useOrgRole();
-  const seesBalance = roleLoaded && canAccessAdminFeatures;
-  // The line and credit the first call would use, shown before "Call".
-  const lineKind: 'own_number' | 'shared_number' | 'none' = selected
-    ? selected.id === 'public'
-      ? selected.phoneNumber
-        ? 'shared_number'
-        : 'none'
-      : 'own_number'
-    : 'none';
-  const startTestCall = useCallback(() => {
-    capture('test_call_intent', { surface: 'my_day', line: lineKind });
+  // The first test call, opened on its own once per user and workspace in
+  // this browser, for somebody with nothing to call yet. Exposure only: the
+  // intent is the person saving the number, the attempt their explicit dial.
+  const openTestCall = useCallback(() => {
     setListPickerOpen(false);
-    setTestCall(true);
-    testDialPending.current = true;
+    setKeypadOpen(false);
+    setSetupVariant('test_call');
     setListSetupOpen(true);
-  }, [capture, lineKind]);
+    capture('test_call_modal_shown', {
+      trigger: 'automatic',
+      line: lineKind,
+      reward_usd: firstList.reward
+    });
+  }, [capture, firstList.reward, lineKind]);
+  useFirstCallPrompt({
+    workspace: authLoaded && userId ? { userId, orgId: orgId ?? null } : null,
+    loaded:
+      roleLoaded &&
+      firstList.loaded &&
+      !callList.listsLoading &&
+      !callList.listsFailed &&
+      queueReady &&
+      (numbersStatus === 'success' || numbersStatus === 'error'),
+    hasWork:
+      hasLists ||
+      queue.items.length > 0 ||
+      queue.incoming.length > 0 ||
+      firstList.completed ||
+      firstList.pendingListId !== null,
+    numberInHand: !!searchParams.get('phoneNumber') || query.trim() !== '',
+    onOpen: openTestCall
+  });
 
   // The gift is offered only once the server confirmed it is owed (BILL-022).
   const offerShown = useRef(false);
@@ -378,7 +445,6 @@ export function MyDayView() {
           listsLoading={callList.listsLoading}
           onChooseList={() => setListPickerOpen(true)}
           onStart={startCalling}
-          onTestCall={startTestCall}
           reward={firstList.reward}
           spotlight={spotlight}
           onSpotlightDone={endSpotlight}
@@ -390,16 +456,7 @@ export function MyDayView() {
           dialing={next !== null && dialingKey === next.item.key}
           busy={busy}
           skipping={callList.skipping}
-          onCall={(item) => {
-            if (testDialPending.current) {
-              testDialPending.current = false;
-              capture('test_call_dial_attempted', {
-                line: lineKind,
-                has_credit: seesBalance ? balance > 0 : null
-              });
-            }
-            void callItem(item);
-          }}
+          onCall={callNext}
           onSkip={skip}
         />
 
@@ -455,14 +512,16 @@ export function MyDayView() {
         defaultCountry={region}
         onListReady={listReady}
         onFinish={() => setSpotlight(true)}
-        startWith={testCall ? 'typed' : null}
+        variant={setupVariant}
+        stepAside={setupVariant === 'test_call' && callActive}
         line={{
           kind: lineKind,
+          auto: autoLine,
           number:
-            lineKind === 'own_number' && selected?.phoneNumber
+            lineKind === 'own_number' && !autoLine && selected?.phoneNumber
               ? formatForDisplay(selected.phoneNumber)
               : null,
-          hasCredit: seesBalance && balanceLoaded ? balance > 0 : null,
+          hasCredit,
           topUp: (
             <CreditPopover fetch={false} entryPoint='test_call'>
               <Button size='sm' variant='outline'>

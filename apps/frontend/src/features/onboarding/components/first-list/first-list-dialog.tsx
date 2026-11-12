@@ -19,6 +19,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
+import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
@@ -34,6 +35,7 @@ import {
   type SkippedPerson,
   useFirstListBuilder
 } from '../../hooks/use.first.list.builder';
+import { CallOrigin } from './call-line';
 import { ContactPicker, type PickedContact } from './contact-picker';
 import { ListReady, type ListReadyLine } from './list-ready';
 import { SourceChoice } from './source-choice';
@@ -42,6 +44,8 @@ import { blankRow, type PersonRow, TypedPeople } from './typed-people';
 type Step = 'choose' | 'add' | 'ready';
 
 const STEPS: Step[] = ['choose', 'add', 'ready'];
+/** A test call starts on the number, so it is two steps long. */
+const TEST_CALL_STEPS: Step[] = ['add', 'ready'];
 
 /** `CONTACT_LIST_LIMITS.NAME_MAX` on the server. */
 const NAME_MAX = 120;
@@ -82,17 +86,25 @@ export interface FirstListDialogProps {
   /** The list has people in it: the Call page can work it right away. */
   onListReady: (
     list: { id: string; name: string },
-    rewardGranted: number
+    rewardGranted: number,
+    /** Made from the test call's number step. */
+    fromTestCall: boolean
   ) => void;
   /** Closed with a list made: time to call. */
   onFinish: () => void;
   /**
-   * "Make a test call": open straight on typing one number (the person can
-   * still go back and import a list instead).
+   * `test_call`: "Make your first test call" — straight on typing the number
+   * to call, under the line it will go out on. Back leaves it for the
+   * regular choice of a file, typed numbers or contacts.
    */
-  startWith?: FirstListSource | null;
+  variant?: 'list' | 'test_call';
   /** The line and credit the first call would use, shown before "Call". */
   line?: ListReadyLine | null;
+  /**
+   * A call needs the screen — one ringing in or live: close, as if the
+   * person had, unless a list is being saved.
+   */
+  stepAside?: boolean;
   /**
    * Stage 4C: the secondary "Configure automatic follow-up" on the ready
    * step, offered only where automated follow-up is admitted and not active.
@@ -106,6 +118,10 @@ export interface FirstListDialogProps {
  * people come from (a file, typed in, or contacts already saved), the people
  * themselves with the list's name, and the list ready with the credit it
  * earned. Walking away part-way takes back a list nobody made it into.
+ *
+ * As the test call (`variant="test_call"`) it opens on the second step, the
+ * number to call under the line it goes out on; nothing dials from here —
+ * the call is placed from the Call page, by the person.
  */
 export function FirstListDialog({
   open,
@@ -115,16 +131,20 @@ export function FirstListDialog({
   defaultCountry,
   onListReady,
   onFinish,
-  startWith = null,
+  variant = 'list',
   line = null,
+  stepAside = false,
   onConfigureFollowUp = null
 }: FirstListDialogProps) {
   const t = useTranslations('onboarding.firstList');
   const api = useApi();
+  const { capture } = useAnalytics();
   const reduceMotion = useReducedMotion();
   const builder = useFirstListBuilder();
   const createRef = useRef<HTMLButtonElement>(null);
   const problemRef = useRef<HTMLDivElement>(null);
+  /** The test call's intent is counted once per opening. */
+  const intentSent = useRef(false);
 
   const [step, setStep] = useState<Step>('choose');
   const [source, setSource] = useState<FirstListSource | null>(null);
@@ -145,24 +165,25 @@ export function FirstListDialog({
   const [problem, setProblem] = useState<Problem | null>(null);
   const [ready, setReady] = useState<ReadyList | null>(null);
   const [contactTotal, setContactTotal] = useState<number | null>(null);
+  /** Back from the test call's number: the regular list setup from here. */
+  const [leftTestCall, setLeftTestCall] = useState(false);
+  const [wasOpen, setWasOpen] = useState(false);
 
   const defaultName = firstTime ? t('name.first') : t('name.next');
   const rewardLabel = `$${reward.toFixed(2)}`;
+  const testCall = variant === 'test_call' && !leftTestCall;
 
-  // A test call opens on typing one number; the choice is one step back.
-  const startedWith = useRef(false);
-  useEffect(() => {
-    if (!open) {
-      startedWith.current = false;
-      return;
+  // A test call opens on typing the number, set before the first frame so
+  // the choice of a source never flashes by on the way.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open && variant === 'test_call' && step === 'choose') {
+      setSource('typed');
+      setProblem(null);
+      if (!nameTouched && !name) setName(defaultName);
+      setStep('add');
     }
-    if (startWith && !startedWith.current && step === 'choose') {
-      startedWith.current = true;
-      choose(startWith);
-    }
-    // `choose` only sets state; running it once per opening is the point.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, startWith]);
+  }
 
   // "From your contacts" is offered only to a workspace that has some.
   useEffect(() => {
@@ -199,6 +220,8 @@ export function FirstListDialog({
     setPicked(new Map());
     setProblem(null);
     setReady(null);
+    setLeftTestCall(false);
+    intentSent.current = false;
   };
 
   const close = () => {
@@ -208,6 +231,13 @@ export function FirstListDialog({
     onOpenChange(false);
     if (finished) onFinish();
   };
+
+  // A call ringing in or going live takes the screen; the setup can wait.
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (open && stepAside && !busy) closeRef.current();
+  }, [open, stepAside, busy]);
 
   const choose = (next: FirstListSource) => {
     setSource(next);
@@ -275,6 +305,15 @@ export function FirstListDialog({
       input = { source, contactIds: [...picked.keys()] };
     }
 
+    // The person asked for the test call — the opening alone was ours.
+    if (testCall && !intentSent.current) {
+      intentSent.current = true;
+      capture('test_call_intent', {
+        surface: 'test_call_modal',
+        line: line?.kind ?? null
+      });
+    }
+
     setBusy(true);
     setProblem(null);
     try {
@@ -289,7 +328,7 @@ export function FirstListDialog({
       }
       setReady(result);
       setStep('ready');
-      onListReady(result.list, result.rewardGranted);
+      onListReady(result.list, result.rewardGranted, testCall);
     } catch (error) {
       setProblem({ title: describeApiError(error, t('failed')), skipped: [] });
     } finally {
@@ -298,8 +337,16 @@ export function FirstListDialog({
     }
   };
 
-  const index = STEPS.indexOf(step);
+  const steps = testCall ? TEST_CALL_STEPS : STEPS;
+  const index = Math.max(steps.indexOf(step), 0);
   const slide = reduceMotion ? 0 : 14;
+  const rewardChip =
+    reward > 0 ? (
+      <span className='mt-1.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15 ring-inset dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20'>
+        <Gift className='size-3.5' />
+        {t('rewardChip', { amount: rewardLabel })}
+      </span>
+    ) : null;
 
   return (
     <Dialog
@@ -325,7 +372,7 @@ export function FirstListDialog({
       >
         <div className='flex items-center gap-3 px-6 pt-5 pr-14'>
           <div className='flex flex-1 gap-1.5' aria-hidden>
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <span
                 key={s}
                 className={cn(
@@ -336,7 +383,7 @@ export function FirstListDialog({
             ))}
           </div>
           <span className='text-muted-foreground shrink-0 text-xs font-medium tabular-nums'>
-            {t('stepOf', { current: index + 1, total: STEPS.length })}
+            {t('stepOf', { current: index + 1, total: steps.length })}
           </span>
         </div>
 
@@ -358,12 +405,7 @@ export function FirstListDialog({
                   <DialogDescription className='text-[14px]'>
                     {t('choose.description')}
                   </DialogDescription>
-                  {reward > 0 ? (
-                    <span className='mt-1.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15 ring-inset dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20'>
-                      <Gift className='size-3.5' />
-                      {t('rewardChip', { amount: rewardLabel })}
-                    </span>
-                  ) : null}
+                  {rewardChip}
                 </DialogHeader>
                 <div className='min-h-0 flex-1 overflow-y-auto px-6 pb-6'>
                   <SourceChoice contactTotal={contactTotal} onChoose={choose} />
@@ -381,11 +423,14 @@ export function FirstListDialog({
               <>
                 <DialogHeader className='gap-1.5 px-6 pt-4 pb-5 text-left'>
                   <DialogTitle className='text-xl font-semibold tracking-tight'>
-                    {t(`${source}.title`)}
+                    {testCall ? t('testCall.title') : t(`${source}.title`)}
                   </DialogTitle>
                   <DialogDescription className='text-[14px]'>
-                    {t(`${source}.description`)}
+                    {testCall
+                      ? t('testCall.description')
+                      : t(`${source}.description`)}
                   </DialogDescription>
+                  {testCall ? rewardChip : null}
                 </DialogHeader>
 
                 <div
@@ -436,12 +481,36 @@ export function FirstListDialog({
                       <CsvFormatHelp format={format} />
                     </div>
                   ) : source === 'typed' ? (
-                    <TypedPeople
-                      rows={rows}
-                      onRowsChange={setRows}
-                      defaultCountry={defaultCountry}
-                      disabled={busy || builder.completionPending}
-                    />
+                    testCall ? (
+                      <>
+                        {line ? <CallOrigin line={line} /> : null}
+                        <section
+                          aria-labelledby='first-call-to'
+                          className='space-y-2'
+                        >
+                          <p
+                            id='first-call-to'
+                            className='text-muted-foreground text-[11px] font-semibold tracking-wider uppercase'
+                          >
+                            {t('testCall.to')}
+                          </p>
+                          <TypedPeople
+                            rows={rows}
+                            onRowsChange={setRows}
+                            defaultCountry={defaultCountry}
+                            disabled={busy || builder.completionPending}
+                            showColumnLabels={false}
+                          />
+                        </section>
+                      </>
+                    ) : (
+                      <TypedPeople
+                        rows={rows}
+                        onRowsChange={setRows}
+                        defaultCountry={defaultCountry}
+                        disabled={busy || builder.completionPending}
+                      />
+                    )
                   ) : (
                     <ContactPicker
                       picked={picked}
@@ -450,24 +519,28 @@ export function FirstListDialog({
                     />
                   )}
 
-                  <div className='space-y-1.5'>
-                    <Label htmlFor='first-list-name'>{t('name.label')}</Label>
-                    <Input
-                      id='first-list-name'
-                      value={name}
-                      onChange={(event) => {
-                        setName(event.target.value);
-                        setNameTouched(true);
-                      }}
-                      placeholder={defaultName}
-                      maxLength={NAME_MAX}
-                      disabled={busy || builder.completionPending}
-                      className='h-10'
-                    />
-                    <p className='text-muted-foreground text-xs'>
-                      {t('name.hint')}
-                    </p>
-                  </div>
+                  {/* A test call is one number; its list takes the default
+                      name and can be renamed in Lists. */}
+                  {testCall ? null : (
+                    <div className='space-y-1.5'>
+                      <Label htmlFor='first-list-name'>{t('name.label')}</Label>
+                      <Input
+                        id='first-list-name'
+                        value={name}
+                        onChange={(event) => {
+                          setName(event.target.value);
+                          setNameTouched(true);
+                        }}
+                        placeholder={defaultName}
+                        maxLength={NAME_MAX}
+                        disabled={busy || builder.completionPending}
+                        className='h-10'
+                      />
+                      <p className='text-muted-foreground text-xs'>
+                        {t('name.hint')}
+                      </p>
+                    </div>
+                  )}
 
                   {problem ? (
                     <div
@@ -509,6 +582,7 @@ export function FirstListDialog({
                     variant='ghost'
                     onClick={() => {
                       setProblem(null);
+                      setLeftTestCall(true);
                       setStep('choose');
                     }}
                     disabled={busy || builder.completionPending}
@@ -532,10 +606,14 @@ export function FirstListDialog({
                               done: progress.done + 1,
                               total: progress.total
                             })
-                          : t('creating')}
+                          : testCall
+                            ? t('testCall.creating')
+                            : t('creating')}
                       </>
                     ) : builder.completionPending ? (
                       t('finishSetup')
+                    ) : testCall ? (
+                      t('testCall.create', { count: Math.max(people ?? 0, 1) })
                     ) : people ? (
                       t('createCount', { count: people })
                     ) : (

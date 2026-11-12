@@ -49,13 +49,16 @@ export function TypedPeople({
   rows,
   onRowsChange,
   defaultCountry,
-  disabled
+  disabled,
+  showColumnLabels = true
 }: {
   rows: PersonRow[];
   onRowsChange: Dispatch<SetStateAction<PersonRow[]>>;
   /** Where a number typed without its country code belongs. */
   defaultCountry: CountryCode;
   disabled?: boolean;
+  /** Off where the host labels the field itself (the test call). */
+  showColumnLabels?: boolean;
 }) {
   const t = useTranslations('onboarding.firstList.typed');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -98,10 +101,12 @@ export function TypedPeople({
 
   return (
     <div ref={rootRef} className='space-y-2.5'>
-      <div className='text-muted-foreground hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_2.5rem] gap-2 px-0.5 text-xs font-medium sm:grid'>
-        <span>{t('phone')}</span>
-        <span>{t('name')}</span>
-      </div>
+      {showColumnLabels ? (
+        <div className='text-muted-foreground hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_2.5rem] gap-2 px-0.5 text-xs font-medium sm:grid'>
+          <span>{t('phone')}</span>
+          <span>{t('name')}</span>
+        </div>
+      ) : null}
 
       {rows.map((row, index) => (
         <div

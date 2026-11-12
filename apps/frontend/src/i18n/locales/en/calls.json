@@ -772,8 +772,7 @@
         "title": "Line up who to call",
         "hint": "Upload a file or type a few numbers. Ringee hands you the next person, every time.",
         "cta": "Start calling",
-        "reward": "+{amount} free credit when you finish",
-        "testCall": "Make a test call"
+        "reward": "+{amount} free credit when you finish"
       },
       "role": "{title} at <strong>{company}</strong>",
       "detail": {
