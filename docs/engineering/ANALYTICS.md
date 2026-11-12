@@ -117,7 +117,7 @@ exposure is never read as somebody's intent:
 | ------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Exposure                 | `test_call_modal_shown` (`trigger: automatic`)           | My day opened the test-call modal on its own: no list, no queue, no first-list setup. Once per user and workspace in that browser   |
 | Intent                   | `test_call_intent` (`surface: test_call_modal`)          | The person saved the number to call in that modal (once per opening)                                                                |
-| Attempt                  | `test_call_dial_attempted`                               | Their next explicit dial after that list is ready — "Call next" or N. Nothing dials from the modal itself                           |
+| Attempt                  | `test_call_dial_attempted`                               | Their explicit dial of that list's entry — "Call next" or N, once. Nothing dials from the modal itself                              |
 | Connected                | `human_call_connected` (backend)                         | The call was answered (CALL-012); `is_first_for_workspace`, `caller_id_kind` tell the first call and the shared line apart          |
 | Blocker (no line at all) | `readiness_blocker_shown` / `readiness_recovery_started` | `blocker: no_line` with `surface: test_call_modal` or `first_list_ready`, and `action: buy_number` / `verify_number` on the way out |
 
