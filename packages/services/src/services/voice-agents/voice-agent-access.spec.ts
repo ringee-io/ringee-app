@@ -146,7 +146,7 @@ describe("AI Voice Agent access (AGENT-011, AGENT-018)", () => {
     );
   });
 
-  it("hands the claim queries both lists, with null for every organization", () => {
+  it("hands the claim queries both lists, with null for every workspace of a type", () => {
     pilot(["org-1"], [FREELANCER]);
     assert.deepEqual(automationAdmissionFilter(), {
       organizationIds: ["org-1"],
@@ -157,22 +157,51 @@ describe("AI Voice Agent access (AGENT-011, AGENT-018)", () => {
       organizationIds: null,
       personalUserIds: [],
     });
+    pilot([], ["*"]);
+    assert.deepEqual(automationAdmissionFilter(), {
+      organizationIds: [],
+      personalUserIds: null,
+    });
   });
 
-  it("enrolls explicit user ids only: a wildcard or a malformed entry admits nobody", () => {
+  it("admits every personal workspace with '*', and still no organization", () => {
+    pilot([], ["*"]);
+    for (const userId of [FREELANCER, OTHER_FREELANCER]) {
+      assert.deepEqual(voiceAgentAccess({ userId, organizationId: null }), {
+        workspaceType: "personal",
+        module: true,
+        automations: true,
+      });
+    }
+    // The personal list never opens an organization's automations.
+    assert.equal(
+      voiceAgentAutomationsEnabled({
+        userId: FREELANCER,
+        organizationId: "org-1",
+      }),
+      false,
+    );
+    // A personal scope that names no owner is still never admitted.
+    assert.equal(voiceAgentAccess({ organizationId: null }).module, false);
+  });
+
+  it("parses '*' as every personal workspace and drops malformed entries", () => {
     const warn = console.warn;
     const warnings: unknown[] = [];
     console.warn = (...args: unknown[]) => warnings.push(args);
     try {
       assert.deepEqual(parsePersonalPilotUserIds(undefined), []);
       assert.deepEqual(parsePersonalPilotUserIds(""), []);
-      assert.deepEqual(parsePersonalPilotUserIds("*"), []);
+      assert.deepEqual(parsePersonalPilotUserIds("*"), ["*"]);
+      assert.deepEqual(parsePersonalPilotUserIds(` ${FREELANCER}, * `), ["*"]);
+      assert.equal(warnings.length, 0);
       assert.deepEqual(
         parsePersonalPilotUserIds(
-          ` ${FREELANCER.toUpperCase()} , *, not-an-id,${FREELANCER},${OTHER_FREELANCER}`,
+          ` ${FREELANCER.toUpperCase()} , not-an-id,${FREELANCER},${OTHER_FREELANCER}`,
         ),
         [FREELANCER, OTHER_FREELANCER],
       );
+      assert.deepEqual(parsePersonalPilotUserIds("all, everyone"), []);
       assert.ok(warnings.length >= 2);
     } finally {
       console.warn = warn;

@@ -12,23 +12,27 @@ const PILOT_USER_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Explicit enrollment only: every entry must be a user id. A wildcard or a
- * malformed entry admits nobody — it is dropped with a warning instead of
- * refusing to boot, so a typo closes the pilot rather than the API.
+ * Personal workspaces admitted to AI Voice Agents (AGENT-011): `*` admits
+ * every one (the result is then `["*"]`), otherwise each entry must be a user
+ * id. A malformed entry admits nobody — it is dropped with a warning instead
+ * of refusing to boot, so a typo closes the pilot rather than the API.
  */
 const parsePersonalPilotUserIds = (raw: string | undefined): string[] => {
   const entries = (raw ?? "")
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
-  const rejected = entries.filter((id) => !PILOT_USER_ID.test(id));
+  const rejected = entries.filter(
+    (id) => id !== "*" && !PILOT_USER_ID.test(id),
+  );
   if (rejected.length > 0) {
     console.warn(
       `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS ignores ${rejected.length} entr${
         rejected.length === 1 ? "y" : "ies"
-      } that are not user ids (a wildcard is not supported).`,
+      } that are not user ids or "*".`,
     );
   }
+  if (entries.includes("*")) return ["*"];
   return [
     ...new Set(
       entries

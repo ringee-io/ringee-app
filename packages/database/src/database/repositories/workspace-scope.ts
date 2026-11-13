@@ -8,13 +8,15 @@ import { buildOwnershipFilter, type OwnershipContext } from "@ringee/platform";
  * a claim slot from one that is admitted.
  *
  * - `organizationIds`: the admitted organizations, or `null` for every one.
- * - `personalUserIds`: the owners of the admitted personal workspaces. A
- *   personal row is admitted by its own `userId` with `organizationId IS NULL`,
- *   never by the organization list.
+ * - `personalUserIds`: the owners of the admitted personal workspaces, or
+ *   `null` for every one. A personal row is admitted by its own `userId` with
+ *   `organizationId IS NULL`, never by the organization list. The admitted
+ *   models all require `userId`, so "every personal workspace" is
+ *   `organizationId IS NULL`.
  */
 export interface WorkspaceAdmission {
   organizationIds: string[] | null;
-  personalUserIds: string[];
+  personalUserIds: string[] | null;
 }
 
 /** The admission as a Prisma condition on a model's own ownership columns. */
@@ -29,7 +31,9 @@ export function workspaceAdmissionWhere(admission: WorkspaceAdmission): {
       admission.organizationIds === null
         ? { organizationId: { not: null } }
         : { organizationId: { in: admission.organizationIds } },
-      { organizationId: null, userId: { in: admission.personalUserIds } },
+      admission.personalUserIds === null
+        ? { organizationId: null }
+        : { organizationId: null, userId: { in: admission.personalUserIds } },
     ],
   };
 }
@@ -48,7 +52,11 @@ export function workspaceAdmissionSql(
     admission.organizationIds === null
       ? Prisma.sql`${organization} IS NOT NULL`
       : Prisma.sql`${organization}::text = ANY(${admission.organizationIds}::text[])`;
-  return Prisma.sql`((${organizations}) OR (${organization} IS NULL AND ${user}::text = ANY(${admission.personalUserIds}::text[])))`;
+  const personal =
+    admission.personalUserIds === null
+      ? Prisma.sql`${organization} IS NULL`
+      : Prisma.sql`${organization} IS NULL AND ${user}::text = ANY(${admission.personalUserIds}::text[])`;
+  return Prisma.sql`((${organizations}) OR (${personal}))`;
 }
 
 /**

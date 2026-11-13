@@ -20,8 +20,9 @@ import type { WorkspaceAdmission } from "@ringee/database";
  * Organizations keep the rule they had: every organization has the module;
  * automations follow `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for all of
  * them). A personal workspace has neither unless its owner is listed in
- * `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` — explicit enrollment only: the
- * organization list's `*` never admits a personal workspace.
+ * `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` (`*` for every personal
+ * workspace). The two lists are separate: the organization list's `*` never
+ * admits a personal workspace, and the personal list admits no organization.
  */
 export type VoiceAgentWorkspaceType = "organization" | "personal";
 
@@ -82,17 +83,15 @@ export const VOICE_AGENT_ACCESS_DENIED =
  */
 export function voiceAgentAutomationAdmission(): WorkspaceAdmission {
   const allowed = apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+  const personal = apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
   return {
     organizationIds: allowed.includes("*") ? null : [...allowed],
-    personalUserIds: [
-      ...apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS,
-    ],
+    personalUserIds: personal.includes("*") ? null : [...personal],
   };
 }
 
 function personalPilotEnrolled(userId: string | null | undefined): boolean {
   if (!userId) return false;
-  return apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS.includes(
-    userId.toLowerCase(),
-  );
+  const enrolled = apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+  return enrolled.includes("*") || enrolled.includes(userId.toLowerCase());
 }
