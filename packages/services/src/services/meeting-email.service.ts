@@ -100,7 +100,7 @@ export class MeetingEmailService {
     const admission = automationAdmissionFilter();
     if (
       admission.organizationIds?.length === 0 &&
-      admission.personalUserIds.length === 0
+      admission.personalUserIds?.length === 0
     )
       return 0;
     // The same address rule `deliver` reads the lead's address with.

@@ -1762,10 +1762,12 @@ the tool reports success, and may never invent a response time.
 ### AGENT-011 — AI voice agents require an organization workspace or an enrolled personal workspace
 
 Every organization workspace has the module. A personal workspace has it only
-while its owner is explicitly enrolled in the pilot
-(`AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`: Ringee user ids; a wildcard or a
-malformed entry admits nobody, and the organization list's `*` never admits a
-personal workspace). Dashboard routes, REST calls, CLI commands and MCP tools
+while its owner is enrolled (`AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`: Ringee
+user ids, or `*` for every personal workspace; a malformed entry admits nobody).
+The two lists stay separate: the organization list's `*` never admits a
+personal workspace, and the personal list admits no organization. Until
+2026-11-13 the personal list took explicit ids only and ignored `*`; that was
+changed on purpose to open the module to every freelancer. Dashboard routes, REST calls, CLI commands and MCP tools
 all fail closed otherwise. One scope-aware decision, `voiceAgentAccess`,
 answers both module access and automation admission (AGENT-018) for the API
 guard, every service entry point, the dashboard's `GET /api/ai-voice-agents-access`
@@ -1990,7 +1992,8 @@ personal inbound reception exists (AGENT-011).
 - Only for workspaces with module access (AGENT-011) that are admitted:
   organizations listed in `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` for every
   organization), personal workspaces whose owner is listed in
-  `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` (explicit ids only). Workers decide
+  `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` (`*` for every personal
+  workspace). Workers decide
   admission from each row's persisted `userId`/`organizationId`. Where a claim
   filters (receipts, late-address requeue, four-hour retries, action
   maintenance) the admission is inside the claim query (`WorkspaceAdmission`),

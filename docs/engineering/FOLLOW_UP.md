@@ -3,7 +3,7 @@
 Stages 1–3, updated 6 November 2026; Stage 4A (personal workspaces), 10
 November 2026. The pilot flags are `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` for
 organizations and `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` for personal
-workspaces (explicit owner ids). Human-outcome enrollment additionally requires
+workspaces (owner ids, or `*` for every one). Human-outcome enrollment additionally requires
 an explicit scheduling-automation policy authorized by an administrator — in a
 personal workspace, its owner. Purchasing Organization does not enable it.
 
@@ -492,9 +492,12 @@ workers:
 | Organization | always, as before             | `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` = every one) |
 | Personal     | only when enrolled            | only when enrolled                                     |
 
-Enrollment is `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`: Ringee user ids only. A
-wildcard or malformed entry is dropped with a warning and admits nobody; the
-organization list's `*` never admits a personal workspace. The guard reads the
+Enrollment is `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`: Ringee user ids, or `*`
+for every personal workspace (since 2026-11-13; it used to be ignored). A
+malformed entry is dropped with a warning and admits nobody; the organization
+list's `*` never admits a personal workspace, and the personal list admits no
+organization. Claim queries read `*` as `personalUserIds: null`: every personal
+row that has an owner. The guard reads the
 personal owner from the auth layer. Provider callbacks keep their own
 authorization: a call already started finishes and settles whatever admission
 says, and clone reconciliation runs in the clone's persisted workspace.
@@ -563,8 +566,9 @@ for the same number does not apply, the owner's does.
    code never places a call or sends an email for a personal row, but it would
    withdraw pending personal work — which is why no personal row may exist
    while any old instance runs. Personal rows only appear after step 5.
-5. Admit explicitly selected owners by id, and restart the API and workers to
-   read the setting. Organization access and allowlist behavior are unchanged.
+5. Admit selected owners by id, or every personal workspace with `*`, and
+   restart the API and workers to read the setting. Organization access and
+   allowlist behavior are unchanged.
 
 ### Rollback limits
 
