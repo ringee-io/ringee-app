@@ -56,6 +56,8 @@ function build(
     lockedAutomation?: Row;
     /** What the conditional delete of the automation row reports. */
     removes?: boolean;
+    /** Overrides of the follow-up activation repository (Stage 4C). */
+    activations?: Row;
   } = {},
 ) {
   const calls: Row[] = [];
@@ -64,6 +66,7 @@ function build(
   const automationUpdates: Row[] = [];
   const releasedClaims: string[] = [];
   const deleted: Row[] = [];
+  const optOuts: Row[] = [];
   const agent = over.agent === undefined ? AGENT() : over.agent;
   let removed = false;
 
@@ -93,9 +96,16 @@ function build(
         releasedClaims.push(id);
       },
       clearAgent: async () => true,
-      removeForOwner: async (_ctx: Row, id: string, agentId: string) => {
+      removeForOwner: async (
+        _ctx: Row,
+        id: string,
+        agentId: string,
+        options: Row = {},
+      ) => {
         if (over.removes === false) return false;
         deleted.push({ automation: id, agentId });
+        // Recorded in the same transaction as the deletion.
+        if (options.optOut) optOuts.push(options.optOut);
         removed = true;
         return true;
       },
@@ -150,6 +160,15 @@ function build(
       listAdminUserIds: async () => over.admins ?? ["admin-1"],
       isMember: async (id: string) =>
         (over.members ?? ["admin-1", "member-1"]).includes(id),
+      // The repository's scope-aware forms: a personal workspace's only
+      // person is its owner.
+      isWorkspaceAdmin: async (ctx: Row) =>
+        !ctx.organizationId ||
+        (over.admins ?? ["admin-1"]).includes(ctx.userId as string),
+      isWorkspaceMember: async (ctx: Row, id: string) =>
+        ctx.organizationId
+          ? (over.members ?? ["admin-1", "member-1"]).includes(id)
+          : id === ctx.userId,
     } as never,
     {
       findById: async (id: string) => ({ id, firstName: "Carlos" }),
@@ -227,6 +246,18 @@ function build(
     {} as never,
     {} as never,
     { previousInteractions: async () => "" } as never,
+    // Stage 4C: activation, meetings, numbers and analytics.
+    {
+      recordOptOut: async () => ({}),
+      findForWorkspace: async () => null,
+      ...over.activations,
+    } as never,
+    {} as never,
+    {} as never,
+    {
+      record: async () => undefined,
+      captureException: () => undefined,
+    } as never,
   );
   return {
     service,
@@ -236,6 +267,7 @@ function build(
     automationUpdates,
     releasedClaims,
     deleted,
+    optOuts,
   };
 }
 
@@ -703,7 +735,7 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
   });
 
   it("hands the receptionist's numbers back, and leaves the agent as it was", async () => {
-    const { service, deleted, statuses } = build({
+    const { service, deleted, statuses, optOuts } = build({
       agent: AGENT({ type: "receptionist" }),
       automation: RECEPTIONIST,
     });
@@ -712,6 +744,8 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
       { automation: "automation-2", agentId: "agent-1" },
     ]);
     assert.deepEqual(statuses, []);
+    // The receptionist is not part of the follow-up review.
+    assert.deepEqual(optOuts, []);
   });
 
   it("removes nothing while a receptionist's number cannot be handed back", async () => {
@@ -737,16 +771,18 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
   });
 
   it("reports a conflict when another window moved the card meanwhile", async () => {
-    const { service, deleted } = build({ removes: false });
+    const { service, deleted, optOuts } = build({ removes: false });
     await assert.rejects(
       () => service.removeAutomation(CTX, "reminders"),
       ConflictException,
     );
     assert.deepEqual(deleted, [{ policies: ["policy-1"] }]);
+    // Nothing deleted, nothing remembered as removed.
+    assert.deepEqual(optOuts, []);
   });
 
   it("puts the card back to not set up, offering the same agent again", async () => {
-    const { service, deleted } = build({
+    const { service, deleted, optOuts } = build({
       agent: AGENT({ type: "appointment_booking" }),
       automation: {
         id: "automation-3",
@@ -759,6 +795,10 @@ describe("VoiceAgentAutomationService.removeAutomation", () => {
     assert.deepEqual(deleted, [
       { automation: "automation-3", agentId: "agent-1" },
     ]);
+    // The removal is a durable opt-out, stored with the deletion itself.
+    assert.equal(optOuts.length, 1);
+    assert.equal(optOuts[0]!.capability, "scheduling");
+    assert.equal(optOuts[0]!.reason, "trigger_removed");
     assert.equal(card.state, "unconfigured");
     assert.deepEqual(
       card.candidates.map((candidate) => candidate.id),
@@ -796,6 +836,69 @@ describe("VoiceAgentAutomationService pilot flag", () => {
   });
 });
 
+describe("VoiceAgentAutomationService.adoptFollowUp retries", () => {
+  const ATTEMPT = {
+    requestKey: "request-1",
+    baseRevision: 1,
+    status: "failed",
+    at: new Date().toISOString(),
+  };
+  const STORED = (revision: number) => ({
+    id: "activation-1",
+    status: "configured",
+    scope: null,
+    revision,
+    adoptionAttempt: ATTEMPT,
+  });
+
+  function adoptWith(stored: Row) {
+    const reservations: Row[] = [];
+    const reviewed: number[] = [];
+    const { service } = build({
+      activations: {
+        findForWorkspace: async () => stored,
+        reserveAdoption: async (_ctx: Row, input: Row) => {
+          reservations.push(input);
+          return { ok: false, reason: "stale_revision", row: stored };
+        },
+        markAdoptionFailed: async () => true,
+      },
+    });
+    // Stops the adoption right after it chose the revision to apply.
+    (service as unknown as Row).followUpReview = async (
+      _ctx: Row,
+      _viewer: Row,
+      options: Row,
+    ) => {
+      reviewed.push(options.activation.revision);
+      throw new BadRequestException("stop");
+    };
+    const adopt = () =>
+      service.adoptFollowUp(
+        CTX,
+        { admin: true },
+        { requestKey: "request-1", expectedRevision: 1 },
+      );
+    return { adopt, reservations, reviewed };
+  }
+
+  it("resumes the revision a retry of the same request reserved", async () => {
+    const { adopt, reservations, reviewed } = adoptWith(STORED(2));
+    await assert.rejects(adopt, /stop/);
+    assert.equal(reservations.length, 0);
+    assert.deepEqual(reviewed, [2]);
+  });
+
+  it("refuses the retry once a save moved the row past that revision", async () => {
+    const { adopt, reservations, reviewed } = adoptWith(STORED(3));
+    await assert.rejects(adopt, ConflictException);
+    // Reserved against the revision the request reviewed, which is stale.
+    assert.equal(reservations.length, 1);
+    assert.equal(reservations[0]!.expectedRevision, 1);
+    assert.deepEqual(reviewed, []);
+  });
+});
+
 describe("quick setup claim recovery", () => {
   it("does not save a stale setup after losing its claim", async () => {
     const { service, automationUpdates } = build({ automation: null });
@@ -824,5 +927,100 @@ describe("quick setup claim recovery", () => {
     );
     assert.equal(created.length, 0);
     assert.equal(statuses.length, 0);
+  });
+});
+
+// ── Stage 4A: a freelancer's personal workspace ─────────────────────────────
+
+describe("VoiceAgentAutomationService in a personal workspace", () => {
+  const OWNER = { userId: "owner-1", organizationId: null };
+  const withPilot = async (users: string[], run: () => Promise<void>) => {
+    const previous = config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+    config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = users;
+    try {
+      await run();
+    } finally {
+      config.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = previous;
+    }
+  };
+
+  it("stays off for a freelancer outside the pilot, even with every organization admitted", async () => {
+    const previous = config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
+    config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = ["*"];
+    try {
+      await withPilot([], async () => {
+        const { service } = build();
+        assert.deepEqual(await service.summary(OWNER, { admin: true }), {
+          enabled: false,
+          operational: 0,
+          attention: 0,
+          capabilities: {},
+        });
+        // The module gate refuses first: no personal module, no automations.
+        await assert.rejects(
+          service.setupScheduling(OWNER, { calendarId: "calendar-1" }),
+          /personal workspaces enrolled in the pilot/,
+        );
+      });
+    } finally {
+      config.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS = previous;
+    }
+  });
+
+  it("shows the owner reminders and scheduling, and refuses the receptionist on the server", async () => {
+    await withPilot(["owner-1"], async () => {
+      const { service, created } = build({ automation: null });
+      const panel = await service.panel(OWNER, { admin: true });
+      assert.equal(panel.enabled, true);
+      assert.deepEqual(
+        panel.cards.map((card) => card.capability),
+        ["reminders", "scheduling"],
+      );
+      await assert.rejects(
+        service.setupReceptionist(OWNER, {
+          numbers: [{ kind: "ringee", id: "number-1" }],
+        }),
+        /not available in personal workspaces yet/,
+      );
+      assert.deepEqual(created, []);
+    });
+  });
+
+  it("lets the owner authorize their own follow-up policy", async () => {
+    await withPilot(["owner-1"], async () => {
+      // No organization admins exist here: the owner is the authority.
+      const s = build({ admins: [] });
+      await s.service.setupScheduling(OWNER, {
+        humanFollowUpEnabled: true,
+        receiptRecipients: "contact_responsible",
+      });
+      const saved = s.automationUpdates.at(-1)!.settings;
+      assert.equal(saved.humanFollowUp.enabled, true);
+      assert.equal(saved.humanFollowUp.authorizedByUserId, "owner-1");
+      assert.equal(saved.receiptRecipients, "contact_responsible");
+    });
+  });
+
+  it("calls to schedule a meeting with the owner, and with nobody else", async () => {
+    await withPilot(["owner-1"], async () => {
+      const s = build({
+        automation: {
+          id: "automation-1",
+          capability: "appointment_booking",
+          agentId: "agent-1",
+          enabled: true,
+        },
+      });
+      await s.service.startSchedulingCall(OWNER, { contactId: "contact-1" });
+      const placed = s.calls.find((call) => call.startCall);
+      assert.equal(placed?.responsibleUserId, "owner-1");
+      await assert.rejects(
+        s.service.startSchedulingCall(OWNER, {
+          contactId: "contact-1",
+          responsibleUserId: "member-1",
+        }),
+        /personal workspace is with you/,
+      );
+    });
   });
 });

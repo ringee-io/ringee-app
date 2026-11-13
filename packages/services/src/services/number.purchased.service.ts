@@ -17,6 +17,7 @@ import {
 } from "@ringee/database";
 import {
   TelephonyService,
+  AvailableNumber,
   CostInformation,
   OwnershipContext,
   PurchaseNumbers,
@@ -33,6 +34,23 @@ import { apiConfiguration } from "@ringee/configuration";
 import { RegulatoryDocumentService } from "./regulatory-document.service";
 import { OrganizationService } from "./organization.service";
 import { inboundRouteLockKey } from "./inbound-routing/inbound-route-lock";
+import {
+  ProductAnalyticsService,
+  type NumberLookupStatus,
+} from "./analytics/product-analytics.service";
+
+/** One dashboard inventory lookup: the numbers, or why there are none. */
+export interface NumberInventoryLookup {
+  /**
+   * `results` / `empty`: the provider answered. `failed`: it could not be
+   * asked — nothing is known about the inventory, so the screen offers a
+   * retry rather than "no numbers".
+   */
+  status: NumberLookupStatus;
+  numbers: AvailableNumber[];
+  /** A bounded code for `failed`; never the provider's message. */
+  errorCode: string | null;
+}
 
 /** Internal address copied on every regulatory-submission follow-up email. */
 const REGULATORY_FOLLOWUP_CC = "edisonpadilla.dev@gmail.com";
@@ -51,7 +69,58 @@ export class NumberPurchasedService {
     private readonly regulatoryDocumentService: RegulatoryDocumentService,
     private readonly organizationService: OrganizationService,
     private readonly redis: RedisService,
+    private readonly analytics: ProductAnalyticsService,
   ) {}
+
+  /**
+   * The dashboard's live number search: the provider's inventory for a
+   * country, type and filters, with a provider failure kept apart from an
+   * empty answer. Recorded for the acquisition funnel; a failure is also a
+   * tracked exception of the number-lookup journey. Nothing is reserved.
+   */
+  async lookupInventory(
+    ctx: OwnershipContext,
+    params: {
+      countryCode: string;
+      numberType?: "local" | "toll_free" | "mobile";
+      areaCode?: string;
+      features?: string[];
+      limit?: number;
+    },
+  ): Promise<NumberInventoryLookup> {
+    const lookup = await this.telephonyService.lookupAvailableNumbers({
+      countryCode: params.countryCode,
+      numberType: params.numberType,
+      areaCode: params.areaCode,
+      features: params.features as never,
+      limit: params.limit,
+    });
+    const errorCode = lookup.status === "failed" ? lookup.errorCode : null;
+    void this.analytics.numberLookupCompleted(ctx, {
+      status: lookup.status,
+      countryCode: params.countryCode,
+      numberType: params.numberType ?? null,
+      filtersUsed: Boolean(params.areaCode || params.features?.length),
+      results: lookup.numbers.length,
+      errorCode,
+    });
+    if (lookup.status === "failed") {
+      this.analytics.captureException(
+        Object.assign(new Error("Number inventory lookup failed"), {
+          code: errorCode ?? "provider_unavailable",
+        }),
+        {
+          component: NumberPurchasedService.name,
+          operation: "numbers.lookup",
+          journeyStep: "number_lookup",
+          severity: "warning",
+          workspace: ctx,
+          userId: ctx.userId,
+        },
+      );
+    }
+    return { status: lookup.status, numbers: lookup.numbers, errorCode };
+  }
 
   /**
    * The Stripe subscription paying for a purchased DID ended (cancelled by the

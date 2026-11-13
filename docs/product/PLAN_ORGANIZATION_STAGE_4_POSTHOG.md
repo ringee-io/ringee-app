@@ -5,8 +5,9 @@ Propuesta de implementación · 7 de noviembre de 2026
 Complementa [el plan de seguimiento completo](PLAN_ORGANIZATION_AI_FOLLOWUP.md).
 El nombre del archivo se conserva para mantener los enlaces existentes. Esta
 revisión incorpora la decisión del usuario: **mismas capacidades de AI Voice Agents
-y mismo onboarding para freelancers y organizaciones**. Es planificación; el acceso
-personal y la integración PostHog todavía requieren implementación.
+y mismo onboarding para freelancers y organizaciones**. La entrega 4A (alcance
+personal detrás de un piloto explícito) está implementada; ver §13. PostHog (4B) y
+la preparación nativa con onboarding común (4C) siguen pendientes.
 
 La meta es que las personas prospecten y capten clientes, mientras la IA ejecuta
 el seguimiento cotidiano hasta resolverlo o cerrarlo con evidencia. La etapa 4
@@ -496,3 +497,85 @@ de cohortes son decisiones iniciales de diseño ajustables con evidencia. Las mi
 capacidades, el mismo onboarding y el cobro actual por consumo son decisiones de
 producto confirmadas. Este documento no instala SDKs, cambia permisos, migra bases,
 activa flags, aprovisiona proveedores ni envía datos de clientes.
+
+## 13. Estado de implementación · 4A — alcance personal (10 de noviembre de 2026)
+
+**Implementado y validado automáticamente** (proveedores simulados; PostgreSQL
+local desechable con el SQL real de Stages 1–4A y sin drift frente a
+`schema.prisma`):
+
+- Una sola política de acceso por scope, `voiceAgentAccess`, para guard, API,
+  servicios, respuesta de acceso del dashboard (`workspaceType` aditivo) y
+  workers. Organización: acceso y allowlist sin cambios. Personal: módulo y
+  automatizaciones solo con inscripción explícita en
+  `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` (IDs de usuario; `*` se ignora y el
+  `*` de organizaciones no admite workspaces personales).
+- Ownership personal real (`userId` + `organizationId: null`) en agentes,
+  automatizaciones, recordatorios, correos, acciones, handoffs, participantes,
+  callbacks y objetivos; comparaciones con `isInWorkspace`/`isSameWorkspace`,
+  nunca solo por organización. El trabajo diferido usa el scope persistido.
+- Migración aditiva `20261107120000_personal_voice_agent_scope` y SQL
+  concurrente `20261107120100_personal_voice_agent_scope_indexes.sql`: unicidad
+  personal de automatizaciones (índice parcial), propietario en participaciones
+  con check, sin backfill.
+- Recorrido de seguimiento completo en personal: resultado humano → objetivo →
+  callback → commit → reserva → resolución con nota atribuida y comprobantes al
+  propietario; recordatorios, traspaso y callbacks; controles del propietario;
+  retirada del piloto bloquea trabajo nuevo y conserva historial.
+- CALL-001/003 intactos: la llamada IA no ocupa al freelancer; una segunda
+  llamada humana sigue bloqueada. Liquidación contra el saldo personal
+  persistido, una sola vez.
+- UI mínima: entrada de navegación por acceso del servidor, rail personal con
+  Recordatorios y Agendar, «Llamar para agendar» sin selector de miembro.
+
+**Preparado para despliegue detrás del piloto:** orden y verificación en
+[FOLLOW_UP.md](../engineering/FOLLOW_UP.md) («Stage 4A»): migración, índices,
+Prisma y despliegue compatible con la lista personal vacía; comprobar que no
+quedan instancias antiguas; después admitir IDs concretos.
+
+**Pendiente de validación real:** audio y herramientas del traspaso,
+callbacks, recepción de comprobantes y liquidación con contactos de prueba en
+un workspace personal inscrito. **Fuera de 4A:** recepcionista IA en personal
+(requiere cambios de telefonía entrante), PostHog (4B), preparación nativa,
+onboarding común y defaults de 240 minutos (4C).
+
+## 14. Estado de implementación · 4B y pantalla común de 4C (11 de noviembre de 2026)
+
+**Completado de 4C:** la pantalla compartida «Seguimiento automático» (diseño de
+Bitácora: «Tu configuración», «Lo que hará la IA», «Activación y consumo» y el
+estado activado) para freelancers y organizaciones; revisión de solo lectura,
+borrador guardado por filas, adopción explícita e idempotente con alcance,
+versión (`followup-v1`), estado y opt-outs durables; 240 minutos para políticas
+nuevas sin tocar las existentes; una política creada al adoptar cubre las reservas
+nuevas, y las reuniones ya agendadas solo entran de forma explícita («Incluir esta
+reunión en las confirmaciones» o todas las próximas), mientras que las políticas
+que ya existían conservan su cobertura sin requerir esa inclusión; cuatro puntos
+de entrada
+(primera lista, «Interesado», reunión agendada, AI Voice Agents), una sola
+invitación por interacción con preferencia por la reunión; estados distintos para
+llamada manual lista y seguimiento IA pendiente/activo/en pausa/bloqueado.
+
+**Pendiente de 4C (otra entrega):** preparación automática al registrarse y la
+reconciliación Stripe/Clerk de Organization en ambos órdenes (§3). La pantalla
+prepara la propuesta al abrirse, pero no se crea nada hasta la adopción.
+
+**Completado de 4B:** adaptador PostHog en `@ringee/platform`, outbox de hechos
+con UUID estable y fecha original, proyectores desde evidencia durable, schedule
+del orquestador, identidad humana común cliente/servidor, grupo `workspace` con
+claves disjuntas, actores IA/sistema separados, contrato de eventos con allowlist
+en ambos lados, Web Analytics (pageviews saneadas desde un único lugar), Error
+Tracking acotado por journey con saneado de mensajes, causas y stacks, y las
+definiciones de tres dashboards y dos experimentos (ver
+`docs/engineering/ANALYTICS.md`). También: llamada de prueba visible en Mi día,
+línea y saldo mostrados antes de llamar, mínimo de recarga de la cuenta visible,
+búsqueda de país por nombre y código, búsqueda de números que distingue fallo del
+proveedor de inventario vacío con acciones de recuperación, y resumen del primer
+resultado verificado de la IA.
+
+**Pendiente de aprovisionamiento y validación real:** proyectos PostHog
+(producción/staging, región), Group Analytics, límites y alertas, confirmación
+del grant; crear los dashboards y cohortes en PostHog y conciliarlos con el
+ledger; subir source maps del navegador a PostHog desde el build; recorrido real
+con contactos de prueba (adopción, confirmación, consumo) en ambos tipos de
+workspace. Surveys, Session Replay, Feature Flags/Experiments, AI Observability y
+Playground quedan preparados y apagados hasta su revisión.

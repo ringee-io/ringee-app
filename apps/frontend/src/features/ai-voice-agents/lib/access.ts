@@ -4,7 +4,8 @@ import { apiServer } from '@ringee/frontend-shared/lib/api.server';
  * AI Voice Agents access for the active workspace, resolved by the API.
  *
  * This is a UX gate only; the backend guard and service layer enforce the same
- * organization-only rule for every operation.
+ * rule for every operation: every organization, and a personal workspace only
+ * when it is enrolled in the pilot (AGENT-011).
  */
 export async function fetchHasVoiceAgentAccess(): Promise<boolean> {
   try {

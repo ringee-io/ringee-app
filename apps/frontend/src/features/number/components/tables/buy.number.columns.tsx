@@ -216,9 +216,11 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       label: 'Country',
       placeholder: 'Select Country',
       variant: 'select',
+      // Findable by full name ("New Zealand") and by ISO code ("NZ").
       options: COUNTRY_OPTIONS.map((c) => ({
         label: `${c.flag} ${c.name}`,
-        value: c.value
+        value: c.value,
+        keywords: [c.name, c.value]
       }))
     },
     enableColumnFilter: true

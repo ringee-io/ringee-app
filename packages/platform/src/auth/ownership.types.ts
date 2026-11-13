@@ -10,16 +10,6 @@ export interface OwnershipContext {
 }
 
 /**
- * An ownership context already known to be an organization workspace — what
- * organization-only features (AI voice agents, AGENT-011) work with once their
- * access check has passed. Its filter is the organization alone, exactly as
- * `buildOwnershipFilter` builds it for an organization scope.
- */
-export type OrganizationOwnershipContext = OwnershipContext & {
-  organizationId: string;
-};
-
-/**
  * The current user, as resolved by the @CurrentUser() decorator.
  */
 export interface CurrentUserData {
@@ -71,6 +61,78 @@ export function buildOwnershipFilter(ctx: OwnershipContext): {
     userId: ctx.userId,
     organizationId: null,
   };
+}
+
+/** The ownership columns of a stored workspace row. */
+export interface WorkspaceOwnedRow {
+  userId?: string | null;
+  organizationId?: string | null;
+}
+
+/**
+ * Whether a stored row belongs to the workspace `ctx` names (WRK-001) — the
+ * hand-written form of `buildOwnershipFilter`. An organization row matches on
+ * `organizationId` alone; a personal row needs `organizationId: null` **and**
+ * the owner's `userId`, because every personal row has a null organization.
+ */
+export function isInWorkspace(
+  ctx: OwnershipContext,
+  row: WorkspaceOwnedRow,
+): boolean {
+  if (ctx.organizationId) return row.organizationId === ctx.organizationId;
+  return (
+    !row.organizationId && Boolean(row.userId) && row.userId === ctx.userId
+  );
+}
+
+/**
+ * Whether two stored rows belong to one workspace. Comparing their
+ * `organizationId` alone is not enough: two personal rows of different people
+ * both carry `null`.
+ */
+export function isSameWorkspace(
+  a: WorkspaceOwnedRow,
+  b: WorkspaceOwnedRow,
+): boolean {
+  if (a.organizationId || b.organizationId) {
+    return Boolean(a.organizationId) && a.organizationId === b.organizationId;
+  }
+  return Boolean(a.userId) && a.userId === b.userId;
+}
+
+/**
+ * The workspace a stored row belongs to, as an ownership context. Deferred
+ * work rebuilds its scope from what was persisted — never from the owner's
+ * currently active workspace.
+ */
+export function workspaceOf(row: {
+  userId: string;
+  organizationId: string | null;
+}): OwnershipContext {
+  return { userId: row.userId, organizationId: row.organizationId ?? null };
+}
+
+/**
+ * A workspace's stable external key: `organization:<id>` or
+ * `personal:<ownerId>`. The two key spaces are disjoint, so a user's personal
+ * workspace and their organization never share a key, and neither do two
+ * freelancers (both have no organization). It is a correlation and
+ * deduplication key — the analytics `workspace` group and the follow-up
+ * activation's uniqueness — never a proof of authorization.
+ *
+ * Objective source keys keep their older shape (`followUpWorkspaceKey`).
+ */
+export function workspaceKeyOf(ctx: OwnershipContext): string {
+  return ctx.organizationId
+    ? `organization:${ctx.organizationId}`
+    : `personal:${ctx.userId}`;
+}
+
+/** `workspaceKeyOf`'s workspace type, for analytics and the activation screen. */
+export function workspaceTypeOf(
+  ctx: OwnershipContext,
+): "organization" | "personal" {
+  return ctx.organizationId ? "organization" : "personal";
 }
 
 /**

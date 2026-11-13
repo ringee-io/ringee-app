@@ -20,6 +20,38 @@ export const DEFAULT_CALLING_WINDOW: CallingWindow = {
 };
 
 /**
+ * What the shared follow-up review proposes for a calendar that has no policy
+ * yet (Stage 4C): weekdays, 09:00–18:00 in the calendar's time zone. Shown and
+ * editable before adoption; an existing policy keeps its own window.
+ */
+export const PROPOSED_CALLING_WINDOW: CallingWindow = {
+  startMinute: 9 * 60,
+  endMinute: 18 * 60,
+  days: [1, 2, 3, 4, 5],
+};
+
+/**
+ * Whether a reminder policy covers a meeting (Stage 4C). A policy without
+ * `coversMeetingsFrom` covers every meeting on its calendar, as policies always
+ * did. One adopted for "new bookings only" covers meetings created from that
+ * moment, plus those explicitly included — never an older booking by
+ * accident, also not when it later moves or the policy is resumed.
+ */
+export function policyCoversMeeting(
+  policy: {
+    coversMeetingsFrom?: Date | null;
+    includedMeetingIds?: string[] | null;
+  },
+  meeting: { id: string; createdAt: Date },
+): boolean {
+  if (!policy.coversMeetingsFrom) return true;
+  if (meeting.createdAt.getTime() >= policy.coversMeetingsFrom.getTime()) {
+    return true;
+  }
+  return (policy.includedMeetingIds ?? []).includes(meeting.id);
+}
+
+/**
  * How far back a reminder may be pulled to land inside the window. A window
  * that leaves no minute in a whole week has nothing to offer.
  */
@@ -96,13 +128,16 @@ export function planReminderCallAt(params: {
   // Existing shorter policies are pulled earlier too; they never bypass it.
   const leadMinutes = Math.max(offsetMinutes, REMINDER_OFFSET_MIN_MINUTES + 5);
   const ideal = new Date(meetingAt.getTime() - leadMinutes * 60_000);
-  if (ideal.getTime() <= notBefore.getTime()) {
+  // A close meeting's next authorized window, while 20 minutes still remain:
+  // what a policy that allows it gets when its own moment cannot be called.
+  const nearMeeting = () => {
     if (!params.allowNearMeeting) return null;
     const next = nextCallingWindowMoment(notBefore, window, timeZone);
     return next && meetingAt.getTime() - next.getTime() >= 20 * 60_000
       ? next
       : null;
-  }
+  };
+  if (ideal.getTime() <= notBefore.getTime()) return nearMeeting();
   if (isWithinCallingWindow(ideal, window, timeZone)) return ideal;
 
   const { date } = zonedClock(ideal, timeZone);
@@ -122,9 +157,9 @@ export function planReminderCallAt(params: {
     // On the meeting's own day that moment may come after the ideal one, which
     // means the ideal is before the window opened: look at the day before.
     if (pulled.getTime() > ideal.getTime()) continue;
-    return pulled.getTime() > notBefore.getTime() ? pulled : null;
+    return pulled.getTime() > notBefore.getTime() ? pulled : nearMeeting();
   }
-  return null;
+  return nearMeeting();
 }
 
 function weekdayOf(date: string): number {

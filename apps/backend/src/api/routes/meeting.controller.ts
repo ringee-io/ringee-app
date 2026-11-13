@@ -37,6 +37,7 @@ import {
   MeetingService,
   OrganizationService,
 } from "@ringee/services";
+import { parseIsoDateBound } from "../query-dates";
 import { validationExceptionFactory } from "../validation-error";
 
 class CreateMeetingDto {
@@ -149,6 +150,10 @@ export class MeetingController {
     });
   }
 
+  /**
+   * `from`/`to` (ISO 8601) bound the window a calendar view shows; they win
+   * over `upcoming`, which means "from now on".
+   */
   @Get()
   async listMeetings(
     @CurrentUser() user: CurrentUserData,
@@ -158,6 +163,8 @@ export class MeetingController {
     @Query("page") page = "1",
     @Query("limit") limit = "20",
     @Query("calendarId") calendarId?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
   ) {
     const ctx = createOwnershipContext(user);
     return this.meetingService.listMeetings(ctx, {
@@ -167,6 +174,8 @@ export class MeetingController {
       page: Number(page),
       limit: Number(limit),
       calendarId,
+      scheduledFrom: parseIsoDateBound(from, "from"),
+      scheduledTo: parseIsoDateBound(to, "to"),
     });
   }
 

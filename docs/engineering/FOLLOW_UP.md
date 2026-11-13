@@ -1,9 +1,11 @@
 # Persistent follow-up objectives
 
-Stages 1–3, updated 6 November 2026. The pilot flag remains
-`AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. Human-outcome enrollment additionally
-requires an administrator's explicit scheduling-automation policy. Purchasing
-Organization does not enable it.
+Stages 1–3, updated 6 November 2026; Stage 4A (personal workspaces), 10
+November 2026. The pilot flags are `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` for
+organizations and `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` for personal
+workspaces (owner ids, or `*` for every one). Human-outcome enrollment additionally requires
+an explicit scheduling-automation policy authorized by an administrator — in a
+personal workspace, its owner. Purchasing Organization does not enable it.
 
 ## Ownership and execution
 
@@ -75,7 +77,9 @@ the contact-attempt number. Another callback or specialist does not reset counte
 A shared contact row lock coordinates objective callbacks and reminder dispatch,
 reserving one active automatic conversation and at most two automatic calls in
 the calendar-local day. A stored agreed callback is an explicit daily-cap exception,
-never an exception to active-call exclusion. Exhaustion closes without success.
+never an exception to active-call exclusion; so is a person's "Confirm now". A
+committed try the provider refused before any leg existed uses none of the day's
+calls. Exhaustion closes without success.
 
 ## Dispatch, pause and recovery
 
@@ -363,7 +367,9 @@ cancels; `no`/`unclear` retains the reservation. If another time is still reques
 the objective remains open. Its authorized cancellation advances only the current
 call's participation binding, so the specialist can commit a replacement on that
 same call. A human edit never advances that binding. Declining further scheduling
-closes the objective as refusal.
+closes the objective as refusal; a request without an objective is itself closed,
+and its waiting callbacks are withdrawn. Keeping the booking needs the lead's
+recorded decline of that version.
 
 An explicitly configured 240-minute reminder policy supports close bookings only
 when the next window leaves at least 20 minutes. An unanswered first reminder can
@@ -462,3 +468,275 @@ behavior, mailbox receipt/reply-to, uncertain provider acknowledgment and final
 voice/AI settlement with explicitly authorized test contacts. Automated mock tests
 do not establish those provider facts. Stage 4 provisioning, broader onboarding
 and rollout remain out of scope.
+
+## Stage 4A: personal (freelancer) workspaces
+
+Freelancers get the same AI Voice Agents capabilities as organizations, in
+their own personal workspace (`userId` + `organizationId: null`, `WRK-001`),
+behind an explicit backend pilot. No synthetic organization and no
+Organization subscription is involved; billing is unchanged (tokens and
+minutes through `VoiceAgentBillingService`/`CreditService`, charged to the
+workspace persisted on the agent call). Rules changed deliberately:
+AGENT-011, AGENT-018 (rewritten); AGENT-016, AGENT-019, AGENT-020, AGENT-021,
+AGENT-022 and WRK-002 (scope wording).
+
+### Access and admission
+
+`voiceAgentAccess` (`services/voice-agents/voice-agent-access.ts`) is the one
+decision, read by `VoiceAgentAccessGuard`, every service entry point, the
+dashboard's `GET /api/ai-voice-agents-access` (additive `workspaceType`) and the
+workers:
+
+| Workspace    | Module (agents, manual calls) | Automated work                                         |
+| ------------ | ----------------------------- | ------------------------------------------------------ |
+| Organization | always, as before             | `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` (`*` = every one) |
+| Personal     | only when enrolled            | only when enrolled                                     |
+
+Enrollment is `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS`: Ringee user ids, or `*`
+for every personal workspace (since 2026-11-13; it used to be ignored). A
+malformed entry is dropped with a warning and admits nobody; the organization
+list's `*` never admits a personal workspace, and the personal list admits no
+organization. Claim queries read `*` as `personalUserIds: null`: every personal
+row that has an owner. The guard reads the
+personal owner from the auth layer. Provider callbacks keep their own
+authorization: a call already started finishes and settles whatever admission
+says, and clone reconciliation runs in the clone's persisted workspace.
+
+Personal capabilities: reminders and confirmations, scheduling ("Call to
+schedule" books with the owner), human-outcome objectives, reminder→scheduling
+handoff, agreed and recovery callbacks, explicit cancellation and moves,
+attributed notes and receipts. The AI receptionist is not offered in a personal
+workspace yet: an inbound leg the AI answers would occupy its owner's single
+call (CALL-001), and transfers to the owner need the per-user browser endpoint
+only organizations are issued (TELEPHONY, "AI Receptionist").
+
+### Ownership, persistence and claims
+
+Every organization-only comparison in the voice-agent, reminder, receipt,
+handoff, callback and objective owners now uses the canonical helpers
+(`buildOwnershipFilter`, `workspaceOwnershipSql`, `isInWorkspace`,
+`isSameWorkspace`, `workspaceOf`). Two personal rows share a null organization
+without sharing a workspace; a user's personal workspace and their organization
+never mix. Deferred work rebuilds its scope from the persisted row. Membership
+and administration are `OrganizationRepository.isWorkspaceMember` /
+`isWorkspaceAdmin`: a personal workspace's only member and administrator is its
+owner, so personal receipts go to the owner and personal exceptions to the
+owner (AGENT-010 already did).
+
+Schema (`20261107120000_personal_voice_agent_scope`): `organizationId` becomes
+nullable on `AiVoiceAgentAutomation`, `MeetingReminderPolicy`,
+`MeetingReminderExecution`, `MeetingEmailDelivery`, `MeetingAutomationAction`,
+`AiVoiceAgentHandoff` and `AiVoiceAgentCallParticipant`; each personal row's
+owner is its existing `userId`. Participations gain `userId` and the check
+`AiVoiceAgentCallParticipant_workspace_check` (organization or owner). No row is
+backfilled or reassigned. One rail automation per personal workspace and
+capability is the partial unique index
+`AiVoiceAgentAutomation_personal_capability_contextKey_key` (PostgreSQL NULLs
+are distinct, so the organization key cannot cover it); setup and claims also
+serialize on the workspace lock. Objective source keys keep the bare
+organization id for organizations and use `personal:<owner>` for personal
+workspaces; personal objectives are `PendingAction` rows with context
+`personal`.
+
+Claims that filter by admission do it inside the query
+(`WorkspaceAdmission`: receipts and their late-address requeue, four-hour
+retries, action maintenance), so excluded rows never take a slot. The reminder
+and agent-callback claims keep their existing behavior: an excluded row is
+claimed and recorded `skipped`/`missed` with `automations_disabled`. The final
+dispatch fences (`authorizeDial`, `commitFollowUpDispatch`) and the contact
+reservation read only the dispatching workspace: another freelancer's DNC entry
+for the same number does not apply, the owner's does.
+
+### Deployment (prepared behind the pilot)
+
+1. After the Stage 3 SQL, apply
+   `migrations-pending/20261107120000_personal_voice_agent_scope/migration.sql`
+   (transactional, additive; no data rewrite).
+2. Run `pending-migrations/20261107120100_personal_voice_agent_scope_indexes.sql`
+   by hand with psql and autocommit: the partial unique index `CONCURRENTLY`,
+   then `VALIDATE CONSTRAINT`. Confirm both with the script's check queries.
+3. Regenerate Prisma and deploy database, backend, orchestrator and frontend.
+   Keep `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` empty.
+4. Before admitting anyone, verify no pre-4A API or worker remains (every ECS
+   service on the new task definition, old tasks drained; only new Temporal
+   workers polling the task queue). Pre-4A code mishandles personal rows: its
+   agent-callback decision cancels a callback without an organization, its
+   reminder and handoff reviews skip or park them as `automations_disabled`,
+   and with `*` its receipt claim takes personal deliveries and parks them. Old
+   code never places a call or sends an email for a personal row, but it would
+   withdraw pending personal work — which is why no personal row may exist
+   while any old instance runs. Personal rows only appear after step 5.
+5. Admit selected owners by id, or every personal workspace with `*`, and
+   restart the API and workers to read the setting. Organization access and
+   allowlist behavior are unchanged.
+
+### Rollback limits
+
+- Emptying the personal list closes new personal work at once: no module
+  access, no setup, no new dispatch; due personal reminders and agent callbacks
+  are recorded `automations_disabled`, objectives become `blocked`
+  (`automations_disabled`) with their history kept, receipts wait. Calls already
+  placed finish, record and settle.
+- Restoring pre-4A code after personal rows exist withdraws that pending
+  personal work (step 4). Close admission first, let in-flight calls settle
+  (the AI half can take up to two hours), then roll back.
+- The relaxed columns are compatible with pre-4A code for organization rows,
+  so the schema can stay. Restoring `NOT NULL` fails while any personal row
+  exists and would require deleting personal data; it is not part of a normal
+  rollback.
+
+### Validation
+
+Verified on 10 November 2026 (mocked providers; a throwaway PostgreSQL 17
+cluster started for this check, prepared by `prepare-follow-up-database.mjs`
+from the pre-4A schema plus the real Stage 1/2/3/4A SQL; `prisma migrate diff`
+against `schema.prisma` reported an empty migration):
+
+- Full services suite with both database variables pointed at that database:
+  **1,634 passed**, zero failures or skips, including the Stage 1 and Stage 2
+  PostgreSQL suites (organization regressions) and the new
+  `personal-follow-up.postgres.spec.ts` (personal enrollment and its key and
+  context; an unenrolled freelancer's identical policy enrolling nothing;
+  dispatch in the persisted personal scope while the owner administers an
+  organization with its own specialist; a placement from that organization
+  refused at the commit fence; another freelancer's DNC not applied and the
+  owner's own applied; exact personal reservation resolving with an attributed
+  note and receipts to the owner, organization meetings still copying admins;
+  owner reads/controls, another freelancer refused; leaving the pilot blocking
+  new dispatch while the organization continues). After the final formatting
+  pass every touched spec file was rerun: 343 passed.
+- Database suite with `DATABASE_URL` and `RINGEE_AUTOMATION_TEST_DATABASE_URL`
+  on the same database: **80 passed**, two unrelated opt-in suites skipped. New
+  cases: six concurrent personal claims and four concurrent setups converge on
+  one row, the partial index refuses a writer outside the lock, organization
+  uniqueness unchanged; a personal claim creates its agent while another
+  workspace's cannot; receipt claims admit personal and organization work
+  while three older rows of an unadmitted freelancer take no slot, also with
+  `*`; the send fence, reminder `authorizeDial` and contact reservation stay in
+  the owner's workspace; maintenance reads and completes only admitted, owned
+  actions; the participation check refuses an ownerless row.
+- Unit coverage: access policy (wildcards, two freelancers, the same user's
+  personal workspace and organization, explicit-id parsing), automation service
+  (owner authority, receptionist refusal, personal "Call to schedule"),
+  handoff (own destination, another freelancer's agent refused, off-pilot
+  request kept visible), `startInbound` binding, CALL-001/003 with personal AI
+  calls, personal settlement once on the persisted balance, reminder worker,
+  and `ownership.types` helpers (platform **432 passed**).
+- Agent **31 passed** plus typecheck; frontend tests **32 passed**; extension
+  and CLI typechecks; `tsc --noEmit` for database, services, backend,
+  orchestrator and frontend after formatting.
+- `pnpm prisma:generate`, `pnpm build:database`, `pnpm build:backend`,
+  `pnpm build:orchestrator` and `pnpm build:frontend` (the tracked
+  `public/sw.js.map` it rewrites was restored).
+- An `OrchestratorModule` application context from the compiled dist resolved
+  the automation, handoff, tool, call, billing, reminder, receipt, meeting,
+  callback, objective and agent owners and their repositories, and ran an
+  admission-filtered claim, against that database: dummy configuration (no
+  `.env`), an inert local Redis stub, Temporal on a closed port and outbound
+  HTTP refused. No backend bootstrap, worker, schedule or dial loop started.
+- Migration on a copy of the migrated database: reverted while no personal
+  row existed, then re-applied over populated organization rows (every
+  `organizationId` kept, check validated, index valid); once a personal row
+  existed, restoring `NOT NULL` failed as documented.
+- `pnpm lint`: zero errors, the existing 153 warnings; changed-file ESLint added
+  none. `pnpm format:check` and `git diff --check` passed.
+
+No production database, real call, provider request or email was used.
+
+Pending live validation, in an explicitly enrolled personal workspace with test
+contacts: reminder → handoff → move/cancel audio and tools, agreed and recovery
+callbacks, receipt delivery and reply-to, and AI/voice settlement against the
+personal balance. Stage 4B (PostHog) and 4C (native provisioning, shared
+onboarding, 240-minute defaults) are not part of this delivery.
+
+## Stage 4B/4C: shared activation and product analytics
+
+The shared **Automatic follow-up** review (`/dashboard/ai-voice-agents/follow-up`)
+is one screen for freelancers and organizations, opened from the first list,
+an Interested outcome, a booked meeting and the AI Voice Agents rail
+(`entry_source`). Rules: AGENT-023 (activation) and OBS-001..004 (analytics);
+analytics owners and dashboards: [ANALYTICS.md](ANALYTICS.md).
+
+- **Review is read-only.** `followUpReview` gathers what Ringee already has
+  (company profile, numbers, calendars and their hours, policies, specialists,
+  balance for managers) and proposes the rest — both specialists on, 240-minute
+  confirmations, weekday 09:00–18:00 calling hours. It creates no calendar,
+  agent, policy or plan.
+- **Saving is a draft.** `PUT …/follow-up/configuration` merges the changed rows
+  over the saved draft, compared on `revision` under the workspace lock.
+- **Adoption is the authorization.** `POST …/follow-up/adoption` first reserves
+  the revision it reviewed (`reserveAdoption`: the draft it carries, the request
+  key, the base revision and `applying` in `adoptionAttempt`, under the
+  workspace lock), so a stale window can neither save nor adopt over it and a
+  fresh save answers 409 until the adoption is recorded or fails. The review is
+  then computed from that reserved row, every requirement is re-checked, the
+  draft is applied through the existing owners (company profile, calendar and
+  availability, `setupScheduling` with `humanFollowUp`, the one reminder-policy
+  writer) and adoption, scope, version and opt-outs are recorded on the same
+  revision. Those setups cannot be rolled back, so an attempt is resumable: a
+  retry of the same request key resumes the revision it reserved, a recorded
+  one returns what it adopted, and agents, claims and policies are reused. An
+  attempt older than two minutes holds nothing. A reminders setup is re-run
+  (replanned, never re-called) when the review picked another number or the
+  adoption moved the calendar's time zone.
+- **An organization owns its row.** An organization's `FollowUpActivation` has
+  no owner user (`userId` null, held by the migration's CHECK); who saved and
+  who adopted are `configuredByUserId` / `adoptedByUserId`, so deleting a member
+  never cascades into the organization's adoption. A personal row is its
+  owner's and is deleted with them.
+- **Coverage of existing meetings is explicit.** A policy created by adoption
+  covers bookings made from adoption on (`coversMeetingsFrom`), plus meetings
+  explicitly included (`includedMeetingIds`) — the meeting the review was opened
+  from, re-checked at the schedule version the review showed, and again under a
+  row lock when it is added (a move that landed first is refused) — or every
+  upcoming one when the person chose it. Policies set up before keep covering
+  everything.
+  The planner, calling windows, close-booking rule and per-version keys are
+  unchanged; a confirmation is shown as planned only when its execution exists.
+- **Opt-outs survive.** A capability switched off in the review or a trigger
+  removed in the rail is stored on the activation and proposed off again. A
+  rail removal is stored in the same transaction as the trigger's deletion and
+  also switches that capability off in a saved draft; only a later explicit
+  save switches it back on.
+- **States:** `needs_configuration`, `add_credit` (configuration saved, no money
+  to call), `ready_to_activate`, `pending` (adopted, blocked, with the reason),
+  `active`, `paused`. Manual calling readiness is reported separately: the shared
+  number can place a manual test call while AI follow-up stays pending, because AI
+  calls need an authorized workspace number.
+
+### Deployment
+
+1. Apply `migrations-pending/20261111120000_follow_up_activation_and_product_analytics/migration.sql`
+   to the target database (transactional, additive, no backfill; new tables come
+   with their indexes). Run `pnpm prisma:generate` in the build.
+2. Deploy API and orchestrator together. Older workers ignore the new columns
+   and tables; a pre-4C planner would plan calls for older meetings of a
+   "new bookings only" policy, so no workspace may adopt through the review until
+   every worker runs this release (check the running task definitions first).
+   The analytics schedule converges on boot (`ringee.product-analytics-drain`).
+3. Deploy the frontend. Without `NEXT_PUBLIC_POSTHOG_KEY` / `POSTHOG_PROJECT_TOKEN`
+   analytics stays dark; set them per environment when the PostHog projects
+   exist (staging first, inspect payloads, then production).
+4. Admission is unchanged: personal workspaces still need the Stage 4A pilot
+   list; organizations the existing allowlist.
+
+**Rollback:** the API/worker can be rolled back with the tables in place. A
+workspace that adopted keeps its agents and policies; a rolled-back planner would
+ignore `coversMeetingsFrom`, so pause reminders of adopted "new bookings only"
+policies before rolling back. Dropping the tables discards adoptions, opt-outs and
+undelivered facts.
+
+### Validation (2026-11-11)
+
+- Real SQL on PostgreSQL 17 (`test/prepare-follow-up-database.mjs`, now through
+  4C): `prisma migrate diff` against `schema.prisma` is empty; the workspace-key
+  and adoption CHECKs, the activation uniqueness and the outbox key reject bad
+  rows; `follow-up-activation.postgres.spec.ts` (6) and the Stage 1–4A suites
+  (74) pass.
+- Services 1581 + new specs, platform suites, backend/orchestrator/platform/
+  services `tsc --noEmit`, frontend type-check of every changed file.
+- Inert orchestrator DI boot: every touched service resolves; without a token
+  the analytics tick is a no-op; with a local stand-in host a projected fact
+  survived a 503 and was re-sent with the same UUID and original timestamp.
+- Not validated live: real PostHog ingestion and dashboards, browser sessions,
+  calls, emails or a real adoption — they belong to the pilot steps.

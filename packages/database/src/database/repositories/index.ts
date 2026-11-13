@@ -93,11 +93,15 @@ export * from "./offer-stats.repository";
 export * from "./ai-voice-agent.repository";
 export * from "./ai-voice-agent-call.repository";
 export * from "./ai-voice-agent-automation.repository";
+export * from "./follow-up-activation.repository";
+export * from "./product-analytics.repository";
+export { isAnsweredCall } from "./answered-call.sql";
 export * from "./ai-voice-agent-handoff.repository";
 export * from "./meeting-reminder-policy.repository";
 export * from "./meeting-reminder-execution.repository";
 export * from "./meeting-email-delivery.repository";
 export * from "./workspace-company-profile.repository";
+export * from "./workspace-scope";
 
 export * from "./external-carrier.repository";
 export * from "./inbound-route.repository";

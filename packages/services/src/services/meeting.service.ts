@@ -26,8 +26,8 @@ import {
   OrganizationRepository,
   ReminderSubjectType,
 } from "@ringee/database";
-import { automationOrganizationFilter } from "./voice-agents/automations/automation-access";
-import { OwnershipContext } from "@ringee/platform";
+import { automationAdmissionFilter } from "./voice-agents/automations/automation-access";
+import { OwnershipContext, workspaceOf } from "@ringee/platform";
 import {
   CalendarService,
   ResolvedCalendar,
@@ -47,6 +47,7 @@ import {
   DispositionService,
   isCallOutcome,
 } from "./outbound/disposition.service";
+import { captureJourneyException } from "./analytics/journey-exceptions";
 
 /** How far apart a failing automation-action repair is retried. */
 const MAINTENANCE_RETRY_MIN_MS = 60_000;
@@ -364,11 +365,22 @@ export class MeetingService {
       this.logger.warn(
         `Could not plan reminder calls for meeting ${meeting.id}: ${(err as Error).message}`,
       );
+      captureJourneyException(err, {
+        component: MeetingService.name,
+        operation: "booking.plan_confirmations",
+        journeyStep: "meeting_booking",
+        severity: "warning",
+        workspace: ctx,
+        userId: ctx.userId,
+        correlation: { meeting: meeting.id },
+      });
     }
 
     // `createCalendarEvent` persists these fields after Ringee creates the
     // meeting. Reflect them in this response as well so tool callers receive
     // the Meet/Teams link without needing a second read.
+    // Cancelled while its event was being created, the booking caller gets
+    // the meeting as it is now — not a scheduled meeting with a deleted link.
     return calendarResult
       ? {
           ...meeting,
@@ -376,7 +388,7 @@ export class MeetingService {
           externalSyncStatus: MeetingExternalSyncStatus.synced,
           location: calendarResult.meetLink ?? meeting.location,
         }
-      : { ...meeting, externalSyncStatus: sync.status };
+      : { ...meeting, ...sync.cancelled, externalSyncStatus: sync.status };
   }
 
   async getMeetingById(ctx: OwnershipContext, id: string): Promise<Meeting> {
@@ -427,6 +439,12 @@ export class MeetingService {
     meetingId: string,
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, meetingId);
+    // A cancelled meeting's event is deleted, never moved or created again
+    // (CAL-002): a deletion that failed is retried as a deletion.
+    if (meeting.status === MeetingStatus.cancelled) {
+      await this.calendarService.cancelExternalEvent(ctx, meeting);
+      return this.getMeetingById(ctx, meetingId);
+    }
     if (meeting.externalEventId) {
       // The event exists: what is left is moving it to the meeting's time —
       // a move that failed, or that never got to run (CAL-002).
@@ -574,8 +592,53 @@ export class MeetingService {
     );
     // A repeat finishes what the first attempt may not have: every step is
     // safe to run again, and the external event moves only if it still lags.
-    if (outcome.result === "moved") await this.afterMove(ctx, outcome.meeting);
+    if (outcome.result === "moved") {
+      if (outcome.replacement)
+        await this.publishReplacement(
+          ctx,
+          outcome.meeting,
+          input.resolvedCalendar,
+        );
+      await this.afterMove(ctx, outcome.meeting);
+    }
     return outcome;
+  }
+
+  /**
+   * A replacement is a new booking, published as one: its external event,
+   * then the integrations and CRM. Each is keyed on the meeting — the event
+   * id, `meeting_created`'s and the CRM sync's dedupe keys — so a retried move
+   * publishes nothing twice. Best-effort like a booking's: the move stands.
+   */
+  private async publishReplacement(
+    ctx: OwnershipContext,
+    meeting: Meeting,
+    calendar: ResolvedCalendar,
+  ): Promise<void> {
+    const sync = await this.calendarService
+      .syncMeetingToExternalCalendar(ctx, meeting, {
+        destination: calendar.destination,
+        title: meeting.title ?? undefined,
+        attendeeEmail: meeting.leadEmail ?? undefined,
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `Could not create the external event of replacement meeting ${meeting.id}: ${(err as Error).message}`,
+        );
+        return null;
+      });
+    await this.enqueueMeetingCreated(meeting);
+    try {
+      await this.crmMeetingSync.enqueueMeetingSync(ctx, meeting, {
+        calendarEventId: sync?.externalEventId ?? null,
+        meetingUrl: sync?.meetLink ?? null,
+        attendeeEmail: meeting.leadEmail ?? null,
+      });
+    } catch (err) {
+      this.logger.debug(
+        `Skipped CRM meeting sync for replacement meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
   }
 
   /**
@@ -628,7 +691,7 @@ export class MeetingService {
    */
   async repairAutomationActions(now = new Date()): Promise<void> {
     const actions = await this.meetingRepo.listPendingMaintenance(
-      automationOrganizationFilter(),
+      automationAdmissionFilter(),
     );
     for (const action of actions) {
       const wait = Math.min(
@@ -638,16 +701,14 @@ export class MeetingService {
           now.getTime() - action.createdAt.getTime(),
         ),
       );
+      // The action's own workspace, as persisted.
       await this.meetingRepo.deferMaintenance(
         action.id,
-        action.organizationId,
+        workspaceOf(action),
         new Date(now.getTime() + wait),
       );
       const meeting = action.meeting;
-      const ctx = {
-        userId: meeting.userId,
-        organizationId: meeting.organizationId,
-      };
+      const ctx = workspaceOf(meeting);
       try {
         if (meeting.status === "cancelled") {
           await this.reminderService.cancelForSubject(
@@ -666,21 +727,29 @@ export class MeetingService {
         } else if (
           ["booked", "rescheduled", "replaced"].includes(action.kind)
         ) {
-          await this.reminderService.replanMeetingCalls(meeting);
+          // The meeting as it is now, not as it was listed: replanning a
+          // stale version would withdraw the calls a later move planned.
+          const current = await this.meetingRepo.findById(meeting.id);
+          if (!current || current.scheduleVersion !== meeting.scheduleVersion)
+            continue;
+          await this.reminderService.replanMeetingCalls(current);
           await this.reminderService.rescheduleForSubject({
             subjectType: ReminderSubjectType.meeting,
-            subjectId: meeting.id,
-            userId: meeting.userId,
-            organizationId: meeting.organizationId,
-            fireAt: meeting.scheduledAt,
+            subjectId: current.id,
+            userId: current.userId,
+            organizationId: current.organizationId,
+            fireAt: current.scheduledAt,
           });
           const synced = await this.retryExternalSync(ctx, meeting.id);
           if (!["synced", "not_required"].includes(synced.externalSyncStatus))
             continue;
+          // Moved while this ran: not complete, so the next try writes the
+          // schedule it moved to.
+          if (synced.scheduleVersion !== current.scheduleVersion) continue;
         }
         await this.meetingRepo.completeMaintenance(
           action.id,
-          action.organizationId,
+          workspaceOf(action),
         );
       } catch {
         this.logger.warn(
@@ -764,6 +833,19 @@ export class MeetingService {
       );
     }
     await this.withdrawUnsentEmails(meeting.id);
+
+    // The external event goes too (CAL-002): the provider sends the attendee
+    // the cancellation. Best-effort like a move's — the cancellation in Ringee
+    // already stands — and safe to repeat; the outcome is recorded on the
+    // meeting, which is answered as it stands now so the caller can say it.
+    try {
+      await this.calendarService.cancelExternalEvent(ctx, updated);
+      return await this.getMeetingById(ctx, meeting.id);
+    } catch (err) {
+      this.logger.warn(
+        `Could not cancel the external event of meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
 
     return updated;
   }

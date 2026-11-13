@@ -46,6 +46,7 @@
     "mime": "^4.0.1",
     "mime-types": "^3.0.2",
     "openai": "^6.2.0",
+    "posthog-node": "5.57.2",
     "reflect-metadata": "~0.2.2",
     "resend": "^6.1.2",
     "rimraf": "~6.0.0",

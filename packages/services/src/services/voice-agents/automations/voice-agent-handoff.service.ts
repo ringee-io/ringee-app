@@ -42,9 +42,11 @@ import {
   type AiVoiceAgentParticipantBinding,
 } from "@ringee/database";
 import {
+  isInWorkspace,
+  isSameWorkspace,
   normalizePhoneE164,
   VoiceAgentProviderService,
-  type OrganizationOwnershipContext,
+  workspaceOf,
   type OwnershipContext,
   type VoiceAgentHandoffTarget,
 } from "@ringee/platform";
@@ -198,7 +200,7 @@ export interface HandoffRecoveryPlan {
 export type HandoffCallbackDecision =
   | {
       action: "dial";
-      ctx: OrganizationOwnershipContext;
+      ctx: OwnershipContext;
       agentId: string;
       to: string;
       variables: Record<string, string>;
@@ -300,16 +302,17 @@ export class VoiceAgentHandoffService {
 
   /**
    * The workspace's scheduling agent, if it can take a handoff in `language`
-   * right now: the pilot flag on, a provider that supports handoffs, the
-   * scheduling automation set up and switched on, its agent active and
-   * provisioned in this organization, and speaking the conversation's
-   * language. Never an id a model supplied.
+   * right now: the workspace admitted to the pilot, a provider that supports
+   * handoffs, the scheduling automation set up and switched on, its agent
+   * active and provisioned in this same workspace — the organization, or the
+   * owner's personal workspace — and speaking the conversation's language.
+   * Never an id a model supplied.
    */
   async resolveDestination(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     language: string | null | undefined,
   ): Promise<HandoffDestinationCheck> {
-    if (!voiceAgentAutomationsEnabled(ctx.organizationId)) {
+    if (!voiceAgentAutomationsEnabled(ctx)) {
       return { ok: false, reason: "automations_disabled" };
     }
     if (this.provider.assistantHandoffMode() === "none") {
@@ -327,7 +330,7 @@ export class VoiceAgentHandoffService {
     if (
       !agent ||
       agent.deletedAt ||
-      agent.organizationId !== ctx.organizationId ||
+      !isInWorkspace(ctx, agent) ||
       agent.type !== AiVoiceAgentType.appointment_booking ||
       agent.status !== AiVoiceAgentStatus.active ||
       !agent.providerAssistantId ||
@@ -353,16 +356,10 @@ export class VoiceAgentHandoffService {
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
   ): Promise<VoiceAgentHandoffTarget[]> {
-    if (
-      agent.type !== AiVoiceAgentType.reminders_notifications ||
-      !ctx.organizationId
-    ) {
+    if (agent.type !== AiVoiceAgentType.reminders_notifications) {
       return [];
     }
-    const check = await this.resolveDestination(
-      { userId: ctx.userId, organizationId: ctx.organizationId },
-      agent.voiceLanguage,
-    );
+    const check = await this.resolveDestination(ctx, agent.voiceLanguage);
     return check.ok
       ? [
           {
@@ -375,13 +372,13 @@ export class VoiceAgentHandoffService {
 
   /**
    * Whether a scheduling agent carries the continuation tool and prompt. Any
-   * scheduling agent of a pilot organization does: the tool refuses everyone
-   * the workspace did not hand a call to, so carrying it grants nothing.
+   * scheduling agent of a pilot workspace does: the tool refuses everyone the
+   * workspace did not hand a call to, so carrying it grants nothing.
    */
   acceptsHandoffs(agent: AiVoiceAgent): boolean {
     return (
       agent.type === AiVoiceAgentType.appointment_booking &&
-      voiceAgentAutomationsEnabled(agent.organizationId)
+      voiceAgentAutomationsEnabled(agent)
     );
   }
 
@@ -398,10 +395,9 @@ export class VoiceAgentHandoffService {
     agentCall: AiVoiceAgentCall,
     now = new Date(),
   ): Promise<HandoffGrant> {
-    if (
-      agent.organizationId !== agentCall.organizationId ||
-      !agent.organizationId
-    )
+    // One workspace: comparing organizations alone would pair two people's
+    // personal rows, which all share a null organization.
+    if (!isSameWorkspace(agent, agentCall))
       return { kind: "refused", reason: "not_participant" };
     if (await this.callEnded(agentCall))
       return { kind: "refused", reason: "call_ended" };
@@ -420,7 +416,7 @@ export class VoiceAgentHandoffService {
         return { kind: "root" };
       }
       const handoff = await this.handoffs.findById(participant.handoffId);
-      if (!handoff || handoff.organizationId !== agentCall.organizationId) {
+      if (!handoff || !isSameWorkspace(handoff, agentCall)) {
         return { kind: "refused", reason: "not_participant" };
       }
       if (await this.callEnded(agentCall)) {
@@ -434,7 +430,7 @@ export class VoiceAgentHandoffService {
         return { kind: "refused", reason: "handed_off" };
       }
       const handoff = await this.handoffs.findById(participant.handoffId);
-      if (!handoff || handoff.organizationId !== agentCall.organizationId) {
+      if (!handoff || !isSameWorkspace(handoff, agentCall)) {
         return { kind: "refused", reason: "not_participant" };
       }
       // Once the call is over the reconciler acts on the request first; a
@@ -449,8 +445,8 @@ export class VoiceAgentHandoffService {
     if (
       !handoff ||
       handoff.destinationAgentId !== agent.id ||
-      handoff.organizationId !== agentCall.organizationId ||
-      agent.organizationId !== agentCall.organizationId
+      !isSameWorkspace(handoff, agentCall) ||
+      !isSameWorkspace(agent, agentCall)
     ) {
       return { kind: "refused", reason: "not_participant" };
     }
@@ -514,7 +510,7 @@ export class VoiceAgentHandoffService {
    * cannot take the call still leaves the request recorded, with why.
    */
   async prepareReschedule(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     agent: AiVoiceAgent,
     agentCall: AiVoiceAgentCall,
     input: PrepareRescheduleInput,
@@ -533,13 +529,13 @@ export class VoiceAgentHandoffService {
       return { ok: false, code: "call_ended", handoff: null };
     }
     const execution = await this.executions.findByAgentCallId(agentCall.id);
-    if (!execution || execution.organizationId !== ctx.organizationId) {
+    if (!execution || !isInWorkspace(ctx, execution)) {
       return { ok: false, code: "not_about_a_meeting", handoff: null };
     }
     const meeting = await this.meetings.findById(execution.meetingId);
     if (
       !meeting ||
-      meeting.organizationId !== ctx.organizationId ||
+      !isInWorkspace(ctx, meeting) ||
       !isActive(meeting) ||
       meeting.scheduleVersion !== execution.scheduleVersion
     ) {
@@ -558,7 +554,7 @@ export class VoiceAgentHandoffService {
 
     const base = {
       userId: agentCall.userId,
-      organizationId: ctx.organizationId,
+      organizationId: ctx.organizationId ?? null,
       purpose: AiVoiceAgentHandoffPurpose.reschedule_meeting,
       agentCallId: agentCall.id,
       callId: agentCall.callId,
@@ -604,7 +600,7 @@ export class VoiceAgentHandoffService {
           resolution: `destination_unavailable:${destination.reason}`,
           reviewAt: now,
         },
-        { followUp: voiceAgentAutomationsEnabled(ctx.organizationId) },
+        { followUp: voiceAgentAutomationsEnabled(ctx) },
       );
       return { ok: false, code: destination.reason, handoff };
     }
@@ -630,7 +626,7 @@ export class VoiceAgentHandoffService {
   }
 
   private async createRequest(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     input: AiVoiceAgentHandoffInput,
     options: { followUp: boolean } = { followUp: true },
   ) {
@@ -656,7 +652,7 @@ export class VoiceAgentHandoffService {
   }
 
   private async replayPrepare(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     handoff: AiVoiceAgentHandoff,
   ): Promise<PrepareRescheduleResult> {
     if (handoff.status === H.prepared && handoff.destinationAgentId) {
@@ -687,7 +683,7 @@ export class VoiceAgentHandoffService {
    * re-validated now.
    */
   async failToCallback(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     agent: AiVoiceAgent,
     agentCall: AiVoiceAgentCall,
     input: PrepareRescheduleInput & { why?: string },
@@ -776,13 +772,13 @@ export class VoiceAgentHandoffService {
    * and the meeting as it is now. Everything the person said is data.
    */
   async describe(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     grant: Extract<HandoffGrant, { kind: "participant" }>,
     now = new Date(),
   ): Promise<HandoffContextView | null> {
     const { handoff, participant } = grant;
     const meeting = await this.meetings.findById(handoff.meetingId);
-    if (!meeting || meeting.organizationId !== ctx.organizationId) return null;
+    if (!meeting || !isInWorkspace(ctx, meeting)) return null;
     const contact = meeting.contactId
       ? await this.contacts.findByIdForOwner(ctx, meeting.contactId)
       : null;
@@ -882,14 +878,14 @@ export class VoiceAgentHandoffService {
    * during the call is not offered new times on stale data.
    */
   async availabilityFor(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     grant: Extract<HandoffGrant, { kind: "participant" }>,
   ): Promise<HandoffAvailability> {
     const { participant, handoff } = grant;
     const meeting = await this.meetings.findById(
       participant.meetingId ?? handoff.meetingId,
     );
-    if (!meeting || meeting.organizationId !== ctx.organizationId) {
+    if (!meeting || !isInWorkspace(ctx, meeting)) {
       return {
         ok: false,
         error:
@@ -987,7 +983,7 @@ export class VoiceAgentHandoffService {
     )
       return null;
 
-    if (!voiceAgentAutomationsEnabled(handoff.organizationId)) {
+    if (!voiceAgentAutomationsEnabled(handoff)) {
       await this.handoffs.settleRequest(
         handoff.id,
         R.needs_attention,
@@ -997,7 +993,7 @@ export class VoiceAgentHandoffService {
       return null;
     }
     const meeting = await this.meetings.findById(handoff.meetingId);
-    if (!meeting || meeting.organizationId !== handoff.organizationId) {
+    if (!meeting || !isSameWorkspace(meeting, handoff)) {
       await this.closeRequest(handoff, R.closed, "meeting_deleted", now);
       return null;
     }
@@ -1211,7 +1207,7 @@ export class VoiceAgentHandoffService {
    * recovers, at the next opening of the meeting calendar's reminder window.
    */
   private async recoveryTime(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     handoff: AiVoiceAgentHandoff,
     endedAt: Date,
     now: Date,
@@ -1260,7 +1256,8 @@ export class VoiceAgentHandoffService {
 
   async authorizeCallbackCreation(data: {
     handoffId: string;
-    organizationId: string;
+    /** The request's workspace: null for a personal one, owned by `userId`. */
+    organizationId: string | null;
     userId: string;
     agentId: string;
     contactId: string;
@@ -1274,7 +1271,7 @@ export class VoiceAgentHandoffService {
       handoff.userId !== data.userId ||
       handoff.destinationAgentId !== data.agentId ||
       handoff.contactId !== data.contactId ||
-      !voiceAgentAutomationsEnabled(data.organizationId)
+      !voiceAgentAutomationsEnabled(handoff)
     )
       throw new BadRequestException("Callback source not authorized");
     const ctx = ownerOf(handoff);
@@ -1330,7 +1327,7 @@ export class VoiceAgentHandoffService {
    * before the person is told the call will happen.
    */
   async callbackStillWanted(
-    handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId">,
+    handoff: Pick<AiVoiceAgentHandoff, "id" | "organizationId" | "userId">,
     now = new Date(),
   ): Promise<boolean> {
     const objective = await this.pendingActions.followUpForHandoff(handoff.id);
@@ -1344,14 +1341,14 @@ export class VoiceAgentHandoffService {
     )
       return false;
     const current = await this.handoffs.findById(handoff.id);
-    if (!current || current.organizationId !== handoff.organizationId) {
+    if (!current || !isSameWorkspace(current, handoff)) {
       return false;
     }
     const meeting = await this.meetings.findById(current.meetingId);
     const reason =
       current.requestStatus !== R.pending
         ? `request_${current.requestStatus}`
-        : !meeting || meeting.organizationId !== current.organizationId
+        : !meeting || !isSameWorkspace(meeting, current)
           ? "objective_closed"
           : meetingMoved(current, meeting)
             ? "objective_resolved"
@@ -1381,14 +1378,15 @@ export class VoiceAgentHandoffService {
     callback: CallbackTask,
     now = new Date(),
   ): Promise<HandoffCallbackDecision> {
-    if (!callback.handoffId || !callback.agentId || !callback.organizationId) {
+    if (!callback.handoffId || !callback.agentId) {
       return {
         action: "skip",
         status: CallbackStatus.cancelled,
         reason: "not_a_handoff_callback",
       };
     }
-    if (!voiceAgentAutomationsEnabled(callback.organizationId)) {
+    // The callback's own, persisted workspace — never its owner's active one.
+    if (!voiceAgentAutomationsEnabled(callback)) {
       return {
         action: "skip",
         status: CallbackStatus.missed,
@@ -1396,7 +1394,7 @@ export class VoiceAgentHandoffService {
       };
     }
     let handoff = await this.handoffs.findById(callback.handoffId);
-    if (!handoff || handoff.organizationId !== callback.organizationId) {
+    if (!handoff || !isSameWorkspace(handoff, callback)) {
       return {
         action: "skip",
         status: CallbackStatus.cancelled,
@@ -1450,7 +1448,7 @@ export class VoiceAgentHandoffService {
     }
 
     const meeting = await this.meetings.findById(handoff.meetingId);
-    if (!meeting || meeting.organizationId !== handoff.organizationId) {
+    if (!meeting || !isSameWorkspace(meeting, handoff)) {
       await this.handoffs.settleRequest(
         handoff.id,
         R.closed,
@@ -1479,13 +1477,9 @@ export class VoiceAgentHandoffService {
 
     // A callback or recovery is placed on behalf of the request's owner, the
     // member whose call it continues. One who has left the organization
-    // places nothing: a person decides what follows.
-    if (
-      !(await this.organizations.isMember(
-        handoff.userId,
-        handoff.organizationId,
-      ))
-    ) {
+    // places nothing: a person decides what follows. A personal request's
+    // owner is its workspace.
+    if (!(await this.organizations.isWorkspaceMember(ctx, handoff.userId))) {
       return {
         action: "skip",
         status: CallbackStatus.missed,
@@ -1622,7 +1616,7 @@ export class VoiceAgentHandoffService {
     const meeting = await this.meetings.findById(handoff.meetingId);
     if (
       !meeting ||
-      meeting.organizationId !== decision.ctx.organizationId ||
+      !isInWorkspace(decision.ctx, meeting) ||
       meeting.scheduleVersion !== decision.binding.meetingScheduleVersion
     ) {
       throw new HandoffDialRefused(CallbackStatus.missed, "meeting_changed");
@@ -1643,6 +1637,7 @@ export class VoiceAgentHandoffService {
       throw new HandoffDialRefused(CallbackStatus.missed, "lead_on_a_call");
     }
     await this.handoffs.createCallbackParticipant({
+      userId: handoff.userId,
       organizationId: handoff.organizationId,
       agentCallId: placement.agentCallId,
       agentId: destination.agent.id,
@@ -1656,7 +1651,7 @@ export class VoiceAgentHandoffService {
       );
       const commitAt = new Date();
       if (
-        !voiceAgentAutomationsEnabled(handoff.organizationId) ||
+        !voiceAgentAutomationsEnabled(handoff) ||
         !isWithinCallingWindow(commitAt, window, timeZone)
       )
         throw new HandoffDialRefused(CallbackStatus.missed, "outside_window");
@@ -1694,7 +1689,7 @@ export class VoiceAgentHandoffService {
   // ── Helpers ────────────────────────────────────────────────────────
 
   private async personOnACall(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     to: string,
     now: Date,
     exclude?: { agentCallId: string; callId: string },
@@ -1715,7 +1710,7 @@ export class VoiceAgentHandoffService {
   }
 
   private async callingWindow(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     calendarId: string | null,
   ): Promise<{ window: CallingWindow; timeZone: string }> {
     const calendar = calendarId
@@ -1731,7 +1726,7 @@ export class VoiceAgentHandoffService {
   }
 
   private async calendarZone(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     calendarId: string | null,
   ): Promise<string> {
     return (await this.callingWindow(ctx, calendarId)).timeZone;
@@ -1739,7 +1734,7 @@ export class VoiceAgentHandoffService {
 
   /** An agent's name in this workspace, or null when it is gone. */
   private async agentName(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     agentId: string,
   ): Promise<string | null> {
     const agent = await this.agents
@@ -1775,7 +1770,7 @@ export class VoiceAgentHandoffService {
    * The agent speaks its own configured language; dates are written in it.
    */
   private async callbackVariables(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     input: {
       handoff: AiVoiceAgentHandoff;
       meeting: Meeting;
@@ -1863,8 +1858,9 @@ function bindingOf(
   };
 }
 
-function ownerOf(handoff: AiVoiceAgentHandoff): OrganizationOwnershipContext {
-  return { userId: handoff.userId, organizationId: handoff.organizationId };
+/** The request's own workspace, as persisted (WRK-001). */
+function ownerOf(handoff: AiVoiceAgentHandoff): OwnershipContext {
+  return workspaceOf(handoff);
 }
 
 function isActive(meeting: Meeting): boolean {

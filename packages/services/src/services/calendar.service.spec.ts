@@ -59,7 +59,7 @@ function build(
 
   const service = new CalendarService(
     {
-      findByUserOrOrg: async () => [],
+      listForWorkspace: async () => [],
       findByIdForOwner: async () => null,
     } as never,
     {
@@ -611,6 +611,7 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
       { findByIdForOwner: async () => integration } as never,
       {
         recordExternalSync: async (
+          _ctx: unknown,
           _id: string,
           result: Record<string, unknown>,
         ) => {
@@ -642,6 +643,8 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
         globalThis.fetch = (async (url: string, init: RequestInit) => {
           requests.push(url);
           assert.equal(init.method, "DELETE");
+          // A stalled provider cannot hold up the repair tick.
+          assert.ok(init.signal instanceof AbortSignal);
           return { ok: status === 204, status };
         }) as never;
         const service = new CalendarService(
@@ -679,6 +682,55 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
     }
   });
 
+  it("reads `synced` as the deletion only when it was recorded after the cancellation", async () => {
+    const cancelledAt = new Date("2099-01-01T10:00:00.000Z");
+    for (const [externalSyncedAt, deletes] of [
+      // Synced to the booking (or a move) before it was cancelled: the event
+      // still exists and is deleted.
+      [new Date("2099-01-01T09:00:00.000Z"), true],
+      // Synced by the deletion itself: nothing to delete again.
+      [new Date("2099-01-01T10:05:00.000Z"), false],
+    ] as const) {
+      const requests: string[] = [];
+      globalThis.fetch = (async (url: string) => {
+        requests.push(url);
+        return { ok: true, status: 204 };
+      }) as never;
+      const current = {
+        ...MEETING,
+        status: "cancelled",
+        scheduleVersion: 4,
+        cancelledAt,
+        externalEventId: "event-1",
+        externalCalendarIntegrationId: "integration-1",
+        externalSyncStatus: "synced",
+        externalSyncedAt,
+      };
+      const service = new CalendarService(
+        {
+          findByIdForOwner: async () => ({
+            id: "integration-1",
+            provider: "google",
+            accessToken: "test",
+            expiresAt: null,
+          }),
+        } as never,
+        {
+          findByIdForOwner: async () => current,
+          recordExternalCancellation: async () => true,
+        } as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+      assert.equal(
+        (await service.cancelExternalEvent(ctx, current as never)).status,
+        "synced",
+      );
+      assert.equal(requests.length, deletes ? 1 : 0);
+    }
+  });
+
   it("never deletes an event for an unowned or stale cancellation", async () => {
     globalThis.fetch = (async () => {
       throw new Error("Must not reach the provider");
@@ -705,6 +757,48 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
         "pending",
       );
     }
+    // Cancelled too, but at a newer version than the one asked about: with a
+    // working account and recorder, only the version fence stops a DELETE.
+    const recordedCancellations: unknown[] = [];
+    const stale = new CalendarService(
+      {
+        findByIdForOwner: async () => ({
+          id: "integration-1",
+          provider: "google",
+          accessToken: "token",
+          expiresAt: null,
+          calendarId: null,
+        }),
+      } as never,
+      {
+        findByIdForOwner: async () => ({
+          ...MEETING,
+          status: "cancelled",
+          scheduleVersion: 5,
+          externalEventId: "event-1",
+          externalCalendarIntegrationId: "integration-1",
+          externalSyncStatus: "pending",
+        }),
+        recordExternalCancellation: async (...args: unknown[]) => {
+          recordedCancellations.push(args);
+          return true;
+        },
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    assert.equal(
+      (
+        await stale.cancelExternalEvent(ctx, {
+          ...MEETING,
+          status: "cancelled",
+          scheduleVersion: 4,
+        } as never)
+      ).status,
+      "pending",
+    );
+    assert.deepEqual(recordedCancellations, []);
   });
 
   const google = {
@@ -846,6 +940,7 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
       {
         markExternalSyncPending: async () => true,
         recordExternalSync: async (
+          _ctx: unknown,
           _id: string,
           result: Record<string, unknown>,
         ) => {
@@ -918,6 +1013,7 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
         markExternalSyncPending: async () => true,
         // The version moved: the pointer is kept, never `synced`.
         recordExternalSync: async (
+          _ctx: unknown,
           _id: string,
           _result: unknown,
           expected: unknown,
@@ -963,6 +1059,11 @@ describe("CalendarService.moveExternalEvent (CAL-002)", () => {
     );
     assert.equal(saved.length, 1);
     assert.equal(result.status, "synced");
+    // The booking caller is told the meeting is cancelled — never handed the
+    // deleted event's id or link as a scheduled, synced booking.
+    assert.equal(result.externalEventId, undefined);
+    assert.equal(result.meetLink, undefined);
+    assert.equal(result.cancelled?.status, "cancelled");
   });
 
   it("does not settle a cancellation while the meeting's event is still being created", async () => {

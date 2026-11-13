@@ -22,7 +22,10 @@ import {
   contextOwnerColumns,
   toContextTypeEnum,
 } from "../../pipeline-context";
-import { AiPipelineChargeError } from "../../ai-pipeline-credit.service";
+import {
+  AiPipelineChargeError,
+  AiPipelineReplyError,
+} from "../../ai-pipeline-credit.service";
 import {
   IncrementalObjectionEvidence,
   ObjectionAiBatchOutput,
@@ -188,6 +191,10 @@ export class ObjectionIntelligencePipeline
         });
       } catch (error) {
         if (error instanceof AiPipelineChargeError) throw error;
+        // A rejected reply was still billed for the tokens it consumed.
+        if (error instanceof AiPipelineReplyError) {
+          ai = { ...ai, chargedCredits: error.chargedCredits };
+        }
         this.logger.error(
           `Incremental objection intelligence failed: ${errorMessage(error)}`,
         );

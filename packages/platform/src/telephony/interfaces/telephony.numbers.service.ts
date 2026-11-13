@@ -3,6 +3,7 @@ import {
   AddressValidationResult,
   AssignedNumber,
   AvailableNumber,
+  AvailableNumberLookup,
   CostInformation,
   NumberCoverageCountry,
   NumberListPrice,
@@ -19,9 +20,17 @@ import {
 export interface TelephonyNumbersService {
   /** Every country the provider issues numbers in, with its number types. */
   getNumberCoverage(): Promise<NumberCoverageCountry[]>;
+  /** Live inventory; a provider failure reads as no numbers (legacy contract). */
   searchAvailableNumbers(
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]>;
+  /**
+   * Live inventory that tells a provider failure from an empty answer. Never
+   * throws: a failure is `{ status: "failed" }`.
+   */
+  lookupAvailableNumbers(
+    params: SearchAvailableParams,
+  ): Promise<AvailableNumberLookup>;
   /**
    * The provider's published price list for every country and number type it
    * sells, priced like a searched number. It answers the types a number search

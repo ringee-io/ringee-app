@@ -7,6 +7,7 @@ import {
   IsEmail,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -16,6 +17,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { CURATED_VOICE_LANGUAGES } from "../voice-agents/voices.catalog";
+import { ANALYTICS_ENTRY_SOURCES } from "../analytics/event-contract";
 
 /**
  * Bodies of the "Ringee IA Voice Agents" rail (AGENT-018).
@@ -193,4 +195,85 @@ export class CompleteMeetingEmailDto {
 export class SetMeetingResponsibleDto {
   @IsUUID("all", { message: "Choose a member of your organization." })
   userId!: string;
+}
+
+// ── Shared follow-up review (Stage 4C) ───────────────────────────────
+
+/** `GET …/follow-up`: the meeting it was opened from and the browser's zone. */
+export class FollowUpReviewQueryDto {
+  @IsOptional()
+  @IsUUID("all", { message: "Choose one of your meetings." })
+  meetingId?: string;
+
+  /** IANA zone of the browser — a proposal for a calendar with none yet. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timeZone?: string;
+}
+
+/**
+ * Saving the review as a draft. The draft itself is validated field by field
+ * in the service, which also authorizes every id it names.
+ */
+export class SaveFollowUpConfigurationDto {
+  @IsObject()
+  draft!: Record<string, unknown>;
+
+  /** The revision the screen saw; null when nothing was saved yet. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expectedRevision?: number | null;
+
+  @IsOptional()
+  @IsIn([...ANALYTICS_ENTRY_SOURCES])
+  entrySource?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timeZone?: string;
+
+  @IsOptional()
+  @IsUUID("all", { message: "Choose one of your meetings." })
+  meetingId?: string;
+}
+
+/** "Activate automatic follow-up": the explicit adoption of the review. */
+export class AdoptFollowUpDto {
+  /** One per click: a retried request returns what this one adopted. */
+  @IsUUID("all")
+  requestKey!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expectedRevision?: number | null;
+
+  /** The draft on screen, saved with the adoption when present. */
+  @IsOptional()
+  @IsObject()
+  draft?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsIn([...ANALYTICS_ENTRY_SOURCES])
+  entrySource?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timeZone?: string;
+
+  /** Interface language: the voice language of a specialist created now. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  language?: string;
+
+  /** The schedule version of the included meeting, as the review showed it. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  meetingVersion?: number;
 }

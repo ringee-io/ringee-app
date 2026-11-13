@@ -773,6 +773,18 @@
         "hint": "Upload a file or type a few numbers. Ringee hands you the next person, every time.",
         "cta": "Start calling",
         "reward": "+{amount} free credit when you finish"
+      },
+      "role": "{title} at <strong>{company}</strong>",
+      "detail": {
+        "revenue": "Revenue",
+        "employees": "Employees",
+        "industry": "Industry",
+        "email": "Email",
+        "history": "Call history",
+        "historySummary": "{count, plural, one {# call} other {# calls}} · last one {day}",
+        "noCalls": "No calls yet",
+        "failed": "Their details didn't load.",
+        "retry": "Try again"
       }
     },
     "queue": {
@@ -843,7 +855,16 @@
       "callResult": "Call the highlighted result",
       "clear": "Clear the search",
       "hint": "They don't fire while you type, or while a call or a dialog is open."
-    }
+    },
+    "links": {
+      "trigger": "Links and actions for {name}",
+      "linkedin": "LinkedIn profile",
+      "companyLinkedin": "Company LinkedIn",
+      "companyWebsite": "Company website",
+      "none": "No LinkedIn or website saved for {name}.",
+      "failed": "Their links didn't load."
+    },
+    "addCredit": "Add credit"
   },
   "automaticFollowUp": {
     "preparing": "Saving outcome and preparing follow-up…",

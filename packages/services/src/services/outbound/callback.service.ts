@@ -36,6 +36,7 @@ import {
 } from "../voice-agents/automations/voice-agent-handoff.service";
 
 import { PendingActionService } from "../ai-pipeline/pending-action.service";
+import { captureJourneyException } from "../analytics/journey-exceptions";
 
 const MAX_AUTOMATED_CALLBACK_ATTEMPTS = 3;
 /** How long a worker owns a claimed agent callback before another may take it. */
@@ -328,8 +329,9 @@ export class CallbackService {
     agentId: string;
     kind: CallbackAgentKind;
     key: string;
+    /** The request's workspace: its owner, and no organization when personal. */
     userId: string;
-    organizationId: string;
+    organizationId: string | null;
     contactId: string;
     callId: string | null;
     scheduledAt: Date;
@@ -353,7 +355,8 @@ export class CallbackService {
     if (
       callback.handoffId !== data.handoffId ||
       callback.agentId !== data.agentId ||
-      callback.organizationId !== data.organizationId
+      callback.organizationId !== data.organizationId ||
+      callback.userId !== data.userId
     ) {
       throw new ConflictException("Callback key is already in use");
     }
@@ -423,7 +426,6 @@ export class CallbackService {
       !callback ||
       callback.handoffId !== handoffId ||
       callback.status !== CallbackStatus.scheduled ||
-      !callback.organizationId ||
       !callback.agentId
     )
       throw beingPlaced();
@@ -677,6 +679,12 @@ export class CallbackService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        captureJourneyException(error, {
+          component: CallbackService.name,
+          operation: "callbacks.plan_recovery",
+          journeyStep: "agent_callback",
+          correlation: { handoff: plan.handoff.id },
+        });
       }
     }
     return planned;
@@ -712,6 +720,18 @@ export class CallbackService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        captureJourneyException(error, {
+          component: CallbackService.name,
+          operation: "callbacks.execute",
+          journeyStep: "agent_callback",
+          workspace: callback.userId
+            ? {
+                userId: callback.userId,
+                organizationId: callback.organizationId ?? null,
+              }
+            : null,
+          correlation: { callback: callback.id },
+        });
       }
     }
     return placed;

@@ -10,6 +10,7 @@ export type {
   NewFollowUpObjective,
   FollowUpPlan,
 } from "./pending-action-follow-up.persistence";
+export { followUpWorkspaceKey } from "./pending-action-follow-up.persistence";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import {
@@ -753,7 +754,9 @@ export class PendingActionRepository {
       id: string;
       revision: number;
       scheduledAt: Date;
-      organizationId: string;
+      /** The objective's workspace: an organization, or its personal owner. */
+      userId: string;
+      organizationId: string | null;
       contactId: string;
     };
   }) {
@@ -765,7 +768,10 @@ export class PendingActionRepository {
         const stillAuthoritative = await tx.meeting.count({
           where: {
             id: evidence.id,
-            organizationId: evidence.organizationId,
+            ...buildOwnershipFilter({
+              userId: evidence.userId,
+              organizationId: evidence.organizationId,
+            }),
             contactId: evidence.contactId,
             scheduleVersion: evidence.revision,
             scheduledAt: evidence.scheduledAt,

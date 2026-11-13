@@ -15,7 +15,7 @@ import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.st
 import { useCallCampaigns } from '../../hooks/use.call.campaigns';
 import { useCallPageShortcuts } from '../../hooks/use.call.page.shortcuts';
 import { useTelnyxStore } from '../../store/telnyx.store';
-import { Kbd } from '../my-day/kbd';
+import { Kbd } from '@ringee/frontend-shared/components/ui/kbd';
 import { CampaignPicker } from './campaign-picker';
 
 /** The campaign about to be called: which one, how it dials, and when. */

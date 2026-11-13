@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, RotateCw, X } from 'lucide-react';
+import { AlertTriangle, ChevronRight, RotateCw, X } from 'lucide-react';
+import Link from 'next/link';
 import { RingeeMark } from '@ringee/frontend-shared/components/ringee-mark';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
@@ -14,6 +15,7 @@ import { usePanelData } from '../hooks/use-automation-data';
 import type { AutomationCard } from '../types';
 import { ActivityList } from './activity-list';
 import { CapabilityCard } from './capability-card';
+import { followUpHref, rememberFollowUpReturn } from '../follow-up/entry';
 
 /**
  * The open rail: three capabilities ready to switch on, and what they did
@@ -122,6 +124,31 @@ export function AutomationPanel({
           <p className='text-muted-foreground text-sm'>{t('unavailable')}</p>
         ) : (
           <>
+            {/* The shared review of Stage 4C — the same screen every entry
+                point opens; the rail closes when it does. */}
+            <Link
+              href={followUpHref({ from: 'ai_voice_agents_navigation' })}
+              onClick={() =>
+                rememberFollowUpReturn({
+                  path: window.location.pathname,
+                  label: null
+                })
+              }
+              className='hover:bg-muted/40 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.05] p-3.5 text-sm'
+            >
+              <span className='min-w-0 flex-1'>
+                <span className='block font-semibold'>
+                  {t('followUpLink.title')}
+                </span>
+                <span className='text-muted-foreground block text-xs'>
+                  {t('followUpLink.hint')}
+                </span>
+              </span>
+              <ChevronRight
+                aria-hidden
+                className='text-muted-foreground size-4 shrink-0'
+              />
+            </Link>
             {panel.cards.map((card) => (
               <CapabilityCard
                 key={card.capability}

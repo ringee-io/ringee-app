@@ -25,6 +25,7 @@ import {
   Prisma,
 } from "@ringee/database";
 import { normalizePhoneE164, OwnershipContext } from "@ringee/platform";
+import { ProductAnalyticsService } from "../analytics/product-analytics.service";
 import { MissedCallNotificationService } from "./missed-call-notification.service";
 import { isMissedInboundCall, missedCallThreadPatch } from "./missed-call";
 
@@ -96,6 +97,7 @@ export class InboxTimelineService {
     private readonly callbackRepo: CallbackTaskRepository,
     private readonly callRepo: CallRepository,
     private readonly missedCallNotifications: MissedCallNotificationService,
+    private readonly analytics: ProductAnalyticsService,
   ) {}
 
   /**
@@ -325,6 +327,9 @@ export class InboxTimelineService {
   ): Promise<InboxEvent | null> {
     const ctx = InboxTimelineService.buildOwnershipFromCall(call);
     if (!ctx) return null;
+    // Analytics of the connected human call (Stage 4B): keyed by the call,
+    // after it ended, never awaited by the hangup path.
+    void this.analytics.callEnded(call);
     const event = await this.appendCallEvent({ ctx, call });
     if (event?.kind === InboxEventKind.missed_call) {
       await this.missedCallNotifications.notify(call, event.threadId);

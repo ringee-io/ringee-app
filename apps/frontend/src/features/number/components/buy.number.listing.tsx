@@ -2,6 +2,10 @@ import { BuyNumberTable } from '@/features/number/components/tables/buy.number.t
 import { apiServer } from '@ringee/frontend-shared/lib/api.server';
 import { columns } from '@/features/number/components/tables/buy.number.columns';
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
+import {
+  NumberLookupRecovery,
+  type NumberInventoryLookup
+} from './number-lookup-recovery';
 
 export async function BuyNumberListing() {
   const countryCode = searchParamsCache.get('countryCode') || 'US';
@@ -17,16 +21,33 @@ export async function BuyNumberListing() {
   if (features.length > 0) searchParams.append('features', features.join(','));
   searchParams.append('limit', String(limit));
 
-  const availableNumbers = await apiServer.get(
-    `/telephony/numbers/available/${countryCode}?${searchParams.toString()}`
-  );
+  // The authenticated lookup keeps a provider failure apart from an empty
+  // inventory, so the page can offer the right recovery for each.
+  let lookup: NumberInventoryLookup;
+  try {
+    lookup = await apiServer.get<NumberInventoryLookup>(
+      `/telephony/numbers/lookup/${countryCode}?${searchParams.toString()}`
+    );
+  } catch {
+    lookup = { status: 'failed', numbers: [], errorCode: 'request_failed' };
+  }
   const totalAvailable = 10000; //availableNumbers.length
 
   return (
-    <BuyNumberTable
-      data={availableNumbers}
-      totalItems={totalAvailable}
-      columns={columns}
-    />
+    <div className='flex flex-1 flex-col space-y-4'>
+      <BuyNumberTable
+        data={lookup.numbers}
+        totalItems={totalAvailable}
+        columns={columns}
+      />
+      {lookup.status !== 'results' ? (
+        <NumberLookupRecovery
+          status={lookup.status}
+          countryCode={countryCode}
+          numberType={numberType}
+          filtersUsed={Boolean(areaCode) || features.length > 0}
+        />
+      ) : null}
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -42,6 +43,17 @@ export class CreateCreditCheckoutDto {
   @IsOptional()
   @IsEmail()
   invoiceEmail?: string;
+
+  /**
+   * Where the dashboard started this top-up (analytics only, Stage 4B). It
+   * never changes the amount, the price or what the payment credits, and a
+   * label this server does not know never blocks the payment:
+   * `ProductAnalyticsService.checkoutStarted` records it as `other`.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  entryPoint?: string;
 }
 
 /** Change the billing email on the customer (and, if given, a live top-up). */

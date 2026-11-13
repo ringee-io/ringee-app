@@ -71,6 +71,7 @@ import { AiVoiceAgentController } from "./ai-voice-agent.controller";
 import { AiVoiceAgentWebhookController } from "./ai-voice-agent-webhook.controller";
 import { AiVoiceAgentToolController } from "./ai-voice-agent-tool.controller";
 import { AiVoiceAgentAccessController } from "./ai-voice-agent-access.controller";
+import { ProductAnalyticsController } from "./product-analytics.controller";
 import { AiVoiceAgentAutomationController } from "./ai-voice-agent-automation.controller";
 import { ObjectionInsightController } from "./objection-insight.controller";
 import { PendingActionController } from "./pending-action.controller";
@@ -150,6 +151,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     AiVoiceAgentWebhookController,
     AiVoiceAgentToolController,
     AiVoiceAgentAccessController,
+    ProductAnalyticsController,
     AiVoiceAgentAutomationController,
     ObjectionInsightController,
     PendingActionController,

@@ -7,6 +7,12 @@ export interface NavItem {
   adminOnly?: boolean;
   /** Available only while an organization workspace is active. */
   organizationOnly?: boolean;
+  /**
+   * An organization-only entry a personal workspace can also be granted, as
+   * the API answers it (`useVoiceAgentModuleAccess`) — the AI Voice Agents
+   * personal pilot.
+   */
+  personalAccess?: "ai_voice_agents";
   /** Opened from the user menu rather than the sidebar; still a ⌘K destination. */
   inUserMenu?: boolean;
   disabled?: boolean;

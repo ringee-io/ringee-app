@@ -44,6 +44,12 @@ export interface SavedPaymentMethod {
 interface CreditState {
   balance: number;
   canCall: boolean;
+  /**
+   * Where the open top-up was started from (Stage 4B analytics only). Sent
+   * with the checkout; it never changes amounts or what is credited.
+   */
+  checkoutEntryPoint: string | null;
+  setCheckoutEntryPoint: (entryPoint: string | null) => void;
   minimumCreditPurchase: number;
   freeCallTrial: boolean;
   status: FetchStatus;
@@ -82,6 +88,8 @@ export const useCreditStore = create<CreditState>()(
   devtools((set) => ({
     balance: 0,
     canCall: true,
+    checkoutEntryPoint: null,
+    setCheckoutEntryPoint: (checkoutEntryPoint) => set({ checkoutEntryPoint }),
     minimumCreditPurchase: 5,
     freeCallTrial: false,
     status: 'idle',

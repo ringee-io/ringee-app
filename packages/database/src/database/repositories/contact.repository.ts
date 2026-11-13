@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { Prisma, Contact, CallOutcome } from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import { workspaceOwnershipSql } from "./workspace-scope";
 
 /** A contact row with the multi-value email/phone relations needed for dedup. */
 export type ContactDedupMatch = Prisma.ContactGetPayload<{
@@ -45,6 +46,43 @@ const CONTACT_DETAIL_INCLUDE = {
     orderBy: { isPrimary: "desc" },
   },
 } satisfies Prisma.ContactInclude;
+
+const CONTACT_BRIEF_SELECT = {
+  id: true,
+  jobTitle: true,
+  email: true,
+  company: true,
+  revenue: true,
+  companySize: true,
+  linkedinUrl: true,
+  websiteUrl: true,
+  locationCity: true,
+  locationRegion: true,
+  locationCountry: true,
+  affiliations: {
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    take: 1,
+    select: {
+      company: {
+        select: {
+          name: true,
+          industry: true,
+          revenueRange: true,
+          employeeCountRange: true,
+          employeeCount: true,
+          website: true,
+          domain: true,
+          linkedinUrl: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ContactSelect;
+
+/** A contact as the Call page introduces it (`findBriefForOwner`). */
+export type ContactBrief = Prisma.ContactGetPayload<{
+  select: typeof CONTACT_BRIEF_SELECT;
+}>;
 
 /** Who a contact is, its tags, and its latest notes with their authors. */
 export type ContactWithLatestNotes = Prisma.ContactGetPayload<{
@@ -102,6 +140,21 @@ export class ContactRepository {
   ): Promise<Contact | null> {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
+  /**
+   * What the Call page shows about a contact before calling them: role,
+   * where they are, their links, and their primary company's profile.
+   * Only when the contact belongs to the workspace.
+   */
+  async findBriefForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<ContactBrief | null> {
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+      select: CONTACT_BRIEF_SELECT,
     });
   }
 
@@ -706,11 +759,14 @@ export class ContactRepository {
 }
 
 /** Count automatic dispatches under the contact lock shared by both schedulers.
- * The caller has already locked its meeting (when any), before calling this. */
+ * The caller has already locked its meeting (when any), before calling this.
+ * A committed try whose call is `failed` with no provider leg — refused before
+ * anything was placed — uses none of the day's calls; an uncertain one does. */
 export async function automaticContactDispatchAvailable(
   tx: Prisma.TransactionClient,
   input: {
-    organizationId: string;
+    /** The dispatch's persisted workspace: an organization, or one owner's personal workspace. */
+    workspace: OwnershipContext;
     contactId: string;
     timezone: string;
     now: Date;
@@ -723,7 +779,7 @@ export async function automaticContactDispatchAvailable(
   const locked = await tx.$queryRaw<
     Array<{ id: string }>
   >`SELECT "id" FROM "Contact"
-    WHERE "id" = ${input.contactId}::uuid AND "organizationId" = ${input.organizationId}::uuid
+    WHERE "id" = ${input.contactId}::uuid AND ${workspaceOwnershipSql(input.workspace)}
       AND "deletedAt" IS NULL FOR NO KEY UPDATE`;
   if (!locked.length) return false;
   const [usage] = await tx.$queryRaw<Array<{ count: number; active: number }>>`
@@ -731,19 +787,20 @@ export async function automaticContactDispatchAvailable(
       SELECT cb."dispatchCommittedAt" AS at, cb."status"::text AS state,
         ac."status"::text AS call_state, ac."providerCallControlId" AS leg
       FROM "CallbackTask" cb LEFT JOIN "AiVoiceAgentCall" ac ON ac.id = cb."agentCallId"
-      WHERE cb."organizationId" = ${input.organizationId}::uuid AND cb."contactId" = ${input.contactId}::uuid
+      WHERE ${workspaceOwnershipSql(input.workspace, "cb")} AND cb."contactId" = ${input.contactId}::uuid
         AND cb."dispatchCommittedAt" IS NOT NULL
         AND cb.id <> ${input.callbackId ?? "00000000-0000-0000-0000-000000000000"}::uuid
       UNION ALL
       SELECT r."dispatchCommittedAt", r."status"::text, ac."status"::text, ac."providerCallControlId"
       FROM "MeetingReminderExecution" r JOIN "Meeting" m ON m.id = r."meetingId"
         LEFT JOIN "AiVoiceAgentCall" ac ON ac.id = r."agentCallId"
-      WHERE r."organizationId" = ${input.organizationId}::uuid AND m."contactId" = ${input.contactId}::uuid
+      WHERE ${workspaceOwnershipSql(input.workspace, "r")} AND m."contactId" = ${input.contactId}::uuid
         AND r."dispatchCommittedAt" IS NOT NULL
         AND r.id <> ${input.reminderId ?? "00000000-0000-0000-0000-000000000000"}::uuid
     ) SELECT count(*) FILTER (WHERE at >=
       ((date_trunc('day', ${input.now}::timestamptz AT TIME ZONE ${input.timezone})
-        AT TIME ZONE ${input.timezone}) AT TIME ZONE 'UTC'))::int AS count,
+        AT TIME ZONE ${input.timezone}) AT TIME ZONE 'UTC')
+        AND (call_state IS DISTINCT FROM 'failed' OR leg IS NOT NULL))::int AS count,
       count(*) FILTER (WHERE call_state IN ('created', 'initiating', 'ringing', 'in_progress')
         OR (leg IS NULL AND state IN ('in_progress', 'claimed', 'placed')) )::int AS active
     FROM attempts

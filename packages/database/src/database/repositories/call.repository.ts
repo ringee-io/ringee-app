@@ -215,6 +215,18 @@ export type CallEventDetail = Prisma.CallGetPayload<{
 const PENDING_CALL_LIVE_MS = 10 * 60_000;
 
 /** The disposition a person picked, as a call records it (DISP-005). */
+/** One line of a contact's call history (`recentWithContact`). */
+export type RecentContactCall = Pick<
+  Call,
+  | "id"
+  | "createdAt"
+  | "direction"
+  | "status"
+  | "outcome"
+  | "outcomeNote"
+  | "durationSeconds"
+>;
+
 export interface RecordedDisposition {
   id: string;
   /** Snapshot: history keeps it after the disposition is renamed or deleted. */
@@ -604,6 +616,44 @@ export class CallRepository {
   async findManyByIds(ids: string[]): Promise<Call[]> {
     if (ids.length === 0) return [];
     return this.prisma.call.findMany({ where: { id: { in: ids } } });
+  }
+
+  /**
+   * The latest calls with one contact, newest first, and how many there are
+   * in all — the history the Call page shows before the next call. `userId`
+   * narrows it to one member's calls (`resolveMemberFilter`).
+   */
+  async recentWithContact(
+    ctx: OwnershipContext,
+    contactId: string,
+    options: { userId?: string; take: number },
+  ): Promise<{ total: number; calls: RecentContactCall[] }> {
+    const where: Prisma.CallWhereInput = {
+      ...buildOwnershipFilter(ctx),
+      contactId,
+      ...(options.userId ? { userId: options.userId } : {}),
+      // A dial refused before a carrier leg existed is not a call that
+      // happened.
+      callControlId: { not: null },
+    };
+    const [total, calls] = await Promise.all([
+      this.prisma.call.count({ where }),
+      this.prisma.call.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: options.take,
+        select: {
+          id: true,
+          createdAt: true,
+          direction: true,
+          status: true,
+          outcome: true,
+          outcomeNote: true,
+          durationSeconds: true,
+        },
+      }),
+    ]);
+    return { total, calls };
   }
 
   /**
@@ -1103,11 +1153,11 @@ export class CallRepository {
         : current;
       // Booking writes also correct the human source, even without enrollment
       // input. Close its obsolete objective without claiming AI booking success.
+      // In either workspace type: a personal source is looked up by its owner.
       const acceptance =
         assignment ??
         (semanticChange &&
         outcome === "meeting_booked" &&
-        call.organizationId &&
         call.userId &&
         call.contactId &&
         call.source !== "ai_voice_agent"

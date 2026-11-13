@@ -7,6 +7,7 @@ import { UserRepository } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { ContactListActor, ContactListService } from "./contact-lists";
 import { CreditService } from "./credit.service";
+import { ProductAnalyticsService } from "./analytics/product-analytics.service";
 
 export type OnboardingStep =
   | "first_call"
@@ -82,6 +83,7 @@ export class OnboardingService {
     private readonly userRepository: UserRepository,
     private readonly contactLists: ContactListService,
     private readonly credits: CreditService,
+    private readonly analytics: ProductAnalyticsService,
   ) {}
 
   /** One gift per workspace: an organization once, a person's own once. */
@@ -201,7 +203,8 @@ export class OnboardingService {
     const firstList =
       (await this.contactLists.firstListInWorkspace(actor)) === list.id;
     let rewardGranted = 0;
-    if (firstList && (await this.rewardOwed(actor))) {
+    const rewardOffered = firstList && (await this.rewardOwed(actor));
+    if (rewardOffered) {
       const { granted } = await this.credits.grantCreditsOnce(
         actor,
         FIRST_LIST_REWARD_USD,
@@ -218,6 +221,13 @@ export class OnboardingService {
       actor.userId,
       firstListStep(actor),
     );
+    // Stage 4B: the completion, with whether the gift was offered and what
+    // the ledger confirmed. The grant itself is projected from the ledger.
+    void this.analytics.firstListCompleted(actor, {
+      contactCount: list.contactCount,
+      rewardOffered,
+      rewardGranted,
+    });
     return { completed: true, rewardGranted };
   }
 

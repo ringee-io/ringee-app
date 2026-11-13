@@ -65,6 +65,7 @@ describe(
       policies,
       new ComplianceService(dnc, { enqueue: async () => undefined } as never),
       callbacks,
+      { outcomeRecorded: async () => undefined } as never,
     );
     const organizationId = randomUUID();
     const userId = randomUUID();

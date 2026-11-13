@@ -1,43 +1,50 @@
 import { ForbiddenException } from "@nestjs/common";
-import { apiConfiguration } from "@ringee/configuration";
-import type {
-  OrganizationOwnershipContext,
-  OwnershipContext,
-} from "@ringee/platform";
-import { assertVoiceAgentAccess } from "../voice-agent-access";
+import type { WorkspaceAdmission } from "@ringee/database";
+import type { OwnershipContext } from "@ringee/platform";
+import {
+  assertVoiceAgentAccess,
+  voiceAgentAccess,
+  voiceAgentAutomationAdmission,
+  type VoiceAgentScope,
+} from "../voice-agent-access";
 
 /**
- * Whether the "Ringee IA Voice Agents" rail and its automations are on for an
- * organization — the pilot flag of AGENT-018, read from
- * `AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS`. Personal workspaces never are
- * (AGENT-011).
+ * Whether a workspace is admitted to automated work — the pilot gate of
+ * AGENT-018 (`AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS` for organizations,
+ * `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS` for personal workspaces), decided by
+ * `voiceAgentAccess`.
+ *
+ * Pass the scope a row was persisted with — its `userId` and `organizationId`
+ * — never the owner's currently active workspace: deferred work keeps the
+ * workspace it was created in.
  */
 export function voiceAgentAutomationsEnabled(
-  organizationId: string | null | undefined,
+  scope: VoiceAgentScope | null | undefined,
 ): boolean {
-  if (!organizationId) return false;
-  const allowed = apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
-  return allowed.includes("*") || allowed.includes(organizationId);
-}
-
-/** Queue filtering uses the same pilot allowlist, without starving enabled tenants. */
-export function automationOrganizationFilter(): string[] | null {
-  const allowed = apiConfiguration.AI_VOICE_AGENT_AUTOMATIONS_ORG_IDS;
-  return allowed.includes("*") ? null : allowed;
+  if (!scope) return false;
+  return voiceAgentAccess(scope).automations;
 }
 
 /**
- * The service-side gate every automation entry point runs first. The worker
- * applies the same rule per row, so taking an organization off the flag stops
- * its automated calls and emails, not only its screens.
+ * Queue filtering uses the same admission, inside the claim query, so an
+ * excluded workspace never starves an admitted one.
  */
-export function assertVoiceAgentAutomations(
-  ctx: OwnershipContext,
-): asserts ctx is OrganizationOwnershipContext {
+export function automationAdmissionFilter(): WorkspaceAdmission {
+  return voiceAgentAutomationAdmission();
+}
+
+/**
+ * The service-side gate every automation entry point runs first. The workers
+ * apply the same rule per row, so taking a workspace off the pilot stops its
+ * new automated calls and emails, not only its screens.
+ */
+export function assertVoiceAgentAutomations(ctx: OwnershipContext): void {
   assertVoiceAgentAccess(ctx);
-  if (!voiceAgentAutomationsEnabled(ctx.organizationId)) {
+  if (!voiceAgentAutomationsEnabled(ctx)) {
     throw new ForbiddenException(
-      "AI voice agent automations are not enabled for this organization yet.",
+      ctx.organizationId
+        ? "AI voice agent automations are not enabled for this organization yet."
+        : "AI voice agent automations are not enabled for this personal workspace yet.",
     );
   }
 }

@@ -8,6 +8,40 @@ const nonNegativeInteger = (name: string, fallback: number): number => {
   return Number.isInteger(value) && value >= 0 ? value : fallback;
 };
 
+const PILOT_USER_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Personal workspaces admitted to AI Voice Agents (AGENT-011): `*` admits
+ * every one (the result is then `["*"]`), otherwise each entry must be a user
+ * id. A malformed entry admits nobody — it is dropped with a warning instead
+ * of refusing to boot, so a typo closes the pilot rather than the API.
+ */
+const parsePersonalPilotUserIds = (raw: string | undefined): string[] => {
+  const entries = (raw ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const rejected = entries.filter(
+    (id) => id !== "*" && !PILOT_USER_ID.test(id),
+  );
+  if (rejected.length > 0) {
+    console.warn(
+      `AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS ignores ${rejected.length} entr${
+        rejected.length === 1 ? "y" : "ies"
+      } that are not user ids or "*".`,
+    );
+  }
+  if (entries.includes("*")) return ["*"];
+  return [
+    ...new Set(
+      entries
+        .filter((id) => PILOT_USER_ID.test(id))
+        .map((id) => id.toLowerCase()),
+    ),
+  ];
+};
+
 const apiConfiguration = {
   PORT: process.env.PORT || 3000,
   DATABASE_URL: process.env.DATABASE_URL!,
@@ -297,12 +331,39 @@ const apiConfiguration = {
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean),
+  // Personal workspaces enrolled in the AI Voice Agents pilot (AGENT-011,
+  // AGENT-018): a comma-separated list of Ringee user ids, each naming one
+  // owner's personal workspace. Enrollment opens the module, manual agent calls
+  // and automated work for that personal workspace only. Explicit ids only —
+  // "*" is not honored here, and neither is the organization list's "*".
+  // Empty (the default) admits no personal workspace.
+  AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS: parsePersonalPilotUserIds(
+    process.env.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS,
+  ),
   // AI Pipeline — Follow-up Intelligence batch enrichment. Context activation
   // is already explicit, so AI runs unless it is deliberately disabled.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED !== "false",
   // AI Pipeline — semantic, at-most-once full-transcript extraction. Pipeline
   // activation is already explicit per context, so AI is on unless disabled.
   AI_OBJECTION_AI_ENABLED: process.env.AI_OBJECTION_AI_ENABLED !== "false",
+  // ── Product analytics and error tracking (Stage 4B) ──
+  // The PostHog project token (`phc_…`). It is an ingestion key — the same
+  // value the browser receives as NEXT_PUBLIC_POSTHOG_KEY — never a personal
+  // or management key. Unset (the default) ships analytics dark: nothing is
+  // recorded or sent, and every product path works as before.
+  POSTHOG_PROJECT_TOKEN: process.env.POSTHOG_PROJECT_TOKEN,
+  // Ingestion host of the project's region: https://us.i.posthog.com or
+  // https://eu.i.posthog.com. An invalid value disables analytics, never the API.
+  POSTHOG_HOST: process.env.POSTHOG_HOST || "https://us.i.posthog.com",
+  // Kill switch for everything analytics does on the server, token or not.
+  POSTHOG_ENABLED: process.env.POSTHOG_ENABLED !== "false",
+  // Scoped error tracking can be switched off on its own.
+  POSTHOG_ERROR_TRACKING_ENABLED:
+    process.env.POSTHOG_ERROR_TRACKING_ENABLED !== "false",
+  // What every analytics fact and captured exception is tagged with.
+  RINGEE_ENVIRONMENT:
+    process.env.RINGEE_ENVIRONMENT || process.env.NODE_ENV || "development",
+  RINGEE_RELEASE: process.env.RINGEE_RELEASE || "unversioned",
   // ── Backoffice (super admin) ──
   // Comma-separated email allowlist for the internal super-admin area. When
   // unset, the backend falls back to DEFAULT_SUPER_ADMIN_EMAILS (see the
@@ -482,4 +543,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-export { apiConfiguration };
+export { apiConfiguration, parsePersonalPilotUserIds };

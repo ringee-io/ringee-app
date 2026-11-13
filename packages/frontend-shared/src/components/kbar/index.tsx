@@ -13,6 +13,10 @@ import { useMemo } from "react";
 import RenderResults from "./render-result";
 import useThemeSwitching from "./use-theme-switching";
 import { useOrgRole } from "../../hooks/use-org-role";
+import {
+  isNavItemAvailable,
+  useVoiceAgentModuleAccess,
+} from "../../hooks/use-voice-agent-access";
 import { useTranslations } from "next-intl";
 
 export default function KBar({ children }: { children: React.ReactNode }) {
@@ -42,6 +46,7 @@ const ITEM_TITLE_KEYS: Record<string, string> = {
 const KBarComponent = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const { canAccessAdminFeatures, hasOrg, hiddenForMember } = useOrgRole();
+  const voiceAgentAccess = useVoiceAgentModuleAccess();
   const t = useTranslations("navigation.kbar");
   const tNav = useTranslations("navigation");
 
@@ -59,7 +64,7 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
 
     return navItems.flatMap((navItem) => {
       const shouldShowBase =
-        (hasOrg || !navItem.organizationOnly) &&
+        isNavItemAvailable(navItem, { hasOrg, voiceAgentAccess }) &&
         (canAccessAdminFeatures || !hiddenForMember.includes(navItem.title));
       const navLabel = localizeTitle(navItem.title);
 
@@ -80,7 +85,7 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
         navItem.items
           ?.filter(
             (childItem) =>
-              (hasOrg || !childItem.organizationOnly) &&
+              isNavItemAvailable(childItem, { hasOrg, voiceAgentAccess }) &&
               (canAccessAdminFeatures ||
                 !hiddenForMember.includes(childItem.title)),
           )
@@ -99,7 +104,15 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
 
       return baseAction ? [baseAction, ...childActions] : childActions;
     });
-  }, [router, canAccessAdminFeatures, hasOrg, hiddenForMember, t, tNav]);
+  }, [
+    router,
+    canAccessAdminFeatures,
+    hasOrg,
+    voiceAgentAccess,
+    hiddenForMember,
+    t,
+    tNav,
+  ]);
 
   // Register actions dynamically - this updates when role changes
   useRegisterActions(actions, [actions]);

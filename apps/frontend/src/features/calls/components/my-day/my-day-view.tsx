@@ -1,12 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { CountryCode } from '@ringee/dialer-core/phone';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
+import { formatForDisplay } from '@ringee/dialer-core/phone';
+import { CreditPopover } from '@/features/credit/components/credit.popover';
+import {
+  followUpHref,
+  rememberFollowUpReturn
+} from '@/features/ai-voice-agents/automations/follow-up/entry';
+import { FollowUpInvitationCard } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
+import { FirstResultCard } from '@/features/ai-voice-agents/automations/follow-up/first-result-card';
+import { useVoiceAgentsRail } from '@/features/ai-voice-agents/automations/store';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useRotationEnabled } from '@/features/number-rotation';
 import { FirstListDialog } from '@/features/onboarding/components/first-list/first-list-dialog';
@@ -16,6 +28,10 @@ import { useCallList } from '../../hooks/use.call.list';
 import { useCallPageShortcuts } from '../../hooks/use.call.page.shortcuts';
 import { useDial } from '../../hooks/use.dial';
 import {
+  useCallActivity,
+  useFirstCallPrompt
+} from '../../hooks/use.first.call.prompt';
+import {
   isCallableNow,
   upcomingCall,
   useMyDayQueue,
@@ -23,6 +39,8 @@ import {
 } from '../../hooks/use.my.day.queue';
 import { useMyDaySummary } from '../../hooks/use.my.day.summary';
 import { useQueueDial } from '../../hooks/use.queue.dial';
+import { useContactBriefStore } from '../../store/contact-brief.store';
+import { useDialerStore } from '../../store/dialer.store';
 import { useNumbersStore } from '../../store/number.selector.store';
 import type {
   MyDayList,
@@ -83,6 +101,10 @@ function listEntryItem(list: MyDayList, entry: MyDayListEntry): MyDayQueueItem {
  * nobody in the queue is due, "Call next" goes through the list the user
  * picked. With no list of their own, "Start calling" opens the onboarding
  * that makes one, picks it, and hands the focus back to the next call.
+ *
+ * Somebody with nothing at all to call — no list, no queue, no first-list
+ * setup — gets that onboarding once on its own, as the first test call: on
+ * the number to call, under the line it goes out on (`useFirstCallPrompt`).
  */
 export function MyDayView() {
   const t = useTranslations('calls.myDay');
@@ -104,8 +126,28 @@ export function MyDayView() {
   const [listPickerOpen, setListPickerOpen] = useState(false);
   const firstList = useFirstListOnboarding();
   const [listSetupOpen, setListSetupOpen] = useState(false);
+  // The setup as the person opened it, or as the first test call My day
+  // opened on its own.
+  const [setupVariant, setSetupVariant] = useState<'list' | 'test_call'>(
+    'list'
+  );
   const [spotlight, setSpotlight] = useState(false);
   const fetchBalance = useCreditStore((s) => s.fetchBalance);
+  const router = useRouter();
+  const { capture } = useAnalytics();
+  const { isLoaded: authLoaded, userId, orgId } = useAuth();
+  const callActive = useCallActivity();
+  // A number typed into the quick dialer is a number in hand too.
+  const quickDialTyped = useDialerStore((s) => s.number.trim() !== '');
+  // The test call's list, once it is ready: the person's explicit dial of
+  // its entry is the test call's attempt — not a callback that came due.
+  const testListId = useRef<string | null>(null);
+  const followUpAdmitted = useVoiceAgentsRail(
+    (state) => state.summary?.enabled === true
+  );
+  const schedulingActive = useVoiceAgentsRail(
+    (state) => state.summary?.capabilities.scheduling === 'active'
+  );
 
   const refreshQueue = queue.refresh;
   const refreshSummary = summary.refresh;
@@ -114,6 +156,9 @@ export function MyDayView() {
     void refreshQueue();
     void refreshSummary();
     void refreshListNext();
+    // A call just ended or started: whoever is next may have a new line in
+    // their history.
+    useContactBriefStore.getState().invalidate();
   }, [refreshQueue, refreshSummary, refreshListNext]);
 
   const { callItem, dialingKey, busy, called } = useQueueDial(refreshAll);
@@ -182,23 +227,69 @@ export function MyDayView() {
   const hasLists = callList.lists.length > 0;
   const startCalling = useCallback(() => {
     setListPickerOpen(false);
+    setSetupVariant('list');
     setListSetupOpen(true);
   }, []);
+
+  const selected = useNumbersStore((s) => s.selectedNumber);
+  const numbersStatus = useNumbersStore((s) => s.status);
+  const rotationEnabled = useRotationEnabled();
+  const balance = useCreditStore((s) => s.balance);
+  const balanceLoaded = useCreditStore((s) => s.hasLoaded);
+  const { canAccessAdminFeatures, isLoaded: roleLoaded } = useOrgRole();
+  const seesBalance = roleLoaded && canAccessAdminFeatures;
+  // The line the next manual call goes out on, the way the dial picks it:
+  // caller-ID rotation chooses one of the workspace's numbers for each call
+  // (not on the workspace's own carrier); otherwise the number picked in
+  // "Your line" — the shared public one until the person picks their own.
+  const autoLine =
+    rotationEnabled === true && selected?.source !== 'external_carrier';
+  const lineKind: 'own_number' | 'shared_number' | 'none' = autoLine
+    ? 'own_number'
+    : selected && selected.id !== 'public'
+      ? 'own_number'
+      : selected?.phoneNumber
+        ? 'shared_number'
+        : 'none';
+  const hasCredit = seesBalance && balanceLoaded ? balance > 0 : null;
 
   // The new list goes to work at once, behind the dialog's last step.
   const selectList = callList.select;
   const markFirstListDone = firstList.markCompleted;
   const listReady = useCallback(
-    (list: { id: string }) => {
+    (list: { id: string }, _rewardGranted: number, fromTestCall: boolean) => {
       markFirstListDone();
       selectList(list.id);
       void refreshLists();
       // A retried completion can report zero after the first response was lost.
       void fetchBalance(api, false, true);
+      if (fromTestCall) testListId.current = list.id;
     },
     [api, fetchBalance, markFirstListDone, refreshLists, selectList]
   );
   const endSpotlight = useCallback(() => setSpotlight(false), []);
+
+  // "Call next", by button or by N — the explicit dial. Dialing the test
+  // call list's entry is the test call's attempt, counted once.
+  const callNext = useCallback(
+    (item: MyDayQueueItem) => {
+      if (busy) return;
+      if (
+        testListId.current !== null &&
+        next?.source === 'list' &&
+        next.list.id === testListId.current &&
+        next.item.key === item.key
+      ) {
+        testListId.current = null;
+        capture('test_call_dial_attempted', {
+          line: lineKind,
+          has_credit: hasCredit
+        });
+      }
+      void callItem(item);
+    },
+    [busy, callItem, capture, hasCredit, lineKind, next]
+  );
 
   const skipListEntry = callList.skip;
   const skip = useCallback(
@@ -211,7 +302,7 @@ export function MyDayView() {
   useCallPageShortcuts({
     onCallNext: () => {
       if (next) {
-        if (!callList.skipping) void callItem(next.item);
+        if (!callList.skipping) callNext(next.item);
       } else if (
         !hasLists &&
         !callList.listsLoading &&
@@ -229,8 +320,61 @@ export function MyDayView() {
     }
   });
 
-  const selected = useNumbersStore((s) => s.selectedNumber);
-  const rotationEnabled = useRotationEnabled();
+  // The first test call, opened on its own once per user and workspace in
+  // this browser, for somebody with nothing to call yet. Exposure only: the
+  // intent is the person saving the number, the attempt their explicit dial.
+  const openTestCall = useCallback(() => {
+    setListPickerOpen(false);
+    setKeypadOpen(false);
+    setSetupVariant('test_call');
+    setListSetupOpen(true);
+    capture('test_call_modal_shown', {
+      trigger: 'automatic',
+      line: lineKind,
+      reward_usd: firstList.reward
+    });
+  }, [capture, firstList.reward, lineKind]);
+  useFirstCallPrompt({
+    workspace: authLoaded && userId ? { userId, orgId: orgId ?? null } : null,
+    // Rotation decides the line the dialog shows: `null` is pending or a
+    // failed read, and either way the prompt waits — the hook reads again
+    // on focus.
+    loaded:
+      roleLoaded &&
+      firstList.loaded &&
+      !callList.listsLoading &&
+      !callList.listsFailed &&
+      queueReady &&
+      (numbersStatus === 'success' || numbersStatus === 'error') &&
+      rotationEnabled !== null,
+    hasWork:
+      hasLists ||
+      queue.items.length > 0 ||
+      queue.incoming.length > 0 ||
+      firstList.completed ||
+      firstList.pendingListId !== null,
+    numberInHand:
+      !!searchParams.get('phoneNumber') ||
+      query.trim() !== '' ||
+      quickDialTyped,
+    onOpen: openTestCall
+  });
+
+  // The gift is offered only once the server confirmed it is owed (BILL-022).
+  const offerShown = useRef(false);
+  useEffect(() => {
+    if (offerShown.current || hasLists || firstList.reward <= 0) return;
+    offerShown.current = true;
+    capture('first_list_offer_shown', { reward_usd: firstList.reward });
+  }, [capture, firstList.reward, hasLists]);
+
+  const configureFollowUp = useCallback(() => {
+    rememberFollowUpReturn({
+      path: '/dashboard/call',
+      label: callList.selected?.name ?? null
+    });
+    router.push(followUpHref({ from: 'first_list' }));
+  }, [callList.selected?.name, router]);
   const fromLabel =
     rotationEnabled && selected?.source !== 'external_carrier'
       ? t('next.fromAuto')
@@ -327,9 +471,12 @@ export function MyDayView() {
           dialing={next !== null && dialingKey === next.item.key}
           busy={busy}
           skipping={callList.skipping}
-          onCall={(item) => void callItem(item)}
+          onCall={callNext}
           onSkip={skip}
         />
+
+        {/* One discreet follow-up invitation after a saved result (4C). */}
+        <FollowUpInvitationCard />
 
         <TodayQueue
           items={queueItems}
@@ -356,6 +503,7 @@ export function MyDayView() {
       </div>
 
       <aside className='flex flex-col gap-4' aria-label={t('asideLabel')}>
+        <FirstResultCard />
         <YourLineCard />
         <TodayCard
           summary={summary.summary}
@@ -379,6 +527,27 @@ export function MyDayView() {
         defaultCountry={region}
         onListReady={listReady}
         onFinish={() => setSpotlight(true)}
+        variant={setupVariant}
+        stepAside={setupVariant === 'test_call' && callActive}
+        line={{
+          kind: lineKind,
+          auto: autoLine,
+          number:
+            lineKind === 'own_number' && !autoLine && selected?.phoneNumber
+              ? formatForDisplay(selected.phoneNumber)
+              : null,
+          hasCredit,
+          topUp: (
+            <CreditPopover fetch={false} entryPoint='test_call'>
+              <Button size='sm' variant='outline'>
+                {t('addCredit')}
+              </Button>
+            </CreditPopover>
+          )
+        }}
+        onConfigureFollowUp={
+          followUpAdmitted && !schedulingActive ? configureFollowUp : null
+        }
       />
     </div>
   );

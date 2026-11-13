@@ -139,6 +139,10 @@ export function DataTableFacetedFilter<TData, TValue>({
                 return (
                   <CommandItem
                     key={option.value}
+                    // Search by the label and its keywords (a country's
+                    // name or ISO code), never by the bare value alone.
+                    value={`${option.label} ${option.value}`}
+                    keywords={option.keywords}
                     onSelect={() => onItemSelect(option, isSelected)}
                   >
                     <div

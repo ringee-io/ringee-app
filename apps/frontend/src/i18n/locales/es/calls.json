@@ -564,6 +564,18 @@
         "hint": "Sube un archivo o escribe algunos números. Ringee te muestra la siguiente persona cada vez.",
         "cta": "Empezar a llamar",
         "reward": "+{amount} de crédito gratis al terminar"
+      },
+      "role": "{title} en <strong>{company}</strong>",
+      "detail": {
+        "revenue": "Facturación",
+        "employees": "Empleados",
+        "industry": "Sector",
+        "email": "Correo",
+        "history": "Historial de llamadas",
+        "historySummary": "{count, plural, one {# llamada} other {# llamadas}} · la última el {day}",
+        "noCalls": "Aún no hay llamadas",
+        "failed": "No se cargaron sus datos.",
+        "retry": "Reintentar"
       }
     },
     "queue": {
@@ -634,7 +646,16 @@
       "callResult": "Llamar al resultado seleccionado",
       "clear": "Borrar la búsqueda",
       "hint": "No se activan mientras escribes ni cuando hay una llamada o un diálogo abierto."
-    }
+    },
+    "links": {
+      "trigger": "Enlaces y acciones de {name}",
+      "linkedin": "Perfil de LinkedIn",
+      "companyLinkedin": "LinkedIn de la empresa",
+      "companyWebsite": "Sitio web de la empresa",
+      "none": "No hay LinkedIn ni sitio web guardados de {name}.",
+      "failed": "No se cargaron sus enlaces."
+    },
+    "addCredit": "Añadir saldo"
   },
   "automaticFollowUp": {
     "preparing": "Guardando resultado y preparando seguimiento…",

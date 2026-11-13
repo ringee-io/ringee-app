@@ -25,6 +25,7 @@ import {
   useRecordingSettings
 } from '@/features/transcription';
 
+import { offerOutcomeInvitation } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
 /**
  * Renders the live subtitles overlay. Lives in its own component so the
  * transcription hook runs for the lifetime of the active modal (the slot is
@@ -160,27 +161,30 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
       // Outcome save AND skip/close share this request — with no `outcome` the
       // backend just pushes the CRM call-log note immediately. With a
       // disposition, the backend records the outcome it maps to.
-      saveCallOutcome: (input: {
+      saveCallOutcome: async (input: {
         callId?: string | null;
         callSessionId?: string | null;
         outcome?: string;
         outcomeNote?: string;
         dispositionId?: string | null;
-      }) =>
-        api.post<import('@ringee/dialer-ui/data/types').OutcomeAcceptance>(
-          '/meetings/call-outcome',
-          {
-            callId: input.callId || undefined,
-            callSessionId: input.callSessionId || undefined,
-            outcome: input.outcome || undefined,
-            callbackTimezone:
-              input.outcome === 'callback_scheduled'
-                ? Intl.DateTimeFormat().resolvedOptions().timeZone
-                : undefined,
-            outcomeNote: input.outcomeNote || undefined,
-            dispositionId: input.dispositionId || undefined
-          }
-        ),
+      }) => {
+        const accepted = await api.post<
+          import('@ringee/dialer-ui/data/types').OutcomeAcceptance
+        >('/meetings/call-outcome', {
+          callId: input.callId || undefined,
+          callSessionId: input.callSessionId || undefined,
+          outcome: input.outcome || undefined,
+          callbackTimezone:
+            input.outcome === 'callback_scheduled'
+              ? Intl.DateTimeFormat().resolvedOptions().timeZone
+              : undefined,
+          outcomeNote: input.outcomeNote || undefined,
+          dispositionId: input.dispositionId || undefined
+        });
+        // Stage 4C: only an outcome the server durably accepted invites.
+        offerOutcomeInvitation(input, accepted);
+        return accepted;
+      },
       listDispositions: () => {
         const cached = dispositions.current;
         if (cached && Date.now() - cached.at < DISPOSITIONS_TTL_MS) {

@@ -9,13 +9,14 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { isISO8601 } from "class-validator";
 import {
   CurrentUser,
   CurrentUserData,
   createOwnershipContext,
+  resolveMemberFilter,
 } from "@ringee/platform";
 import { MyDayService } from "@ringee/services";
+import { parseOptionalIsoDate } from "../query-dates";
 
 /** "My day" on the Call page, for the signed-in user's own workspace. */
 @Controller("my-day")
@@ -33,7 +34,7 @@ export class MyDayController {
   ) {
     return this.myDay.getQueue(
       createOwnershipContext(user),
-      parseOptionalDate(until, "until"),
+      parseOptionalIsoDate(until, "until"),
     );
   }
 
@@ -44,14 +45,31 @@ export class MyDayController {
     @Query("from") from?: string,
     @Query("to") to?: string,
   ) {
-    const start = parseOptionalDate(from, "from");
-    const end = parseOptionalDate(to, "to");
+    const start = parseOptionalIsoDate(from, "from");
+    const end = parseOptionalIsoDate(to, "to");
     if (!start !== !end) {
       throw new BadRequestException("from and to go together");
     }
     return this.myDay.getSummary(
       createOwnershipContext(user),
       start && end ? { from: start, to: end } : undefined,
+    );
+  }
+
+  /**
+   * Who a contact is before the call: role, company, where to look them up,
+   * and the last calls with them. Inside an organization a member sees only
+   * their own calls (`resolveMemberFilter`); an admin sees the team's.
+   */
+  @Get("contacts/:contactId")
+  async contactBrief(
+    @CurrentUser() user: CurrentUserData,
+    @Param("contactId", ParseUUIDPipe) contactId: string,
+  ) {
+    return this.myDay.getContactBrief(
+      createOwnershipContext(user),
+      contactId,
+      resolveMemberFilter(user),
     );
   }
 
@@ -84,15 +102,4 @@ export class MyDayController {
       entryId,
     );
   }
-}
-
-function parseOptionalDate(value: string | undefined, name: string) {
-  if (!value) return undefined;
-  // `new Date` alone also reads "1" or "Oct 30 2026", and rolls Feb 30 into
-  // March.
-  const date = isISO8601(value, { strict: true }) ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) {
-    throw new BadRequestException(`${name} must be an ISO 8601 date`);
-  }
-  return date;
 }

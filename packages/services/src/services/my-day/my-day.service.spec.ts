@@ -7,10 +7,12 @@ import { describe, it } from "node:test";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import {
   CallablePendingAction,
+  ContactBrief,
   ContactListEntryToCall,
   OwedCallback,
   WorkedContactList,
 } from "@ringee/database";
+import { BRIEF_CALL_LIMIT } from "./my-day-brief";
 import { MyDayService } from "./my-day.service";
 
 const NOW = new Date("2026-10-08T15:00:00.000Z");
@@ -75,8 +77,14 @@ function build(
     outbound?: { toNumber: string; userId: string | null; at: Date }[];
     openCallbacks?: string[];
     listed?: { contactId: string; list: { id: string; name: string } }[];
+    /** What the contact lookup finds; null is a contact outside the workspace. */
+    brief?: ContactBrief | null;
   } = {},
 ) {
+  const historyLookups: Array<{
+    contactId: string;
+    opts: { userId?: string; take: number };
+  }> = [];
   const scheduledTo: Date[] = [];
   const summaries: Array<{ start: Date; end: Date }> = [];
   const marked: { id: string; at: Date }[] = [];
@@ -111,7 +119,17 @@ function build(
       findExistingIds: async (ids: string[]) =>
         new Set(ids.filter((id) => options.agentCallIds?.includes(id))),
     } as never,
-    { latestOutboundTo: async () => options.outbound ?? [] } as never,
+    {
+      latestOutboundTo: async () => options.outbound ?? [],
+      recentWithContact: async (
+        _ctx: unknown,
+        contactId: string,
+        opts: { userId?: string; take: number },
+      ) => {
+        historyLookups.push({ contactId, opts });
+        return { total: 0, calls: [] };
+      },
+    } as never,
     { findListedPhones: async () => new Set<string>() } as never,
     {
       getMyDaySummary: async (
@@ -166,8 +184,19 @@ function build(
         return true;
       },
     } as never,
+    {
+      findBriefForOwner: async () => options.brief ?? null,
+    } as never,
   );
-  return { service, scheduledTo, summaries, marked, skips, listLookups };
+  return {
+    service,
+    scheduledTo,
+    summaries,
+    marked,
+    skips,
+    listLookups,
+    historyLookups,
+  };
 }
 
 const ctx = { userId: "me", organizationId: "org-1" };
@@ -385,6 +414,48 @@ describe("MyDayService lists", () => {
 
     assert.deepEqual(skips, [{ listId: "list-1", entryId: "e-1" }]);
     assert.equal(result.next?.entryId, "e-2");
+  });
+});
+
+describe("MyDayService.getContactBrief", () => {
+  const brief = {
+    id: "contact-1",
+    jobTitle: null,
+    email: null,
+    company: null,
+    revenue: null,
+    companySize: null,
+    linkedinUrl: null,
+    websiteUrl: null,
+    locationCity: null,
+    locationRegion: null,
+    locationCountry: null,
+    affiliations: [],
+  } as unknown as ContactBrief;
+
+  it("answers 404 for a contact outside the workspace, reading no calls", async () => {
+    const { service, historyLookups } = build({ brief: null });
+
+    await assert.rejects(
+      service.getContactBrief(ctx, "contact-1"),
+      (error: unknown) =>
+        error instanceof NotFoundException &&
+        error.message === "Contact not found",
+    );
+    assert.deepEqual(historyLookups, []);
+  });
+
+  it("reads the last calls of the member it is asked for", async () => {
+    const { service, historyLookups } = build({ brief });
+
+    await service.getContactBrief(ctx, "contact-1", "member-2");
+
+    assert.deepEqual(historyLookups, [
+      {
+        contactId: "contact-1",
+        opts: { userId: "member-2", take: BRIEF_CALL_LIMIT },
+      },
+    ]);
   });
 });
 

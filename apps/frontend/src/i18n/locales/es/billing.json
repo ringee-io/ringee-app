@@ -24,7 +24,8 @@
         "chooseAmount": "Elige un importe",
         "customAmountLabel": "O introduce un importe personalizado",
         "minAmountError": "La compra mínima es de ${amount}",
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "minAmountHint": "Cualquier importe desde {amount}, el mínimo de tu cuenta."
       },
       "oneTime": {
         "customPlaceholder": "Ej. 40",

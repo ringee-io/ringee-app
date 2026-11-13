@@ -497,6 +497,7 @@ model User {
   meetingReminderCalls    MeetingReminderExecution[]
   meetingEmailDeliveries  MeetingEmailDelivery[]
   aiVoiceAgentHandoffs    AiVoiceAgentHandoff[]
+  followUpActivations     FollowUpActivation[]
 
   @@index([clerkId])
 }
@@ -630,6 +631,7 @@ model Organization {
   meetingReminderCalls    MeetingReminderExecution[]
   meetingEmailDeliveries  MeetingEmailDelivery[]
   aiVoiceAgentHandoffs    AiVoiceAgentHandoff[]
+  followUpActivations     FollowUpActivation[]
   voiceAgentParticipants  AiVoiceAgentCallParticipant[]
 
   @@index([clerkId])
@@ -2573,6 +2575,57 @@ model TriggerLoopOutboxEvent {
 
   @@index([status, nextAttemptAt])
   @@index([createdAt])
+}
+
+/// Delivery state of one backend product-analytics fact (Stage 4B).
+enum ProductAnalyticsDeliveryStatus {
+  pending
+  sent
+  /// Retries exhausted. Kept for reconciliation; never resent blindly.
+  failed
+  /// Analytics was switched off when it came due: dropped, not sent.
+  skipped
+}
+
+/// A backend product-analytics fact waiting for the analytics provider. Rows
+/// are recorded after the business transaction that produced the evidence —
+/// or projected from durable evidence by a cursor — keyed by that evidence, and
+/// shipped by the orchestrator drain with the original time and a stable id.
+/// Delivery never blocks, fails or retries a business operation.
+model ProductAnalyticsEvent {
+  /// Also the provider's event UUID, so a resend deduplicates there.
+  id            String                         @id @default(uuid()) @db.Uuid
+  /// Stable identity of the fact (`<event>:<evidence key>`): a replayed
+  /// projection or retried producer is the same row.
+  eventKey      String                         @unique
+  event         String
+  distinctId    String
+  /// When the fact happened. Kept across retries.
+  occurredAt    DateTime
+  /// Allowlisted, sanitized properties (see the platform event contract).
+  properties    Json
+  workspaceKey  String?
+  status        ProductAnalyticsDeliveryStatus @default(pending)
+  attemptCount  Int                            @default(0)
+  nextAttemptAt DateTime                       @default(now())
+  /// A bounded error code — never a provider message.
+  lastError     String?
+  sentAt        DateTime?
+  /// Drain lease; a token mismatch fences a worker whose lease expired.
+  claimToken    String?                        @db.Uuid
+  claimedUntil  DateTime?
+  createdAt     DateTime                       @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+/// How far each analytics projector has read its evidence table.
+model ProductAnalyticsCursor {
+  source    String   @id
+  cursorAt  DateTime
+  cursorId  String?
+  updatedAt DateTime @updatedAt
 }
 
 // Per-user derived activity state. Source of truth for "has the user ever
@@ -4973,18 +5026,25 @@ model WorkspaceCompanyProfile {
 // model, a second call path or a second calendar. See AGENT-018..AGENT-020.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// One quick-action capability configured for an organization: which agent the
+/// One quick-action capability configured for a workspace: which agent the
 /// rail's card drives, whether it is switched on, and what it was set up with.
 ///
 /// The unique key is what keeps two tabs from creating two agents on a double
 /// click: the first setup claims the row, the second finds it. It does not limit
 /// how many agents the advanced editor creates — a workspace that runs several
 /// brands still has every agent it built.
+///
+/// An organization's row is keyed by `organizationId` (the unique below). A
+/// personal workspace's row has `organizationId` null and is keyed by its owner
+/// in `userId`: PostgreSQL treats NULLs as distinct, so that uniqueness is the
+/// partial index `AiVoiceAgentAutomation_personal_capability_contextKey_key`
+/// (`userId, capability, contextKey WHERE organizationId IS NULL`), which only
+/// migration SQL can express.
 model AiVoiceAgentAutomation {
   id             String           @id @default(uuid()) @db.Uuid
-  /// The admin who last configured it.
+  /// The admin who last configured it; in a personal workspace, its owner.
   userId         String           @db.Uuid
-  organizationId String           @db.Uuid
+  organizationId String?          @db.Uuid
   /// The capability, named by the agent type that provides it.
   capability     AiVoiceAgentType
   /// Brand or calendar context the preference applies to. "workspace" is the
@@ -5003,7 +5063,7 @@ model AiVoiceAgentAutomation {
   updatedAt      DateTime         @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agent        AiVoiceAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, capability, contextKey])
@@ -5011,14 +5071,79 @@ model AiVoiceAgentAutomation {
   @@index([userId])
 }
 
+/// Where a workspace's automatic follow-up onboarding stands (Stage 4C).
+enum FollowUpActivationStatus {
+  /// The review was saved; nothing was authorized yet.
+  configured
+  /// The owner (personal) or an administrator (organization) explicitly
+  /// adopted it: Ringee may call on the workspace's behalf within `scope`.
+  adopted
+}
+
+/// The shared "Automatic follow-up" review of one workspace and onboarding
+/// version: the configuration the person saved, the explicit adoption that
+/// authorizes Ringee to call, and the durable opt-outs every later
+/// reconciliation must respect (a capability switched off in the review, a
+/// trigger deliberately removed). It never replaces the automation, policy or
+/// agent rows: adoption drives the existing setup paths, and this row records
+/// what was decided, by whom and when.
+model FollowUpActivation {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  /// The personal workspace's owner; null on an organization's row, which
+  /// the organization alone owns (`organizationId`), so deleting a member
+  /// never cascades into its adoption, scope or opt-outs. A check
+  /// constraint in the migration holds this shape.
+  userId             String?                  @db.Uuid
+  organizationId     String?                  @db.Uuid
+  /// `organization:<id>` or `personal:<ownerId>` — disjoint key spaces for
+  /// uniqueness and correlation, never a proof of authorization. A check
+  /// constraint ties it to the ownership columns.
+  workspaceKey       String
+  /// Onboarding version, e.g. `followup-v1`.
+  version            String
+  status             FollowUpActivationStatus @default(configured)
+  /// The reviewed choices as the server validated them (bounded JSON).
+  configuration      Json
+  /// What adoption authorized: capabilities, calendar, offset and which
+  /// already-booked meetings were explicitly included.
+  scope              Json?
+  /// Per capability: the reason, when and who. Survives the deletion of the
+  /// automation row and future reconciliations.
+  optOuts            Json?
+  /// The bounded entry point the review was first saved from.
+  entrySource        String?
+  /// Optimistic concurrency: every save and adoption compares and bumps it.
+  revision           Int                      @default(1)
+  /// The adoption a request is applying: its key, the revision it was based
+  /// on, `applying` or `failed`, and when it reserved the row. Saves wait
+  /// while a fresh one applies; a retry of the same request resumes it;
+  /// recording the adoption clears it.
+  adoptionAttempt    Json?
+  configuredAt       DateTime                 @default(now())
+  configuredByUserId String                   @db.Uuid
+  adoptedAt          DateTime?
+  adoptedByUserId    String?                  @db.Uuid
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceKey, version])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([adoptedAt])
+}
+
 /// Calls the lead of every eligible meeting on one calendar before it starts,
 /// through one reminders agent. One policy per calendar, so two agents never
 /// call the same lead about the same meeting.
 model MeetingReminderPolicy {
   id                String   @id @default(uuid()) @db.Uuid
-  /// The admin who last configured it.
+  /// The admin who last configured it; in a personal workspace, its owner.
   userId            String   @db.Uuid
-  organizationId    String   @db.Uuid
+  /// Null in a personal workspace, whose owner is `userId` (WRK-001).
+  organizationId    String?  @db.Uuid
   agentId           String   @db.Uuid
   calendarId        String   @unique @db.Uuid
   /// Minutes before the meeting a call is placed, one execution per offset.
@@ -5032,6 +5157,14 @@ model MeetingReminderPolicy {
   /// When the policy was last switched on. Offsets that were already in the
   /// past at that moment are never called late.
   activatedAt       DateTime @default(now())
+  /// Set when automatic follow-up was adopted to cover new bookings only
+  /// (Stage 4C): a meeting created before it gets a call only when it is in
+  /// `includedMeetingIds`. Null keeps the policy's original meaning — every
+  /// upcoming meeting on the calendar.
+  coversMeetingsFrom DateTime?
+  /// Meetings created before `coversMeetingsFrom` that the adopting owner or
+  /// administrator explicitly included ("Include this meeting"). Bounded.
+  includedMeetingIds String[] @default([]) @db.Uuid
   /// Bumped on every change to which calls are due; a pending execution
   /// planned for an older version is cancelled and replanned.
   version           Int      @default(1)
@@ -5039,7 +5172,7 @@ model MeetingReminderPolicy {
   updatedAt         DateTime @updatedAt
 
   user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agent        AiVoiceAgent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
   calendar     Calendar                   @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   executions   MeetingReminderExecution[]
@@ -5083,8 +5216,9 @@ model MeetingReminderExecution {
   dispatchCommittedAt DateTime?
   id                  String                         @id @default(uuid()) @db.Uuid
   /// The meeting's workspace; the call itself is placed as the agent's owner.
+  /// A personal workspace's rows carry its owner and a null organization.
   userId              String                         @db.Uuid
-  organizationId      String                         @db.Uuid
+  organizationId      String?                        @db.Uuid
   meetingId           String                         @db.Uuid
   policyId            String?                        @db.Uuid
   agentId             String                         @db.Uuid
@@ -5117,7 +5251,7 @@ model MeetingReminderExecution {
   updatedAt           DateTime                       @updatedAt
 
   user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   meeting      Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   policy       MeetingReminderPolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
   agent        AiVoiceAgent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -5167,8 +5301,9 @@ model MeetingEmailDelivery {
   /// Legacy workspace policy is preserved. New policy sends independent audiences.
   audience            String                     @default("legacy")
   id                  String                     @id @default(uuid()) @db.Uuid
+  /// The meeting's workspace: a personal one carries its owner and no organization.
   userId              String                     @db.Uuid
-  organizationId      String                     @db.Uuid
+  organizationId      String?                    @db.Uuid
   meetingId           String                     @db.Uuid
   kind                MeetingEmailKind
   scheduleVersion     Int                        @default(1)
@@ -5203,9 +5338,9 @@ model MeetingEmailDelivery {
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
 
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  meeting      Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  meeting      Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
   @@index([status, updatedAt])
   @@index([meetingId])
@@ -5219,7 +5354,8 @@ model MeetingEmailDelivery {
 model MeetingAutomationAction {
   id                     String                 @id @default(uuid()) @db.Uuid
   actionKey              String                 @unique
-  organizationId         String                 @db.Uuid
+  /// The meeting's workspace (WRK-001): null in a personal one, whose owner is `userId`.
+  organizationId         String?                @db.Uuid
   userId                 String                 @db.Uuid
   meetingId              String                 @db.Uuid
   contactId              String                 @db.Uuid
@@ -5319,9 +5455,10 @@ enum AiVoiceAgentParticipantStatus {
 /// execution and the workspace's scheduling automation — never from the model.
 model AiVoiceAgentHandoff {
   id                     String                           @id @default(uuid()) @db.Uuid
-  /// The workspace the source call belongs to: its agent call's owner.
+  /// The workspace the source call belongs to: its agent call's owner, and
+  /// its organization — null in a personal workspace (WRK-001).
   userId                 String                           @db.Uuid
-  organizationId         String                           @db.Uuid
+  organizationId         String?                          @db.Uuid
   purpose                AiVoiceAgentHandoffPurpose
   /// The source call: the agent call the request was raised on, and its
   /// telephony row (unenforced, like every other new pointer at `Call`).
@@ -5375,7 +5512,7 @@ model AiVoiceAgentHandoff {
   updatedAt              DateTime                         @updatedAt
 
   user             User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization     Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization     Organization?                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agentCall        AiVoiceAgentCall              @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
   sourceAgent      AiVoiceAgent                  @relation("handoffSource", fields: [sourceAgentId], references: [id], onDelete: Cascade)
   destinationAgent AiVoiceAgent?                 @relation("handoffDestination", fields: [destinationAgentId], references: [id], onDelete: SetNull)
@@ -5401,7 +5538,13 @@ model AiVoiceAgentHandoff {
 /// while it is the one holding the call.
 model AiVoiceAgentCallParticipant {
   id                     String                        @id @default(uuid()) @db.Uuid
-  organizationId         String                        @db.Uuid
+  /// The call's workspace (WRK-001). A personal participation has no
+  /// organization and names the workspace owner in `userId`; the migration's
+  /// check `AiVoiceAgentCallParticipant_workspace_check` requires one of them.
+  organizationId         String?                       @db.Uuid
+  /// The agent call's owner. Set on every new participation; organization rows
+  /// written before personal workspaces carry null.
+  userId                 String?                       @db.Uuid
   /// The call this participation is part of (its root).
   agentCallId            String                        @db.Uuid
   agentId                String                        @db.Uuid
@@ -5421,7 +5564,7 @@ model AiVoiceAgentCallParticipant {
   createdAt              DateTime                      @default(now())
   updatedAt              DateTime                      @updatedAt
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agentCall    AiVoiceAgentCall    @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
   agent        AiVoiceAgent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
   handoff      AiVoiceAgentHandoff @relation(fields: [handoffId], references: [id], onDelete: Cascade)

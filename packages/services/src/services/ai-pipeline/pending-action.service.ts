@@ -24,6 +24,7 @@ import {
   MeetingReminderPolicyRepository,
   OrganizationRepository,
   NewFollowUpObjective,
+  followUpWorkspaceKey,
   FollowUpClosureReason,
   FollowUpState,
   FollowUpPlan,
@@ -34,8 +35,14 @@ import {
   PendingActionStatus,
   Prisma,
 } from "@ringee/database";
-import { OwnershipContext, normalizePhoneE164 } from "@ringee/platform";
+import {
+  isInWorkspace,
+  isSameWorkspace,
+  normalizePhoneE164,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { ComplianceService } from "../outbound/compliance.service";
+import { ProductAnalyticsService } from "../analytics/product-analytics.service";
 import {
   assertVoiceAgentAutomations,
   voiceAgentAutomationsEnabled,
@@ -61,7 +68,8 @@ export type HumanFollowUpDecision =
   | { action: "defer"; until: Date; reason: string }
   | {
       action: "dial";
-      ctx: { userId: string; organizationId: string };
+      /** The objective's own workspace, as persisted. */
+      ctx: OwnershipContext;
       agentId: string;
       to: string;
       responsibleUserId: string;
@@ -95,6 +103,7 @@ export class PendingActionService {
     private readonly reminderPolicies: MeetingReminderPolicyRepository,
     private readonly compliance: ComplianceService,
     private readonly callbacks: CallbackTaskRepository,
+    private readonly analytics: ProductAnalyticsService,
   ) {}
 
   /**
@@ -320,10 +329,20 @@ export class PendingActionService {
           : undefined,
       );
       if (dncEntry) this.compliance.publishDncCreated(dncEntry);
+      // The accepted outcome as an analytics fact (Stage 4B), after the
+      // write committed; keyed by the call's outcome revision.
+      void this.analytics.outcomeRecorded(
+        ctx,
+        recorded.call,
+        recorded.followUp?.state ?? null,
+      );
       return recorded;
     };
+    // A personal workspace outside the pilot saves exactly as before: nothing
+    // of the follow-up path runs for it. Inside the pilot it follows the same
+    // path as an organization, under its owner's explicit policy.
     if (
-      !ctx.organizationId ||
+      (!ctx.organizationId && !voiceAgentAutomationsEnabled(ctx)) ||
       !call.contactId ||
       !call.userId ||
       call.source === "ai_voice_agent"
@@ -332,18 +351,18 @@ export class PendingActionService {
     const contact = await this.contacts.findByIdForOwner(ctx, call.contactId);
     if (
       !contact ||
-      !(await this.organizations.isMember(call.userId, ctx.organizationId))
+      !(await this.organizations.isWorkspaceMember(ctx, call.userId))
     )
       throw new NotFoundException("Follow-up source not found");
     const automation = await this.automations.findForOwner(
-      ctx as { userId: string; organizationId: string },
+      ctx,
       "appointment_booking",
     );
     const policy = (automation?.settings ?? {}) as {
       humanFollowUp?: { enabled?: boolean; interestedObjective?: string };
     };
     const authorized =
-      voiceAgentAutomationsEnabled(ctx.organizationId) &&
+      voiceAgentAutomationsEnabled(ctx) &&
       policy.humanFollowUp?.enabled === true;
     const prior = (
       call.outcome === input.outcome ? call.outcomeCommitment : null
@@ -400,10 +419,7 @@ export class PendingActionService {
       ? await this.calendars.findByIdForOwner(ctx, agent.calendarId)
       : await this.calendars.findDefault(ctx);
     const reminderPolicy = calendar
-      ? await this.reminderPolicies.findForCalendar(
-          { ...ctx, organizationId: ctx.organizationId! },
-          calendar.id,
-        )
+      ? await this.reminderPolicies.findForCalendar(ctx, calendar.id)
       : null;
     const at = callbackAt
       ? new Date(callbackAt)
@@ -451,7 +467,7 @@ export class PendingActionService {
             "Fulfil the agreed informational follow-up"
           ).slice(0, 2000);
     const assignment: HumanOutcomeAssignment = {
-      organizationId: ctx.organizationId,
+      organizationId: ctx.organizationId ?? null,
       userId: call.userId,
       actorUserId: ctx.userId,
       commitment,
@@ -471,15 +487,13 @@ export class PendingActionService {
       objective: eligible
         ? {
             userId: call.userId,
-            organizationId: ctx.organizationId,
+            organizationId: ctx.organizationId ?? null,
             configuredByUserId: call.userId,
-            contextKey: contextKey({
-              type: "organization_outside_campaign",
-              organizationId: ctx.organizationId,
-            }),
+            contextKey: followUpContextKey(ctx),
             contactId: contact.id,
             callId: call.id,
-            sourceKey: `${ctx.organizationId}:human_call:${call.id}`,
+            // The same key `acceptHumanOutcome` looks the source up by.
+            sourceKey: `${followUpWorkspaceKey(ctx)}:human_call:${call.id}`,
             sourceType: "human_call_outcome",
             sourceId: call.id,
             sourceRevision: call.outcomeRevision,
@@ -559,12 +573,15 @@ export class PendingActionService {
     if (
       !row ||
       row.sourceType !== "human_call_outcome" ||
-      !row.action.organizationId ||
+      // A personal objective is its owner's alone (WRK-001).
+      (!row.action.organizationId &&
+        row.configuredByUserId !== row.action.userId) ||
       row.mode !== "automatic" ||
       ["paused", "blocked", "resolved", "closed"].includes(row.state)
     )
       return skip("objective_unavailable");
-    const ctx = {
+    // The objective's persisted workspace, never its owner's active one.
+    const ctx: OwnershipContext = {
       userId: row.configuredByUserId,
       organizationId: row.action.organizationId,
     };
@@ -586,7 +603,7 @@ export class PendingActionService {
       ? await this.agents.findByIdForOwner(ctx, row.agentId)
       : null;
     if (
-      !voiceAgentAutomationsEnabled(ctx.organizationId) ||
+      !voiceAgentAutomationsEnabled(ctx) ||
       !automation?.enabled ||
       settings?.humanFollowUp?.enabled !== true ||
       automation.agentId !== row.agentId ||
@@ -607,14 +624,11 @@ export class PendingActionService {
       return skip("contact_unavailable");
     if (await this.compliance.findOnDNC(ctx, to)) return skip("contact_on_dnc");
     if (
-      !(await this.organizations.isMember(
+      !(await this.organizations.isWorkspaceMember(
+        ctx,
         row.responsibleUserId,
-        ctx.organizationId,
       )) ||
-      !(await this.organizations.isMember(
-        row.configuredByUserId,
-        ctx.organizationId,
-      ))
+      !(await this.organizations.isWorkspaceMember(ctx, row.configuredByUserId))
     )
       return skip("membership_unavailable");
     const calendar = row.calendarId
@@ -627,7 +641,7 @@ export class PendingActionService {
     )
       return skip("agreed_callback_overdue");
     const policy = await this.reminderPolicies.findForCalendar(
-      { ...ctx, organizationId: ctx.organizationId! },
+      ctx,
       calendar.id,
     );
     const window = policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW;
@@ -721,8 +735,9 @@ export class PendingActionService {
   ): Promise<NewFollowUpObjective> {
     assertVoiceAgentAutomations(ctx);
     // `ctx` is the agent's workspace; the call may have been placed by any
-    // member (a manual "call now"), whose membership is checked below.
-    if (source.organizationId !== ctx.organizationId)
+    // member (a manual "call now"), whose membership is checked below. A
+    // personal source is its owner's, in that owner's personal workspace.
+    if (!isSameWorkspace(source, ctx))
       throw new NotFoundException("Follow-up source not found");
     const responsibleUserId = source.responsibleUserId ?? source.userId;
     const [contact, meeting, member, configuredBy] = await Promise.all([
@@ -730,8 +745,8 @@ export class PendingActionService {
         ? this.contacts.findByIdForOwner(ctx, source.contactId)
         : null,
       this.meetings.findByIdForOwner(ctx, source.meetingId),
-      this.organizations.isMember(responsibleUserId, ctx.organizationId),
-      this.organizations.isMember(source.userId, ctx.organizationId),
+      this.organizations.isWorkspaceMember(ctx, responsibleUserId),
+      this.organizations.isWorkspaceMember(ctx, source.userId),
     ]);
     if (
       !contact ||
@@ -759,15 +774,12 @@ export class PendingActionService {
     const blocked = source.requestStatus === "needs_attention";
     return {
       userId: responsibleUserId,
-      organizationId: ctx.organizationId,
-      contextKey: contextKey({
-        type: "organization_outside_campaign",
-        organizationId: ctx.organizationId,
-      }),
+      organizationId: ctx.organizationId ?? null,
+      contextKey: followUpContextKey(ctx),
       configuredByUserId: source.userId,
       contactId: contact.id,
       callId: source.callId,
-      sourceKey: `${ctx.organizationId}:${source.idempotencyKey}:v${source.meetingScheduleVersion}`,
+      sourceKey: `${followUpWorkspaceKey(ctx)}:${source.idempotencyKey}:v${source.meetingScheduleVersion}`,
       sourceType: "reschedule_handoff",
       sourceRevision: source.meetingScheduleVersion,
       objectiveType: "reschedule_meeting",
@@ -817,7 +829,8 @@ export class PendingActionService {
   async reconcileFollowUp(id: string, now = new Date()) {
     const row = await this.repo.followUpSnapshot(id);
     if (!row || ["resolved", "closed"].includes(row.state)) return row;
-    const ctx = {
+    // The objective's persisted workspace, never its owner's active one.
+    const ctx: OwnershipContext = {
       userId: row.configuredByUserId,
       organizationId: row.action.organizationId,
     };
@@ -828,7 +841,7 @@ export class PendingActionService {
     if (
       plan &&
       !["resolved", "closed"].includes(plan.state) &&
-      !voiceAgentAutomationsEnabled(ctx.organizationId)
+      !voiceAgentAutomationsEnabled(ctx)
     ) {
       plan = {
         state: "blocked",
@@ -846,7 +859,7 @@ export class PendingActionService {
         : null;
       if (calendar) {
         const policy = await this.reminderPolicies.findForCalendar(
-          { ...ctx, organizationId: ctx.organizationId! },
+          ctx,
           calendar.id,
         );
         const at = nextCallingWindowMoment(
@@ -900,13 +913,14 @@ export class PendingActionService {
       id,
       expectedRevision: row.revision,
       plan,
-      ...(plan.state === "resolved" && meeting && ctx.organizationId
+      ...(plan.state === "resolved" && meeting
         ? {
             meetingEvidence: {
               id: meeting.id,
               revision: meeting.scheduleVersion,
               scheduledAt: meeting.scheduledAt,
-              organizationId: ctx.organizationId,
+              userId: ctx.userId,
+              organizationId: ctx.organizationId ?? null,
               contactId: meeting.contactId,
             },
           }
@@ -993,10 +1007,10 @@ export class PendingActionService {
     const calls = uniqueCalls
       .filter(
         (call) =>
-          call.organizationId === ctx.organizationId &&
+          isInWorkspace(ctx, call) &&
           (!memberUserId || call.userId === memberUserId) &&
           (!call.call ||
-            (call.call.organizationId === ctx.organizationId &&
+            (isInWorkspace(ctx, call.call) &&
               (!memberUserId || call.call.userId === memberUserId))),
       )
       .map((call) => ({
@@ -1155,6 +1169,9 @@ export class PendingActionService {
           throw new ConflictException(
             "The original meeting is no longer available",
           );
+        // A meeting that took place leaves nothing to reschedule.
+        if (meeting?.status === "completed")
+          throw new ConflictException("The meeting is already completed");
         if (
           snapshot.sourceType === "human_call_outcome" &&
           snapshot.objectiveType !== "book_meeting"
@@ -1171,14 +1188,8 @@ export class PendingActionService {
             "The follow-up contact is unavailable or on the Do-Not-Call list",
           );
         const membership = await Promise.all([
-          this.organizations.isMember(
-            row.configuredByUserId,
-            ctx.organizationId,
-          ),
-          this.organizations.isMember(
-            row.responsibleUserId,
-            ctx.organizationId,
-          ),
+          this.organizations.isWorkspaceMember(ctx, row.configuredByUserId),
+          this.organizations.isWorkspaceMember(ctx, row.responsibleUserId),
         ]);
         const automation = await this.automations.findForOwner(
           ctx,
@@ -1246,10 +1257,28 @@ export class PendingActionService {
                 step.scheduledAt > now,
             )
           : undefined;
+        // A pause never shortens the policy's recovery wait: a day after the
+        // last call ended (its dispatch when that is unknown), as reconciling
+        // has it. A time the person agreed to stands as agreed.
+        const recoveryFloor = human
+          ? Math.max(
+              0,
+              ...snapshot.callbacks
+                .filter((step) => step.dispatchCommittedAt)
+                .map(
+                  (step) =>
+                    Math.max(
+                      step.dispatchCommittedAt!.getTime(),
+                      step.agentCall?.call?.endedAt?.getTime() ?? 0,
+                    ) +
+                    24 * 60 * 60_000,
+                ),
+            )
+          : 0;
         const at =
           agreed?.scheduledAt ??
           nextCallingWindowMoment(
-            new Date(now.getTime() + 60 * 60_000),
+            new Date(Math.max(now.getTime() + 60 * 60_000, recoveryFloor)),
             policy ? readCallingWindow(policy) : DEFAULT_CALLING_WINDOW,
             calendar.timezone,
           );
@@ -1290,11 +1319,17 @@ export class PendingActionService {
     return this.getFollowUp(ctx, actionId);
   }
 
+  /**
+   * Whose objectives the reader may see (WRK-003): an organization admin any
+   * member's (or the one asked for), a member their own. A personal
+   * workspace's owner sees all of it — the ownership filter already limits it
+   * to them — and asking for anyone else narrows nothing.
+   */
   private async followUpMemberScope(
     ctx: OwnershipContext,
     requested?: string,
   ): Promise<string | undefined> {
-    if (!ctx.organizationId) throw new NotFoundException("Follow-up not found");
+    if (!ctx.organizationId) return undefined;
     if (!(await this.organizations.isMember(ctx.userId, ctx.organizationId)))
       throw new NotFoundException("Follow-up not found");
     const admins = await this.organizations.listAdminUserIds(
@@ -1443,4 +1478,19 @@ function followUpSummary(
     closureReason: row.closureReason,
     closureEvidence: row.closureEvidence,
   };
+}
+
+/**
+ * The pipeline context of an objective: its workspace outside any campaign —
+ * an organization's, or a personal workspace's own (`contextKey` mints both).
+ */
+function followUpContextKey(ctx: OwnershipContext): string {
+  return contextKey(
+    ctx.organizationId
+      ? {
+          type: "organization_outside_campaign",
+          organizationId: ctx.organizationId,
+        }
+      : { type: "personal", userId: ctx.userId },
+  );
 }

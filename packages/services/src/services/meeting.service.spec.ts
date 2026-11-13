@@ -750,6 +750,10 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
           events.push("external:create");
           return { status: "synced" };
         },
+        cancelExternalEvent: async () => {
+          events.push("external:delete");
+          return { status: "synced" };
+        },
       } as never,
       {} as never,
       {
@@ -978,6 +982,19 @@ describe("MeetingService moves (CAL-002, CAL-003, AGENT-021)", () => {
     await synced.service.retryExternalSync(ctx, "meeting-1");
     assert.deepEqual(synced.events, []);
   });
+
+  it("retries the deletion that failed of a cancelled meeting's event as a deletion", async () => {
+    const { service, events } = moveBuild({
+      stored: {
+        ...STORED_MEETING,
+        status: "cancelled",
+        externalEventId: "google-event-1",
+        externalSyncStatus: "failed",
+      },
+    });
+    await service.retryExternalSync(ctx, "meeting-1");
+    assert.deepEqual(events, ["external:delete"]);
+  });
 });
 
 describe("MeetingService.repairAutomationActions", () => {
@@ -996,6 +1013,7 @@ describe("MeetingService.repairAutomationActions", () => {
         listPendingMaintenance: async () =>
           ages.map((age, index) => ({
             id: `action-${index}`,
+            userId: "user-1",
             organizationId: "org-1",
             kind: "cancelled",
             createdAt: new Date(now.getTime() - age),
@@ -1003,12 +1021,13 @@ describe("MeetingService.repairAutomationActions", () => {
           })),
         deferMaintenance: async (
           id: string,
-          organizationId: string,
+          workspace: { userId: string; organizationId: string },
           until: Date,
         ) => {
+          // Scoped to the action's own, persisted workspace.
           deferred.push({
             id,
-            organizationId,
+            organizationId: workspace.organizationId,
             wait: until.getTime() - now.getTime(),
           });
         },

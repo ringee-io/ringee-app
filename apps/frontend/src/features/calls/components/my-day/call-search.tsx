@@ -22,7 +22,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { normalize, type CountryCode } from '@ringee/dialer-core/phone';
 import { getInitials } from '../../lib/initials';
-import { Kbd } from './kbd';
+import { Kbd } from '@ringee/frontend-shared/components/ui/kbd';
 import { useMyDayFormat } from './use-my-day-format';
 
 interface ContactHit {

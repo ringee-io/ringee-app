@@ -48,6 +48,8 @@ export function useFirstListOnboarding() {
   }, [api, state?.pendingListId, completing, markCompleted]);
 
   return {
+    /** The server has answered; a failed read stays not loaded. */
+    loaded: state !== null,
     completed: state?.completed ?? false,
     reward: state?.reward ?? 0,
     markCompleted,

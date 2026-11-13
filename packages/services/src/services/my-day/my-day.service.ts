@@ -9,6 +9,7 @@ import {
   CallablePendingAction,
   CallRepository,
   ContactListEntryToCall,
+  ContactRepository,
   ContactListRepository,
   DashboardRepository,
   DNCEntryRepository,
@@ -18,6 +19,11 @@ import {
   WorkedContactList,
 } from "@ringee/database";
 import { buildOwnershipFilter, OwnershipContext } from "@ringee/platform";
+import {
+  BRIEF_CALL_LIMIT,
+  buildContactBrief,
+  MyDayContactBrief,
+} from "./my-day-brief";
 import { listEntryPhones, MyDayListEntry, pickListNext } from "./my-day-list";
 import {
   buildMyDayQueue,
@@ -98,6 +104,7 @@ export class MyDayService {
     private readonly dnc: DNCEntryRepository,
     private readonly dashboard: DashboardRepository,
     private readonly lists: ContactListRepository,
+    private readonly contacts: ContactRepository,
   ) {}
 
   /**
@@ -168,6 +175,26 @@ export class MyDayService {
       until: dayEnd,
       generatedAt: now,
     };
+  }
+
+  /**
+   * Who a contact is before the call: role and company, where to look them
+   * up, and the last calls with them. `callsUserId` narrows the history to
+   * one member's calls — a member's own, inside an organization
+   * (`resolveMemberFilter`).
+   */
+  async getContactBrief(
+    ctx: OwnershipContext,
+    contactId: string,
+    callsUserId?: string,
+  ): Promise<MyDayContactBrief> {
+    const contact = await this.contacts.findBriefForOwner(ctx, contactId);
+    if (!contact) throw new NotFoundException("Contact not found");
+    const history = await this.calls.recentWithContact(ctx, contact.id, {
+      userId: callsUserId,
+      take: BRIEF_CALL_LIMIT,
+    });
+    return buildContactBrief(contact, history);
   }
 
   /**

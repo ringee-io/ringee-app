@@ -91,6 +91,19 @@
       "max": "Up to {max} here — add more later from Lists.",
       "invalid": "This number doesn't look right."
     },
+    "testCall": {
+      "title": "Make your first test call",
+      "description": "Type the number you want to call. Ringee won't dial until you say so.",
+      "from": "You'll call from",
+      "to": "Number you want to call",
+      "shared": "Ringee gives you a public United States number so you can make a test call.",
+      "sharedHint": "It's a shared number. If someone calls that number back, it won't reach you.",
+      "auto": "One of your workspace's numbers, picked for each call",
+      "noLine": "You don't have a line to call from yet",
+      "noLineHint": "Ringee's shared number isn't available right now. To place your call, get a Ringee number or verify one you already have.",
+      "create": "{count, plural, one {Set up the call} other {Set up # calls}}",
+      "creating": "Setting up your call…"
+    },
     "contacts": {
       "title": "Pick who to call",
       "description": "Search and tick the people for this list.",
@@ -125,7 +138,29 @@
       "skipped": "{count, plural, one {# row was left out} other {# rows were left out}}",
       "why": "See why",
       "cta": "Start calling",
-      "keyHint": "Press <key>N</key> any time to call whoever's next."
+      "keyHint": "Press <key>N</key> any time to call whoever's next.",
+      "line": {
+        "own": "You call from {number}",
+        "ownHint": "Your workspace's number: returned calls reach you.",
+        "ownAuto": "You call from one of your workspace's numbers, picked for each call",
+        "ownAutoHint": "Your workspace's numbers: returned calls reach you.",
+        "shared": "You can call from Ringee's shared number",
+        "sharedHint": "To try it without buying anything. If someone calls that number back, it won't reach you.",
+        "none": "No line to call from yet",
+        "noneHint": "Get a Ringee number or verify one of your own on the next step.",
+        "noCredit": "Your balance is at $0.00: add credit to place the call.",
+        "buyTitle": "A number of your own in Ringee",
+        "buyText": "Ready in a minute, for calling local numbers. People recognize it and returned calls reach you here.",
+        "buyCta": "Find a number in Ringee",
+        "verifyTitle": "The number you already have",
+        "verifyText": "For international calls only. Returned calls reach that phone, not Ringee. Verifying it has a small fee from your balance.",
+        "verifyCta": "Verify a number I already have"
+      },
+      "followUp": {
+        "text": "Ringee can follow up on your opportunities, book meetings and confirm them.",
+        "hint": "Your list and its next person wait for you here when you come back.",
+        "cta": "Configure automatic follow-up"
+      }
     },
     "completionPending": "Your first list is saved. Finish setup to apply any eligible calling credit.",
     "completionFailed": "Your list is saved, but setup could not be completed. Please try again.",

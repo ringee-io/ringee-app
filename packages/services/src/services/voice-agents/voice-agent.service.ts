@@ -310,7 +310,12 @@ export class VoiceAgentService {
       .update(JSON.stringify([name, input.language, input.gender]))
       .update(audio)
       .digest("hex");
-    const requestKey = ctx.organizationId + ":" + input.requestId;
+    // An organization's keys keep the form they were written with, so a retry
+    // of an earlier request still finds its clone; a personal workspace's are
+    // prefixed by its owner, which no organization id can collide with.
+    const requestKey = ctx.organizationId
+      ? ctx.organizationId + ":" + input.requestId
+      : "personal:" + ctx.userId + ":" + input.requestId;
     const existing = await this.agents.findCustomVoiceByRequestKey(
       ctx,
       requestKey,
@@ -420,11 +425,14 @@ export class VoiceAgentService {
     const index = this.indexClones(await this.provider.listClonedVoices());
     while (rows.length) {
       for (const row of rows) {
+        // Settling a clone the provider already created is not new work: it
+        // runs in the clone's persisted workspace whether or not that
+        // workspace is still admitted, so a debit owed is never left behind
+        // and one workspace's row can never stop the others' settlement.
         const ctx: OwnershipContext = {
           userId: row.userId,
-          organizationId: row.organizationId ?? undefined,
+          organizationId: row.organizationId ?? null,
         };
-        assertVoiceAgentAccess(ctx);
         try {
           await this.reconcileCustomVoice(ctx, row, index);
         } catch {
@@ -1204,9 +1212,9 @@ export class VoiceAgentService {
     agent: AiVoiceAgent,
     targets: Array<{ assistantId: string }>,
   ): Promise<void> {
-    if (targets.length === 0 || !ctx.organizationId) return;
+    if (targets.length === 0) return;
     const destination = await this.handoffs.resolveDestination(
-      { userId: ctx.userId, organizationId: ctx.organizationId },
+      ctx,
       agent.voiceLanguage,
     );
     if (!destination.ok || destination.agent.id === agent.id) return;
@@ -1403,17 +1411,11 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
   ): Promise<string | null> {
-    if (
-      agent.type !== AiVoiceAgentType.reminders_notifications ||
-      !ctx.organizationId
-    ) {
+    if (agent.type !== AiVoiceAgentType.reminders_notifications) {
       return null;
     }
     const destination = await this.handoffs
-      .resolveDestination(
-        { userId: ctx.userId, organizationId: ctx.organizationId },
-        agent.voiceLanguage,
-      )
+      .resolveDestination(ctx, agent.voiceLanguage)
       .catch(() => null);
     return destination?.ok ? destination.agent.name : null;
   }
@@ -1608,11 +1610,8 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     calendarIntegrationId: string,
   ): Promise<void> {
-    const integrations = await this.calendars.findByUserOrOrg(
-      ctx.userId,
-      ctx.organizationId ?? null,
-    );
-    if (!integrations.some((i) => i.id === calendarIntegrationId)) {
+    // Only an account connected in this workspace (CAL-004).
+    if (!(await this.calendars.findByIdForOwner(ctx, calendarIntegrationId))) {
       throw new NotFoundException("Calendar integration not found");
     }
   }

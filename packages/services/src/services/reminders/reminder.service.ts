@@ -15,7 +15,11 @@ import {
   UserRepository,
   ContactRepository,
 } from "@ringee/database";
-import type { OrganizationOwnershipContext } from "@ringee/platform";
+import {
+  isSameWorkspace,
+  workspaceOf,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { voiceAgentAutomationsEnabled } from "../voice-agents/automations/automation-access";
 import {
   REMINDER_CHANNELS,
@@ -27,7 +31,9 @@ import {
 import {
   DEFAULT_CALLING_WINDOW,
   planReminderCallAt,
+  policyCoversMeeting,
   readCallingWindow,
+  type CallingWindow,
 } from "./reminder-call-schedule";
 
 /**
@@ -129,24 +135,22 @@ export class ReminderService {
    * offset that already has a call is never planned a second time.
    */
   async planMeetingCalls(meeting: Meeting): Promise<number> {
+    // The meeting's own workspace — an organization, or its owner's personal
+    // one — admitted to automated work or not.
     if (
-      !meeting.organizationId ||
-      !voiceAgentAutomationsEnabled(meeting.organizationId) ||
+      !voiceAgentAutomationsEnabled(meeting) ||
       (meeting.status !== MeetingStatus.scheduled &&
         meeting.status !== MeetingStatus.rescheduled)
     ) {
       return 0;
     }
-    const ctx: OrganizationOwnershipContext = {
-      userId: meeting.userId,
-      organizationId: meeting.organizationId,
-    };
+    const ctx: OwnershipContext = workspaceOf(meeting);
     const calendar = meeting.calendarId
       ? await this.calendarRepo.findByIdForOwner(ctx, meeting.calendarId)
       : await this.calendarRepo.findDefault(ctx);
     if (!calendar) return 0;
     const policy = await this.callPolicies.findEnabledForCalendar(calendar.id);
-    if (!policy || policy.organizationId !== meeting.organizationId) return 0;
+    if (!policy || !isSameWorkspace(policy, meeting)) return 0;
 
     const used = await this.callExecutions.listUsedOffsets([meeting.id]);
     return this.callExecutions.createMany(
@@ -177,10 +181,10 @@ export class ReminderService {
    * policy never calls anyone late.
    */
   async planPolicyCalls(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     policy: MeetingReminderPolicy,
   ): Promise<number> {
-    if (!policy.enabled || !voiceAgentAutomationsEnabled(ctx.organizationId)) {
+    if (!policy.enabled || !voiceAgentAutomationsEnabled(ctx)) {
       return 0;
     }
     const calendar = await this.calendarRepo.findByIdForOwner(
@@ -208,7 +212,7 @@ export class ReminderService {
   }
 
   private async *upcomingMeetingPages(
-    ctx: OrganizationOwnershipContext,
+    ctx: OwnershipContext,
     calendar: { id: string; isDefault: boolean },
     now: Date,
   ): AsyncGenerator<Meeting[]> {
@@ -242,8 +246,26 @@ export class ReminderService {
    * called late.
    */
   async previewPolicyCalls(
-    ctx: OrganizationOwnershipContext,
-    input: { calendarIds: string[]; offsetMinutes: number },
+    ctx: OwnershipContext,
+    input: {
+      calendarIds: string[];
+      offsetMinutes: number;
+      /**
+       * The calling window to preview with — the hours the follow-up review
+       * edited, which adoption would apply. Without it, an existing policy
+       * keeps its own window and a new one gets the default.
+       */
+      window?: CallingWindow;
+      /**
+       * Which meetings the previewed policy would cover. Without it, an
+       * existing policy's own coverage applies, and a new one covers every
+       * upcoming meeting — what a rail setup does.
+       */
+      coverage?: {
+        coversMeetingsFrom: Date | null;
+        includedMeetingIds?: string[];
+      };
+    },
   ): Promise<{ meetings: number; calls: number }> {
     const now = new Date();
     const notBefore = new Date(now.getTime() + CALL_PLANNING_MARGIN_MS);
@@ -256,12 +278,16 @@ export class ReminderService {
       );
       if (!calendar || calendar.archivedAt) continue;
       const existing = await this.callPolicies.findForCalendar(ctx, calendarId);
-      const window = existing
-        ? readCallingWindow(existing)
-        : DEFAULT_CALLING_WINDOW;
+      const window =
+        input.window ??
+        (existing ? readCallingWindow(existing) : DEFAULT_CALLING_WINDOW);
+      const coverage = input.coverage ??
+        existing ?? { coversMeetingsFrom: null };
       for await (const page of this.upcomingMeetingPages(ctx, calendar, now)) {
         const upcoming = page.filter(
-          (meeting) => meeting.attendanceStatus === "pending",
+          (meeting) =>
+            meeting.attendanceStatus === "pending" &&
+            policyCoversMeeting(coverage, meeting),
         );
         meetings += upcoming.length;
         calls += upcoming.filter((meeting) =>
@@ -290,9 +316,11 @@ export class ReminderService {
     }>,
     now: Date,
   ): Prisma.MeetingReminderExecutionCreateManyInput[] {
-    if (!meeting.organizationId) return [];
     // An answer already given for this version needs no reminder.
     if (meeting.attendanceStatus !== "pending") return [];
+    // A policy adopted for new bookings only never reaches an older meeting
+    // that was not explicitly included — also when it moves or on a resume.
+    if (!policyCoversMeeting(policy, meeting)) return [];
     const window = readCallingWindow(policy);
     const notBefore = new Date(
       Math.max(now.getTime(), policy.activatedAt.getTime()) +
@@ -318,9 +346,10 @@ export class ReminderService {
       return [
         {
           // Placed as the admin who switched the policy on: the call is the
-          // automation's, accountable to whoever configured it.
+          // automation's, accountable to whoever configured it. In a personal
+          // workspace that is its owner, and the organization stays null.
           userId: policy.userId,
-          organizationId: meeting.organizationId!,
+          organizationId: meeting.organizationId,
           meetingId: meeting.id,
           policyId: policy.id,
           agentId: policy.agentId,

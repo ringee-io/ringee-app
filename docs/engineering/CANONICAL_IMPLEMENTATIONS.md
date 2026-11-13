@@ -10,6 +10,8 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Ownership context from a request user | `createOwnershipContext` — `packages/platform/src/auth/ownership.types.ts`   |
 | Prisma filter for a workspace         | `buildOwnershipFilter` — same file                                           |
 | Ownership fields on create            | `buildOwnershipData` — same file                                             |
+| Is a loaded row in this workspace     | `isInWorkspace` / `isSameWorkspace` / `workspaceOf` — same file (WRK-002)    |
+| Workspace member / admin, either type | `OrganizationRepository.isWorkspaceMember` / `isWorkspaceAdmin`              |
 | Member narrowing on list endpoints    | `resolveMemberFilter` — same file                                            |
 | Analytics scoping                     | `createDashboardContext` — same file                                         |
 | Current user in a controller          | `@CurrentUser()` — `platform/src/auth/clerk/current.user.ts`                 |
@@ -91,61 +93,64 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 ## AI voice agents
 
-| Responsibility                        | Owner                                                                                 |
-| ------------------------------------- | ------------------------------------------------------------------------------------- |
-| Any voice-agent provider command      | `VoiceAgentProviderService` — `platform/src/voice-agents/`                            |
-| Organization-only module access       | `assertVoiceAgentAccess` — `services/voice-agents/voice-agent-access.ts`              |
-| Provider assistant ⇄ Ringee config    | `telnyx.voice-agent.mapper.ts` (+ spec)                                               |
-| What an agent type _is_               | `services/voice-agents/blueprints/*` + `VoiceAgentBlueprintRegistry`                  |
-| Agent CRUD + assistant sync           | `VoiceAgentService` — `services/voice-agents/voice-agent.service.ts`                  |
-| Starting an agent call (all surfaces) | `VoiceAgentCallService.startCall` / `startInbound`                                    |
-| Conversation events → result          | `VoiceAgentResultService`                                                             |
-| AI usage settlement                   | `VoiceAgentBillingService` (BILL-020)                                                 |
-| Agent tool callbacks                  | `VoiceAgentToolService`                                                               |
-| Human-support notification delivery   | `VoiceAgentHumanSupportService`                                                       |
-| Knowledge bases                       | `VoiceAgentKnowledgeService` + `TelnyxKnowledgeStore`                                 |
-| Inbound agent directory and transfer  | `VoiceAgentToolService` → `InboundRouteResolverService` / `InboundCallRouterService`  |
-| Browser test sessions                 | `VoiceAgentTestSessionService` (AGENT-005)                                            |
-| Agent company context (AGENT-007)     | `CompanyProfileService.resolveForAgent`                                               |
-| Voice sample playback                 | `VoiceAgentService.previewVoice` → `renderVoicePreview`                               |
-| Workspace voice cloning               | VoiceAgentService.cloneVoice / listCustomVoices + AiVoiceAgentRepository              |
-| Voice-clone reading samples           | `VoiceCloneReadingSampleService`                                                      |
-| Browser microphone lifecycle          | useAudioRecorder — frontend-shared/src/hooks/use-audio-recorder.ts                    |
-| Browser WAV encoding                  | encodeBlobToWav — frontend-shared/src/lib/audio-wav.ts                                |
-| Curated voice list                    | `curateVoices` — `platform/src/voice-agents/voices.catalog.ts`                        |
-| Model behind each user choice         | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts`              |
-| BYO LLM key verification              | `LlmCredentialVerifier`                                                               |
-| Bookable slots for an agent           | `CalendarService.getBookableSlots` (strict; AGENT-002)                                |
-| Which calendar a booking uses         | `CalendarService.resolveCalendar` — never a model-supplied id                         |
-| Ringee calendars (CRUD, archive)      | `CalendarService` + `CalendarRepository`                                              |
-| The workspace's global calendar       | `CalendarService.ensureGlobalCalendar`                                                |
-| Recurring booking hours and capacity  | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository`       |
-| Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)                 |
-| Moving a meeting's external event     | `CalendarService.moveExternalEvent` — from `MeetingService.afterMove` (CAL-002)       |
-| Fetching a user-supplied web page     | `requirePublicUrl` (+ `htmlToText`) — `services/voice-agents/public-url.ts`           |
-| Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                         |
-| The rail's quick actions (AGENT-018)  | `VoiceAgentAutomationService` — `services/voice-agents/automations/`                  |
-| Rail pilot flag                       | `voiceAgentAutomationsEnabled` / `assertVoiceAgentAutomations` — same folder          |
-| One rail agent per capability (claim) | `AiVoiceAgentAutomationRepository.claim`                                              |
-| Planning reminder calls (AGENT-019)   | `ReminderService.planMeetingCalls` / `planPolicyCalls` + `planReminderCallAt`         |
-| Placing reminder calls                | `MeetingReminderCallService` (claim, re-check, dial key) — `voice-agents/automations` |
-| What an agent knows of past calls     | `VoiceAgentConversationContextService.previousInteractions`                           |
-| Recording attendance (AGENT-017)      | `VoiceAgentToolService.confirmMeetingAttendance` → `MeetingService.recordAttendance`  |
-| Attendance email delivery (AGENT-020) | `MeetingEmailService` — `services/meeting-email.service.ts`                           |
-| An agent moving a handed meeting      | `VoiceAgentToolService.moveMeeting` → `MeetingService.moveForAgent` (AGENT-021)       |
-| Handing a receptionist's numbers back | `InboundRouteService.releaseReceptionist` (compare-and-set on `InboundRoute.version`) |
-| The rail in the dashboard             | `VoiceAgentsRail` — `features/ai-voice-agents/automations/`                           |
-| Agent → agent handoff (AGENT-021)     | `VoiceAgentHandoffService` — `voice-agents/automations`                               |
-| Who may act on an agent call          | `VoiceAgentHandoffService.grantFor` — never `agentId` alone                           |
-| Handoff requests and participations   | `AiVoiceAgentHandoffRepository` (activation row-locked)                               |
-| Provider handoff capability           | `VoiceAgentTool` `handoff`, `assistantHandoffMode()`                                  |
-| Agent callbacks for a request         | `CallbackService.scheduleAgentCallback` (lease, dial key)                             |
+| Responsibility                         | Owner                                                                                                      |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Any voice-agent provider command       | `VoiceAgentProviderService` — `platform/src/voice-agents/`                                                 |
+| Module access + automation admission   | `voiceAgentAccess` — `services/voice-agents/voice-agent-access.ts` (AGENT-011)                             |
+| Module gate on the authenticated API   | `VoiceAgentAccessGuard` — `apps/backend/src/api/guards/` (personal owner from auth)                        |
+| Provider assistant ⇄ Ringee config     | `telnyx.voice-agent.mapper.ts` (+ spec)                                                                    |
+| What an agent type _is_                | `services/voice-agents/blueprints/*` + `VoiceAgentBlueprintRegistry`                                       |
+| Agent CRUD + assistant sync            | `VoiceAgentService` — `services/voice-agents/voice-agent.service.ts`                                       |
+| Starting an agent call (all surfaces)  | `VoiceAgentCallService.startCall` / `startInbound`                                                         |
+| Conversation events → result           | `VoiceAgentResultService`                                                                                  |
+| AI usage settlement                    | `VoiceAgentBillingService` (BILL-020)                                                                      |
+| Agent tool callbacks                   | `VoiceAgentToolService`                                                                                    |
+| Human-support notification delivery    | `VoiceAgentHumanSupportService`                                                                            |
+| Knowledge bases                        | `VoiceAgentKnowledgeService` + `TelnyxKnowledgeStore`                                                      |
+| Inbound agent directory and transfer   | `VoiceAgentToolService` → `InboundRouteResolverService` / `InboundCallRouterService`                       |
+| Browser test sessions                  | `VoiceAgentTestSessionService` (AGENT-005)                                                                 |
+| Agent company context (AGENT-007)      | `CompanyProfileService.resolveForAgent`                                                                    |
+| Voice sample playback                  | `VoiceAgentService.previewVoice` → `renderVoicePreview`                                                    |
+| Workspace voice cloning                | VoiceAgentService.cloneVoice / listCustomVoices + AiVoiceAgentRepository                                   |
+| Voice-clone reading samples            | `VoiceCloneReadingSampleService`                                                                           |
+| Browser microphone lifecycle           | useAudioRecorder — frontend-shared/src/hooks/use-audio-recorder.ts                                         |
+| Browser WAV encoding                   | encodeBlobToWav — frontend-shared/src/lib/audio-wav.ts                                                     |
+| Curated voice list                     | `curateVoices` — `platform/src/voice-agents/voices.catalog.ts`                                             |
+| Model behind each user choice          | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts`                                   |
+| BYO LLM key verification               | `LlmCredentialVerifier`                                                                                    |
+| Bookable slots for an agent            | `CalendarService.getBookableSlots` (strict; AGENT-002)                                                     |
+| Which calendar a booking uses          | `CalendarService.resolveCalendar` — never a model-supplied id                                              |
+| Ringee calendars (CRUD, archive)       | `CalendarService` + `CalendarRepository`                                                                   |
+| The workspace's global calendar        | `CalendarService.ensureGlobalCalendar`                                                                     |
+| Recurring booking hours and capacity   | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository`                            |
+| Pushing a booking to Google/Microsoft  | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)                                      |
+| Moving a meeting's external event      | `CalendarService.moveExternalEvent` — from `MeetingService.afterMove` (CAL-002)                            |
+| Fetching a user-supplied web page      | `requirePublicUrl` (+ `htmlToText`) — `services/voice-agents/public-url.ts`                                |
+| Create / edit surface (full screen)    | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                                              |
+| The rail's quick actions (AGENT-018)   | `VoiceAgentAutomationService` — `services/voice-agents/automations/`                                       |
+| Rail pilot flag (both workspace types) | `voiceAgentAutomationsEnabled` / `assertVoiceAgentAutomations` / `automationAdmissionFilter` — same folder |
+| One rail agent per capability (claim)  | `AiVoiceAgentAutomationRepository.claim`                                                                   |
+| Planning reminder calls (AGENT-019)    | `ReminderService.planMeetingCalls` / `planPolicyCalls` + `planReminderCallAt`                              |
+| Placing reminder calls                 | `MeetingReminderCallService` (claim, re-check, dial key) — `voice-agents/automations`                      |
+| What an agent knows of past calls      | `VoiceAgentConversationContextService.previousInteractions`                                                |
+| Recording attendance (AGENT-017)       | `VoiceAgentToolService.confirmMeetingAttendance` → `MeetingService.recordAttendance`                       |
+| Attendance email delivery (AGENT-020)  | `MeetingEmailService` — `services/meeting-email.service.ts`                                                |
+| An agent moving a handed meeting       | `VoiceAgentToolService.moveMeeting` → `MeetingService.moveForAgent` (AGENT-021)                            |
+| Handing a receptionist's numbers back  | `InboundRouteService.releaseReceptionist` (compare-and-set on `InboundRoute.version`)                      |
+| The rail in the dashboard              | `VoiceAgentsRail` — `features/ai-voice-agents/automations/`                                                |
+| Agent → agent handoff (AGENT-021)      | `VoiceAgentHandoffService` — `voice-agents/automations`                                                    |
+| Who may act on an agent call           | `VoiceAgentHandoffService.grantFor` — never `agentId` alone                                                |
+| Handoff requests and participations    | `AiVoiceAgentHandoffRepository` (activation row-locked)                                                    |
+| Provider handoff capability            | `VoiceAgentTool` `handoff`, `assistantHandoffMode()`                                                       |
+| Agent callbacks for a request          | `CallbackService.scheduleAgentCallback` (lease, dial key)                                                  |
 
 ## Persistent follow-up objectives (AGENT-022)
 
 - `PendingActionService` / `PendingActionRepository` own the optional
   `PendingActionFollowUp` child of an existing pending action.
-- `PendingActionService.recordHumanOutcome` authorizes manual/campaign enrollment;
+- `PendingActionService.recordHumanOutcome` authorizes manual/campaign enrollment,
+  in an organization or an enrolled personal workspace (`followUpWorkspaceKey`
+  keys the source per workspace);
   `CallRepository.recordOutcome` and `acceptHumanOutcome` persist the semantic
   source revision, objective and first step together. `MeetingRepository.createIfAvailable`
   binds successful booking evidence to the exact execution.
@@ -155,6 +160,33 @@ Adding a second implementation of one of these is a defect, not a refactor.
 - `CallbackTaskRepository.commitFollowUpDispatch` is the final dispatch fence;
   it shares the objective lock with controls. The existing callback tick is the
   executor. See [FOLLOW_UP.md](FOLLOW_UP.md).
+
+## Automatic follow-up activation (Stage 4C, AGENT-023)
+
+- `VoiceAgentAutomationService.followUpReview` / `saveFollowUpConfiguration` /
+  `adoptFollowUp` own the shared review; pure decisions (draft parsing, state,
+  proposal defaults) live in `voice-agents/automations/follow-up-activation.ts`.
+- `FollowUpActivationRepository` persists the row per workspace and version.
+- Reminder coverage of an adopted policy: `policyCoversMeeting`
+  (`reminders/reminder-call-schedule.ts`); policies are written only through the
+  existing reminder-policy path (`configureReminders`).
+- Frontend: `features/ai-voice-agents/automations/follow-up/` — the screen, its
+  entry helpers (`followUpHref`, `useFollowUpInvitation`) and the first-result
+  card. Entry points offer it through `offerOutcomeInvitation` /
+  `offerMeetingInvitation`, never by building their own invitation.
+
+## Product analytics and error tracking (Stage 4B, OBS)
+
+| Responsibility               | Owner                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| Provider SDK                 | `platform/src/analytics/` (`PRODUCT_ANALYTICS_PROVIDER`)                                      |
+| Event contract / sanitizer   | `platform/src/analytics/event-contract.ts`, `sanitize.ts`                                     |
+| Backend facts and delivery   | `ProductAnalyticsService` (`services/analytics/`) + schedule `ringee.product-analytics-drain` |
+| Server exception capture     | `captureJourneyException` → `ProductAnalyticsService.captureException`                        |
+| Browser events               | `useAnalytics` (`frontend-shared/hooks/use.analytics.ts`) → `lib/analytics/posthog.ts`        |
+| Browser identity / pageviews | `useAnalyticsIdentity`; `PostHogPageviews` (root layout)                                      |
+
+See [ANALYTICS.md](ANALYTICS.md).
 
 ## Contacts and lists
 
@@ -197,11 +229,13 @@ pick the one matching your runtime.
 
 ## Data access
 
-| Responsibility        | Owner                                                          |
-| --------------------- | -------------------------------------------------------------- |
-| All Prisma access     | repositories in `packages/database/src/database/repositories/` |
-| Prisma client / types | `@ringee/database` (re-exports `@prisma/client`)               |
-| Transactions          | `prisma.$transaction` inside a repository, not a service       |
+| Responsibility        | Owner                                                           |
+| --------------------- | --------------------------------------------------------------- |
+| All Prisma access     | repositories in `packages/database/src/database/repositories/`  |
+| Raw-SQL ownership     | `workspaceOwnershipSql` — `repositories/workspace-scope.ts`     |
+| Claim admission       | `workspaceAdmissionWhere` / `workspaceAdmissionSql` — same file |
+| Prisma client / types | `@ringee/database` (re-exports `@prisma/client`)                |
+| Transactions          | `prisma.$transaction` inside a repository, not a service        |
 
 ## Frontend
 
@@ -214,6 +248,7 @@ pick the one matching your runtime.
 | Form controls                  | `frontend-shared/src/components/forms/form-*`                                                                 |
 | Tables                         | `useDataTable` + `config/data-table.ts`                                                                       |
 | Admin page gate                | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                                                 |
+| AI Voice Agents nav access     | `useVoiceAgentModuleAccess` / `isNavItemAvailable` — `frontend-shared/src/hooks/use-voice-agent-access.ts`    |
 | Realtime user events           | `frontend-shared/src/realtime/user-events-client.ts`                                                          |
 | Realtime socket mount          | `AccountLockdownProvider` — `features/security/components/account-lockdown-provider.tsx`                      |
 | Inbound call offers (client)   | `features/calls/store/inbound-offers.store.ts`                                                                |
