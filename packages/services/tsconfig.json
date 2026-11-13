@@ -13,5 +13,9 @@
     "outDir": "./dist",
     "incremental": true,
     "noEmit": false
-  }
+  },
+
+  /* The root config's "dist" resolves against the root, not this package, so
+     the build output here would otherwise be type-checked as source. */
+  "exclude": ["node_modules", "dist"]
 }
