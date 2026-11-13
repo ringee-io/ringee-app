@@ -15,6 +15,7 @@ import { AnalyzedCall } from "../../ai-pipeline.types";
 import {
   AiPipelineChargeError,
   AiPipelineCreditService,
+  AiPipelineReplyError,
 } from "../../ai-pipeline-credit.service";
 import { CallAnalysisService } from "../../call-analysis.service";
 import {
@@ -150,12 +151,19 @@ export class ObjectionCallExtractionService {
           catalog,
         });
         lastModel = extracted.model ?? lastModel;
-        chargedCredits += await this.billing.chargeUsage({
+        const charge = {
           context,
           fallbackUserId: call.userId,
           usage: extracted.usage,
           operation: `Objection Intelligence extraction for call ${call.callId}`,
-        });
+        };
+        if (extracted.error) {
+          await this.billing.chargeFailedReply({
+            ...charge,
+            error: extracted.error,
+          });
+        }
+        chargedCredits += await this.billing.chargeUsage(charge);
 
         const completed = await this.repository.complete(claim.id, {
           language: extracted.language ?? transcript.language,
@@ -168,6 +176,10 @@ export class ObjectionCallExtractionService {
           catalog.set(objection.clusterKey, objection.label);
         }
       } catch (error) {
+        // A rejected reply was still billed for the tokens it consumed.
+        if (error instanceof AiPipelineReplyError) {
+          chargedCredits += error.chargedCredits;
+        }
         const message = errorMessage(error);
         await this.repository.fail(claim.id, message);
         this.logger.warn(
@@ -196,6 +208,8 @@ export class ObjectionCallExtractionService {
     objections: SemanticObjection[];
     model?: string;
     usage?: AiUsage;
+    /** The provider rejected the reply; `usage` is what it still consumed. */
+    error?: string;
   }> {
     const provider = this.providers.get(apiConfiguration.AI_PROVIDER);
     const clusters = [...input.catalog].map(([clusterKey, label]) => ({
@@ -261,8 +275,9 @@ export class ObjectionCallExtractionService {
       toolChoice: "required",
     };
 
-    const { args, usage } = await collectToolCall(provider.stream(req));
+    const { args, usage, error } = await collectToolCall(provider.stream(req));
     return {
+      error,
       language: clampString(
         (args as { language?: unknown } | null)?.language,
         40,
@@ -292,17 +307,22 @@ function buildClusterCatalog(
   return catalog;
 }
 
+/**
+ * An error is returned, not thrown, so the usage that follows it in
+ * `completed` is still read and can be billed.
+ */
 async function collectToolCall(
   stream: AsyncIterable<AiStreamEvent>,
-): Promise<{ args: unknown; usage?: AiUsage }> {
+): Promise<{ args: unknown; usage?: AiUsage; error?: string }> {
   let args: unknown = { objections: [] };
   let usage: AiUsage | undefined;
+  let error: string | undefined;
   for await (const event of stream) {
     if (event.type === "tool_call_completed") args = event.arguments;
     else if (event.type === "completed") usage = event.usage;
-    else if (event.type === "error") throw new Error(event.error);
+    else if (event.type === "error") error ??= event.error;
   }
-  return { args, usage };
+  return { args, usage, error };
 }
 
 function clampString(value: unknown, max: number): string {

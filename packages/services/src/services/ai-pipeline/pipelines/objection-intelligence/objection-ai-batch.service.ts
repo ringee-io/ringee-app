@@ -133,13 +133,15 @@ export class ObjectionAiBatchService {
       toolChoice: "required",
     };
 
-    const { args, usage } = await collectToolCall(provider.stream(req));
-    const chargedCredits = await this.billing.chargeUsage({
+    const { args, usage, error } = await collectToolCall(provider.stream(req));
+    const charge = {
       context: input.context,
       fallbackUserId: input.billingUserId,
       usage,
       operation: "Objection Intelligence rolling synthesis",
-    });
+    };
+    if (error) await this.billing.chargeFailedReply({ ...charge, error });
+    const chargedCredits = await this.billing.chargeUsage(charge);
     return {
       perObjection: validate(args, knownKeys),
       model: usage?.model,
@@ -148,17 +150,22 @@ export class ObjectionAiBatchService {
   }
 }
 
+/**
+ * An error is returned, not thrown, so the usage that follows it in
+ * `completed` is still read and can be billed.
+ */
 async function collectToolCall(
   stream: AsyncIterable<AiStreamEvent>,
-): Promise<{ args: unknown; usage?: AiUsage }> {
+): Promise<{ args: unknown; usage?: AiUsage; error?: string }> {
   let args: unknown = { objections: [] };
   let usage: AiUsage | undefined;
+  let error: string | undefined;
   for await (const event of stream) {
     if (event.type === "tool_call_completed") args = event.arguments;
     else if (event.type === "completed") usage = event.usage;
-    else if (event.type === "error") throw new Error(event.error);
+    else if (event.type === "error") error ??= event.error;
   }
-  return { args, usage };
+  return { args, usage, error };
 }
 
 function validate(

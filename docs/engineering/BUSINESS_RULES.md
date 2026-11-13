@@ -239,7 +239,10 @@ boot rather than quietly billing the wrong amount.
 `message-cost:<messageId>`, `transcription-realtime:<headerId>`,
 `transcription-recording:<headerId>` — each with its own margin env var. AI
 pipeline runs are priced per token and refuse to complete on an unpriced model or
-a zero charge (`AiPipelineChargeError`).
+a zero charge (`AiPipelineChargeError`). A reply the pipeline rejects after it
+consumed tokens (a required tool call answered in plain text) is billed too,
+before the run fails (`chargeFailedReply` → `AiPipelineReplyError`, which carries
+the charge so the run still reports it).
 
 ### BILL-016 — Caller-ID verification is charged per attempt sent
 
