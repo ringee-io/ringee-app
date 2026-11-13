@@ -63,6 +63,10 @@ export interface AiStreamRequest {
   system: string;
   messages: AiMessageInput[];
   tools?: AiToolDefinition[];
+  /**
+   * "required", with `tools`: the reply carries a tool call, or the stream
+   * reports an `error` — a plain-text answer never stands in for the call.
+   */
   toolChoice?: "auto" | "required" | "none";
   temperature?: number;
   maxOutputTokens?: number;

@@ -15,6 +15,23 @@ import type {
 type FinishReason = "stop" | "tool_calls" | "length" | "error" | "cancelled";
 
 /**
+ * Room for the thinking a required call does before it answers. A forced
+ * `tool_choice` never let the model think, so callers sized `maxOutputTokens`
+ * for the answer alone. Asked for in the prompt instead (see `mapToolChoice`),
+ * the call comes after the thinking the newer models do by default — and
+ * thinking counts toward `max_tokens`, so without this room the reply runs out
+ * before the call.
+ */
+const REQUIRED_CALL_THINKING_TOKENS = 16_000;
+
+/**
+ * The room never lifts `max_tokens` past this — Haiku 4.5's output limit, the
+ * lowest among the current Claude models — so a budget the model accepted on
+ * its own is still accepted with the room.
+ */
+const THINKING_ROOM_CEILING_TOKENS = 64_000;
+
+/**
  * Claude (Anthropic) adapter for Ringee AI. Mirrors the OpenAI adapter:
  * streamed chat with tool calling plus one-shot summarization. Prompt
  * caching is applied to the system prompt, tool list, and trailing message
@@ -43,7 +60,13 @@ export class AnthropicProvider implements AiProvider {
     const model = apiConfiguration.ANTHROPIC_DEFAULT_MODEL;
     const cache = apiConfiguration.AI_PROMPT_CACHE_ENABLED;
 
-    const system = buildSystem(req.system, cache);
+    const required = req.toolChoice === "required" && !!req.tools?.length;
+    const system = buildSystem(
+      required
+        ? `${req.system}\n\n${requiredToolInstruction(req.tools!)}`
+        : req.system,
+      cache,
+    );
     const messages = toAnthropicMessages(req.messages, cache);
     const tools = req.tools?.length
       ? req.tools.map((t, i) =>
@@ -51,13 +74,14 @@ export class AnthropicProvider implements AiProvider {
         )
       : undefined;
     const toolChoice = mapToolChoice(req.toolChoice);
+    const answerTokens = req.maxOutputTokens ?? 8192;
 
     let stream: ReturnType<Anthropic["messages"]["stream"]>;
     try {
       stream = this.client.messages.stream(
         {
           model,
-          max_tokens: req.maxOutputTokens ?? 8192,
+          max_tokens: required ? withThinkingRoom(answerTokens) : answerTokens,
           system,
           messages,
           ...(tools ? { tools, tool_choice: toolChoice } : {}),
@@ -91,6 +115,24 @@ export class AnthropicProvider implements AiProvider {
       }
 
       const final = await stream.finalMessage();
+
+      // Without a forced choice the model can still answer in plain text;
+      // for a required call that is a failure, never an empty answer.
+      const calledTool = final.content.some(
+        (block: { type: string }) => block.type === "tool_use",
+      );
+      if (required && !calledTool) {
+        yield {
+          type: "error",
+          error: `${model} answered without calling the required tool (stop reason: ${final.stop_reason ?? "none"})`,
+        };
+        yield {
+          type: "completed",
+          finishReason: "error",
+          usage: mapUsage(final.usage, model),
+        };
+        return;
+      }
 
       for (const block of final.content) {
         if (block.type === "tool_use") {
@@ -156,12 +198,36 @@ function buildSystem(
   ];
 }
 
+/**
+ * "required" is never sent as a forced choice (`any` / `tool`): the newest
+ * Claude models — Opus 5.5, Sonnet 5.5, Fable and Mythos 5.1 and later —
+ * reject it with a 400 ("tool_choice: type "tool" and "any" are not supported
+ * for this model"). `stream` asks for the call in the system prompt instead,
+ * and reports a reply without one as an error.
+ */
 function mapToolChoice(
   choice: AiStreamRequest["toolChoice"],
 ): Anthropic.ToolChoice {
-  if (choice === "required") return { type: "any" };
   if (choice === "none") return { type: "none" };
   return { type: "auto" };
+}
+
+/** The answer's budget plus the thinking's, within what every model accepts. */
+function withThinkingRoom(answerTokens: number): number {
+  return Math.max(
+    answerTokens,
+    Math.min(
+      answerTokens + REQUIRED_CALL_THINKING_TOKENS,
+      THINKING_ROOM_CEILING_TOKENS,
+    ),
+  );
+}
+
+/** What stands in for a forced `tool_choice` (see `mapToolChoice`). */
+function requiredToolInstruction(tools: AiToolDefinition[]): string {
+  return tools.length === 1
+    ? `Reply only with a call to the ${tools[0].name} tool, and nothing else.`
+    : "Reply only with calls to the tools provided, and nothing else.";
 }
 
 function toAnthropicTool(t: AiToolDefinition, cache: boolean): Anthropic.Tool {
