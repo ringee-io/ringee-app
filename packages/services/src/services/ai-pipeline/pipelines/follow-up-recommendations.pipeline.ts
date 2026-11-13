@@ -14,7 +14,10 @@ import {
   PipelineRunInput,
   PipelineRunResult,
 } from "../ai-pipeline.types";
-import { AiPipelineChargeError } from "../ai-pipeline-credit.service";
+import {
+  AiPipelineChargeError,
+  AiPipelineReplyError,
+} from "../ai-pipeline-credit.service";
 import { FollowUpAiBatchService } from "./follow-up-ai-batch.service";
 
 /** Outcomes that make a call count toward Follow-up in any context. */
@@ -273,7 +276,9 @@ export class FollowUpRecommendationsPipeline
       return {
         result: {
           enrichedCount: 0,
-          chargedCredits: 0,
+          // A rejected reply was still billed for the tokens it consumed.
+          chargedCredits:
+            err instanceof AiPipelineReplyError ? err.chargedCredits : 0,
           skipped: true,
           reason: `AI batch error: ${(err as Error).message}`,
         },

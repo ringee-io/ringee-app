@@ -6,6 +6,7 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   AiPipelineChargeError,
   AiPipelineCreditService,
+  AiPipelineReplyError,
 } from "./ai-pipeline-credit.service";
 
 describe("AiPipelineCreditService", () => {
@@ -115,5 +116,59 @@ describe("AiPipelineCreditService", () => {
       }),
       /credit debit failed/,
     );
+  });
+
+  it("bills a rejected reply's tokens, then raises its error", async () => {
+    const debits: number[] = [];
+    const service = new AiPipelineCreditService({
+      consumeCredits: async (_owner: object, amount: number) => {
+        debits.push(amount);
+        return {};
+      },
+    } as never);
+
+    const rejection = await service
+      .chargeFailedReply({
+        context: { type: "personal", userId: "user-1" },
+        fallbackUserId: null,
+        usage: {
+          model: "gpt-5.4-mini",
+          inputTokens: 1_000_000,
+          outputTokens: 100_000,
+        },
+        operation: "personal pipeline",
+        error: "answered without calling the required tool",
+      })
+      .catch((error: unknown) => error);
+
+    const expected = 1.2 * apiConfiguration.AI_TOKEN_MARGIN;
+    assert.ok(rejection instanceof AiPipelineReplyError);
+    assert.equal(
+      rejection.message,
+      "answered without calling the required tool",
+    );
+    assert.equal(rejection.chargedCredits, expected);
+    assert.deepEqual(debits, [expected]);
+  });
+
+  it("raises a failure without usage with nothing to bill", async () => {
+    const service = new AiPipelineCreditService({
+      consumeCredits: async () => {
+        throw new Error("a reply without usage must not be debited");
+      },
+    } as never);
+
+    const rejection = await service
+      .chargeFailedReply({
+        context: { type: "personal", userId: "user-1" },
+        fallbackUserId: null,
+        usage: undefined,
+        operation: "personal pipeline",
+        error: "400 invalid_request_error",
+      })
+      .catch((error: unknown) => error);
+
+    assert.ok(rejection instanceof AiPipelineReplyError);
+    assert.equal(rejection.chargedCredits, 0);
   });
 });

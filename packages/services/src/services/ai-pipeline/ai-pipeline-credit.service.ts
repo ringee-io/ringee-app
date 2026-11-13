@@ -17,17 +17,50 @@ export class AiPipelineChargeError extends Error {
   }
 }
 
+/**
+ * A provider reply the pipeline rejects after it consumed tokens — a required
+ * tool call answered in plain text. Raised by `chargeFailedReply` once those
+ * tokens are billed; `chargedCredits` is what they cost, so a run that fails on
+ * it still reports the charge.
+ */
+export class AiPipelineReplyError extends Error {
+  constructor(
+    message: string,
+    readonly chargedCredits: number,
+  ) {
+    super(message);
+    this.name = "AiPipelineReplyError";
+  }
+}
+
+export interface AiPipelineChargeInput {
+  context: PipelineContext;
+  fallbackUserId: string | null | undefined;
+  usage: AiUsage | undefined;
+  operation: string;
+}
+
 /** Prices and debits one provider call made by an AI pipeline. */
 @Injectable()
 export class AiPipelineCreditService {
   constructor(private readonly credits: CreditService) {}
 
-  async chargeUsage(input: {
-    context: PipelineContext;
-    fallbackUserId: string | null | undefined;
-    usage: AiUsage | undefined;
-    operation: string;
-  }): Promise<number> {
+  /**
+   * Bills the tokens a failed reply consumed, then raises the provider's error
+   * as an `AiPipelineReplyError`: the run fails as before, but nothing it
+   * consumed goes unbilled. A failure without usage (the request never got a
+   * reply) has nothing to bill and is raised with a zero charge.
+   */
+  async chargeFailedReply(
+    input: AiPipelineChargeInput & { error: string },
+  ): Promise<never> {
+    const { error, ...charge } = input;
+    const chargedCredits =
+      tokenCount(charge.usage) > 0 ? await this.chargeUsage(charge) : 0;
+    throw new AiPipelineReplyError(error, chargedCredits);
+  }
+
+  async chargeUsage(input: AiPipelineChargeInput): Promise<number> {
     const { usage, operation } = input;
     if (!usage?.model) {
       throw new AiPipelineChargeError(
@@ -40,12 +73,7 @@ export class AiPipelineCreditService {
       );
     }
 
-    const tokenCount =
-      (usage.inputTokens ?? 0) +
-      (usage.outputTokens ?? 0) +
-      (usage.cachedInputTokens ?? 0) +
-      (usage.cacheWriteTokens ?? 0);
-    if (tokenCount <= 0) {
+    if (tokenCount(usage) <= 0) {
       throw new AiPipelineChargeError(
         `${operation} completed without token usage`,
       );
@@ -85,6 +113,15 @@ export class AiPipelineCreditService {
     }
     return cost;
   }
+}
+
+function tokenCount(usage: AiUsage | undefined): number {
+  return (
+    (usage?.inputTokens ?? 0) +
+    (usage?.outputTokens ?? 0) +
+    (usage?.cachedInputTokens ?? 0) +
+    (usage?.cacheWriteTokens ?? 0)
+  );
 }
 
 function billingOwner(

@@ -101,13 +101,17 @@ export class FollowUpAiBatchService {
       maxOutputTokens: 1200,
     };
 
-    const { args, usage } = await this.collectToolCall(provider.stream(req));
-    const chargedCredits = await this.billing.chargeUsage({
+    const { args, usage, error } = await this.collectToolCall(
+      provider.stream(req),
+    );
+    const charge = {
       context: input.context,
       fallbackUserId: calls.find((call) => call.userId)?.userId,
       usage,
       operation: "Follow-up Intelligence batch",
-    });
+    };
+    if (error) await this.billing.chargeFailedReply({ ...charge, error });
+    const chargedCredits = await this.billing.chargeUsage(charge);
     const enrichment = this.validate(args, new Set(calls.map((c) => c.callId)));
     return {
       enrichment,
@@ -136,22 +140,27 @@ export class FollowUpAiBatchService {
     ].join("\n");
   }
 
-  /** Consume the provider stream and return the first completed tool call. */
+  /**
+   * Consume the provider stream and return the last completed tool call. An
+   * error is returned, not thrown, so the usage that follows it in
+   * `completed` is still read and can be billed.
+   */
   private async collectToolCall(
     stream: AsyncIterable<AiStreamEvent>,
-  ): Promise<{ args: unknown; usage?: AiUsage }> {
+  ): Promise<{ args: unknown; usage?: AiUsage; error?: string }> {
     let args: unknown = { items: [] };
     let usage: AiUsage | undefined;
+    let error: string | undefined;
     for await (const ev of stream) {
       if (ev.type === "tool_call_completed") {
         args = ev.arguments;
       } else if (ev.type === "completed") {
         usage = ev.usage;
       } else if (ev.type === "error") {
-        throw new Error(ev.error);
+        error ??= ev.error;
       }
     }
-    return { args, usage };
+    return { args, usage, error };
   }
 
   /** Hand-written validation (no zod dependency in this package). */
