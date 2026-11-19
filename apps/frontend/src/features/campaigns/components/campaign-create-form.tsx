@@ -25,6 +25,7 @@ import { Switch } from '@ringee/frontend-shared/components/ui/switch';
 import { Loader2, Phone, Shuffle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import posthog from 'posthog-js';
 import { useRotationEnabled } from '@/features/number-rotation';
 import { DispositionPicker } from '@/features/dispositions';
 import { CampaignCarrierNumberField } from './campaign-carrier-number-field';
@@ -65,6 +66,10 @@ const TIMEZONES = [
 
 /** Indexes match `Date.getDay()`; labels come from `common.weekdaysShort`. */
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 function minutesToTime(min: number): string {
   const h = Math.floor(min / 60);
@@ -153,6 +158,14 @@ export function CampaignCreateForm() {
     setSaving(true);
     try {
       const campaign = await api.post<Campaign>('/campaigns', form);
+      if (posthogConfigured) {
+        posthog.capture('campaign_created', {
+          dialer_mode: form.dialerMode,
+          has_external_carrier: Boolean(form.externalNumberId),
+          rotation_number_count: form.rotationNumberIds?.length ?? 0,
+          disposition_count: form.dispositionIds?.length ?? 0
+        });
+      }
       toast.success(tc('create.created'));
       router.push(`/dashboard/campaigns/${campaign.id}`);
     } catch (err: any) {

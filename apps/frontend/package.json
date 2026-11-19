@@ -93,6 +93,7 @@
     "nextjs-toploader": "^3.7.15",
     "nuqs": "^2.4.1",
     "postcss": "8.4.49",
+    "posthog-js": "^1.407.2",
     "react": "19.0.3",
     "react-day-picker": "^8.10.1",
     "react-dom": "19.0.3",

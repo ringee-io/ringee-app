@@ -14,8 +14,13 @@ import PhoneInput, {
 import 'react-phone-number-input/style.css';
 
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import posthog from 'posthog-js';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 const NUMBER_OF_USERS_OPTIONS = [
   'Just me',
@@ -188,6 +193,12 @@ export function RequestDemoForm() {
         body: JSON.stringify({ ...values, country: detectedCountry })
       });
       if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+      if (posthogConfigured) {
+        posthog.capture('demo_request_submitted', {
+          number_of_users: values.numberOfUsers,
+          referral_source: values.referralSource
+        });
+      }
       setStatus('success');
     } catch {
       setStatus('idle');

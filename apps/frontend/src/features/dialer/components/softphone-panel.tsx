@@ -41,6 +41,12 @@ import {
   useRecordingSettings
 } from '@/features/transcription';
 import { useTranslations } from 'next-intl';
+import posthog from 'posthog-js';
+
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -190,6 +196,7 @@ export function SoftphonePanel({
     setDialRequested(true);
     try {
       await api.post('/dialer/dial', { sessionId, campaignId });
+      if (posthogConfigured) posthog.capture('dialer_lead_dialed');
     } catch (err: any) {
       toast.error(err?.message || t('dialFailed'));
     } finally {
@@ -202,6 +209,7 @@ export function SoftphonePanel({
     setDialRequested(true);
     try {
       await api.post('/dialer/skip', { sessionId, campaignId });
+      if (posthogConfigured) posthog.capture('dialer_lead_skipped');
     } catch (err: any) {
       toast.error(err?.message || t('skipFailed'));
     } finally {

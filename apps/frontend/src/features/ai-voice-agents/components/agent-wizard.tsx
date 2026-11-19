@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import posthog from 'posthog-js';
 import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
@@ -28,6 +29,11 @@ import { CompanySection } from './sections/company-section';
 import { ResultsSection } from './sections/results-section';
 import { SetupSection } from './sections/setup-section';
 import { VoiceSection } from './sections/voice-section';
+
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST
+);
 
 const STEPS = [
   { id: 'setup', icon: Settings2 },
@@ -114,6 +120,9 @@ export function AgentWizard({
           : undefined;
       if (owner && owner !== 'conversation') setStep(owner);
       return;
+    }
+    if (posthogConfigured) {
+      posthog.capture('voice_agent_created', { agent_type: type });
     }
     router.push(`/dashboard/ai-voice-agents/${saved.id}?tab=test`);
     router.refresh();

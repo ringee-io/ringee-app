@@ -1,9 +1,49 @@
 'use client';
-import { ClerkProvider } from '@clerk/nextjs';
+import { ClerkProvider, useUser } from '@clerk/nextjs';
 import { ui } from '@clerk/ui';
 import { dark } from '@clerk/ui/themes';
 import { useTheme } from 'next-themes';
-import React from 'react';
+import posthog from 'posthog-js';
+import React, { useEffect, useRef } from 'react';
+
+function PostHogIdentity() {
+  const { isLoaded, user } = useUser();
+  const identifiedUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      !isLoaded ||
+      !process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN ||
+      !process.env.NEXT_PUBLIC_POSTHOG_HOST
+    ) {
+      return;
+    }
+
+    if (!user) {
+      if (identifiedUserId.current) {
+        posthog.reset();
+        identifiedUserId.current = null;
+      }
+      return;
+    }
+
+    if (identifiedUserId.current === user.id) return;
+
+    if (identifiedUserId.current) {
+      posthog.reset();
+    }
+
+    posthog.identify(user.id, {
+      ...(user.primaryEmailAddress?.emailAddress && {
+        email: user.primaryEmailAddress.emailAddress
+      }),
+      ...(user.fullName && { name: user.fullName })
+    });
+    identifiedUserId.current = user.id;
+  }, [isLoaded, user]);
+
+  return null;
+}
 
 /**
  * Client-side Clerk provider, scoped to the authenticated route groups
@@ -29,6 +69,7 @@ export default function ClerkAppProvider({
         theme: resolvedTheme === 'dark' ? dark : undefined
       }}
     >
+      <PostHogIdentity />
       {children}
     </ClerkProvider>
   );
