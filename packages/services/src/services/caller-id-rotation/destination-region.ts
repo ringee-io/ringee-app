@@ -9,25 +9,18 @@ export interface DestinationRegion {
   /** US postal abbreviation, including DC, only for geographic +1 numbers. */
   state: string | null;
   /**
-   * A coarse "local presence" prefix used only as a *soft* preference. For NANP
-   * (+1) this is the 3-digit area code; elsewhere it's the leading significant
-   * digits of the national number. The hard guarantee is always `country`.
+   * NANP (+1) geographic area code, used only as a soft preference. Other
+   * plans have variable-length geographic prefixes or no geographic model;
+   * return null rather than treating arbitrary national digits as an area.
    */
   areaCode: string | null;
-}
-
-/** Leading significant digits used to approximate a "same area" preference. */
-function deriveAreaCode(nationalNumber: string): string | null {
-  if (!nationalNumber) return null;
-  return nationalNumber.length >= 3
-    ? nationalNumber.slice(0, 3)
-    : nationalNumber;
 }
 
 /**
  * Parse an E.164 number into the country (hard filter) and an area-code-like
  * prefix (soft local-presence preference). Tolerant: returns nulls rather than
- * throwing on unparseable input so the caller can fall back to a fixed number.
+ * throwing on unparseable input. A missing area is a fallback opportunity;
+ * a missing calling plan cannot authorize a destination-specific selection.
  */
 export function resolveRegion(e164OrRaw: string): DestinationRegion {
   const unknown = {
@@ -42,7 +35,10 @@ export function resolveRegion(e164OrRaw: string): DestinationRegion {
   const international = e164OrRaw.trim().replace(/^(?:00|011)(?=\s*\d)/, "+");
   const parsed = parsePhoneNumberFromString(international, { extract: false });
   if (!parsed?.isPossible()) return unknown;
-  const prefix = deriveAreaCode(parsed.nationalNumber);
+  const prefix =
+    parsed.countryCallingCode === "1"
+      ? parsed.nationalNumber.slice(0, 3)
+      : null;
   const state =
     parsed.countryCallingCode === "1"
       ? (US_STATE_BY_AREA_CODE.get(prefix ?? "") ?? null)

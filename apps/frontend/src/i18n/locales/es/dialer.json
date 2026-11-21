@@ -112,6 +112,7 @@
     "shortcutsHint": "Tip: pulsa 1–9 para elegir el resultado y Enter para guardarlo."
   },
   "lead": {
+    "dialBlocked": "No se pudo iniciar la llamada",
     "waiting": "Esperando lead",
     "waitingDescription": "El marcador te asignará el siguiente lead automáticamente.",
     "unknown": "Desconocido",

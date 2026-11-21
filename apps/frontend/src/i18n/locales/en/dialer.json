@@ -112,6 +112,7 @@
     "shortcutsHint": "Tip: press 1–9 to pick an outcome and Enter to save it."
   },
   "lead": {
+    "dialBlocked": "Call could not start",
     "waiting": "Waiting for lead",
     "waitingDescription": "The dialer will assign the next lead automatically.",
     "unknown": "Unknown",

@@ -112,6 +112,7 @@
     "shortcutsHint": "Suggerimento: premi 1–9 per scegliere l'esito e Invio per salvarlo."
   },
   "lead": {
+    "dialBlocked": "Impossibile avviare la chiamata",
     "waiting": "In attesa di un lead",
     "waitingDescription": "Il dialer ti assegnerà automaticamente il lead successivo.",
     "unknown": "Sconosciuto",

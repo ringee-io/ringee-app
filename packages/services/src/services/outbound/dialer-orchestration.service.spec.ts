@@ -10,6 +10,9 @@ import { AgentSessionService } from "./agent-session.service";
 import { CallAttemptService } from "./call-attempt.service";
 import { DialerOrchestrationService } from "./dialer-orchestration.service";
 import { LeadQueueService } from "./lead-queue.service";
+import type { NumberPurchased, PoolMemberWithNumber } from "@ringee/database";
+import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
+import { NumberPurchasedService } from "../number.purchased.service";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Let every other pending async writer run, the way a DB round-trip does. */
@@ -81,6 +84,8 @@ function createWorld(
     dialerMode?: string;
     leads?: number;
     preCheckDelayMs?: number;
+    /** Exercise the real selector instead of the dial-gate stub. */
+    callerIds?: Array<{ id: string; phoneNumber: string }>;
   } = {},
 ) {
   const campaign = {
@@ -219,6 +224,61 @@ function createWorld(
       };
     },
   };
+  const callerPool = (options.callerIds ?? []).map(
+    (n) =>
+      ({
+        numberId: n.id,
+        number: {
+          ...n,
+          userId: "user-1",
+          organizationId: "org-1",
+          kind: "purchased",
+          status: "active",
+          isoCountry: "US",
+          allowedOutboundSources: [],
+          allowedOutboundUserIds: [],
+        } as unknown as NumberPurchased,
+        participating: true,
+        rotationStatus: "active",
+        healthScore: 100,
+        dailyCap: null,
+        lastUsedAt: null,
+      }) as PoolMemberWithNumber,
+  );
+  const rotationRepo = {
+    findSettings: async () => ({
+      enabled: true,
+      strategy: "local_presence",
+      defaultDailyCap: 50,
+    }),
+    listPoolMembers: async () => callerPool,
+    findEligibleMembers: async () =>
+      callerPool
+        .filter((m) => m.participating && m.rotationStatus === "active")
+        .map((m) => ({ ...m })),
+    usageForNumbers: async () => new Map(),
+    markUsed: async (id: string, previous: Date | null) => {
+      await roundTrip();
+      const current = callerPool.find((m) => m.numberId === id)!;
+      if (current.lastUsedAt?.getTime() !== previous?.getTime()) return false;
+      current.lastUsedAt = new Date(
+        Math.max(Date.now(), (previous?.getTime() ?? 0) + 1),
+      );
+      return true;
+    },
+  };
+  const numberRepo = {
+    findRotatable: async () => callerPool.map((m) => m.number),
+  };
+  const realRotation = new CallerIdRotationService(
+    rotationRepo as never,
+    numberRepo as never,
+    {
+      listOutboundCallerIds:
+        NumberPurchasedService.prototype.listOutboundCallerIds,
+      numberPurchasedRepository: numberRepo,
+    } as never,
+  );
   const credit = { balance: 50, getBalance: async () => credit.balance };
   /** Calls the database shows as up for the agent. */
   const liveCalls: Array<{ id: string; toNumber: string }> = [];
@@ -735,7 +795,7 @@ function createWorld(
     {} as never,
     sseBridge as never,
     dispositionService as never,
-    rotation as never,
+    (options.callerIds ? realRotation : rotation) as never,
     guard as never,
     userService as never,
     credit as never,
@@ -755,6 +815,7 @@ function createWorld(
     liveCalls,
     guard,
     rotation,
+    callerPool,
     carrier,
     credit,
     user,
@@ -781,6 +842,129 @@ function createWorld(
 }
 
 describe("DialerOrchestrationService", () => {
+  describe("progressive caller-ID fallback with the real selector", () => {
+    const callerIds = [
+      { id: "number-ny", phoneNumber: "+12125559876" },
+      { id: "number-ca", phoneNumber: "+14155559876" },
+      { id: "number-wy", phoneNumber: "+13075559876" },
+    ];
+    const start = (world: ReturnType<typeof createWorld>) =>
+      world.agentSessionService.startSession({
+        campaignId: world.campaign.id,
+        userId: "user-1",
+        organizationId: "org-1",
+        waitForEvents: true,
+      });
+
+    it("delivers a random nonlocal caller ID after SSE activation and continues through repeated stop/start cycles", async (t) => {
+      const random = t.mock.method(Math, "random", () => 0.999999);
+      const world = createWorld({ callerIds, leads: 3 });
+      // Exclude the local WY number even though the workspace owns it.
+      world.campaign.rotationNumberIds = ["number-ny", "number-ca"];
+      for (const lead of world.leads.values())
+        lead.contact.phoneNumber = "+13075551234";
+
+      for (let cycle = 0; cycle < 3; cycle++) {
+        random.mock.mockImplementation(() => (cycle % 2 === 0 ? 0.999999 : 0));
+        const next = await start(world);
+        await world.runTick();
+        assert.equal(world.of("call.initiate").length, cycle);
+        assert.equal(world.session().currentLeadId, null);
+        await world.agentSessionService.activateAfterEvents(
+          next.id,
+          next.startedAt,
+        );
+        // Two API polls cannot turn a random fallback into duplicate dials.
+        await Promise.all([
+          world.orchestrator.tick(),
+          world.orchestrator.tick(),
+        ]);
+        const dials = world.of("call.initiate");
+        assert.equal(dials.length, cycle + 1);
+        assert.equal(
+          dials[cycle].data.callerIdNumber,
+          callerIds[cycle % 2 === 0 ? 1 : 0].phoneNumber,
+        );
+        assert.equal(dials[cycle].data.dialToken, "dial-token");
+        assert.equal(
+          dials[cycle].data.sessionStartedAt,
+          next.startedAt.toISOString(),
+        );
+        assert.equal(world.session().status, "dialing");
+        assert.equal(world.of("call.blocked").length, 0);
+
+        // Provider callbacks and disposition use the real attempt lifecycle.
+        const attempt = world.attempts.get(dials[cycle].data.attemptId)!;
+        const call = {
+          id: `call-${cycle}`,
+          userId: "user-1",
+          answeredAt: null,
+          endedAt: null,
+          hangupCause: null,
+        };
+        await world.callAttemptService.handleWebhookEvent(
+          attempt.id,
+          "call.initiated",
+          call,
+        );
+        await world.callAttemptService.handleWebhookEvent(
+          attempt.id,
+          "call.hangup",
+          { ...call, endedAt: new Date() },
+        );
+        await world.callAttemptService.submitDisposition({
+          callAttemptId: attempt.id,
+          disposition: {
+            id: "not-interested",
+            campaignId: null,
+            organizationId: "org-1",
+            code: "not_interested",
+            canonicalOutcome: "not_interested",
+            isActive: true,
+          } as never,
+          organizationId: "org-1",
+          campaignDefaults: { maxAttempts: 3, retryDelayMin: 60 },
+        });
+        await world.agentSessionService.endSession(next.id, next.startedAt);
+        assert.equal(world.session().status, "offline");
+        assert.ok([...world.leads.values()].every((l) => l.lockedBy === null));
+      }
+      assert.equal(
+        new Set(world.of("call.initiate").map((e) => e.data.attemptId)).size,
+        3,
+      );
+    });
+
+    it("pauses with an actionable caller-ID error, releases reservations without deferring leads, and recovers on resume", async () => {
+      const world = createWorld({ callerIds });
+      for (const m of world.callerPool) m.rotationStatus = "disabled";
+      await world.runTick();
+      assert.equal(world.session().status, "paused");
+      assert.equal(world.session().currentLeadId, null);
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.lead("lead-1").lockedBy, null);
+      assert.equal(world.lead("lead-1").nextCallAt, null);
+      assert.ok(world.leaseReleases.includes("campaign-agent:session-1"));
+      assert.match(world.of("call.blocked")[0].data.message, /resume/i);
+      world.callerPool[0].rotationStatus = "active";
+      await world.agentSessionService.resume(
+        "session-1",
+        world.session().startedAt,
+      );
+      await world.runTick();
+      assert.equal(world.of("call.initiate").length, 1);
+    });
+
+    it("reports an empty configured pool without leaving the session waiting or holding a lead", async () => {
+      const world = createWorld({ callerIds: [] });
+      await world.runTick();
+      assert.equal(world.session().status, "paused");
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.lead("lead-1").lockedBy, null);
+      assert.equal(world.lead("lead-1").nextCallAt, null);
+      assert.match(world.of("call.blocked")[0].data.message, /configured/i);
+    });
+  });
   describe("one dial per agent", () => {
     it("never runs two poll ticks at once, so a slow tick cannot dial the same agent twice", async () => {
       // A liveness round-trip to the provider inside the pre-check is what

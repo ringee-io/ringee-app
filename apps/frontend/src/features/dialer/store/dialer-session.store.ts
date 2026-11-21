@@ -27,6 +27,7 @@ interface DialerSessionState {
    */
   startedAt: string | null;
   awaitingEvents: boolean;
+  dialBlocked: { reason: string; message: string } | null;
   waitingReason:
     | 'outside_calling_window'
     | 'no_eligible_leads'
@@ -53,6 +54,7 @@ interface DialerSessionState {
   ) => void;
   setStatus: (status: AgentSessionStatus) => void;
   setAwaitingEvents: (awaiting: boolean) => void;
+  setDialBlocked: (blocked: DialerSessionState['dialBlocked']) => void;
   setWaitingReason: (reason: DialerSessionState['waitingReason']) => void;
   setStats: (stats: SessionStats) => void;
   setCloseAfterLead: (closeAfterLead: boolean) => void;
@@ -63,6 +65,7 @@ const initialState = {
   sessionId: null as string | null,
   startedAt: null as string | null,
   awaitingEvents: false,
+  dialBlocked: null as DialerSessionState['dialBlocked'],
   waitingReason: null as DialerSessionState['waitingReason'],
   campaignId: null as string | null,
   dialerMode: null as DialerMode | null,
@@ -91,8 +94,15 @@ export const useDialerSessionStore = create<DialerSessionState>((set) => ({
       status: awaitingEvents ? 'offline' : 'ready'
     }),
 
-  setStatus: (status) => set({ status }),
+  setStatus: (status) =>
+    set({
+      status,
+      ...(['reserved', 'dialing', 'in_call'].includes(status)
+        ? { dialBlocked: null }
+        : {})
+    }),
   setAwaitingEvents: (awaitingEvents) => set({ awaitingEvents }),
+  setDialBlocked: (dialBlocked) => set({ dialBlocked }),
   setWaitingReason: (waitingReason) => set({ waitingReason }),
 
   setStats: (stats) => set({ stats }),

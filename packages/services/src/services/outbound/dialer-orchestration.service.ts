@@ -90,6 +90,8 @@ type RefusalReason =
   | "NO_CREDIT"
   | "CONCURRENT_CALL"
   | "NO_CALLER_ID"
+  | "NO_CONFIGURED_CALLER_IDS"
+  | "NO_ELIGIBLE_CALLER_IDS"
   | "CALLER_ID_UNAVAILABLE"
   | "CARRIER_UNAVAILABLE"
   | "INVALID_DESTINATION";
@@ -148,6 +150,28 @@ interface DialerLead {
 /** Copy for a caller-ID refusal, and whether it is the lead's fault. */
 function callerIdRefusal(reason: RotationReasonValue): DialRefusal {
   switch (reason) {
+    case RotationReason.NO_CONFIGURED_CALLER_IDS:
+      return {
+        reason: "NO_CONFIGURED_CALLER_IDS",
+        message:
+          "No caller IDs are configured for rotation. Add an outbound number to this campaign's pool, then resume.",
+        to: AgentSessionStatus.paused,
+      };
+    case RotationReason.NO_ELIGIBLE_CALLER_IDS:
+      return {
+        reason: "NO_ELIGIBLE_CALLER_IDS",
+        message:
+          "No eligible outbound caller IDs are available in this campaign's rotation pool. Ask an admin to check number status, verification and outbound access, then resume.",
+        to: AgentSessionStatus.paused,
+      };
+    case RotationReason.UNPARSEABLE:
+      return {
+        reason: "INVALID_DESTINATION",
+        message:
+          "This lead's phone number has no recognized international calling plan. Correct it in international format. The lead was moved back in the queue.",
+        to: AgentSessionStatus.ready,
+        deferLead: true,
+      };
     case RotationReason.ALL_OVER_CAP:
       return {
         reason: "NO_CALLER_ID",
@@ -392,9 +416,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       try {
         await this.assignLeadToAgent(campaign, agent);
       } catch (err) {
-        this.logger.error(
-          `Error assigning lead to agent ${agent.userId}: ${err}`,
-        );
+        this.logger.error({
+          event: "dialer.lead_assignment_failed",
+          campaignId: campaign.id,
+          sessionId: agent.id,
+          errorType: err instanceof Error ? err.name : "unknown",
+        });
       }
     }
   }
@@ -455,6 +482,11 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       this.logger.debug(
         `Agent ${agent.id} was claimed elsewhere — handing lead ${lead.id} back`,
       );
+      this.logger.debug({
+        event: "dialer.reservation_not_claimed",
+        campaignId: campaign.id,
+        sessionId: agent.id,
+      });
       await this.leadQueueService
         .releaseLead(lead.id, { lockedBy: agent.id })
         .catch((err) =>
@@ -659,24 +691,28 @@ export class DialerOrchestrationService implements OnModuleDestroy {
    */
   private async resolveDialCallerId(
     campaign: {
+      id: string;
       callerIdId: string | null;
       numberPurchasedId: string | null;
       organizationId: string | null;
       rotationNumberIds?: string[] | null;
     },
-    agentUserId: string,
+    agent: DialerAgent,
     destination: string,
   ): Promise<{ phoneNumber: string | null; reason: RotationReasonValue }> {
     const fixed = await this.resolveCallerIdNumber(campaign);
     const ctx = {
-      userId: agentUserId,
+      userId: agent.userId,
       organizationId: campaign.organizationId,
     };
     const result = await this.callerIdRotationService.selectForDial(
       ctx,
       destination,
       { phoneNumber: fixed },
-      { restrictToNumberIds: campaign.rotationNumberIds ?? undefined },
+      {
+        restrictToNumberIds: campaign.rotationNumberIds ?? undefined,
+        logContext: { campaignId: campaign.id, sessionId: agent.id },
+      },
     );
     return { phoneNumber: result.phoneNumber, reason: result.reason };
   }
@@ -759,14 +795,17 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     try {
       selection = await this.resolveDialCallerId(
         campaign,
-        agent.userId,
+        agent,
         lead.contact.phoneNumber,
       );
     } catch (err) {
       await this.releaseLease(agent);
-      this.logger.warn(
-        `Could not resolve a caller ID for agent ${agent.id} (lead ${lead.id}): ${err}`,
-      );
+      this.logger.warn({
+        event: "dialer.caller_id_selection_failed",
+        campaignId: campaign.id,
+        sessionId: agent.id,
+        errorType: err instanceof Error ? err.name : "unknown",
+      });
       return refuse({
         reason: "CALLER_ID_UNAVAILABLE",
         message: "A caller ID could not be picked right now. Retrying shortly.",

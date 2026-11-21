@@ -43,6 +43,7 @@ export function LeadPanel() {
   const status = useDialerSessionStore((s) => s.status);
   const awaitingEvents = useDialerSessionStore((s) => s.awaitingEvents);
   const waitingReason = useDialerSessionStore((s) => s.waitingReason);
+  const dialBlocked = useDialerSessionStore((s) => s.dialBlocked);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
   const dispositions = useDialerAttemptStore((s) => s.availableDispositions);
   const outcomeLabel = (code: string) =>
@@ -56,21 +57,25 @@ export function LeadPanel() {
           {t(
             awaitingEvents
               ? 'connecting'
-              : status === 'paused'
-                ? 'paused'
-                : (waitingReason ?? 'waiting')
+              : dialBlocked
+                ? 'dialBlocked'
+                : status === 'paused'
+                  ? 'paused'
+                  : (waitingReason ?? 'waiting')
           )}
         </h3>
         <p className='text-muted-foreground mt-1 text-sm'>
-          {t(
-            awaitingEvents
-              ? 'connectingDescription'
-              : status === 'paused'
-                ? 'pausedDescription'
-                : waitingReason
-                  ? `${waitingReason}Description`
-                  : 'waitingDescription'
-          )}
+          {dialBlocked && !awaitingEvents
+            ? dialBlocked.message
+            : t(
+                awaitingEvents
+                  ? 'connectingDescription'
+                  : status === 'paused'
+                    ? 'pausedDescription'
+                    : waitingReason
+                      ? `${waitingReason}Description`
+                      : 'waitingDescription'
+              )}
         </p>
       </div>
     );

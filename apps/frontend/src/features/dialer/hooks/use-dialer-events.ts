@@ -67,6 +67,7 @@ export function useDialerEvents(
   const clearSession = useDialerSessionStore((s) => s.clear);
   const setAwaitingEvents = useDialerSessionStore((s) => s.setAwaitingEvents);
   const setWaitingReason = useDialerSessionStore((s) => s.setWaitingReason);
+  const setDialBlocked = useDialerSessionStore((s) => s.setDialBlocked);
   const setLead = useDialerLeadStore((s) => s.setLead);
   const clearLead = useDialerLeadStore((s) => s.clear);
   const setAttempt = useDialerAttemptStore((s) => s.setAttempt);
@@ -166,6 +167,7 @@ export function useDialerEvents(
         // not assign while one is, so this can only be a dial the engine is
         // about to refuse and report.
         if (hasLiveCallForAnotherAttempt(data.attemptId)) return;
+        setDialBlocked(null);
         setLead(data);
         // Store dispositions for the disposition panel
         if (data.dispositions) {
@@ -182,6 +184,7 @@ export function useDialerEvents(
         if (!belongsHere(data)) return;
         if (!data.attemptId) return;
         if (!hasLiveCallForAnotherAttempt(data.attemptId)) {
+          setDialBlocked(null);
           setAttempt(data.attemptId, 'dialing');
         }
         // Trigger actual WebRTC call via callback. It refuses — and reports —
@@ -195,6 +198,10 @@ export function useDialerEvents(
       es.addEventListener('call.blocked', (e) => {
         const data = JSON.parse(e.data);
         if (!belongsHere(data)) return;
+        if (isAboutAnotherAttempt(data.attemptId)) return;
+        if (data.message) {
+          setDialBlocked({ reason: data.reason, message: data.message });
+        }
         if (data.reason === 'CONCURRENT_CALL') {
           notifyConcurrentCall(data.message);
         } else if (data.message) {
@@ -290,6 +297,7 @@ export function useDialerEvents(
     setAwaitingEvents,
     setCallDuration,
     setCallStatus,
+    setDialBlocked,
     setDispositionRequired,
     setLead,
     setSessionStats,

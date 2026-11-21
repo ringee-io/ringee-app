@@ -676,7 +676,13 @@ caps hold campaign-wide.
 
 Selection applies the canonical outbound number allow-list (`NUM-003`), then
 the campaign subset, country and daily cap. Local presence prefers the same
-area code, then the same US state, then the same country. Countries sharing a
+NANP area code, rotating local matches by health then least-recent use. With
+no eligible local match (including calling plans without a supported area-code
+model), it selects uniformly at random from the eligible campaign pool. State
+is not a fallback restriction. The balanced strategy keeps health/LRU ranking.
+An unparseable calling plan is refused instead of bypassing the pool with a
+fixed number. An empty campaign subset retains its existing meaning: use the
+workspace pool. Countries sharing a
 calling code remain distinct (US, Canada, Dominican Republic, Puerto Rico,
 etc.); non-geographic destinations use their calling plan. An empty eligible
 pool is a refusal: no dial surface may replace it with a fixed caller ID or
@@ -951,6 +957,7 @@ depends on why:
 | Already on a call (lease refused), caller-ID selector error        | `ready`, poller skips them for 5s | back as it was            |
 | No caller ID for the destination (country, daily cap, unparseable) | `ready`, 5s cooldown              | deferred 15 min           |
 | Rotation off and the agent may not present the campaign number     | `paused`                          | back as it was            |
+| No configured rotation numbers, or none eligible for the agent     | `paused`, actionable error        | back as it was            |
 | No credit                                                          | `paused`                          | back as it was            |
 | Calling disabled for the user                                      | `offline`                         | back as it was            |
 | The `call.initiated` backstop hung the leg up                      | `paused`                          | back, attempt not counted |

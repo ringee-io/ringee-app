@@ -135,13 +135,13 @@ const SELECTION_STEPS: {
     icon: ShieldCheck,
     title: 'Country match, guaranteed',
     description:
-      'Ringee reads the destination’s country and only ever considers numbers you own in that same country. A prospect never sees a wrong-country caller ID — if Ringee can’t be sure of the country, it leaves your fixed caller ID untouched.'
+      'Ringee reads the destination’s country and only ever considers eligible numbers you own in that same country. If the calling plan cannot be recognized, dialing is refused with a clear error.'
   },
   {
     icon: MapPin,
     title: 'Local area code first',
     description:
-      'On the local-presence strategy, a number sharing the prospect’s exact area code wins. If none is free, Ringee falls back to any number from the same country, so the call still goes out looking local.'
+      'On the local-presence strategy, an eligible number sharing the prospect’s NANP area code wins. If none is available, or the calling plan has no supported area code, Ringee randomly selects an eligible number from the campaign pool in the same country.'
   },
   {
     icon: Gauge,
@@ -153,7 +153,7 @@ const SELECTION_STEPS: {
     icon: Activity,
     title: 'Rank by health, then rest',
     description:
-      'Among the numbers still eligible, Ringee picks the healthiest one — best recent answer rate — and breaks ties by least-recently-used, so your pool rotates evenly instead of leaning on one favorite.'
+      'Local matches rotate by health, then least-recent use. Numbers that are resting, disabled, flagged or over their daily cap stay out of automatic selection, including random fallback. The balanced strategy ranks eligible numbers by health and least-recent use.'
   }
 ];
 

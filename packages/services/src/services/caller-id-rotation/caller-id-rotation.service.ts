@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import {
@@ -20,6 +21,9 @@ export const RotationReason = {
   DISABLED: "rotation_disabled",
   UNPARSEABLE: "unparseable_destination",
   ROTATED: "rotated",
+  RANDOM_FALLBACK: "random_fallback",
+  NO_CONFIGURED_CALLER_IDS: "no_configured_caller_ids",
+  NO_ELIGIBLE_CALLER_IDS: "no_eligible_caller_ids",
   FALLBACK_DEFAULT_FOR_COUNTRY: "fallback_default_for_country",
   NO_CALLER_ID_FOR_COUNTRY: "no_caller_id_for_country",
   ALL_OVER_CAP: "all_over_cap",
@@ -109,6 +113,7 @@ function envInt(name: string, fallback: number): number {
  */
 @Injectable()
 export class CallerIdRotationService {
+  private readonly logger = new Logger(CallerIdRotationService.name);
   constructor(
     private readonly rotationRepo: CallerIdRotationRepository,
     private readonly numberRepo: NumberPurchasedRepository,
@@ -130,8 +135,8 @@ export class CallerIdRotationService {
   /**
    * Decide which caller ID to present for `destination`.
    *
-   * When rotation is OFF (or the destination can't be parsed), preserve the
-   * existing fixed fallback after checking its authorization. When ON, apply
+   * When rotation is OFF, preserve the fixed fallback after checking its
+   * authorization. When ON, apply
    * country/calling-plan matching, caps, local presence and health to the
    * workspace's eligible numbers. A refusal must never be replaced by a fixed
    * number by a caller.
@@ -144,6 +149,7 @@ export class CallerIdRotationService {
       allowOverCap?: boolean;
       restrictToNumberIds?: string[];
       source?: OutboundSource;
+      logContext?: { campaignId: string; sessionId: string };
     } = {},
   ): Promise<SelectResult> {
     const [settings, allowed] = await Promise.all([
@@ -173,26 +179,57 @@ export class CallerIdRotationService {
     if (!settings?.enabled) return fixedResult(RotationReason.DISABLED);
 
     const destinationRegion = resolveRegion(destination);
-    const { country, callingCode, areaCode, state } = destinationRegion;
-    if (!callingCode) return fixedResult(RotationReason.UNPARSEABLE);
-
-    // New purchases/verified IDs join without reopening the settings screen.
-    await this.ensurePool(ctx);
-    const allowedIds = new Set(allowed.map((n) => n.id));
+    const { country, callingCode, areaCode } = destinationRegion;
     const restrict = opts.restrictToNumberIds?.length
       ? new Set(opts.restrictToNumberIds)
       : null;
+    let configuredCount = restrict?.size ?? allowed.length;
+    const report = (
+      result: SelectResult,
+      eligibleCount = 0,
+      localMatchCount = 0,
+    ): SelectResult => {
+      const details = {
+        event: "caller_id.selection",
+        ...opts.logContext,
+        configuredCount,
+        eligibleCount,
+        localMatchCount,
+        randomFallback: result.reason === RotationReason.RANDOM_FALLBACK,
+        reason: result.reason,
+        selectedNumberId: result.numberId,
+      };
+      if (result.phoneNumber) this.logger.debug(details);
+      else this.logger.warn(details);
+      return result;
+    };
+    const refuse = (reason: RotationReasonValue, eligibleCount = 0) =>
+      report(
+        { phoneNumber: null, numberId: null, rotated: false, reason },
+        eligibleCount,
+      );
+    // Without a calling plan we cannot prove destination eligibility. In
+    // particular, never escape the campaign subset/caps via its fixed number.
+    if (!callingCode) return refuse(RotationReason.UNPARSEABLE);
+
+    // New purchases/verified IDs join without reopening the settings screen.
+    const configuredIds = await this.ensurePool(ctx);
+    configuredCount = restrict?.size ?? configuredIds.size;
+    if (!configuredCount)
+      return refuse(RotationReason.NO_CONFIGURED_CALLER_IDS);
+    const allowedIds = new Set(allowed.map((n) => n.id));
 
     // A compare-and-set claim prevents simultaneous workspace callers from
     // consuming the same LRU snapshot. Re-read caps and health on contention.
     for (let attempt = 0; attempt < 5; attempt++) {
       const members = await this.rotationRepo.findEligibleMembers(ctx);
-      const eligible = members.filter((m) => {
-        if (
-          !allowedIds.has(m.numberId) ||
-          (restrict && !restrict.has(m.numberId))
-        )
-          return false;
+      const candidates = members.filter(
+        (m) =>
+          allowedIds.has(m.numberId) && (!restrict || restrict.has(m.numberId)),
+      );
+      if (!candidates.length)
+        return refuse(RotationReason.NO_ELIGIBLE_CALLER_IDS);
+      const eligible = candidates.filter((m) => {
         const region = resolveRegion(m.number.phoneNumber);
         if (region.callingCode !== callingCode) return false;
         // Shared/non-geographic destinations (e.g. +1 800, +800) are matched
@@ -204,12 +241,7 @@ export class CallerIdRotationService {
         );
       });
       if (!eligible.length) {
-        return {
-          phoneNumber: null,
-          numberId: null,
-          rotated: false,
-          reason: RotationReason.NO_CALLER_ID_FOR_COUNTRY,
-        };
+        return refuse(RotationReason.NO_CALLER_ID_FOR_COUNTRY);
       }
       const usage = await this.rotationRepo.usageForNumbers(
         eligible.map((m) => m.numberId),
@@ -221,41 +253,48 @@ export class CallerIdRotationService {
           (m.dailyCap ?? settings.defaultDailyCap),
       );
       if (!underCap.length && !opts.allowOverCap) {
-        return {
-          phoneNumber: null,
-          numberId: null,
-          rotated: false,
-          reason: RotationReason.ALL_OVER_CAP,
-        };
+        return refuse(RotationReason.ALL_OVER_CAP);
       }
       const pool = underCap.length ? underCap : eligible;
       let subset = pool;
+      let localMatchCount = 0;
+      let randomFallback = false;
       if (settings.strategy === "local_presence") {
-        const regions = new Map(
-          pool.map((m) => [m.numberId, resolveRegion(m.number.phoneNumber)]),
-        );
         const sameArea = areaCode
-          ? pool.filter((m) => regions.get(m.numberId)?.areaCode === areaCode)
+          ? pool.filter(
+              (m) => resolveRegion(m.number.phoneNumber).areaCode === areaCode,
+            )
           : [];
-        const sameState = state
-          ? pool.filter((m) => regions.get(m.numberId)?.state === state)
-          : [];
-        subset = sameArea.length
-          ? sameArea
-          : sameState.length
-            ? sameState
-            : pool;
+        localMatchCount = sameArea.length;
+        subset = sameArea.length ? sameArea : pool;
+        randomFallback = sameArea.length === 0;
       }
-      const pick = this.rank(subset)[0];
+      // Local matches retain health/LRU rotation; balanced is unchanged.
+      // No geographic match is a preference miss, never a refusal. Every
+      // eligible member gets an equal-width bucket, regardless of state/health.
+      const pick = randomFallback
+        ? subset[Math.floor(Math.random() * subset.length)]
+        : this.rank(subset)[0];
       if (await this.rotationRepo.markUsed(pick.numberId, pick.lastUsedAt)) {
-        return {
-          phoneNumber: pick.number.phoneNumber,
-          numberId: pick.numberId,
-          rotated: true,
-          reason: RotationReason.ROTATED,
-        };
+        return report(
+          {
+            phoneNumber: pick.number.phoneNumber,
+            numberId: pick.numberId,
+            rotated: true,
+            reason: randomFallback
+              ? RotationReason.RANDOM_FALLBACK
+              : RotationReason.ROTATED,
+          },
+          pool.length,
+          localMatchCount,
+        );
       }
     }
+    this.logger.warn({
+      event: "caller_id.selection_busy",
+      ...opts.logContext,
+      configuredCount,
+    });
     throw new ConflictException("Caller ID selection is busy. Please retry.");
   }
 
@@ -575,7 +614,7 @@ export class CallerIdRotationService {
   // ===========================================================================
 
   /** Create a pool row for every owned number that doesn't have one yet. */
-  private async ensurePool(ctx: OwnershipContext): Promise<void> {
+  private async ensurePool(ctx: OwnershipContext): Promise<Set<string>> {
     const [rotatable, existing] = await Promise.all([
       this.numberRepo.findRotatable(ctx),
       this.rotationRepo.listPoolMembers(ctx),
@@ -589,6 +628,7 @@ export class CallerIdRotationService {
         }),
       ),
     );
+    return new Set([...have, ...missing.map((n) => n.id)]);
   }
 
   private ownsMember(

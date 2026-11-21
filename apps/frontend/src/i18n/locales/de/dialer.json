@@ -112,6 +112,7 @@
     "shortcutsHint": "Tipp: Drücke 1–9, um ein Ergebnis zu wählen, und Enter zum Speichern."
   },
   "lead": {
+    "dialBlocked": "Anruf konnte nicht gestartet werden",
     "waiting": "Warte auf Lead",
     "waitingDescription": "Der Dialer weist dir den nächsten Lead automatisch zu.",
     "unknown": "Unbekannt",

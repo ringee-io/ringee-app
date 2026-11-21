@@ -365,3 +365,39 @@ test('a reconnect snapshot cannot regress call events already received', async (
   });
   assert.equal(f.session.getState().status, 'dialing');
 });
+
+test('caller-ID refusals remain visible through waiting events and clear when a fallback call proceeds', async (t) => {
+  const f = fixture(t);
+  f.session.getState().setSession('session', 'campaign', 'progressive', first);
+  f.events.render();
+  await settle();
+  const stream = f.streams[0];
+  const blocked = {
+    reason: 'NO_ELIGIBLE_CALLER_IDS',
+    message: 'Enable an outbound number in the campaign pool, then resume.'
+  };
+  stream.emit('call.blocked', { ...blocked, sessionStartedAt: second });
+  assert.equal(f.session.getState().dialBlocked, null);
+  stream.emit('call.blocked', { ...blocked, sessionStartedAt: first });
+  stream.emit('session.state', { status: 'paused', sessionStartedAt: first });
+  assert.deepEqual(f.session.getState().dialBlocked, blocked);
+  stream.emit('session.waiting', {
+    reason: 'no_eligible_leads',
+    sessionStartedAt: first
+  });
+  assert.deepEqual(f.session.getState().dialBlocked, blocked);
+  stream.emit('lead.assigned', {
+    id: 'lead',
+    attemptId: 'fallback',
+    contact: {},
+    sessionStartedAt: first
+  });
+  stream.emit('call.initiate', {
+    attemptId: 'fallback',
+    callerIdNumber: '+14155559876',
+    sessionStartedAt: first
+  });
+  assert.equal(f.session.getState().dialBlocked, null);
+  assert.equal(f.dials[0].callerIdNumber, '+14155559876');
+  assert.equal(f.notices.length, 1);
+});

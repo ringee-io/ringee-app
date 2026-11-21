@@ -112,6 +112,7 @@
     "shortcutsHint": "Astuce : appuyez sur 1–9 pour choisir un résultat et sur Entrée pour l'enregistrer."
   },
   "lead": {
+    "dialBlocked": "Impossible de démarrer l’appel",
     "waiting": "En attente d'un lead",
     "waitingDescription": "Le composeur vous attribuera automatiquement le lead suivant.",
     "unknown": "Inconnu",

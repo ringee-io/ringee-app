@@ -112,6 +112,7 @@
     "shortcutsHint": "Tip: druk op 1–9 om een resultaat te kiezen en op Enter om het op te slaan."
   },
   "lead": {
+    "dialBlocked": "Oproep kon niet starten",
     "waiting": "Wachten op lead",
     "waitingDescription": "De dialer wijst je automatisch de volgende lead toe.",
     "unknown": "Onbekend",
