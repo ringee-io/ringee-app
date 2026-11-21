@@ -26,6 +26,12 @@ interface DialerSessionState {
    * is what tells this tab's session apart from that one.
    */
   startedAt: string | null;
+  awaitingEvents: boolean;
+  waitingReason:
+    | 'outside_calling_window'
+    | 'no_eligible_leads'
+    | 'agent_busy'
+    | null;
   campaignId: string | null;
   /** How the campaign dials — the backend returns it when the session starts. */
   dialerMode: DialerMode | null;
@@ -42,9 +48,12 @@ interface DialerSessionState {
     sessionId: string,
     campaignId: string,
     dialerMode: DialerMode | null,
-    startedAt: string | null
+    startedAt: string | null,
+    awaitingEvents?: boolean
   ) => void;
   setStatus: (status: AgentSessionStatus) => void;
+  setAwaitingEvents: (awaiting: boolean) => void;
+  setWaitingReason: (reason: DialerSessionState['waitingReason']) => void;
   setStats: (stats: SessionStats) => void;
   setCloseAfterLead: (closeAfterLead: boolean) => void;
   clear: () => void;
@@ -53,6 +62,8 @@ interface DialerSessionState {
 const initialState = {
   sessionId: null as string | null,
   startedAt: null as string | null,
+  awaitingEvents: false,
+  waitingReason: null as DialerSessionState['waitingReason'],
   campaignId: null as string | null,
   dialerMode: null as DialerMode | null,
   status: 'offline' as AgentSessionStatus,
@@ -63,10 +74,26 @@ const initialState = {
 export const useDialerSessionStore = create<DialerSessionState>((set) => ({
   ...initialState,
 
-  setSession: (sessionId, campaignId, dialerMode, startedAt) =>
-    set({ sessionId, campaignId, dialerMode, startedAt, status: 'ready' }),
+  setSession: (
+    sessionId,
+    campaignId,
+    dialerMode,
+    startedAt,
+    awaitingEvents = false
+  ) =>
+    set({
+      ...initialState,
+      sessionId,
+      campaignId,
+      dialerMode,
+      startedAt,
+      awaitingEvents,
+      status: awaitingEvents ? 'offline' : 'ready'
+    }),
 
   setStatus: (status) => set({ status }),
+  setAwaitingEvents: (awaitingEvents) => set({ awaitingEvents }),
+  setWaitingReason: (waitingReason) => set({ waitingReason }),
 
   setStats: (stats) => set({ stats }),
 

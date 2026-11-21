@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
+import { useDialerSessionStore } from '../store/dialer-session.store';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import {
@@ -39,6 +40,9 @@ function humanize(code: string): string {
 export function LeadPanel() {
   const t = useTranslations('dialer.lead');
   const currentLead = useDialerLeadStore((s) => s.currentLead);
+  const status = useDialerSessionStore((s) => s.status);
+  const awaitingEvents = useDialerSessionStore((s) => s.awaitingEvents);
+  const waitingReason = useDialerSessionStore((s) => s.waitingReason);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
   const dispositions = useDialerAttemptStore((s) => s.availableDispositions);
   const outcomeLabel = (code: string) =>
@@ -48,9 +52,25 @@ export function LeadPanel() {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <Users className='text-muted-foreground mb-3 h-10 w-10' />
-        <h3 className='font-semibold'>{t('waiting')}</h3>
+        <h3 className='font-semibold'>
+          {t(
+            awaitingEvents
+              ? 'connecting'
+              : status === 'paused'
+                ? 'paused'
+                : (waitingReason ?? 'waiting')
+          )}
+        </h3>
         <p className='text-muted-foreground mt-1 text-sm'>
-          {t('waitingDescription')}
+          {t(
+            awaitingEvents
+              ? 'connectingDescription'
+              : status === 'paused'
+                ? 'pausedDescription'
+                : waitingReason
+                  ? `${waitingReason}Description`
+                  : 'waitingDescription'
+          )}
         </p>
       </div>
     );

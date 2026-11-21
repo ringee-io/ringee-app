@@ -899,7 +899,8 @@ Promoting the column to an enum is blocked on `DEBT-002`.
 
 `DialerOrchestrationService.startPolling()` is called from
 `AppModule.onApplicationBootstrap` because lead assignment is pushed over
-in-process SSE. The worker imports the same module and must **not** poll.
+SSE. `SSEBridgeService` relays events over Redis between API instances. The
+worker imports the same module and must **not** poll.
 
 - **Risk if violated:** agents stuck on "Waiting for lead"
 
@@ -1003,9 +1004,34 @@ computer or a reload lands on the same id — and every tab attached to it would
 receive, and dial, the same `call.initiate`. `startSession` releases the previous
 incarnation's lead and tells its tabs `session.state offline` (`taken_over`); the
 browser also compares `startedAt` on each heartbeat. It is refused while that
-session is `dialing` or `in_call` with a live heartbeat.
+session is `dialing` or `in_call` with a live heartbeat, while a provider call is
+still live even without a heartbeat, or while an emitted dial is still awaiting
+provider confirmation within the dispatch timeout.
+
+Replacement and stop atomically release abandoned assignments with the state
+change. Lifecycle requests, agent claims, late events and disposition transitions
+are fenced by `startedAt`; stale cleanup also compares `lastHeartbeat`. The
+same session id alone never proves a request still owns its incarnation.
 
 - **Source of truth:** `AgentSessionService.startSession`
+
+### CMP-017 — A new workspace session receives leads only after its event stream is attached
+
+The workspace opts into `waitForEvents`. `offline` with `endedAt: null` is its
+pending stream state. The SSE controller subscribes and confirms the Redis relay
+before activating that incarnation; a tick during HTTP start or ticket issuance
+must not reserve a lead. A reconnect never replays a dial instruction. Previously
+released clients that omit the flag retain their existing start behavior.
+
+A progressive reservation interrupted before an attempt exists is recovered by
+the existing stalled-dispatch sweep. Preview reservations and live calls are not
+orphaned work. Only active campaigns may start or resume a calling session; a
+paused wrap-up returns to wrap-up until its lead is dispositioned.
+
+- **Source of truth:** `DialerController.sessionEvents`,
+  `AgentSessionService.activateAfterEvents`, `DialerOrchestrationService.sweepStalledDials`
+- **Risk if violated:** `lead.assigned` and `call.initiate` disappear before the
+  browser subscribes, leaving an agent waiting while its lead is already reserved
 
 ---
 

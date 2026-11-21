@@ -28,6 +28,7 @@ interface SessionRow {
   callsAttempted: number;
   callsConnected: number;
   totalTalkSec: number;
+  updatedAt: Date;
 }
 
 interface LeadRow {
@@ -86,7 +87,7 @@ function createWorld(
     id: "campaign-1",
     organizationId: "org-1",
     callerIdId: null,
-    numberPurchasedId: null,
+    numberPurchasedId: "number-1" as string | null,
     externalNumberId: null as string | null,
     rotationNumberIds: [] as string[],
     maxAttempts: 3,
@@ -119,6 +120,7 @@ function createWorld(
     callsAttempted: 0,
     callsConnected: 0,
     totalTalkSec: 0,
+    updatedAt: new Date(),
   });
   for (let i = 1; i <= (options.leads ?? 2); i++) {
     leads.set(`lead-${i}`, {
@@ -197,13 +199,20 @@ function createWorld(
     issueDialAuthorization: () => "dial-token",
   };
   const rotation = {
+    enabled: true,
     selections: 0,
     phoneNumber: "+12125559999" as string | null,
     reason: "rotated",
-    selectForDial: async () => {
+    selectForDial: async (
+      _ctx: unknown,
+      _destination: string,
+      fixed: { phoneNumber: string | null },
+    ) => {
       rotation.selections += 1;
       return {
-        phoneNumber: rotation.phoneNumber,
+        phoneNumber: rotation.enabled
+          ? rotation.phoneNumber
+          : fixed.phoneNumber,
         numberId: null,
         rotated: !!rotation.phoneNumber,
         reason: rotation.reason,
@@ -216,6 +225,30 @@ function createWorld(
   const user = { canCall: true, freeCallTrial: false };
 
   const copySession = (s: SessionRow) => ({ ...s });
+  const liveForSession = (id: string) =>
+    [...attempts.values()].some(
+      (a) =>
+        a.agentSessionId === id && a.callId && LIVE_ATTEMPT.includes(a.status),
+    );
+  const sameSnapshot = (s: SessionRow, previous: SessionRow) =>
+    s.startedAt.getTime() === previous.startedAt.getTime() &&
+    s.lastHeartbeat.getTime() === previous.lastHeartbeat.getTime() &&
+    s.status === previous.status &&
+    s.currentLeadId === previous.currentLeadId;
+  const releaseAssignments = (id: string) => {
+    for (const [key, a] of attempts) {
+      if (
+        a.agentSessionId === id &&
+        !a.callId &&
+        UNDIALED_ATTEMPT.includes(a.status)
+      )
+        attempts.delete(key);
+    }
+    for (const l of leads.values()) {
+      if (l.lockedBy === id && RELEASABLE_LEAD.includes(l.status))
+        Object.assign(l, { status: "queued", lockedBy: null, lockedAt: null });
+    }
+  };
   const sessionRepo = {
     findById: async (id: string) => {
       await roundTrip();
@@ -243,7 +276,12 @@ function createWorld(
     },
     transitionIf: async (
       id: string,
-      expected: { from: string[]; currentLeadId?: string | null },
+      expected: {
+        from: string[];
+        currentLeadId?: string | null;
+        startedAt?: Date;
+        endedAt?: Date | null;
+      },
       status: string,
       extra: Partial<SessionRow> = {},
     ) => {
@@ -251,14 +289,93 @@ function createWorld(
       const s = sessions.get(id);
       if (!s || !expected.from.includes(s.status)) return false;
       if (
+        expected.startedAt &&
+        s.startedAt.getTime() !== expected.startedAt.getTime()
+      )
+        return false;
+      if (expected.endedAt !== undefined && s.endedAt !== expected.endedAt)
+        return false;
+      if (
         expected.currentLeadId !== undefined &&
         s.currentLeadId !== expected.currentLeadId
       ) {
         return false;
       }
-      Object.assign(s, { status }, extra);
+      Object.assign(s, { status, updatedAt: new Date() }, extra);
       return true;
     },
+    restartIfUnchanged: async (
+      data: { campaignId: string; userId: string },
+      previous: SessionRow | null,
+      status: string,
+    ) => {
+      await roundTrip();
+      const s = [...sessions.values()].find(
+        (row) =>
+          row.campaignId === data.campaignId && row.userId === data.userId,
+      )!;
+      if (!previous || !sameSnapshot(s, previous) || liveForSession(s.id))
+        return null;
+      releaseAssignments(s.id);
+      Object.assign(s, {
+        status,
+        currentLeadId: null,
+        lastHeartbeat: new Date(),
+        startedAt: new Date(
+          Math.max(Date.now(), previous.startedAt.getTime() + 1),
+        ),
+        endedAt: null,
+        callsAttempted: 0,
+        callsConnected: 0,
+        totalTalkSec: 0,
+        updatedAt: new Date(),
+      });
+      return copySession(s);
+    },
+    endIfUnchanged: async (previous: SessionRow, preserve = false) => {
+      await roundTrip();
+      const s = sessions.get(previous.id)!;
+      if (!sameSnapshot(s, previous) || (!preserve && liveForSession(s.id)))
+        return null;
+      Object.assign(s, {
+        status: "offline",
+        endedAt: new Date(),
+        updatedAt: new Date(),
+      });
+      if (!preserve) {
+        s.currentLeadId = null;
+        releaseAssignments(s.id);
+      }
+      return copySession(s);
+    },
+    heartbeat: async (id: string, startedAt?: Date) => {
+      await roundTrip();
+      const s = sessions.get(id)!;
+      if (startedAt && s.startedAt.getTime() !== startedAt.getTime())
+        return null;
+      s.lastHeartbeat = new Date(
+        Math.max(Date.now(), s.lastHeartbeat.getTime() + 1),
+      );
+      return copySession(s);
+    },
+    findStale: async (threshold: number) =>
+      [...sessions.values()]
+        .filter(
+          (s) =>
+            s.lastHeartbeat.getTime() < Date.now() - threshold &&
+            (s.status !== "offline" || !s.endedAt),
+        )
+        .map(copySession),
+    findStalledReservations: async (cutoff: Date) =>
+      [...sessions.values()]
+        .filter(
+          (s) =>
+            campaign.dialerMode === "progressive" &&
+            s.status === "reserved" &&
+            s.updatedAt < cutoff &&
+            !liveForSession(s.id),
+        )
+        .map(copySession),
     upsert: async (data: { campaignId: string; userId: string }) => {
       await roundTrip();
       const s = [...sessions.values()].find(
@@ -284,9 +401,12 @@ function createWorld(
         callsConnected?: number;
         totalTalkSec?: number;
       },
+      startedAt?: Date,
     ) => {
       await roundTrip();
       const s = sessions.get(id)!;
+      if (startedAt && s.startedAt.getTime() !== startedAt.getTime())
+        return null;
       s.callsAttempted += stats.callsAttempted ?? 0;
       s.callsConnected += stats.callsConnected ?? 0;
       s.totalTalkSec += stats.totalTalkSec ?? 0;
@@ -395,6 +515,19 @@ function createWorld(
   const copyAttempt = (a: AttemptRow) => ({ ...a });
   const failures = { createAttempt: false };
   const attemptRepo = {
+    findUnconfirmedDialForSession: async (id: string) => {
+      await roundTrip();
+      const pending = [...attempts.values()]
+        .filter(
+          (a) => a.agentSessionId === id && !a.callId && a.status === "dialing",
+        )
+        .sort((a, b) => b.initiatedAt.getTime() - a.initiatedAt.getTime());
+      return pending[0] ? { ...pending[0] } : null;
+    },
+    hasLiveCallForSession: async (id: string) => {
+      await roundTrip();
+      return liveForSession(id);
+    },
     create: async (data: Omit<AttemptRow, "id" | "status" | "callId">) => {
       await roundTrip();
       if (failures.createAttempt) throw new Error("database unavailable");
@@ -538,7 +671,6 @@ function createWorld(
 
   const agentSessionService = new AgentSessionService(
     sessionRepo as never,
-    leadRepo as never,
     userService as never,
     sseBridge as never,
     attemptRepo as never,
@@ -592,7 +724,10 @@ function createWorld(
       findActiveForDialer: async () => [campaign],
       findById: async () => campaign,
     } as never,
-    { findById: async () => null, findOne: async () => null } as never,
+    {
+      findById: async () => ({ phoneNumber: "+12125559998" }),
+      findOne: async () => ({ phoneNumber: "+12125559998" }),
+    } as never,
     new LeadQueueService(leadRepo as never),
     agentSessionService,
     callAttemptService,
@@ -628,6 +763,9 @@ function createWorld(
     sessions,
     leads,
     attempts,
+    sessionRepo,
+    leadRepo,
+    attemptRepo,
     agentSessionService,
     callAttemptService,
     orchestrator,
@@ -744,9 +882,10 @@ describe("DialerOrchestrationService", () => {
 
       await world.runTick();
 
-      // A failed lookup is not an empty balance: nothing is paused or blocked.
+      // A failed lookup is not an empty balance. It is reported as a dispatch
+      // failure and the assignment is released, rather than pausing for credit.
       assert.equal(world.of("call.initiate").length, 0);
-      assert.equal(world.of("call.blocked").length, 0);
+      assert.equal(world.of("call.blocked")[0].data.reason, "DISPATCH_FAILED");
       assert.equal(world.attempts.size, 0);
       assert.equal(world.session().status, "ready");
       assert.equal(world.session().currentLeadId, null);
@@ -1213,6 +1352,157 @@ describe("CallAttemptService lifecycle", () => {
       }),
     );
 
+  it("resumes a paused wrap-up on the same lead until its outcome is recorded", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    await world.agentSessionService.pause("session-1");
+    await world.agentSessionService.pause("session-1");
+    await world.agentSessionService.resume("session-1");
+    await world.agentSessionService.resume("session-1");
+    await world.runTick();
+    assert.equal(world.session().status, "wrap_up");
+    assert.equal(world.of("call.initiate").length, 1);
+    await dispose(world, attemptId);
+    await world.runTick();
+    assert.equal(world.of("call.initiate").length, 2);
+  });
+
+  it("does not let a late disposition close a replacement session", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    await world.agentSessionService.endSession("session-1");
+    world.lead("lead-1").nextCallAt = new Date(Date.now() + 60_000);
+    const next = await world.agentSessionService.startSession({
+      campaignId: "campaign-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      waitForEvents: true,
+    });
+    const result = await dispose(world, attemptId, true);
+    assert.equal(result.sessionClosed, false);
+    assert.equal(world.session().endedAt, null);
+    await world.agentSessionService.activateAfterEvents(
+      next.id,
+      next.startedAt,
+    );
+    await world.runTick();
+    assert.equal(world.session().currentLeadId, "lead-2");
+  });
+
+  it("settles a late hangup without moving or charging talk time to the next incarnation", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await dispose(world, attemptId);
+    await world.agentSessionService.endSession("session-1");
+    const next = await world.agentSessionService.startSession({
+      campaignId: "campaign-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      waitForEvents: true,
+    });
+    await hangup(world, attemptId);
+    assert.equal(world.attempts.get(attemptId)!.durationSec, 42);
+    assert.equal(world.session().callsAttempted, 0);
+    assert.equal(world.session().totalTalkSec, 0);
+    assert.equal(world.session().startedAt.getTime(), next.startedAt.getTime());
+    assert.equal(world.session().status, "offline");
+  });
+
+  for (const mode of ["rotated", "disabled"]) {
+    it(`dials eligible leads through repeated stop/start cycles with caller ID ${mode}`, async () => {
+      const world = createWorld({ leads: 8 });
+      world.session().status = "offline";
+      world.rotation.reason = mode;
+      world.rotation.enabled = mode !== "disabled";
+      for (let cycle = 0; cycle < 3; cycle++) {
+        const session = await world.agentSessionService.startSession({
+          campaignId: "campaign-1",
+          userId: "user-1",
+          organizationId: "org-1",
+          waitForEvents: true,
+        });
+        await world.runTick();
+        assert.equal(
+          world.session().currentLeadId,
+          null,
+          "no lead can be sent before its event stream is attached",
+        );
+        await world.agentSessionService.activateAfterEvents(
+          session.id,
+          session.startedAt,
+        );
+        for (let n = 0; n < 2; n++) {
+          const before = world.of("call.initiate").length;
+          await world.runTick();
+          assert.equal(world.of("call.initiate").length, before + 1);
+          const attemptId = world.of("call.initiate").at(-1)!.data.attemptId;
+          assert.equal(
+            world.of("call.initiate").at(-1)!.data.callerIdNumber,
+            mode === "disabled" ? "+12125559998" : "+12125559999",
+          );
+          await world.callAttemptService.handleWebhookEvent(
+            attemptId,
+            "call.initiated",
+            call(),
+          );
+          await world.callAttemptService.handleWebhookEvent(
+            attemptId,
+            "call.answered",
+            call(),
+          );
+          await hangup(world, attemptId);
+          await dispose(world, attemptId);
+        }
+        await world.agentSessionService.endSession(
+          session.id,
+          session.startedAt,
+        );
+        await world.agentSessionService.endSession(
+          session.id,
+          session.startedAt,
+        );
+        assert.equal(world.session().status, "offline");
+        assert.ok([...world.leads.values()].every((l) => !l.lockedBy));
+      }
+      assert.equal(world.of("call.initiate").length, 6);
+      assert.equal(
+        new Set(world.of("call.initiate").map((e) => e.data.attemptId)).size,
+        6,
+      );
+      assert.equal(
+        [...world.leads.values()].filter((l) => l.status === "queued").length,
+        2,
+      );
+    });
+  }
+
+  it("refuses to end a live call and retains its lead even when the heartbeat is stale", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await assert.rejects(
+      world.agentSessionService.endSession("session-1"),
+      /active call/,
+    );
+    world.session().lastHeartbeat = new Date(Date.now() - 60_000);
+    assert.equal(await world.agentSessionService.cleanupStaleSessions(), 1);
+    assert.equal(world.session().status, "offline");
+    assert.equal(world.lead("lead-1").lockedBy, "session-1");
+    await assert.rejects(
+      world.agentSessionService.startSession({
+        campaignId: "campaign-1",
+        userId: "user-1",
+        organizationId: "org-1",
+      }),
+      /on a call/,
+    );
+    await hangup(world, attemptId);
+    await world.agentSessionService.startSession({
+      campaignId: "campaign-1",
+      userId: "user-1",
+      organizationId: "org-1",
+    });
+    await world.runTick();
+    assert.equal(world.session().status, "dialing");
+  });
+
   it("rejects invalid callback dates before accepting any callback-triggering outcome", async () => {
     for (const outcome of ["interested", "follow_up", "callback_scheduled"]) {
       const { world, attemptId } = await dialedAndAnswered();
@@ -1483,6 +1773,167 @@ describe("CallAttemptService lifecycle", () => {
 });
 
 describe("AgentSessionService.startSession", () => {
+  const start = (world: ReturnType<typeof createWorld>) =>
+    world.agentSessionService.startSession({
+      campaignId: "campaign-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      waitForEvents: true,
+    });
+
+  it("fences delayed stops, heartbeats and poller claims from the previous incarnation", async () => {
+    const world = createWorld();
+    const old = await start(world);
+    await world.agentSessionService.endSession(old.id, old.startedAt);
+    const next = await start(world);
+    await world.agentSessionService.activateAfterEvents(
+      next.id,
+      next.startedAt,
+    );
+    await world.agentSessionService.endSession(old.id, old.startedAt);
+    await assert.rejects(
+      world.agentSessionService.heartbeat(old.id, old.startedAt),
+      /replaced/,
+    );
+    await assert.rejects(
+      world.agentSessionService.pause(old.id, old.startedAt),
+      /replaced/,
+    );
+    assert.equal(
+      await world.agentSessionService.claimForLead(
+        old.id,
+        "lead-1",
+        old.startedAt,
+      ),
+      false,
+    );
+    await world.runTick();
+    assert.equal(world.of("call.initiate").length, 1);
+    assert.equal(world.session().status, "dialing");
+  });
+
+  it("does not let a stale-session sweep terminate a newly heartbeating session", async () => {
+    const world = createWorld();
+    world.session().lastHeartbeat = new Date(Date.now() - 60_000);
+    const stale = { ...world.session() };
+    world.sessionRepo.findStale = async () => [stale];
+    await world.agentSessionService.heartbeat(stale.id, stale.startedAt);
+    assert.equal(await world.agentSessionService.cleanupStaleSessions(), 0);
+    assert.equal(world.session().status, "ready");
+  });
+
+  it("retains an uncertain sent dial until reconciliation, including legacy missing currentLeadId", async () => {
+    const world = createWorld();
+    await world.runTick();
+    const pending = [...world.attempts.values()][0];
+    world.session().currentLeadId = null;
+    await world.agentSessionService.endSession("session-1");
+    assert.equal(world.lead("lead-1").lockedBy, "session-1");
+    await assert.rejects(start(world), /on a call/);
+    pending.initiatedAt = new Date(Date.now() - 100_000);
+    const next = await start(world);
+    assert.equal(world.attempts.size, 0);
+    assert.equal(world.lead("lead-1").lockedBy, null);
+    await world.agentSessionService.activateAfterEvents(
+      next.id,
+      next.startedAt,
+    );
+    await world.runTick();
+    assert.equal(world.of("call.initiate").length, 2);
+  });
+
+  it("releases a reserved lead on stop and honors changed settings when restarted", async () => {
+    const world = createWorld({ dialerMode: "preview" });
+    await world.runTick();
+    await world.agentSessionService.endSession("session-1");
+    assert.equal(world.lead("lead-1").lockedBy, null);
+    assert.equal(world.attempts.size, 0);
+    world.campaign.dialerMode = "progressive";
+    world.campaign.numberPurchasedId = "new-number";
+    const next = await start(world);
+    await world.agentSessionService.activateAfterEvents(
+      next.id,
+      next.startedAt,
+    );
+    await world.runTick();
+    assert.equal(world.of("call.initiate").length, 1);
+  });
+
+  it("recovers a progressive worker interrupted after reservation, with or without an attempt", async () => {
+    for (const withAttempt of [false, true]) {
+      const world = createWorld({ dialerMode: "preview" });
+      await world.runTick();
+      if (!withAttempt) world.attempts.clear();
+      world.campaign.dialerMode = "progressive";
+      world.session().updatedAt = new Date(Date.now() - 100_000);
+      world.forceStalledSweep();
+      await world.runTick();
+      assert.equal(world.session().status, "paused");
+      assert.equal(world.lead("lead-1").lockedBy, null);
+      assert.equal(world.attempts.size, 0);
+      await world.agentSessionService.resume("session-1");
+      await world.agentSessionService.resume("session-1");
+      await world.runTick();
+      assert.equal(world.of("call.initiate").length, 1);
+    }
+  });
+
+  it("preserves healthy preview reservations and reports when no eligible leads exist", async () => {
+    const preview = createWorld({ dialerMode: "preview" });
+    await preview.runTick();
+    preview.session().updatedAt = new Date(Date.now() - 100_000);
+    preview.forceStalledSweep();
+    await preview.runTick();
+    assert.equal(preview.session().status, "reserved");
+    assert.equal(preview.lead("lead-1").lockedBy, "session-1");
+
+    const empty = createWorld({ leads: 0 });
+    const next = await start(empty);
+    await empty.agentSessionService.activateAfterEvents(
+      next.id,
+      next.startedAt,
+    );
+    await empty.runTick();
+    assert.equal(empty.of("call.initiate").length, 0);
+    assert.equal(
+      empty.of("session.waiting")[0].data.reason,
+      "no_eligible_leads",
+    );
+  });
+
+  it("does not dispatch a lead between starting and attaching the event stream", async () => {
+    const world = createWorld();
+    world.session().status = "offline";
+    await world.agentSessionService.startSession({
+      campaignId: "campaign-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      waitForEvents: true,
+    } as Parameters<AgentSessionService["startSession"]>[0]);
+
+    // The start HTTP response, ticket request and SSE connection can take any
+    // amount of time. A tick in that interval must not consume the only copy
+    // of lead.assigned/call.initiate before the browser can receive it.
+    await world.runTick();
+    assert.equal(world.of("call.initiate").length, 0);
+    assert.equal(world.session().currentLeadId, null);
+    assert.equal(world.lead("lead-1").status, "queued");
+  });
+
+  it("allows only one concurrent start to replace a session", async () => {
+    const world = createWorld();
+    const results = await Promise.allSettled(
+      Array.from({ length: 3 }, () =>
+        world.agentSessionService.startSession({
+          campaignId: "campaign-1",
+          userId: "user-1",
+          organizationId: "org-1",
+        }),
+      ),
+    );
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  });
+
   it("takes over a session left open in another tab, handing its lead back", async () => {
     const world = createWorld({ dialerMode: "preview" });
     await world.runTick();
@@ -1500,7 +1951,12 @@ describe("AgentSessionService.startSession", () => {
     assert.equal(world.attempts.size, 0);
     assert.equal(world.lead("lead-1").status, "queued");
     const [offline] = world.of("session.state");
-    assert.deepEqual(offline.data, { status: "offline", reason: "taken_over" });
+    assert.equal(offline.data.status, "offline");
+    assert.equal(offline.data.reason, "taken_over");
+    assert.notEqual(
+      offline.data.sessionStartedAt,
+      world.session().startedAt.toISOString(),
+    );
   });
 
   it("refuses to take over a session that is on a call in another tab", async () => {

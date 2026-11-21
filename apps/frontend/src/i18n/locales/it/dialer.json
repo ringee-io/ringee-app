@@ -58,7 +58,11 @@
       "script": "Script",
       "transcript": "Trascrizione",
       "outcome": "Esito"
-    }
+    },
+    "endFailed": "Impossibile terminare la sessione. Riprova.",
+    "pauseFailed": "Impossibile mettere in pausa la sessione. Riprova.",
+    "resumeFailed": "Impossibile riprendere la sessione. Riprova.",
+    "connectionFailed": "La connessione della sessione è stata interrotta. Riconnessione…"
   },
   "statusBar": {
     "statuses": {
@@ -136,7 +140,17 @@
       "in_call": "In chiamata",
       "ended": "Chiamata terminata",
       "dispositioned": "Salvato"
-    }
+    },
+    "connecting": "Connessione della sessione di chiamate",
+    "connectingDescription": "I lead verranno assegnati quando la connessione sarà pronta.",
+    "paused": "Sessione in pausa",
+    "pausedDescription": "Riprendi la sessione quando sei pronto a chiamare.",
+    "outside_calling_window": "Fuori dall’orario di chiamata",
+    "outside_calling_windowDescription": "La composizione riprenderà durante gli orari consentiti di questa campagna.",
+    "no_eligible_leads": "Nessun lead idoneo al momento",
+    "no_eligible_leadsDescription": "I lead possono essere programmati per dopo, esauriti, esclusi o riservati da un’altra sessione.",
+    "agent_busy": "In attesa della chiamata in corso",
+    "agent_busyDescription": "Termina la chiamata attuale prima che questa sessione riceva un altro lead."
   },
   "softphone": {
     "dialFailed": "Impossibile avviare la chiamata.",

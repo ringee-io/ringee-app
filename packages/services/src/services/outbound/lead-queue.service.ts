@@ -29,7 +29,7 @@ export class LeadQueueService {
 
     if (lead) {
       this.logger.debug(
-        `Locked lead ${lead.id} (contact: ${lead.contact.phoneNumber}) for session ${agentSessionId}`,
+        `Locked lead ${lead.id} in campaign ${campaignId} for session ${agentSessionId}`,
       );
     }
 

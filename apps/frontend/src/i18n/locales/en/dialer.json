@@ -58,7 +58,11 @@
       "script": "Script",
       "transcript": "Transcript",
       "outcome": "Outcome"
-    }
+    },
+    "endFailed": "Could not end the session. Please try again.",
+    "pauseFailed": "Could not pause the session. Please try again.",
+    "resumeFailed": "Could not resume the session. Please try again.",
+    "connectionFailed": "The calling session connection was interrupted. Reconnecting…"
   },
   "statusBar": {
     "statuses": {
@@ -136,7 +140,17 @@
       "in_call": "On call",
       "ended": "Call ended",
       "dispositioned": "Saved"
-    }
+    },
+    "connecting": "Connecting calling session",
+    "connectingDescription": "Leads will be assigned once the session connection is ready.",
+    "paused": "Session paused",
+    "pausedDescription": "Resume the session when you are ready to call.",
+    "outside_calling_window": "Outside calling hours",
+    "outside_calling_windowDescription": "Dialing will continue during this campaign’s allowed calling hours.",
+    "no_eligible_leads": "No eligible leads right now",
+    "no_eligible_leadsDescription": "Leads may be scheduled for later, exhausted, excluded, or reserved by another session.",
+    "agent_busy": "Waiting for your active call",
+    "agent_busyDescription": "Finish your current call before this session receives another lead."
   },
   "softphone": {
     "dialFailed": "Could not start the call.",

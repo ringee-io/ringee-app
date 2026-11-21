@@ -91,6 +91,12 @@ export class SSEBridgeService implements OnModuleDestroy {
     return this.relay;
   }
 
+  /** Call dispatch cannot rely on the local-only fallback across API tasks. */
+  async isRelayReady(): Promise<boolean> {
+    await this.listen();
+    return this.relayActive;
+  }
+
   onModuleDestroy() {
     this.destroyed = true;
     this.relayActive = false;

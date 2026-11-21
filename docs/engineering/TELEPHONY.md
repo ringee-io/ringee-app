@@ -311,6 +311,25 @@ test suite skips this integration case when the variable is absent.
 
 ## Campaigns
 
+The workspace starts a session with `waitForEvents: true`. Its initial
+`offline` state with `endedAt: null` means it is waiting for its event stream,
+not ended. `DialerController` subscribes to the shared SSE relay, sends
+`session.connected`, then activates that incarnation. Never mark it ready in
+the HTTP start request: the poller can otherwise consume a lead and emit the
+only dial instruction before the browser has opened its stream. A failed relay
+does not activate a pending session. Reconnecting never replays `call.initiate`.
+Older clients that omit the flag retain their existing start behavior.
+
+Session IDs are reused per campaign/user. `startedAt` is the incarnation fence:
+the workspace includes it in lifecycle requests and stream tickets; claims,
+cleanup, late call events and disposition transitions cannot drive a newer
+incarnation. Start/stop persist the state change, discard undialed attempts and
+release the session's abandoned lead locks in one transaction. Cleanup compares
+the heartbeat it read too, so a recovered browser wins over a stale sweep.
+Live provider calls keep their leads, including when a heartbeat expires. A
+stopped dial whose provider placement is still uncertain retains its reservation
+until it is reconciled or reaches the existing dispatch timeout.
+
 `DialerOrchestrationService` polls every 500 ms **in the API process**
 (`CMP-010`), one tick at a time (`CMP-012`). Per tick, per active campaign:
 
@@ -329,6 +348,18 @@ test suite skips this integration case when the variable is absent.
 
 A refused dial follows `CMP-013`. The same tick runs the stalled-dial sweep every
 10 s: a session `dialing` an attempt with no provider leg for 90 s is paused.
+It also recovers a progressive session left `reserved` for 90 s, including a
+worker interrupted before the attempt was created. Preview reservations are
+intentional and are excluded. The retry sweep preserves preview assignments and
+live provider calls. A resumed wrap-up remains on its lead until disposition.
+`session.waiting` reports calling-window, eligibility or busy-agent reasons;
+the existing heartbeat also reconciles status if a state event was missed.
+
+The lifecycle PostgreSQL regression case runs against an isolated local socket
+with `RINGEE_DIALER_TEST_PG_SOCKET` (port 55445, database `postgres`). It uses its
+own schema and never uses `DATABASE_URL`. No schema migration is required for
+the stream handshake or incarnation fencing. Deploy the API before the new
+dashboard, and update the orchestrator so its cleanup uses the same fences.
 
 The browser owns the leg once `call.initiate` arrives. The workspace tracks it by
 its own Telnyx call id (chosen before `newCall`, which reports the first state

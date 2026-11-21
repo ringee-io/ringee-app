@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { SSEBridgeService, type SSEMessageEvent } from "./sse-bridge.service";
+import { RealtimeBusService } from "@ringee/platform";
 
 type Handler = (payload: unknown) => void;
 
@@ -51,6 +52,51 @@ const settle = async () => {
 };
 
 describe("SSEBridgeService", () => {
+  it("recovers the real event bus after its initial Redis connection fails", async () => {
+    let failures = 1;
+    let listener: ((message: string) => void) | undefined;
+    const client = {
+      duplicate: () => ({
+        on: () => undefined,
+        connect: async () => {
+          if (failures-- > 0) throw new Error("redis unavailable");
+        },
+        subscribe: async (_channel: string, fn: (message: string) => void) => {
+          listener = fn;
+        },
+        unsubscribe: async () => undefined,
+        quit: async () => undefined,
+      }),
+      publish: async (_channel: string, message: string) => {
+        listener?.(message);
+        return listener ? 1 : 0;
+      },
+    };
+    const bus = new RealtimeBusService(client as never);
+    const bridge = new SSEBridgeService(bus);
+    try {
+      await bridge.listen();
+      assert.equal(await bridge.isRelayReady(), true);
+      const received = collect(bridge, "agent:s1");
+      bridge.emit("agent:s1", "call.initiate", { attemptId: "attempt" });
+      await settle();
+      assert.equal(received.length, 1);
+    } finally {
+      bridge.onModuleDestroy();
+      await bus.onModuleDestroy();
+    }
+  });
+
+  it("reports an unavailable relay instead of activating a new dialer on local-only delivery", async () => {
+    const redis = new FakeRedis();
+    redis.refuseSubscribe = true;
+    const bridge = bridgeOn(redis);
+    assert.equal(await bridge.isRelayReady(), false);
+    redis.refuseSubscribe = false;
+    assert.equal(await bridge.isRelayReady(), true);
+    bridge.onModuleDestroy();
+  });
+
   it("reaches a stream held by another API instance", async () => {
     const redis = new FakeRedis();
     const emitter = bridgeOn(redis);

@@ -58,7 +58,11 @@
       "script": "Guion",
       "transcript": "Transcripción",
       "outcome": "Resultado"
-    }
+    },
+    "endFailed": "No se pudo finalizar la sesión. Inténtalo de nuevo.",
+    "pauseFailed": "No se pudo pausar la sesión. Inténtalo de nuevo.",
+    "resumeFailed": "No se pudo reanudar la sesión. Inténtalo de nuevo.",
+    "connectionFailed": "Se interrumpió la conexión de la sesión. Reconectando…"
   },
   "statusBar": {
     "statuses": {
@@ -136,7 +140,17 @@
       "in_call": "En llamada",
       "ended": "Llamada terminada",
       "dispositioned": "Guardado"
-    }
+    },
+    "connecting": "Conectando sesión de llamadas",
+    "connectingDescription": "Los leads se asignarán cuando la conexión de la sesión esté lista.",
+    "paused": "Sesión pausada",
+    "pausedDescription": "Reanuda la sesión cuando estés listo para llamar.",
+    "outside_calling_window": "Fuera del horario de llamadas",
+    "outside_calling_windowDescription": "La marcación continuará durante el horario permitido de esta campaña.",
+    "no_eligible_leads": "No hay leads elegibles en este momento",
+    "no_eligible_leadsDescription": "Los leads pueden estar programados para más tarde, agotados, excluidos o reservados por otra sesión.",
+    "agent_busy": "Esperando tu llamada activa",
+    "agent_busyDescription": "Termina tu llamada actual para que esta sesión reciba otro lead."
   },
   "softphone": {
     "dialFailed": "No se pudo iniciar la llamada.",

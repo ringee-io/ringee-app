@@ -58,7 +58,11 @@
       "script": "Script",
       "transcript": "Transcriptie",
       "outcome": "Resultaat"
-    }
+    },
+    "endFailed": "De sessie kon niet worden beëindigd. Probeer het opnieuw.",
+    "pauseFailed": "De sessie kon niet worden gepauzeerd. Probeer het opnieuw.",
+    "resumeFailed": "De sessie kon niet worden hervat. Probeer het opnieuw.",
+    "connectionFailed": "De sessieverbinding is onderbroken. Opnieuw verbinden…"
   },
   "statusBar": {
     "statuses": {
@@ -136,7 +140,17 @@
       "in_call": "In gesprek",
       "ended": "Gesprek beëindigd",
       "dispositioned": "Opgeslagen"
-    }
+    },
+    "connecting": "Belsessie verbinden",
+    "connectingDescription": "Leads worden toegewezen zodra de sessieverbinding gereed is.",
+    "paused": "Sessie gepauzeerd",
+    "pausedDescription": "Hervat de sessie wanneer je klaar bent om te bellen.",
+    "outside_calling_window": "Buiten beltijden",
+    "outside_calling_windowDescription": "Het bellen gaat verder tijdens de toegestane beltijden van deze campagne.",
+    "no_eligible_leads": "Momenteel geen geschikte leads",
+    "no_eligible_leadsDescription": "Leads kunnen voor later gepland, uitgeput, uitgesloten of door een andere sessie gereserveerd zijn.",
+    "agent_busy": "Wachten op je actieve gesprek",
+    "agent_busyDescription": "Beëindig je huidige gesprek voordat deze sessie een nieuwe lead ontvangt."
   },
   "softphone": {
     "dialFailed": "Het gesprek kon niet worden gestart.",

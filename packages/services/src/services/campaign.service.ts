@@ -128,6 +128,12 @@ export class CampaignService {
       }
     }
 
+    if (campaign.status !== "active") {
+      throw new BadRequestException(
+        "Activate this campaign before starting a calling session.",
+      );
+    }
+
     return campaign;
   }
 

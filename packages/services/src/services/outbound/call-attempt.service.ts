@@ -172,6 +172,12 @@ export class CallAttemptService {
     const sessionChannel = attempt.agentSessionId
       ? `agent:${attempt.agentSessionId}`
       : null;
+    const incarnation =
+      eventType !== "call.initiated" && attempt.agentSessionId
+        ? await this.agentSessionService.getById(attempt.agentSessionId)
+        : null;
+    const currentIncarnation =
+      incarnation && attempt.initiatedAt >= incarnation.startedAt;
 
     switch (eventType) {
       case "call.initiated": {
@@ -191,7 +197,8 @@ export class CallAttemptService {
         if (!(await this.attemptRepo.markAnsweredIf(attempt.id, call.id))) {
           return;
         }
-        if (!attempt.agentSessionId || !sessionChannel) return;
+        if (!attempt.agentSessionId || !sessionChannel || !currentIncarnation)
+          return;
 
         await this.campaignLeadRepo.advanceIfHeldBy(
           attempt.campaignLeadId,
@@ -201,12 +208,15 @@ export class CallAttemptService {
         const session = await this.agentSessionService.incrementStats(
           attempt.agentSessionId,
           { callsConnected: 1 },
+          incarnation.startedAt,
         );
+        if (!session) return;
         const moved = await this.agentSessionService.transitionIf(
           attempt.agentSessionId,
           {
             from: [AgentSessionStatus.dialing, AgentSessionStatus.reserved],
             currentLeadId: attempt.campaignLeadId,
+            startedAt: incarnation.startedAt,
           },
           AgentSessionStatus.in_call,
         );
@@ -214,10 +224,12 @@ export class CallAttemptService {
           this.sseBridge.emit(sessionChannel, "call.state", {
             status: "in_call",
             attemptId: callAttemptId,
+            sessionStartedAt: incarnation.startedAt.toISOString(),
           });
           this.sseBridge.emit(sessionChannel, "session.state", {
             status: AgentSessionStatus.in_call,
             attemptId: callAttemptId,
+            sessionStartedAt: incarnation.startedAt.toISOString(),
             stats: this.statsOf(session),
           });
         }
@@ -239,17 +251,19 @@ export class CallAttemptService {
         const talkToAdd = firstMetrics ? talkSec : 0;
 
         if (!endedHere) {
-          if (talkToAdd > 0 && attempt.agentSessionId) {
+          if (talkToAdd > 0 && attempt.agentSessionId && currentIncarnation) {
             await this.agentSessionService.incrementStats(
               attempt.agentSessionId,
               { totalTalkSec: talkToAdd },
+              incarnation.startedAt,
             );
           }
           return;
         }
 
         await this.campaignLeadRepo.incrementAttempt(attempt.campaignLeadId);
-        if (!attempt.agentSessionId || !sessionChannel) return;
+        if (!attempt.agentSessionId || !sessionChannel || !currentIncarnation)
+          return;
 
         await this.campaignLeadRepo.advanceIfHeldBy(
           attempt.campaignLeadId,
@@ -259,7 +273,9 @@ export class CallAttemptService {
         const session = await this.agentSessionService.incrementStats(
           attempt.agentSessionId,
           { callsAttempted: 1, totalTalkSec: talkToAdd },
+          incarnation.startedAt,
         );
+        if (!session) return;
         const moved = await this.agentSessionService.transitionIf(
           attempt.agentSessionId,
           {
@@ -269,6 +285,7 @@ export class CallAttemptService {
               AgentSessionStatus.reserved,
             ],
             currentLeadId: attempt.campaignLeadId,
+            startedAt: incarnation.startedAt,
           },
           AgentSessionStatus.wrap_up,
         );
@@ -281,9 +298,11 @@ export class CallAttemptService {
         this.sseBridge.emit(sessionChannel, "call.state", {
           status: "ended",
           attemptId: callAttemptId,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
         });
         this.sseBridge.emit(sessionChannel, "disposition.required", {
           callAttemptId,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
           dispositions: dispositions.map((d) => ({
             id: d.id,
             code: d.code,
@@ -297,6 +316,7 @@ export class CallAttemptService {
         this.sseBridge.emit(sessionChannel, "session.state", {
           status: AgentSessionStatus.wrap_up,
           attemptId: callAttemptId,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
           stats: this.statsOf(session),
         });
         return;
@@ -372,6 +392,7 @@ export class CallAttemptService {
     campaignLeadId: string;
     attemptId?: string | null;
     from: AgentSessionStatus[];
+    sessionStartedAt?: Date;
     to: UndialedOutcome;
     /** Keep the lead out of the queue until then. */
     deferLeadUntil?: Date;
@@ -385,7 +406,11 @@ export class CallAttemptService {
     const channel = `agent:${input.agentSessionId}`;
     const moved = await this.agentSessionService.transitionIf(
       input.agentSessionId,
-      { from: input.from, currentLeadId: input.campaignLeadId },
+      {
+        from: input.from,
+        currentLeadId: input.campaignLeadId,
+        startedAt: input.sessionStartedAt,
+      },
       input.to,
       {
         currentLeadId: null,
@@ -400,12 +425,18 @@ export class CallAttemptService {
     if (input.blocked) {
       this.sseBridge.emit(channel, "call.blocked", {
         attemptId: input.attemptId ?? null,
+        ...(input.sessionStartedAt
+          ? { sessionStartedAt: input.sessionStartedAt.toISOString() }
+          : {}),
         ...input.blocked,
       });
     }
     this.sseBridge.emit(channel, "session.state", {
       status: input.to,
       attemptId: input.attemptId ?? null,
+      ...(input.sessionStartedAt
+        ? { sessionStartedAt: input.sessionStartedAt.toISOString() }
+        : {}),
       ...(input.offlineReason ? { reason: input.offlineReason } : {}),
     });
 
@@ -469,6 +500,11 @@ export class CallAttemptService {
     if (!current) {
       throw new NotFoundException("Call attempt not found");
     }
+    const incarnation = current.agentSessionId
+      ? await this.agentSessionService.getById(current.agentSessionId)
+      : null;
+    const currentIncarnation =
+      incarnation && current.initiatedAt >= incarnation.startedAt;
     // The dialer is organization-only, so the campaign's workspace is the
     // organization the caller's attempt was verified against.
     if (
@@ -529,10 +565,14 @@ export class CallAttemptService {
     // attempt is the one that counts it; the other finds it already ended.
     if (await this.attemptRepo.markEndedIf(current.id)) {
       await this.campaignLeadRepo.incrementAttempt(current.campaignLeadId);
-      if (current.agentSessionId) {
-        await this.agentSessionService.incrementStats(current.agentSessionId, {
-          callsAttempted: 1,
-        });
+      if (current.agentSessionId && currentIncarnation) {
+        await this.agentSessionService.incrementStats(
+          current.agentSessionId,
+          {
+            callsAttempted: 1,
+          },
+          incarnation.startedAt,
+        );
       }
     }
 
@@ -559,6 +599,7 @@ export class CallAttemptService {
     await this.campaignLeadRepo.updateStatus(
       attempt.campaignLeadId,
       CampaignLeadStatus.dispositioned,
+      { lockedBy: null, lockedAt: null },
     );
 
     let action = "dispositioned";
@@ -660,7 +701,7 @@ export class CallAttemptService {
     // a lead, and a `ready` that arrived after it would wipe that lead off the
     // agent's screen mid-dial.
     let sessionClosed = false;
-    if (attempt.agentSessionId) {
+    if (attempt.agentSessionId && currentIncarnation) {
       const channel = `agent:${attempt.agentSessionId}`;
       const onThisLead = {
         from: [
@@ -670,6 +711,7 @@ export class CallAttemptService {
           AgentSessionStatus.reserved,
         ],
         currentLeadId: attempt.campaignLeadId,
+        startedAt: incarnation.startedAt,
       };
       if (data.closeSession) {
         // The lead was just settled above, so there is no lock left to hand
@@ -689,6 +731,7 @@ export class CallAttemptService {
             {
               from: [AgentSessionStatus.ready, AgentSessionStatus.paused],
               currentLeadId: null,
+              startedAt: incarnation.startedAt,
             },
             AgentSessionStatus.offline,
             offline,
@@ -698,6 +741,7 @@ export class CallAttemptService {
             status: AgentSessionStatus.offline,
             reason: "closed_after_lead",
             attemptId: attempt.id,
+            sessionStartedAt: incarnation.startedAt.toISOString(),
           });
         }
       } else if (
@@ -711,6 +755,7 @@ export class CallAttemptService {
         this.sseBridge.emit(channel, "session.state", {
           status: AgentSessionStatus.ready,
           attemptId: attempt.id,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
         });
       }
     }

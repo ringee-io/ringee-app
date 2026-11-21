@@ -183,3 +183,30 @@ describe("CampaignService.addContactToCampaign", () => {
     assert.deepEqual(calls, []);
   });
 });
+
+describe("CampaignService.assertDialableCampaign", () => {
+  it("refuses inactive campaigns before creating an agent that would wait forever", async () => {
+    for (const status of ["draft", "paused", "completed", "archived"]) {
+      const { service } = build({
+        campaign: { id: CAMPAIGN_ID, organizationId: "org-1", status },
+      });
+      await assert.rejects(
+        service.assertDialableCampaign(ORG_CTX, CAMPAIGN_ID, {
+          isOrgAdmin: true,
+        }),
+        /Activate this campaign/,
+      );
+    }
+    const { service } = build({
+      campaign: { id: CAMPAIGN_ID, organizationId: "org-1", status: "active" },
+    });
+    assert.equal(
+      (
+        await service.assertDialableCampaign(ORG_CTX, CAMPAIGN_ID, {
+          isOrgAdmin: true,
+        })
+      ).status,
+      "active",
+    );
+  });
+});

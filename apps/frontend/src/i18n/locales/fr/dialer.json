@@ -58,7 +58,11 @@
       "script": "Script",
       "transcript": "Transcription",
       "outcome": "Résultat"
-    }
+    },
+    "endFailed": "Impossible de terminer la session. Réessayez.",
+    "pauseFailed": "Impossible de mettre la session en pause. Réessayez.",
+    "resumeFailed": "Impossible de reprendre la session. Réessayez.",
+    "connectionFailed": "La connexion de la session a été interrompue. Reconnexion…"
   },
   "statusBar": {
     "statuses": {
@@ -136,7 +140,17 @@
       "in_call": "En appel",
       "ended": "Appel terminé",
       "dispositioned": "Enregistré"
-    }
+    },
+    "connecting": "Connexion de la session d’appels",
+    "connectingDescription": "Les prospects seront attribués dès que la connexion sera prête.",
+    "paused": "Session en pause",
+    "pausedDescription": "Reprenez la session lorsque vous êtes prêt à appeler.",
+    "outside_calling_window": "En dehors des horaires d’appel",
+    "outside_calling_windowDescription": "La numérotation reprendra pendant les horaires autorisés de cette campagne.",
+    "no_eligible_leads": "Aucun prospect éligible pour le moment",
+    "no_eligible_leadsDescription": "Les prospects peuvent être programmés plus tard, épuisés, exclus ou réservés par une autre session.",
+    "agent_busy": "En attente de votre appel en cours",
+    "agent_busyDescription": "Terminez votre appel actuel pour recevoir un autre prospect."
   },
   "softphone": {
     "dialFailed": "Impossible de lancer l'appel.",

@@ -6,7 +6,6 @@ import {
   Get,
   Body,
   Param,
-  Req,
   Sse,
   ForbiddenException,
   BadRequestException,
@@ -14,6 +13,7 @@ import {
   Query,
   UnauthorizedException,
   UseGuards,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import {
   Observable,
@@ -27,7 +27,6 @@ import {
   takeUntil,
 } from "rxjs";
 import { isUUID } from "class-validator";
-import { Request } from "express";
 import { SseRateLimitGuard } from "../guards/sse-rate-limit.guard";
 import {
   CurrentUser,
@@ -86,7 +85,7 @@ export class DialerController {
 
   @Post("sessions")
   async startSession(
-    @Body() body: { campaignId: string },
+    @Body() body: { campaignId: string; waitForEvents?: boolean },
     @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
@@ -103,6 +102,7 @@ export class DialerController {
       campaignId: body.campaignId,
       userId: ctx.userId,
       organizationId: orgId,
+      waitForEvents: body.waitForEvents === true,
     });
 
     // The workspace UI needs the dial mode to decide what it may offer — the
@@ -115,6 +115,7 @@ export class DialerController {
   @Delete("sessions/:sessionId")
   async endSession(
     @Param("sessionId") sessionId: string,
+    @Query("startedAt") startedAt: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
@@ -122,12 +123,16 @@ export class DialerController {
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.endSession(sessionId);
+    return this.agentSessionService.endSession(
+      sessionId,
+      this.sessionVersion(startedAt),
+    );
   }
 
   @Patch("sessions/:sessionId/pause")
   async pause(
     @Param("sessionId") sessionId: string,
+    @Query("startedAt") startedAt: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
@@ -135,25 +140,38 @@ export class DialerController {
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.pause(sessionId);
+    return this.agentSessionService.pause(
+      sessionId,
+      this.sessionVersion(startedAt),
+    );
   }
 
   @Patch("sessions/:sessionId/resume")
   async resume(
     @Param("sessionId") sessionId: string,
+    @Query("startedAt") startedAt: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(
+    const session = await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.resume(sessionId);
+    await this.campaignService.assertDialableCampaign(
+      createOwnershipContext(user),
+      session.campaignId,
+      { isOrgAdmin: user.activeOrgRole === "org:admin" },
+    );
+    return this.agentSessionService.resume(
+      sessionId,
+      this.sessionVersion(startedAt),
+    );
   }
 
   @Post("sessions/:sessionId/heartbeat")
   async heartbeat(
     @Param("sessionId") sessionId: string,
+    @Body() body: { startedAt?: string },
     @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
@@ -161,7 +179,10 @@ export class DialerController {
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.heartbeat(sessionId);
+    return this.agentSessionService.heartbeat(
+      sessionId,
+      this.sessionVersion(body?.startedAt),
+    );
   }
 
   @Post("dial")
@@ -372,16 +393,21 @@ export class DialerController {
   @Post("sessions/:sessionId/events-ticket")
   async eventsTicket(
     @Param("sessionId") sessionId: string,
+    @Body() body: { startedAt?: string },
     @CurrentUser() user: CurrentUserData,
   ): Promise<{ ticket: string }> {
-    await this.agentSessionService.getByIdForOrg(
+    const session = await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
       user.id,
     );
+    const version = this.sessionVersion(body?.startedAt);
+    if (version && version.getTime() !== session.startedAt.getTime()) {
+      throw new UnauthorizedException("This dialer session has been replaced.");
+    }
     return {
       ticket: signSseTicket(
-        `dialer:${sessionId}`,
+        this.streamPurpose(sessionId, version),
         createOwnershipContext(user),
       ),
     };
@@ -401,17 +427,19 @@ export class DialerController {
   events(
     @Param("sessionId") sessionId: string,
     @Query("ticket") ticket: string | undefined,
+    @Query("startedAt") startedAt: string | undefined,
   ): Observable<MessageEvent> {
-    const ctx = verifySseTicket(ticket, `dialer:${sessionId}`);
+    const version = this.sessionVersion(startedAt);
+    const ctx = verifySseTicket(ticket, this.streamPurpose(sessionId, version));
     if (!ctx) throw new UnauthorizedException("Invalid stream ticket");
-    return defer(() => from(this.ownsSession(ctx, sessionId))).pipe(
+    return defer(() => from(this.ownsSession(ctx, sessionId, version))).pipe(
       switchMap((allowed) => {
         if (!allowed) throw new UnauthorizedException("Invalid stream ticket");
         const revoked = interval(STREAM_ACCESS_RECHECK_MS).pipe(
-          switchMap(() => from(this.ownsSession(ctx, sessionId))),
+          switchMap(() => from(this.ownsSession(ctx, sessionId, version))),
           filter((stillAllowed) => !stillAllowed),
         );
-        return this.sessionEvents(sessionId).pipe(takeUntil(revoked));
+        return this.sessionEvents(sessionId, version).pipe(takeUntil(revoked));
       }),
     );
   }
@@ -420,27 +448,102 @@ export class DialerController {
   private async ownsSession(
     ctx: OwnershipContext,
     sessionId: string,
+    startedAt?: Date,
   ): Promise<boolean> {
     if (!ctx.organizationId) return false;
     try {
       if (!(await this.organizations.isMember(ctx.userId, ctx.organizationId)))
         return false;
-      await this.agentSessionService.getByIdForOrg(
+      const session = await this.agentSessionService.getByIdForOrg(
         sessionId,
         ctx.organizationId,
         ctx.userId,
       );
-      return true;
+      return !startedAt || session.startedAt.getTime() === startedAt.getTime();
     } catch {
       return false;
     }
   }
 
-  private sessionEvents(sessionId: string): Observable<MessageEvent> {
+  private sessionVersion(value?: string): Date | undefined {
+    if (value === undefined) return undefined;
+    const date = typeof value === "string" ? new Date(value) : new Date(NaN);
+    if (!Number.isFinite(date.getTime()))
+      throw new BadRequestException("Invalid session startedAt");
+    return date;
+  }
+
+  private streamPurpose(sessionId: string, version?: Date): string {
+    return `dialer:${sessionId}${version ? `:${version.toISOString()}` : ""}`;
+  }
+
+  private sessionEvents(
+    sessionId: string,
+    version?: Date,
+  ): Observable<MessageEvent> {
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
-    const realEvents = this.sseBridge.subscribe(
-      `agent:${sessionId}`,
-    ) as Observable<MessageEvent>;
+    const realEvents = new Observable<MessageEvent>((subscriber) => {
+      let receivedEvent = false;
+      // Subscribe before activating. A Subject and Redis pub/sub do not replay
+      // events emitted while the HTTP start/ticket requests are in flight.
+      const subscription = this.sseBridge
+        .subscribe(`agent:${sessionId}`)
+        .subscribe({
+          next: (event) => {
+            const data =
+              typeof event.data === "string"
+                ? JSON.parse(event.data)
+                : event.data;
+            if (
+              version &&
+              data.sessionStartedAt &&
+              new Date(data.sessionStartedAt).getTime() !== version.getTime()
+            )
+              return;
+            receivedEvent = true;
+            subscriber.next(event);
+          },
+          error: (error: unknown) => subscriber.error(error),
+          complete: () => subscriber.complete(),
+        });
+      void (async () => {
+        if (!(await this.sseBridge.isRelayReady())) {
+          throw new ServiceUnavailableException(
+            "The dialer event relay is unavailable.",
+          );
+        }
+        const session = await this.agentSessionService.getById(sessionId);
+        if (subscriber.closed) return;
+        if (version && session.startedAt.getTime() !== version.getTime()) {
+          throw new UnauthorizedException(
+            "This dialer session has been replaced.",
+          );
+        }
+        const awaiting =
+          session.status === "offline" && session.endedAt === null;
+        subscriber.next({
+          type: "session.connected",
+          data: JSON.stringify({
+            status: awaiting ? "ready" : session.status,
+            sessionStartedAt: session.startedAt.toISOString(),
+            currentLeadId: session.currentLeadId,
+            snapshotStale: receivedEvent,
+            stats: {
+              callsAttempted: session.callsAttempted,
+              callsConnected: session.callsConnected,
+              totalTalkSec: session.totalTalkSec,
+            },
+          }),
+        });
+        if (awaiting && !subscriber.closed) {
+          await this.agentSessionService.activateAfterEvents(
+            sessionId,
+            session.startedAt,
+          );
+        }
+      })().catch((error: unknown) => subscriber.error(error));
+      return () => subscription.unsubscribe();
+    });
     const heartbeat = interval(15000).pipe(
       map(
         (): MessageEvent => ({

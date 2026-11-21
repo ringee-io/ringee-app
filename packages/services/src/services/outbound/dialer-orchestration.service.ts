@@ -16,7 +16,10 @@ import {
 } from "@ringee/database";
 import { TelephonyService, type OwnershipContext } from "@ringee/platform";
 import { LeadQueueService } from "./lead-queue.service";
-import { AgentSessionService } from "./agent-session.service";
+import {
+  AgentSessionService,
+  DIAL_DISPATCH_TIMEOUT_MS,
+} from "./agent-session.service";
 import {
   CallAttemptService,
   campaignDialDeviceId,
@@ -65,7 +68,7 @@ const UNDIALABLE_LEAD_DEFER_MS = 15 * 60_000;
  * never going to happen: an event lost while the browser was reconnecting, a
  * tab that died mid-dial, a client that could not report its own failure.
  */
-const STALLED_DIAL_MS = 90_000;
+const STALLED_DIAL_MS = DIAL_DISPATCH_TIMEOUT_MS;
 const STALLED_DIAL_SWEEP_EVERY_MS = 10_000;
 
 /** What the agent is told when their browser could not place the call. */
@@ -131,6 +134,7 @@ interface DialerAgent {
   id: string;
   userId: string;
   organizationId: string;
+  startedAt?: Date;
 }
 
 interface DialerLead {
@@ -232,6 +236,10 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   private lastStalledDialSweepAt = 0;
   /** Agent session id → epoch ms until which the poller skips that agent. */
   private readonly cooldownUntil = new Map<string, number>();
+  private readonly waitingReasons = new Map<
+    string,
+    { value: string; seenAt: number }
+  >();
 
   constructor(
     private readonly campaignRepo: CampaignRepository,
@@ -358,6 +366,11 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         workDays: campaign.workDays,
       })
     ) {
+      const agents = await this.agentSessionService.findReadyByCampaign(
+        campaign.id,
+      );
+      for (const agent of agents)
+        this.emitWaiting(agent, campaign.id, "outside_calling_window");
       // Only log once per minute to avoid spam (use a simple throttle)
       const now = Date.now();
       if (!this.lastWindowLog || now - this.lastWindowLog > 60_000) {
@@ -405,6 +418,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         .findOccupyingCall(agent.userId)
         .catch(() => null);
       if (busy) {
+        this.emitWaiting(agent, campaign.id, "agent_busy");
         this.logger.debug(
           `Agent ${agent.userId} is on call ${busy.id} — not assigning a lead this tick`,
         );
@@ -421,6 +435,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     );
 
     if (!lead) {
+      this.emitWaiting(agent, campaign.id, "no_eligible_leads");
       this.logger.debug(
         `No eligible leads for agent ${agent.userId} in campaign ${campaign.id}`,
       );
@@ -430,7 +445,13 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     // Claim the agent. Reading them as `ready` above proves nothing by now —
     // another tick or another API instance may have claimed them since — so
     // the move to `reserved` is the decision, and it is compare-and-set.
-    if (!(await this.agentSessionService.claimForLead(agent.id, lead.id))) {
+    if (
+      !(await this.agentSessionService.claimForLead(
+        agent.id,
+        lead.id,
+        agent.startedAt,
+      ))
+    ) {
       this.logger.debug(
         `Agent ${agent.id} was claimed elsewhere — handing lead ${lead.id} back`,
       );
@@ -443,7 +464,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     }
 
     this.logger.log(
-      `Assigning lead ${lead.id} (${lead.contact?.phoneNumber}) to agent ${agent.userId}`,
+      `Assigning lead ${lead.id} in campaign ${campaign.id} to session ${agent.id}`,
     );
 
     // From the claim on, any failure has to hand the assignment back: nothing
@@ -488,6 +509,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           from: [AgentSessionStatus.reserved],
           to: AgentSessionStatus.ready,
           releaseLease: leaseHeld,
+          sessionStartedAt: agent.startedAt,
+          blocked: {
+            reason: "DISPATCH_FAILED",
+            message:
+              "The next call could not be prepared. Your lead was released safely.",
+          },
         })
         .catch((releaseErr) =>
           this.logger.error(
@@ -496,6 +523,28 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         );
       this.startCooldown(agent.id);
     }
+  }
+
+  private emitWaiting(
+    agent: DialerAgent,
+    campaignId: string,
+    reason: string,
+  ): void {
+    const value = `${agent.startedAt?.getTime() ?? "legacy"}:${reason}`;
+    const previous = this.waitingReasons.get(agent.id);
+    this.waitingReasons.set(agent.id, { value, seenAt: Date.now() });
+    if (previous?.value === value) return;
+    this.sseBridge.emit(`agent:${agent.id}`, "session.waiting", {
+      reason,
+      campaignId,
+      sessionStartedAt: agent.startedAt?.toISOString(),
+    });
+    this.logger.debug({
+      event: "dialer.waiting",
+      campaignId,
+      sessionId: agent.id,
+      reason,
+    });
   }
 
   private async createAttempt(
@@ -518,6 +567,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     lead: DialerLead,
     attemptId: string,
   ): Promise<void> {
+    this.waitingReasons.delete(agent.id);
     // Get attempt history for this lead
     const history = await this.callAttemptService.getAttemptHistory(lead.id);
 
@@ -538,6 +588,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       attempts: lead.attempts,
       priority: lead.priority,
       attemptId,
+      sessionStartedAt: agent.startedAt?.toISOString(),
       history: history
         .filter((h: any) => h.id !== attemptId)
         .map((h: any) => ({
@@ -752,6 +803,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       attemptId,
       from: [AgentSessionStatus.reserved],
       to: refusal.to,
+      sessionStartedAt: agent.startedAt,
       deferLeadUntil: refusal.deferLead
         ? new Date(Date.now() + UNDIALABLE_LEAD_DEFER_MS)
         : undefined,
@@ -861,7 +913,11 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       marked &&
       (await this.agentSessionService.transitionIf(
         agent.id,
-        { from: [AgentSessionStatus.reserved], currentLeadId: lead.id },
+        {
+          from: [AgentSessionStatus.reserved],
+          currentLeadId: lead.id,
+          startedAt: agent.startedAt,
+        },
         AgentSessionStatus.dialing,
       ));
 
@@ -879,6 +935,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         from: [AgentSessionStatus.reserved],
         to: AgentSessionStatus.ready,
         releaseLease: true,
+        sessionStartedAt: agent.startedAt,
       });
       if (!released) {
         // The session left on its own; the lease this dial took and the
@@ -895,11 +952,13 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     this.sseBridge.emit(`agent:${agent.id}`, "session.state", {
       status: "dialing",
       attemptId,
+      sessionStartedAt: agent.startedAt?.toISOString(),
     });
     // Emit call.initiate event — frontend uses this to place the WebRTC call.
     // A carrier dial also carries where to send the leg and its signed token.
     this.sseBridge.emit(`agent:${agent.id}`, "call.initiate", {
       attemptId,
+      sessionStartedAt: agent.startedAt?.toISOString(),
       phoneNumber: lead.contact.phoneNumber,
       callerIdNumber,
       ...(carrierRoute
@@ -919,7 +978,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     });
 
     this.logger.log(
-      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber}${carrierRoute ? ", external carrier" : ""})`,
+      `Call initiated for lead ${lead.id} in campaign ${campaign.id} (session: ${agent.id}, attempt: ${attemptId}${carrierRoute ? ", external carrier" : ""})`,
     );
   }
 
@@ -1009,6 +1068,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         agentUserId: session.userId,
         campaignLeadId: lead.id,
         attemptId: attempt?.id ?? null,
+        sessionStartedAt: session.startedAt,
         from: [AgentSessionStatus.reserved],
         to: AgentSessionStatus.ready,
       });
@@ -1045,6 +1105,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       agentUserId: session.userId,
       campaignLeadId: session.currentLeadId,
       attemptId: attempt?.id ?? null,
+      sessionStartedAt: session.startedAt,
       from: [AgentSessionStatus.reserved],
       to: AgentSessionStatus.ready,
       // Behind the leads not tried yet. Released as it was, the skipped lead is
@@ -1099,6 +1160,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       campaignLeadId: attempt.campaignLeadId,
       attemptId,
       from: [AgentSessionStatus.dialing],
+      sessionStartedAt: session.startedAt,
       to: AgentSessionStatus.paused,
       releaseLease: true,
       blocked: {
@@ -1159,6 +1221,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         agentUserId: session.userId,
         campaignLeadId: session.currentLeadId,
         attemptId: attempt.id,
+        sessionStartedAt: session.startedAt,
         from: [AgentSessionStatus.dialing],
         to: AgentSessionStatus.paused,
         releaseLease: true,
@@ -1167,6 +1230,41 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           message:
             "The call never connected. Dialing is paused — resume when you're ready.",
         },
+      });
+    }
+
+    // A process can die after ready -> reserved and before creating the
+    // attempt. Preview reservations are deliberate; only progressive ones
+    // qualify, and the existing dispatch timeout is the recovery boundary.
+    const reserved = await this.agentSessionService.findStalledReservations(
+      new Date(now - STALLED_DIAL_MS),
+    );
+    for (const session of reserved) {
+      if (!session.currentLeadId) continue;
+      const attempt = await this.callAttemptService.findUndialedForSession(
+        session.id,
+        session.currentLeadId,
+      );
+      await this.callAttemptService.releaseUndialed({
+        agentSessionId: session.id,
+        agentUserId: session.userId,
+        campaignLeadId: session.currentLeadId,
+        attemptId: attempt?.id,
+        sessionStartedAt: session.startedAt,
+        from: [AgentSessionStatus.reserved],
+        to: AgentSessionStatus.paused,
+        releaseLease: true,
+        blocked: {
+          reason: "DIAL_TIMEOUT",
+          message:
+            "The next call was interrupted before dialing. Dialing is paused — resume when you're ready.",
+        },
+      });
+      this.logger.warn({
+        event: "dialer.reservation_recovered",
+        campaignId: session.campaignId,
+        sessionId: session.id,
+        leadId: session.currentLeadId,
       });
     }
   }
@@ -1199,6 +1297,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   private pruneCooldowns(now: number): void {
     for (const [id, until] of this.cooldownUntil) {
       if (until <= now) this.cooldownUntil.delete(id);
+    }
+    for (const [id, entry] of this.waitingReasons) {
+      if (now - entry.seenAt > STALLED_DIAL_MS) this.waitingReasons.delete(id);
     }
   }
 }

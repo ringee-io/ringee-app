@@ -104,6 +104,26 @@ export class CallAttemptRepository {
     return this.prisma.callAttempt.findFirst({ where: { callId } });
   }
 
+  async hasLiveCallForSession(agentSessionId: string): Promise<boolean> {
+    const count = await this.prisma.callAttempt.count({
+      where: { agentSessionId, call: { endedAt: null } },
+    });
+    return count > 0;
+  }
+
+  async findUnconfirmedDialForSession(
+    agentSessionId: string,
+  ): Promise<CallAttempt | null> {
+    return this.prisma.callAttempt.findFirst({
+      where: {
+        agentSessionId,
+        callId: null,
+        status: CallAttemptStatus.dialing,
+      },
+      orderBy: { initiatedAt: "desc" },
+    });
+  }
+
   async linkCall(attemptId: string, callId: string): Promise<CallAttempt> {
     return this.prisma.callAttempt.update({
       where: { id: attemptId },

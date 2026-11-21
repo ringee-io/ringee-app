@@ -496,6 +496,21 @@ export class CampaignLeadRepository {
       where: {
         status: CampaignLeadStatus.locked,
         lockedAt: { lt: cutoff },
+        // A slow preview or a ringing provider leg is not an abandoned lock.
+        // Recovery must never make a live prospect callable by another agent.
+        callAttempts: {
+          none: {
+            OR: [
+              { call: { endedAt: null } },
+              {
+                status: { in: ["created", "dialing"] },
+                agentSession: {
+                  status: { in: ["reserved", "dialing", "in_call"] },
+                },
+              },
+            ],
+          },
+        },
       },
       data: {
         status: CampaignLeadStatus.queued,
