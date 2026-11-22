@@ -1281,6 +1281,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         campaignLeadId: session.currentLeadId,
         attemptId: attempt.id,
         sessionStartedAt: session.startedAt,
+        reservedAt: session.reservedAt,
         from: [AgentSessionStatus.dialing],
         to: AgentSessionStatus.paused,
         releaseLease: true,

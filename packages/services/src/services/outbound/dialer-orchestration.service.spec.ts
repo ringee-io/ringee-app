@@ -413,10 +413,17 @@ function createWorld(
       });
       return copySession(s);
     },
-    endIfUnchanged: async (previous: SessionRow, preserve = false) => {
+    endIfUnchanged: async (
+      previous: SessionRow,
+      preserve = false,
+      options: { rejectLiveCalls?: boolean } = {},
+    ) => {
       await roundTrip();
       const s = sessions.get(previous.id)!;
-      if (!sameSnapshot(s, previous) || (!preserve && liveForSession(s.id)))
+      if (
+        !sameSnapshot(s, previous) ||
+        ((!preserve || options.rejectLiveCalls) && liveForSession(s.id))
+      )
         return null;
       Object.assign(s, {
         status: "offline",
@@ -431,18 +438,19 @@ function createWorld(
     },
     endForAccountDisable: async (previous: SessionRow, preserve: boolean) => {
       await roundTrip();
+      if (user.canCall) return { outcome: "calling_enabled" as const };
       const s = sessions.get(previous.id)!;
       if (
         !sameSnapshot(s, { ...previous, lastHeartbeat: s.lastHeartbeat }) ||
         (!preserve && liveForSession(s.id))
       )
-        return null;
+        return { outcome: "changed" as const };
       Object.assign(s, { status: "offline", endedAt: new Date() });
       if (!preserve) {
         s.currentLeadId = null;
         releaseAssignments(s.id);
       }
-      return copySession(s);
+      return { outcome: "ended" as const, session: copySession(s) };
     },
     heartbeat: async (id: string, startedAt?: Date) => {
       await roundTrip();
@@ -1601,6 +1609,42 @@ describe("CallAttemptService lifecycle", () => {
       }),
     );
 
+  it("releases a completed call's lead when its expired session cannot prompt for disposition", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    world.session().lastHeartbeat = new Date(Date.now() - 60_000);
+    await world.agentSessionService.cleanupStaleSessions();
+    assert.equal(world.session().status, "offline");
+    assert.equal(
+      world.lead("lead-1").lockedBy,
+      "session-1",
+      "the live call keeps its lead",
+    );
+    await hangup(world, attemptId);
+    await hangup(world, attemptId);
+    assert.equal(world.session().status, "offline");
+    assert.equal(world.session().currentLeadId, null);
+    assert.equal(world.lead("lead-1").status, "queued");
+    assert.equal(world.lead("lead-1").attempts, 1);
+    assert.equal(world.session().totalTalkSec, 42);
+    assert.equal(world.of("disposition.required").length, 0);
+  });
+
+  it("releases the lead when stale cleanup wins between hangup and the wrap-up transition", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    world.session().lastHeartbeat = new Date(Date.now() - 60_000);
+    const transition = world.sessionRepo.transitionIf;
+    world.sessionRepo.transitionIf = async (...args) => {
+      if (args[2] === "wrap_up")
+        await world.agentSessionService.cleanupStaleSessions();
+      return transition(...args);
+    };
+    await hangup(world, attemptId);
+    assert.equal(world.session().status, "offline");
+    assert.equal(world.session().currentLeadId, null);
+    assert.equal(world.lead("lead-1").lockedBy, null);
+    assert.equal(world.lead("lead-1").status, "queued");
+  });
+
   it("resumes a paused wrap-up on the same lead until its outcome is recorded", async () => {
     const { world, attemptId } = await dialedAndAnswered();
     await hangup(world, attemptId);
@@ -2037,7 +2081,7 @@ describe("CallAttemptService lifecycle", () => {
     await world.callAttemptService.handleWebhookEvent(
       attemptId,
       "call.hangup",
-      call({ endedAt: new Date() }),
+      call({ answeredAt: new Date(Date.now() - 42_000), endedAt: new Date() }),
     );
     assert.equal(world.session().totalTalkSec, 0);
     const result = await dispose(world, attemptId, true);
@@ -2054,6 +2098,118 @@ describe("AgentSessionService.startSession", () => {
       organizationId: "org-1",
       waitForEvents: true,
     });
+
+  it("ends an activation that commits after its stream has disconnected", async () => {
+    for (const dispatchBeforeCommitReturns of [false, true]) {
+      const world = createWorld();
+      const pending = await start(world);
+      let attached = true;
+      let written!: () => void;
+      let release!: () => void;
+      const readyWritten = new Promise<void>((resolve) => {
+        written = resolve;
+      });
+      const commit = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const transition = world.sessionRepo.transitionIf;
+      world.sessionRepo.transitionIf = async (...args) => {
+        const moved = await transition(...args);
+        if (args[2] === "ready") {
+          written();
+          await commit;
+        }
+        return moved;
+      };
+      const activating = world.agentSessionService.activateAfterEvents(
+        pending.id,
+        pending.startedAt,
+        () => attached,
+      );
+      try {
+        await readyWritten;
+        attached = false;
+        if (dispatchBeforeCommitReturns) await world.runTick();
+        release();
+        await activating;
+        assert.equal(world.session().status, "offline");
+        assert.ok(world.session().endedAt);
+        assert.equal(
+          world.session().currentLeadId,
+          dispatchBeforeCommitReturns ? "lead-1" : null,
+        );
+      } finally {
+        release();
+        await activating;
+      }
+    }
+  });
+
+  it("does not activate a stream that closes before the readiness write", async () => {
+    const world = createWorld();
+    const pending = await start(world);
+    await world.agentSessionService.activateAfterEvents(
+      pending.id,
+      pending.startedAt,
+      () => false,
+    );
+    assert.equal(world.session().status, "offline");
+  });
+
+  it("keeps a restored account's session and stops account-disable retries", async () => {
+    const world = createWorld();
+    world.user.canCall = false;
+    const end = world.sessionRepo.endForAccountDisable;
+    let calls = 0;
+    world.sessionRepo.endForAccountDisable = async (...args) => {
+      calls++;
+      world.user.canCall = true;
+      return end(...args);
+    };
+    assert.equal(await world.agentSessionService.disableForUser("user-1"), 0);
+    assert.equal(calls, 1);
+    assert.equal(world.session().status, "ready");
+    assert.equal(
+      world
+        .of("session.state")
+        .filter((e) => e.data.reason === "account_disabled").length,
+      0,
+    );
+  });
+
+  it("rechecks explicit-stop live legs even when an unconfirmed dispatch was observed", async () => {
+    const world = createWorld();
+    await world.runTick();
+    const attempt = [...world.attempts.values()][0];
+    const end = world.sessionRepo.endIfUnchanged;
+    world.sessionRepo.endIfUnchanged = async (...args) => {
+      assert.equal(args[1], true);
+      attempt.callId = "call-1";
+      return end(...args);
+    };
+    await assert.rejects(world.agentSessionService.endSession("session-1"));
+    assert.equal(world.session().status, "dialing");
+    assert.equal(world.lead("lead-1").lockedBy, "session-1");
+  });
+
+  it("does not time out a newer dialing reservation for the same lead", async () => {
+    const world = createWorld();
+    await world.runTick();
+    const attempt = [...world.attempts.values()][0];
+    attempt.initiatedAt = new Date(Date.now() - 100_000);
+    const find = world.attemptRepo.findUndialedForSession;
+    world.attemptRepo.findUndialedForSession = async (...args) => {
+      world.session().reservedAt = new Date(
+        world.session().reservedAt!.getTime() + 1,
+      );
+      return find(...args);
+    };
+    world.forceStalledSweep();
+    await world.runTick();
+    assert.equal(world.session().status, "dialing");
+    assert.equal(world.lead("lead-1").lockedBy, "session-1");
+    assert.equal(world.attempts.size, 1);
+  });
 
   it("rechecks the live event relay before activating a pending session", async () => {
     const world = createWorld();

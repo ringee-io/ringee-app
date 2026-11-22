@@ -711,5 +711,10 @@
         "description": "Vos rappels, réunions et historique vous suivent — ne manquez jamais un suivi."
       }
     }
+  },
+  "callerIdRotation": {
+    "countryMatchDescription": "Ringee identifie le pays de destination et ne considère que les numéros éligibles qui vous appartiennent dans ce même pays. Si le plan de numérotation ne peut pas être reconnu, l’appel est refusé avec une erreur explicite.",
+    "localAreaDescription": "Avec la stratégie de présence locale, un numéro éligible partageant l’indicatif régional NANP du prospect est prioritaire. Si aucun n’est disponible ou si le plan de numérotation ne possède pas d’indicatif régional pris en charge, Ringee choisit au hasard un numéro éligible du groupe de la campagne dans le même pays.",
+    "healthDescription": "Les numéros correspondant à la zone locale alternent selon leur état, puis selon l’ancienneté de leur dernière utilisation. Les numéros au repos, désactivés, signalés ou ayant atteint leur limite quotidienne sont exclus de la sélection automatique, y compris du choix aléatoire de secours. La stratégie équilibrée classe les numéros éligibles selon leur état et l’ancienneté de leur dernière utilisation."
   }
 }

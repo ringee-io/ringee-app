@@ -98,7 +98,9 @@ export class AgentSessionService {
     // An emitted dial may still be reaching the provider. Keep its reservation
     // until reconciliation rather than making that prospect callable twice.
     const preserve = await this.hasUnconfirmedDial(session);
-    const ended = await this.sessionRepo.endIfUnchanged(session, preserve);
+    const ended = await this.sessionRepo.endIfUnchanged(session, preserve, {
+      rejectLiveCalls: true,
+    });
     if (!ended)
       throw new ConflictException("The dialer session changed while stopping.");
     this.sseBridge.emit(`agent:${sessionId}`, "session.state", {
@@ -178,7 +180,11 @@ export class AgentSessionService {
   }
 
   /** Called only after the stream has subscribed, never from the start request. */
-  async activateAfterEvents(sessionId: string, startedAt: Date): Promise<void> {
+  async activateAfterEvents(
+    sessionId: string,
+    startedAt: Date,
+    isAttached: () => boolean = () => true,
+  ): Promise<void> {
     const session = await this.getSession(sessionId);
     this.assertIncarnation(session, startedAt);
     await this.assertDialerEnabled(session.userId);
@@ -186,6 +192,7 @@ export class AgentSessionService {
       throw new ServiceUnavailableException(
         "The dialer event relay is unavailable.",
       );
+    if (!isAttached()) return;
     const moved = await this.transitionIf(
       sessionId,
       {
@@ -196,6 +203,35 @@ export class AgentSessionService {
       },
       AgentSessionStatus.ready,
     );
+    if (moved && !isAttached()) {
+      // The stream may close while the ready write is in flight. End only the
+      // incarnation we activated, retaining any leg that already reached it.
+      let current = await this.getSession(sessionId);
+      while (
+        current.startedAt.getTime() === startedAt.getTime() &&
+        !(current.status === AgentSessionStatus.offline && current.endedAt)
+      ) {
+        const preserve =
+          (await this.attemptRepo.hasLiveCallForSession(sessionId)) ||
+          (await this.hasUnconfirmedDial(current));
+        if (await this.sessionRepo.endIfUnchanged(current, preserve)) {
+          this.sseBridge.emit(`agent:${sessionId}`, "session.state", {
+            status: AgentSessionStatus.offline,
+            reason: "events_disconnected",
+            sessionStartedAt: startedAt.toISOString(),
+          });
+          if (preserve && current.currentLeadId)
+            await this.releaseEndedAssignment(
+              sessionId,
+              startedAt,
+              current.currentLeadId,
+            );
+          break;
+        }
+        current = await this.getSession(sessionId);
+      }
+      return;
+    }
     if (moved)
       this.logger.log(
         `Session ${sessionId} for campaign ${session.campaignId} event stream attached; ready`,
@@ -325,19 +361,25 @@ export class AgentSessionService {
   async disableForUser(userId: string): Promise<number> {
     const sessions = await this.sessionRepo.findActiveByUser(userId);
     let count = 0;
-    for (let session of sessions) {
+    sessions: for (let session of sessions) {
       // A heartbeat cannot defeat account cleanup. A changed assignment must
       // be re-read so preservation is decided for the assignment actually ended.
       while (true) {
         const preserve =
           (await this.attemptRepo.hasLiveCallForSession(session.id)) ||
           (await this.hasUnconfirmedDial(session));
-        if (await this.sessionRepo.endForAccountDisable(session, preserve))
+        const result = await this.sessionRepo.endForAccountDisable(
+          session,
+          preserve,
+        );
+        if (result.outcome === "calling_enabled") return count;
+        if (result.outcome === "ended") {
+          session = result.session;
           break;
+        }
         const current = await this.sessionRepo.findById(session.id);
         if (!current || (current.status === "offline" && current.endedAt)) {
-          session = current ?? session;
-          break;
+          continue sessions;
         }
         session = current;
       }
@@ -394,6 +436,12 @@ export class AgentSessionService {
         (await this.hasUnconfirmedDial(session));
       const ended = await this.sessionRepo.endIfUnchanged(session, preserve);
       if (!ended) continue;
+      if (preserve && ended.currentLeadId)
+        await this.releaseEndedAssignment(
+          ended.id,
+          ended.startedAt,
+          ended.currentLeadId,
+        );
       this.sseBridge.emit(`agent:${session.id}`, "session.state", {
         status: AgentSessionStatus.offline,
         reason: "heartbeat_expired",
@@ -406,6 +454,27 @@ export class AgentSessionService {
     }
 
     return count;
+  }
+
+  /** A disconnected session has nobody to disposition its completed call. */
+  async releaseEndedAssignment(
+    sessionId: string,
+    startedAt: Date,
+    leadId: string,
+  ): Promise<boolean> {
+    while (true) {
+      const session = await this.getSession(sessionId);
+      if (
+        session.startedAt.getTime() !== startedAt.getTime() ||
+        session.status !== AgentSessionStatus.offline ||
+        !session.endedAt ||
+        session.currentLeadId !== leadId ||
+        (await this.attemptRepo.hasLiveCallForSession(sessionId)) ||
+        (await this.hasUnconfirmedDial(session))
+      )
+        return false;
+      if (await this.sessionRepo.endIfUnchanged(session, false)) return true;
+    }
   }
 
   /**

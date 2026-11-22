@@ -260,6 +260,12 @@ export class CallAttemptService {
               incarnation.startedAt,
             );
           }
+          if (attempt.agentSessionId && currentIncarnation)
+            await this.agentSessionService.releaseEndedAssignment(
+              attempt.agentSessionId,
+              incarnation.startedAt,
+              attempt.campaignLeadId,
+            );
           return;
         }
 
@@ -291,7 +297,14 @@ export class CallAttemptService {
           },
           AgentSessionStatus.wrap_up,
         );
-        if (!moved) return;
+        if (!moved) {
+          await this.agentSessionService.releaseEndedAssignment(
+            attempt.agentSessionId,
+            incarnation.startedAt,
+            attempt.campaignLeadId,
+          );
+          return;
+        }
 
         // Load dispositions and emit disposition.required via SSE
         const dispositions = await this.dispositionService.listByCampaign(

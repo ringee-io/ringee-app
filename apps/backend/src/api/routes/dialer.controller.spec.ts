@@ -49,7 +49,12 @@ function fixture(t: TestContext) {
     }),
     getById: async () => ({ ...session }),
     getByIdForOrg: async () => ({ ...session }),
-    activateAfterEvents: async () => {
+    activateAfterEvents: async (
+      _id: string,
+      _version: Date,
+      isAttached: () => boolean = () => true,
+    ) => {
+      if (!isAttached()) return;
       activations++;
       session.status = "ready";
       // Dispatch immediately on activation, before the activation request even
@@ -101,6 +106,37 @@ function fixture(t: TestContext) {
 }
 
 describe("dialer stream activation", () => {
+  it("passes the stream lifecycle through an in-flight activation", async (t) => {
+    const f = fixture(t);
+    let began!: () => void;
+    let release!: () => void;
+    const starting = new Promise<void>((resolve) => {
+      began = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let attachedAtCompletion = true;
+    f.sessions.activateAfterEvents = async (
+      _id,
+      _version,
+      isAttached = () => true,
+    ) => {
+      began();
+      await gate;
+      attachedAtCompletion = isAttached();
+    };
+    const subscription = f.stream().subscribe();
+    t.after(() => {
+      release();
+      subscription.unsubscribe();
+    });
+    await starting;
+    subscription.unsubscribe();
+    release();
+    await settle();
+    assert.equal(attachedAtCompletion, false);
+  });
   it("filters a delayed takeover event and identifies snapshots overtaken by live events", async (t) => {
     const f = fixture(t);
     f.session.status = "ready";

@@ -5,7 +5,7 @@ import { userInfo } from "node:os";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { AgentSession, PrismaClient } from "@prisma/client";
+import { AgentSession, PrismaClient, Prisma } from "@prisma/client";
 import { AgentSessionRepository } from "./agent-session.repository";
 import { CallAttemptRepository } from "./call-attempt.repository";
 import { CampaignLeadRepository } from "./campaign-lead.repository";
@@ -46,6 +46,41 @@ describe("dialer lifecycle persistence", () => {
 // Optional integration case, following the rotation repository convention.
 // The isolated PostgreSQL server must be local; this never uses DATABASE_URL.
 const socket = process.env.RINGEE_DIALER_TEST_PG_SOCKET;
+
+function observeTransactions(
+  prisma: PrismaClient,
+  onBegin: (pid: number) => void,
+  decorate: (tx: Prisma.TransactionClient) => unknown = (tx) => tx,
+) {
+  return {
+    $transaction: (run: (tx: unknown) => Promise<unknown>) =>
+      prisma.$transaction(async (tx) => {
+        const [backend] = await tx.$queryRaw<
+          Array<{ pid: number }>
+        >`SELECT pg_backend_pid() AS pid`;
+        onBegin(backend.pid);
+        return run(decorate(tx));
+      }),
+  };
+}
+
+async function waitForBlocker(
+  prisma: PrismaClient,
+  waiter: number,
+  blocker: number,
+) {
+  const deadline = Date.now() + 2_000;
+  while (true) {
+    const [state] = await prisma.$queryRaw<Array<{ blocked: boolean }>>`
+      SELECT ${blocker}::int = ANY(pg_blocking_pids(${waiter}::int)) AS blocked`;
+    if (state.blocked) return;
+    assert.ok(
+      Date.now() < deadline,
+      `backend ${waiter} must be blocked by ${blocker}`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
 async function withDatabase(
   run: (
     prisma: PrismaClient,
@@ -122,6 +157,21 @@ it(
       );
       for (const statement of migration.split(";").filter((s) => s.trim()))
         await prisma.$executeRawUnsafe(statement);
+      const beforeBackfill = await prisma.$queryRaw<
+        Array<{ sessionStartedAt: Date | null }>
+      >`SELECT "sessionStartedAt" FROM "CallAttempt"`;
+      assert.ok(
+        beforeBackfill.every((row) => row.sessionStartedAt === null),
+        "column migration commits separately from backfill",
+      );
+      const backfill = readFileSync(
+        resolve(
+          __dirname,
+          "../../../prisma/migrations-pending/20261121121000_backfill_dialer_assignment_fences/migration.sql",
+        ),
+        "utf8",
+      );
+      await prisma.$executeRawUnsafe(backfill);
       const rows = await prisma.$queryRaw<
         Array<{ id: string; sessionStartedAt: Date | null }>
       >`SELECT id,"sessionStartedAt" FROM "CallAttempt"`;
@@ -337,10 +387,22 @@ it(
       const commit = new Promise<void>((resolve) => {
         release = resolve;
       });
+      let linkingPid = 0;
+      let replacementStarted!: (pid: number) => void;
+      const replacementBackend = new Promise<number>((resolve) => {
+        replacementStarted = resolve;
+      });
+      const replacingRepo = new AgentSessionRepository(
+        observeTransactions(prisma, replacementStarted) as never,
+      );
       const attempts = new CallAttemptRepository({
         $transaction: (run: (tx: unknown) => unknown) =>
-          prisma.$transaction(async (tx) =>
-            run({
+          prisma.$transaction(async (tx) => {
+            const [backend] = await tx.$queryRaw<
+              Array<{ pid: number }>
+            >`SELECT pg_backend_pid() AS pid`;
+            linkingPid = backend.pid;
+            return run({
               $queryRaw: tx.$queryRaw.bind(tx),
               callAttempt: {
                 findUnique: tx.callAttempt.findUnique.bind(tx.callAttempt),
@@ -353,30 +415,27 @@ it(
                   return result;
                 },
               },
-            }),
-          ),
+            });
+          }),
       } as never);
       const linking = attempts.linkCallIfUnlinked(attemptId, callId);
       let replacement: Promise<AgentSession | null> | undefined;
       try {
         await Promise.race([written, linking]);
-        replacement = repo.restartIfUnchanged(input, session, "ready");
-        const deadline = Date.now() + 2_000;
-        while (true) {
-          const [waiting] = await prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT count(*) AS count FROM pg_stat_activity
-            WHERE datname = current_database() AND wait_event_type = 'Lock'
-              AND pid <> pg_backend_pid()`;
-          if (Number(waiting.count) > 0) break;
-          assert.ok(
-            Date.now() < deadline,
-            "replacement must wait for the in-flight provider link",
-          );
-          await new Promise((resolve) => setTimeout(resolve, 5));
-        }
+        replacement = replacingRepo.restartIfUnchanged(input, session, "ready");
+        await waitForBlocker(prisma, await replacementBackend, linkingPid);
         release();
         assert.equal(await linking, true);
         assert.equal(await replacement, null);
+        assert.equal(
+          await repo.endIfUnchanged(session, true, { rejectLiveCalls: true }),
+          null,
+          "explicit stop rejects a newly linked leg even when preserving a dispatch",
+        );
+        assert.ok(
+          await repo.endIfUnchanged(session, true),
+          "stale cleanup may retain a live leg while ending its session",
+        );
         assert.equal(
           (await repo.findById(session.id))!.startedAt.getTime(),
           session.startedAt.getTime(),
@@ -423,8 +482,10 @@ it(
       );
       await prisma.$executeRaw`UPDATE "AgentSession" SET "lastHeartbeat" = "lastHeartbeat" + interval '1 second' WHERE id=${started.id}::uuid`;
       assert.equal(await repo.endIfUnchanged(current), null);
+      await prisma.$executeRaw`UPDATE "User" SET "canCall"=false WHERE id=${input.userId}::uuid`;
+      const ended = await repo.endForAccountDisable(current, false);
       assert.equal(
-        (await repo.endForAccountDisable(current, false))!.status,
+        ended.outcome === "ended" && ended.session.status,
         "offline",
       );
     }),
@@ -444,18 +505,32 @@ it(
       const commit = new Promise<void>((resolve) => {
         release = resolve;
       });
+      let disablingPid = 0;
+      let activationStarted!: (pid: number) => void;
+      const activationBackend = new Promise<number>((resolve) => {
+        activationStarted = resolve;
+      });
+      const activatingRepo = new AgentSessionRepository(
+        observeTransactions(prisma, activationStarted) as never,
+      );
       const disable = prisma.$transaction(async (tx) => {
+        const [backend] = await tx.$queryRaw<
+          Array<{ pid: number }>
+        >`SELECT pg_backend_pid() AS pid`;
+        disablingPid = backend.pid;
         await tx.$executeRaw`UPDATE "User" SET "canCall"=false WHERE id=${input.userId}::uuid`;
         updated();
         await commit;
       });
+      let activating: Promise<boolean> | undefined;
       try {
         await disabled;
-        const activating = repo.transitionIf(
+        activating = activatingRepo.transitionIf(
           session.id,
           { from: ["offline"], endedAt: null, startedAt: session.startedAt },
           "ready",
         );
+        await waitForBlocker(prisma, await activationBackend, disablingPid);
         release();
         await disable;
         assert.equal(await activating, false);
@@ -464,7 +539,7 @@ it(
           [session.id],
         );
         const ended = await repo.endForAccountDisable(session, false);
-        assert.ok(ended?.endedAt);
+        assert.ok(ended.outcome === "ended" && ended.session.endedAt);
         assert.equal(
           await repo.transitionIf(
             session.id,
@@ -475,7 +550,7 @@ it(
         );
       } finally {
         release();
-        await disable;
+        await Promise.allSettled([disable, activating]);
       }
     }),
 );
@@ -520,4 +595,163 @@ it(
         [leads[0], leads[4], leads[5]].sort(),
       );
     }),
+);
+
+it(
+  "refuses account cleanup after a concurrent restore commits",
+  { skip: !socket },
+  () =>
+    withDatabase(async (prisma, repo, input) => {
+      const session = (await repo.restartIfUnchanged(input, null, "offline"))!;
+      await prisma.$executeRaw`UPDATE "User" SET "canCall"=false WHERE id=${input.userId}::uuid`;
+      let restored!: () => void;
+      let release!: () => void;
+      const written = new Promise<void>((resolve) => {
+        restored = resolve;
+      });
+      const commit = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let restorePid = 0;
+      let cleanupStarted!: (pid: number) => void;
+      const cleanupBackend = new Promise<number>((resolve) => {
+        cleanupStarted = resolve;
+      });
+      const cleanup = new AgentSessionRepository(
+        observeTransactions(prisma, cleanupStarted) as never,
+      );
+      const restoring = prisma.$transaction(async (tx) => {
+        const [backend] = await tx.$queryRaw<
+          Array<{ pid: number }>
+        >`SELECT pg_backend_pid() AS pid`;
+        restorePid = backend.pid;
+        await tx.$executeRaw`UPDATE "User" SET "canCall"=true WHERE id=${input.userId}::uuid`;
+        restored();
+        await commit;
+      });
+      let ending:
+        | ReturnType<AgentSessionRepository["endForAccountDisable"]>
+        | undefined;
+      try {
+        await written;
+        ending = cleanup.endForAccountDisable(session, false);
+        await waitForBlocker(prisma, await cleanupBackend, restorePid);
+        release();
+        await restoring;
+        assert.deepEqual(await ending, { outcome: "calling_enabled" });
+        assert.equal((await repo.findById(session.id))!.endedAt, null);
+      } finally {
+        release();
+        await Promise.allSettled([restoring, ending]);
+      }
+    }),
+);
+
+it(
+  "serializes expired dial recovery and provider linking in either order",
+  { skip: !socket },
+  async () => {
+    for (const linkingWins of [true, false])
+      await withDatabase(async (prisma, repo, input) => {
+        const session = (await repo.restartIfUnchanged(
+          input,
+          null,
+          "offline",
+        ))!;
+        const leadId = randomUUID();
+        const attemptId = randomUUID();
+        const callId = randomUUID();
+        await prisma.$executeRaw`UPDATE "AgentSession" SET "currentLeadId"=${leadId}::uuid, "endedAt"=NOW() AT TIME ZONE 'UTC' WHERE id=${session.id}::uuid`;
+        await prisma.$executeRaw`INSERT INTO "CampaignLead" (id,status,"lockedBy","lockedAt") VALUES (${leadId}::uuid,'locked',${session.id}::uuid,(NOW() AT TIME ZONE 'UTC') - interval '10 minutes')`;
+        await prisma.$executeRaw`INSERT INTO "Call" (id) VALUES (${callId}::uuid)`;
+        await prisma.$executeRaw`INSERT INTO "CallAttempt" (id,"agentSessionId","sessionStartedAt","campaignLeadId",status,"initiatedAt") VALUES (${attemptId}::uuid,${session.id}::uuid,${session.startedAt}::timestamptz AT TIME ZONE 'UTC',${leadId}::uuid,'dialing',(NOW() AT TIME ZONE 'UTC') - interval '2 minutes')`;
+        let firstPid = 0;
+        let secondStarted!: (pid: number) => void;
+        const secondBackend = new Promise<number>((resolve) => {
+          secondStarted = resolve;
+        });
+        let reached!: () => void;
+        let release!: () => void;
+        const written = new Promise<void>((resolve) => {
+          reached = resolve;
+        });
+        const commit = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const held = observeTransactions(
+          prisma,
+          (pid) => {
+            firstPid = pid;
+          },
+          (tx) => ({
+            $queryRaw: tx.$queryRaw.bind(tx),
+            agentSession: tx.agentSession,
+            campaignLead: tx.campaignLead,
+            callAttempt: {
+              findUnique: tx.callAttempt.findUnique.bind(tx.callAttempt),
+              updateMany: async (
+                args: Parameters<typeof tx.callAttempt.updateMany>[0],
+              ) => {
+                const changed = await tx.callAttempt.updateMany(args);
+                reached();
+                await commit;
+                return changed;
+              },
+            },
+          }),
+        );
+        const waiting = observeTransactions(prisma, secondStarted);
+        const first = linkingWins
+          ? new CallAttemptRepository(held as never).linkCallIfUnlinked(
+              attemptId,
+              callId,
+            )
+          : new CampaignLeadRepository({
+              ...held,
+              $queryRaw: prisma.$queryRaw.bind(prisma),
+            } as never).requeueStaleLocked(5 * 60_000);
+        let second: Promise<number | boolean> | undefined;
+        try {
+          await Promise.race([written, first]);
+          second = linkingWins
+            ? new CampaignLeadRepository({
+                ...waiting,
+                $queryRaw: prisma.$queryRaw.bind(prisma),
+              } as never).requeueStaleLocked(5 * 60_000)
+            : new CallAttemptRepository(waiting as never).linkCallIfUnlinked(
+                attemptId,
+                callId,
+              );
+          await waitForBlocker(prisma, await secondBackend, firstPid);
+          release();
+          assert.equal(await first, linkingWins ? true : 1);
+          assert.equal(await second, linkingWins ? 0 : false);
+          const [lead] = await prisma.$queryRaw<
+            Array<{ status: string; lockedBy: string | null }>
+          >`SELECT status,"lockedBy" FROM "CampaignLead" WHERE id=${leadId}::uuid`;
+          const [attempt] = await prisma.$queryRaw<
+            Array<{ status: string; callId: string | null }>
+          >`SELECT status,"callId" FROM "CallAttempt" WHERE id=${attemptId}::uuid`;
+          assert.equal(lead.status, linkingWins ? "locked" : "queued");
+          assert.equal(lead.lockedBy, linkingWins ? session.id : null);
+          assert.equal(attempt.callId, linkingWins ? callId : null);
+          if (!linkingWins) {
+            assert.equal(attempt.status, "ended");
+            assert.equal(
+              await new CallAttemptRepository(prisma as never).markDialing(
+                attemptId,
+              ),
+              false,
+            );
+            assert.equal(
+              (await repo.findById(session.id))!.currentLeadId,
+              null,
+            );
+          }
+        } finally {
+          release();
+          await Promise.allSettled([first, second]);
+        }
+      });
+  },
 );

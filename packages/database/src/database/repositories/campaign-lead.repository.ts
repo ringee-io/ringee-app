@@ -493,11 +493,7 @@ export class CampaignLeadRepository {
    */
   async requeueStaleLocked(thresholdMs: number): Promise<number> {
     const cutoff = new Date(Date.now() - thresholdMs);
-    return this.prisma.$executeRaw`
-      UPDATE "CampaignLead" lead
-      SET "status" = 'queued', "lockedBy" = NULL, "lockedAt" = NULL,
-          "updatedAt" = NOW() AT TIME ZONE 'UTC'
-      WHERE lead."status" = 'locked'
+    const reclaimable = Prisma.sql`lead."status" = 'locked'
         AND lead."lockedAt" < (${cutoff}::timestamptz AT TIME ZONE 'UTC')
         AND NOT EXISTS (
           SELECT 1 FROM "CallAttempt" attempt
@@ -514,6 +510,67 @@ export class CampaignLeadRepository {
             )
           )
         )`;
+    const candidates = await this.prisma.$queryRaw<
+      Array<{ id: string; lockedBy: string | null; lockedAt: Date }>
+    >`
+      SELECT lead."id", lead."lockedBy", lead."lockedAt" FROM "CampaignLead" lead
+      WHERE ${reclaimable}`;
+    let recovered = 0;
+    for (const candidate of candidates) {
+      recovered += await this.prisma.$transaction(async (tx) => {
+        // Provider binding takes the session lock before the attempt lock too.
+        // Lock every attempt's session, including historical owners, in order.
+        await tx.$queryRaw`SELECT "id" FROM "AgentSession"
+          WHERE "id" = ${candidate.lockedBy}::uuid OR "id" IN (
+            SELECT "agentSessionId" FROM "CallAttempt" WHERE "campaignLeadId" = ${candidate.id}::uuid
+          ) ORDER BY "id" FOR UPDATE`;
+        await tx.$queryRaw`SELECT "id" FROM "CallAttempt"
+          WHERE "campaignLeadId" = ${candidate.id}::uuid ORDER BY "id" FOR UPDATE`;
+        const eligible = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT lead."id" FROM "CampaignLead" lead
+          WHERE lead."id" = ${candidate.id}::uuid
+            AND lead."lockedBy" IS NOT DISTINCT FROM ${candidate.lockedBy}::uuid
+            AND lead."lockedAt" = (${candidate.lockedAt}::timestamptz AT TIME ZONE 'UTC')
+            AND ${reclaimable} FOR UPDATE`;
+        if (!eligible.length) return 0;
+        // Keep the attempt as reconciliation evidence, but fence holders that
+        // read it before recovery: none may bind or dispatch it after unlock.
+        await tx.callAttempt.updateMany({
+          where: {
+            campaignLeadId: candidate.id,
+            callId: null,
+            status: { in: ["created", "dialing"] },
+          },
+          data: { status: "ended", endedAt: new Date() },
+        });
+        if (candidate.lockedBy) {
+          await tx.agentSession.updateMany({
+            where: {
+              id: candidate.lockedBy,
+              currentLeadId: candidate.id,
+              status: { in: ["reserved", "dialing", "in_call"] },
+            },
+            data: { status: "paused", currentLeadId: null },
+          });
+          await tx.agentSession.updateMany({
+            where: { id: candidate.lockedBy, currentLeadId: candidate.id },
+            data: { currentLeadId: null },
+          });
+        }
+        return (
+          await tx.campaignLead.updateMany({
+            where: {
+              id: candidate.id,
+              status: "locked",
+              lockedBy: candidate.lockedBy,
+              lockedAt: candidate.lockedAt,
+            },
+            data: { status: "queued", lockedBy: null, lockedAt: null },
+          })
+        ).count;
+      });
+    }
+    return recovered;
   }
 
   /**

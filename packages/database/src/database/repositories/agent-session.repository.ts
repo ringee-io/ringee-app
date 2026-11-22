@@ -3,6 +3,11 @@ import { PrismaService } from "../prisma.service";
 import { randomUUID } from "node:crypto";
 import { AgentSession, AgentSessionStatus, Prisma } from "@prisma/client";
 
+export type AccountDisableEndResult =
+  | { outcome: "ended"; session: AgentSession }
+  | { outcome: "changed" }
+  | { outcome: "calling_enabled" };
+
 @Injectable()
 export class AgentSessionRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -56,15 +61,22 @@ export class AgentSessionRepository {
   async endIfUnchanged(
     previous: AgentSession,
     preserveLiveLead = false,
+    options: { rejectLiveCalls?: boolean } = {},
   ): Promise<AgentSession | null> {
-    return this.endSnapshot(previous, preserveLiveLead, true);
+    const result = await this.endSnapshot(
+      previous,
+      preserveLiveLead,
+      true,
+      options.rejectLiveCalls,
+    );
+    return result.outcome === "ended" ? result.session : null;
   }
 
   /** Account cleanup ignores heartbeats, but must re-evaluate a new assignment. */
   async endForAccountDisable(
     previous: AgentSession,
     preserveLiveLead: boolean,
-  ): Promise<AgentSession | null> {
+  ): Promise<AccountDisableEndResult> {
     return this.endSnapshot(previous, preserveLiveLead, false);
   }
 
@@ -72,17 +84,22 @@ export class AgentSessionRepository {
     previous: AgentSession,
     preserveLiveLead: boolean,
     compareHeartbeat: boolean,
-  ): Promise<AgentSession | null> {
+    rejectLiveCalls = false,
+  ): Promise<AccountDisableEndResult> {
     return this.prisma.$transaction(async (tx) => {
       // User updates (including canCall=false), activation and account cleanup
       // share this row lock. Always acquire it before the session lock.
-      if (!compareHeartbeat) await this.lockCallingUser(tx, previous.userId);
+      if (
+        !compareHeartbeat &&
+        (await this.lockCallingUser(tx, previous.userId))
+      )
+        return { outcome: "calling_enabled" };
       await this.lockSession(tx, previous.id);
       const changed = await tx.agentSession.updateMany({
         where: {
           ...this.snapshotFilter(previous),
           ...(!compareHeartbeat ? { lastHeartbeat: undefined } : {}),
-          ...(!preserveLiveLead
+          ...(!preserveLiveLead || rejectLiveCalls
             ? { callAttempts: { none: { call: { endedAt: null } } } }
             : {}),
         },
@@ -92,9 +109,12 @@ export class AgentSessionRepository {
           ...(!preserveLiveLead ? { currentLeadId: null } : {}),
         },
       });
-      if (!changed.count) return null;
+      if (!changed.count) return { outcome: "changed" };
       if (!preserveLiveLead) await this.releaseAssignments(tx, previous.id);
-      return tx.agentSession.findUnique({ where: { id: previous.id } });
+      const session = await tx.agentSession.findUnique({
+        where: { id: previous.id },
+      });
+      return session ? { outcome: "ended", session } : { outcome: "changed" };
     });
   }
 

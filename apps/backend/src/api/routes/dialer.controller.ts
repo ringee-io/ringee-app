@@ -566,6 +566,7 @@ export class DialerController {
           await this.agentSessionService.activateAfterEvents(
             sessionId,
             session.startedAt,
+            () => !subscriber.closed,
           );
         }
       })().catch((error: unknown) => {

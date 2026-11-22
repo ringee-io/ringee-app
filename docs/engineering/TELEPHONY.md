@@ -334,6 +334,12 @@ its claimed `sessionStartedAt` independently of its mutable dispatch time.
 Live provider calls keep their leads, including when a heartbeat expires. A
 stopped dial whose provider placement is still uncertain retains its reservation
 until it is reconciled or reaches the existing dispatch timeout.
+An explicit stop rejects a live leg under the session lock, even while preserving
+an unconfirmed dispatch. Stale or disabled sessions may end while retaining a
+live call; once that call completes, the held lead is released to the queue and
+the attempt keeps its recorded metrics. An offline session does not wait for a
+disposition prompt it can no longer display. Account cleanup stops if the locked
+user row shows calling has been enabled again.
 
 `DialerOrchestrationService` polls every 500 ms **in the API process**
 (`CMP-010`), one tick at a time (`CMP-012`). Per tick, per active campaign:
@@ -368,9 +374,21 @@ reconciles status if a state event was missed.
 The lifecycle PostgreSQL regression case runs against an isolated local socket
 with `RINGEE_DIALER_TEST_PG_SOCKET` (port 55445, database `postgres`). It uses its
 own schema and never uses `DATABASE_URL`. Apply
-`packages/database/prisma/migrations-pending/20261121120000_dialer_assignment_fences`
-before deploying these persistence changes. Deploy the API before the new
-dashboard, and update the orchestrator so its cleanup uses the same fences.
+the dialer assignment fences in this order:
+
+1. Apply and commit
+   `packages/database/prisma/migrations-pending/20261121120000_dialer_assignment_fences`.
+   The nullable columns must commit before the table-wide backfill begins.
+2. Stop or fully drain every pre-change API task that can dispatch calls or
+   write `CallAttempt` rows, including in-flight assignments and long-lived
+   streams. Keep those writers stopped through the backfill; a rolling deploy
+   alone leaves old writers able to create attempts without the new identity.
+3. Run and commit the separate
+   `packages/database/prisma/migrations-pending/20261121121000_backfill_dialer_assignment_fences`
+   migration. Confirm that no pre-change task can resume writing. Only then let
+   the new API handler serve campaign calls.
+4. Deploy the dashboard after the API, and update the orchestrator so cleanup
+   uses the same fences.
 
 The browser owns the leg once `call.initiate` arrives. The workspace tracks it by
 its own Telnyx call id (chosen before `newCall`, which reports the first state

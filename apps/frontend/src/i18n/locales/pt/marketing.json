@@ -711,5 +711,10 @@
         "description": "Os teus retornos de chamada, reuniões e histórico acompanham-te — nunca percas um follow-up."
       }
     }
+  },
+  "callerIdRotation": {
+    "countryMatchDescription": "O Ringee identifica o país de destino e considera apenas os números elegíveis que lhe pertencem nesse mesmo país. Se o plano de numeração não for reconhecido, a chamada é recusada com um erro claro.",
+    "localAreaDescription": "Na estratégia de presença local, tem prioridade um número elegível com o mesmo código de área NANP do contacto. Se não houver nenhum disponível ou o plano de numeração não tiver um código de área suportado, o Ringee seleciona aleatoriamente um número elegível do grupo da campanha no mesmo país.",
+    "healthDescription": "Os números com correspondência local alternam por estado de saúde e, depois, pelo tempo desde a última utilização. Os números em descanso, desativados, sinalizados ou que atingiram o limite diário ficam fora da seleção automática, incluindo a alternativa aleatória. A estratégia equilibrada ordena os números elegíveis por estado de saúde e tempo desde a última utilização."
   }
 }

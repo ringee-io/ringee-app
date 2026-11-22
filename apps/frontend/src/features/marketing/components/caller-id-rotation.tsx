@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   ArrowRight,
@@ -125,43 +126,40 @@ export function RotationLocalPresence() {
   );
 }
 
-/** The ordered selection priority, mirroring `selectForDial`. */
-const SELECTION_STEPS: {
-  icon: typeof ShieldCheck;
-  title: string;
-  description: string;
-}[] = [
-  {
-    icon: ShieldCheck,
-    title: 'Country match, guaranteed',
-    description:
-      'Ringee reads the destination’s country and only ever considers eligible numbers you own in that same country. If the calling plan cannot be recognized, dialing is refused with a clear error.'
-  },
-  {
-    icon: MapPin,
-    title: 'Local area code first',
-    description:
-      'On the local-presence strategy, an eligible number sharing the prospect’s NANP area code wins. If none is available, or the calling plan has no supported area code, Ringee randomly selects an eligible number from the campaign pool in the same country.'
-  },
-  {
-    icon: Gauge,
-    title: 'Respect each number’s daily cap',
-    description:
-      'Every number has a daily call cap (50 by default, adjustable per number). Numbers that already hit their cap for the day are skipped, so dialing volume stays spread out and no single line looks like a robocaller.'
-  },
-  {
-    icon: Activity,
-    title: 'Rank by health, then rest',
-    description:
-      'Local matches rotate by health, then least-recent use. Numbers that are resting, disabled, flagged or over their daily cap stay out of automatic selection, including random fallback. The balanced strategy ranks eligible numbers by health and least-recent use.'
-  }
-];
-
 /**
  * The core mechanism: how Ringee decides which number to present on each call.
  * This is the section that explains "the way we do it."
  */
 export function RotationMechanics() {
+  const t = useTranslations('marketing.callerIdRotation');
+  /** The ordered selection priority, mirroring `selectForDial`. */
+  const SELECTION_STEPS: {
+    icon: typeof ShieldCheck;
+    title: string;
+    description: string;
+  }[] = [
+    {
+      icon: ShieldCheck,
+      title: 'Country match, guaranteed',
+      description: t('countryMatchDescription')
+    },
+    {
+      icon: MapPin,
+      title: 'Local area code first',
+      description: t('localAreaDescription')
+    },
+    {
+      icon: Gauge,
+      title: 'Respect each number’s daily cap',
+      description:
+        'Every number has a daily call cap (50 by default, adjustable per number). Numbers that already hit their cap for the day are skipped, so dialing volume stays spread out and no single line looks like a robocaller.'
+    },
+    {
+      icon: Activity,
+      title: 'Rank by health, then rest',
+      description: t('healthDescription')
+    }
+  ];
   return (
     <Section className='bg-muted/20'>
       <Container>

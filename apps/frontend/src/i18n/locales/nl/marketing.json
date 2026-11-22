@@ -711,5 +711,10 @@
         "description": "Je terugbelverzoeken, meetings en geschiedenis gaan met je mee — mis nooit een follow-up."
       }
     }
+  },
+  "callerIdRotation": {
+    "countryMatchDescription": "Ringee herkent het land van bestemming en gebruikt alleen geschikte nummers die van jou zijn in datzelfde land. Als het nummerplan niet wordt herkend, wordt de oproep geweigerd met een duidelijke foutmelding.",
+    "localAreaDescription": "Bij de strategie voor lokale aanwezigheid krijgt een geschikt nummer met hetzelfde NANP-netnummer als de prospect voorrang. Als er geen beschikbaar is of het nummerplan geen ondersteund netnummer heeft, kiest Ringee willekeurig een geschikt nummer uit de campagnepool in hetzelfde land.",
+    "healthDescription": "Lokaal overeenkomende nummers rouleren op basis van hun gezondheid en daarna op basis van welk nummer het langst niet is gebruikt. Nummers die rusten, uitgeschakeld of gemarkeerd zijn of hun daglimiet hebben bereikt, vallen buiten de automatische selectie, ook bij de willekeurige terugvaloptie. De gebalanceerde strategie rangschikt geschikte nummers op gezondheid en laatste gebruik."
   }
 }
