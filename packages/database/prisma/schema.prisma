@@ -2203,12 +2203,13 @@ model CampaignList {
 }
 
 model CallAttempt {
-  id             String  @id @default(uuid()) @db.Uuid
-  campaignId     String  @db.Uuid
-  campaignLeadId String  @db.Uuid
-  callId         String? @db.Uuid
-  agentSessionId String? @db.Uuid
-  agentUserId    String  @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  campaignId       String    @db.Uuid
+  campaignLeadId   String    @db.Uuid
+  callId           String?   @db.Uuid
+  agentSessionId   String?   @db.Uuid
+  agentUserId      String    @db.Uuid
+  sessionStartedAt DateTime?
 
   status        CallAttemptStatus @default(created)
   attemptNumber Int
@@ -2495,6 +2496,7 @@ model AgentSession {
   lastHeartbeat DateTime  @default(now())
   startedAt     DateTime  @default(now())
   endedAt       DateTime?
+  reservedAt    DateTime?
 
   callsAttempted Int @default(0)
   callsConnected Int @default(0)

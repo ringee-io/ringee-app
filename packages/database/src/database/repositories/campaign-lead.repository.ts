@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CampaignLead, CampaignLeadStatus, Prisma } from "@prisma/client";
+import { unconfirmedDialSql } from "./call-attempt.repository";
 
 /** Enough contact to render a row in the campaign's lead table. */
 export interface CampaignLeadContactSummary {
@@ -492,33 +493,27 @@ export class CampaignLeadRepository {
    */
   async requeueStaleLocked(thresholdMs: number): Promise<number> {
     const cutoff = new Date(Date.now() - thresholdMs);
-    const result = await this.prisma.campaignLead.updateMany({
-      where: {
-        status: CampaignLeadStatus.locked,
-        lockedAt: { lt: cutoff },
-        // A slow preview or a ringing provider leg is not an abandoned lock.
-        // Recovery must never make a live prospect callable by another agent.
-        callAttempts: {
-          none: {
-            OR: [
-              { call: { endedAt: null } },
-              {
-                status: { in: ["created", "dialing"] },
-                agentSession: {
-                  status: { in: ["reserved", "dialing", "in_call"] },
-                },
-              },
-            ],
-          },
-        },
-      },
-      data: {
-        status: CampaignLeadStatus.queued,
-        lockedBy: null,
-        lockedAt: null,
-      },
-    });
-    return result.count;
+    return this.prisma.$executeRaw`
+      UPDATE "CampaignLead" lead
+      SET "status" = 'queued', "lockedBy" = NULL, "lockedAt" = NULL,
+          "updatedAt" = NOW() AT TIME ZONE 'UTC'
+      WHERE lead."status" = 'locked'
+        AND lead."lockedAt" < (${cutoff}::timestamptz AT TIME ZONE 'UTC')
+        AND NOT EXISTS (
+          SELECT 1 FROM "CallAttempt" attempt
+          LEFT JOIN "Call" call ON call."id" = attempt."callId"
+          LEFT JOIN "AgentSession" session ON session."id" = attempt."agentSessionId"
+          WHERE attempt."campaignLeadId" = lead."id" AND (
+            (call."id" IS NOT NULL AND call."endedAt" IS NULL)
+            OR (${unconfirmedDialSql()})
+            OR (
+              attempt."status" IN ('created', 'dialing')
+              AND session."id" = lead."lockedBy"
+              AND session."currentLeadId" = lead."id"
+              AND session."status" IN ('reserved', 'dialing', 'in_call')
+            )
+          )
+        )`;
   }
 
   /**

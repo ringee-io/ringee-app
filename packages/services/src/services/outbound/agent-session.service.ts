@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import {
   AgentSession,
@@ -12,11 +13,12 @@ import {
   CampaignMemberRepository,
   OrganizationRepository,
   AgentSessionStatus,
+  DIAL_DISPATCH_TIMEOUT_MS,
 } from "@ringee/database";
 import { UserService } from "../user.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 const HEARTBEAT_STALE_MS = 30_000; // 30 seconds
-export const DIAL_DISPATCH_TIMEOUT_MS = 90_000;
+export { DIAL_DISPATCH_TIMEOUT_MS };
 
 @Injectable()
 export class AgentSessionService {
@@ -180,6 +182,10 @@ export class AgentSessionService {
     const session = await this.getSession(sessionId);
     this.assertIncarnation(session, startedAt);
     await this.assertDialerEnabled(session.userId);
+    if (!(await this.sseBridge.isRelayReady()))
+      throw new ServiceUnavailableException(
+        "The dialer event relay is unavailable.",
+      );
     const moved = await this.transitionIf(
       sessionId,
       {
@@ -194,6 +200,12 @@ export class AgentSessionService {
       this.logger.log(
         `Session ${sessionId} for campaign ${session.campaignId} event stream attached; ready`,
       );
+    else {
+      const current = await this.getSession(sessionId);
+      this.assertIncarnation(current, startedAt);
+      if (current.status === AgentSessionStatus.offline)
+        throw new ConflictException("This dialer session cannot be activated.");
+    }
   }
 
   async transitionTo(
@@ -225,6 +237,7 @@ export class AgentSessionService {
       currentLeadId?: string | null;
       startedAt?: Date;
       endedAt?: Date | null;
+      reservedAt?: Date | null;
     },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
@@ -311,12 +324,23 @@ export class AgentSessionService {
    */
   async disableForUser(userId: string): Promise<number> {
     const sessions = await this.sessionRepo.findActiveByUser(userId);
-    for (const session of sessions) {
-      const preserve =
-        (await this.attemptRepo.hasLiveCallForSession(session.id)) ||
-        (await this.hasUnconfirmedDial(session));
-      const ended = await this.sessionRepo.endIfUnchanged(session, preserve);
-      if (!ended) continue;
+    let count = 0;
+    for (let session of sessions) {
+      // A heartbeat cannot defeat account cleanup. A changed assignment must
+      // be re-read so preservation is decided for the assignment actually ended.
+      while (true) {
+        const preserve =
+          (await this.attemptRepo.hasLiveCallForSession(session.id)) ||
+          (await this.hasUnconfirmedDial(session));
+        if (await this.sessionRepo.endForAccountDisable(session, preserve))
+          break;
+        const current = await this.sessionRepo.findById(session.id);
+        if (!current || (current.status === "offline" && current.endedAt)) {
+          session = current ?? session;
+          break;
+        }
+        session = current;
+      }
       this.sseBridge.emit(`agent:${session.id}`, "session.state", {
         status: "offline",
         reason: "account_disabled",
@@ -325,8 +349,9 @@ export class AgentSessionService {
       this.logger.warn(
         `Disabled dialer session ${session.id} for user ${userId}`,
       );
+      count++;
     }
-    return sessions.length;
+    return count;
   }
 
   async getById(sessionId: string) {
@@ -418,10 +443,7 @@ export class AgentSessionService {
     const attempt = await this.attemptRepo.findUnconfirmedDialForSession(
       session.id,
     );
-    return (
-      attempt?.status === "dialing" &&
-      Date.now() - attempt.initiatedAt.getTime() < DIAL_DISPATCH_TIMEOUT_MS
-    );
+    return attempt !== null;
   }
 
   private assertIncarnation(session: AgentSession, startedAt?: Date) {

@@ -13,6 +13,7 @@ class FakeRedis {
 
   bus() {
     return {
+      isSubscriptionReady: () => !this.refuseSubscribe,
       subscribe: async (channel: string, handler: Handler) => {
         if (this.refuseSubscribe) throw new Error("redis down");
         const entry = { channel, handler };
@@ -57,6 +58,7 @@ describe("SSEBridgeService", () => {
     let listener: ((message: string) => void) | undefined;
     const client = {
       duplicate: () => ({
+        isReady: true,
         on: () => undefined,
         connect: async () => {
           if (failures-- > 0) throw new Error("redis unavailable");
@@ -95,6 +97,24 @@ describe("SSEBridgeService", () => {
     redis.refuseSubscribe = false;
     assert.equal(await bridge.isRelayReady(), true);
     bridge.onModuleDestroy();
+  });
+
+  it("checks the current subscriber connection after listen has already resolved", async (t) => {
+    let ready = true;
+    const redis = new FakeRedis();
+    const bus = redis.bus();
+    bus.isSubscriptionReady = () => ready;
+    const bridge = new SSEBridgeService(bus as never);
+    t.after(() => bridge.onModuleDestroy());
+    await bridge.listen();
+    assert.equal(await bridge.isRelayReady(), true);
+    ready = false;
+    assert.equal(await bridge.isRelayReady(), false);
+    const received = collect(bridge, "agent:s1");
+    bridge.emit("agent:s1", "session.state", { status: "paused" });
+    assert.equal(received.length, 1, "a lost subscriber uses local delivery");
+    ready = true;
+    assert.equal(await bridge.isRelayReady(), true);
   });
 
   it("reaches a stream held by another API instance", async () => {

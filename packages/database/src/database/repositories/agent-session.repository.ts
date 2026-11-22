@@ -17,6 +17,7 @@ export class AgentSessionRepository {
       Math.max(Date.now(), (previous?.startedAt.getTime() ?? 0) + 1),
     );
     return this.prisma.$transaction(async (tx) => {
+      if (!(await this.lockCallingUser(tx, data.userId))) return null;
       if (!previous) {
         const id = randomUUID();
         const created = await tx.agentSession.createMany({
@@ -28,6 +29,7 @@ export class AgentSessionRepository {
           : null;
       }
 
+      await this.lockSession(tx, previous.id);
       const changed = await tx.agentSession.updateMany({
         where: {
           ...this.snapshotFilter(previous),
@@ -55,10 +57,31 @@ export class AgentSessionRepository {
     previous: AgentSession,
     preserveLiveLead = false,
   ): Promise<AgentSession | null> {
+    return this.endSnapshot(previous, preserveLiveLead, true);
+  }
+
+  /** Account cleanup ignores heartbeats, but must re-evaluate a new assignment. */
+  async endForAccountDisable(
+    previous: AgentSession,
+    preserveLiveLead: boolean,
+  ): Promise<AgentSession | null> {
+    return this.endSnapshot(previous, preserveLiveLead, false);
+  }
+
+  private async endSnapshot(
+    previous: AgentSession,
+    preserveLiveLead: boolean,
+    compareHeartbeat: boolean,
+  ): Promise<AgentSession | null> {
     return this.prisma.$transaction(async (tx) => {
+      // User updates (including canCall=false), activation and account cleanup
+      // share this row lock. Always acquire it before the session lock.
+      if (!compareHeartbeat) await this.lockCallingUser(tx, previous.userId);
+      await this.lockSession(tx, previous.id);
       const changed = await tx.agentSession.updateMany({
         where: {
           ...this.snapshotFilter(previous),
+          ...(!compareHeartbeat ? { lastHeartbeat: undefined } : {}),
           ...(!preserveLiveLead
             ? { callAttempts: { none: { call: { endedAt: null } } } }
             : {}),
@@ -82,7 +105,20 @@ export class AgentSessionRepository {
       lastHeartbeat: session.lastHeartbeat,
       status: session.status,
       currentLeadId: session.currentLeadId,
+      reservedAt: session.reservedAt,
+      endedAt: session.endedAt,
     };
+  }
+
+  private async lockSession(tx: Prisma.TransactionClient, id: string) {
+    return tx.$queryRaw<AgentSession[]>`
+      SELECT * FROM "AgentSession" WHERE "id" = ${id}::uuid FOR UPDATE`;
+  }
+
+  private async lockCallingUser(tx: Prisma.TransactionClient, userId: string) {
+    const users = await tx.$queryRaw<Array<{ canCall: boolean }>>`
+      SELECT "canCall" FROM "User" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+    return users[0]?.canCall === true;
   }
 
   private async releaseAssignments(
@@ -147,7 +183,10 @@ export class AgentSessionRepository {
     return this.prisma.agentSession.findMany({
       where: {
         userId,
-        status: { not: AgentSessionStatus.offline },
+        OR: [
+          { status: { not: AgentSessionStatus.offline } },
+          { endedAt: null },
+        ],
       },
     });
   }
@@ -181,25 +220,51 @@ export class AgentSessionRepository {
       currentLeadId?: string | null;
       startedAt?: Date;
       endedAt?: Date | null;
+      reservedAt?: Date | null;
     },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
   ): Promise<boolean> {
-    const result = await this.prisma.agentSession.updateMany({
-      where: {
-        id,
-        status: { in: expected.from },
-        ...(expected.startedAt ? { startedAt: expected.startedAt } : {}),
-        ...(expected.endedAt !== undefined
-          ? { endedAt: expected.endedAt }
-          : {}),
-        ...(expected.currentLeadId !== undefined
-          ? { currentLeadId: expected.currentLeadId }
-          : {}),
-      },
-      data: { status, ...extra },
+    return this.prisma.$transaction(async (tx) => {
+      if (status === "ready") {
+        const session = await tx.agentSession.findUnique({ where: { id } });
+        if (!session || !(await this.lockCallingUser(tx, session.userId)))
+          return false;
+      }
+      const [session] = await this.lockSession(tx, id);
+      if (!session) return false;
+      const result = await tx.agentSession.updateMany({
+        where: {
+          id,
+          status: { in: expected.from },
+          ...(expected.startedAt ? { startedAt: expected.startedAt } : {}),
+          ...(expected.endedAt !== undefined
+            ? { endedAt: expected.endedAt }
+            : {}),
+          ...(expected.currentLeadId !== undefined
+            ? { currentLeadId: expected.currentLeadId }
+            : {}),
+          ...(expected.reservedAt !== undefined
+            ? { reservedAt: expected.reservedAt }
+            : {}),
+        },
+        data: {
+          status,
+          ...extra,
+          ...(status === AgentSessionStatus.reserved
+            ? {
+                reservedAt: new Date(
+                  Math.max(
+                    Date.now(),
+                    (session.reservedAt?.getTime() ?? 0) + 1,
+                  ),
+                ),
+              }
+            : {}),
+        },
+      });
+      return result.count === 1;
     });
-    return result.count === 1;
   }
 
   async heartbeat(id: string, startedAt?: Date): Promise<AgentSession | null> {
@@ -214,7 +279,7 @@ export class AgentSessionRepository {
     return this.prisma.agentSession.findMany({
       where: {
         status: AgentSessionStatus.reserved,
-        updatedAt: { lt: cutoff },
+        reservedAt: { lt: cutoff },
         campaign: { dialerMode: "progressive" },
         callAttempts: { none: { call: { endedAt: null } } },
       },

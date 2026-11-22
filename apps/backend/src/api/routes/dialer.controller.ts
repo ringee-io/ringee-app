@@ -14,6 +14,8 @@ import {
   UnauthorizedException,
   UseGuards,
   ServiceUnavailableException,
+  ConflictException,
+  Logger,
 } from "@nestjs/common";
 import {
   Observable,
@@ -50,7 +52,7 @@ import {
 
 /** How often an open event stream re-checks its reader still owns the session. */
 const STREAM_ACCESS_RECHECK_MS = 60_000;
-import {} from "@ringee/database";
+import type { AgentSession } from "@ringee/database";
 
 interface CurrentUserData {
   id: string;
@@ -60,6 +62,7 @@ interface CurrentUserData {
 
 @Controller("dialer")
 export class DialerController {
+  private readonly logger = new Logger(DialerController.name);
   constructor(
     private readonly agentSessionService: AgentSessionService,
     private readonly dialerOrchestration: DialerOrchestrationService,
@@ -88,6 +91,11 @@ export class DialerController {
     @Body() body: { campaignId: string; waitForEvents?: boolean },
     @CurrentUser() user: CurrentUserData,
   ) {
+    if (
+      body.waitForEvents !== undefined &&
+      typeof body.waitForEvents !== "boolean"
+    )
+      throw new BadRequestException("waitForEvents must be a boolean");
     const orgId = this.requireOrg(user);
     const ctx = createOwnershipContext(user);
 
@@ -433,13 +441,18 @@ export class DialerController {
     const ctx = verifySseTicket(ticket, this.streamPurpose(sessionId, version));
     if (!ctx) throw new UnauthorizedException("Invalid stream ticket");
     return defer(() => from(this.ownsSession(ctx, sessionId, version))).pipe(
-      switchMap((allowed) => {
-        if (!allowed) throw new UnauthorizedException("Invalid stream ticket");
+      switchMap((session) => {
+        if (!session) throw new UnauthorizedException("Invalid stream ticket");
+        const attachedVersion = session.startedAt;
         const revoked = interval(STREAM_ACCESS_RECHECK_MS).pipe(
-          switchMap(() => from(this.ownsSession(ctx, sessionId, version))),
+          switchMap(() =>
+            from(this.ownsSession(ctx, sessionId, attachedVersion)),
+          ),
           filter((stillAllowed) => !stillAllowed),
         );
-        return this.sessionEvents(sessionId, version).pipe(takeUntil(revoked));
+        return this.sessionEvents(sessionId, attachedVersion, version).pipe(
+          takeUntil(revoked),
+        );
       }),
     );
   }
@@ -449,19 +462,21 @@ export class DialerController {
     ctx: OwnershipContext,
     sessionId: string,
     startedAt?: Date,
-  ): Promise<boolean> {
-    if (!ctx.organizationId) return false;
+  ): Promise<AgentSession | null> {
+    if (!ctx.organizationId) return null;
     try {
       if (!(await this.organizations.isMember(ctx.userId, ctx.organizationId)))
-        return false;
+        return null;
       const session = await this.agentSessionService.getByIdForOrg(
         sessionId,
         ctx.organizationId,
         ctx.userId,
       );
-      return !startedAt || session.startedAt.getTime() === startedAt.getTime();
+      return !startedAt || session.startedAt.getTime() === startedAt.getTime()
+        ? session
+        : null;
     } catch {
-      return false;
+      return null;
     }
   }
 
@@ -479,8 +494,15 @@ export class DialerController {
 
   private sessionEvents(
     sessionId: string,
-    version?: Date,
+    version: Date,
+    activationVersion?: Date,
   ): Observable<MessageEvent> {
+    const replaced = new UnauthorizedException(
+      "This dialer session has been replaced.",
+    );
+    const relayUnavailable = new ServiceUnavailableException(
+      "The dialer event relay is unavailable.",
+    );
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
     const realEvents = new Observable<MessageEvent>((subscriber) => {
       let receivedEvent = false;
@@ -490,13 +512,16 @@ export class DialerController {
         .subscribe(`agent:${sessionId}`)
         .subscribe({
           next: (event) => {
+            if (event.type === "heartbeat") {
+              subscriber.next(event);
+              return;
+            }
             const data =
               typeof event.data === "string"
                 ? JSON.parse(event.data)
                 : event.data;
             if (
-              version &&
-              data.sessionStartedAt &&
+              !data.sessionStartedAt ||
               new Date(data.sessionStartedAt).getTime() !== version.getTime()
             )
               return;
@@ -507,20 +532,22 @@ export class DialerController {
           complete: () => subscriber.complete(),
         });
       void (async () => {
-        if (!(await this.sseBridge.isRelayReady())) {
-          throw new ServiceUnavailableException(
-            "The dialer event relay is unavailable.",
-          );
-        }
-        const session = await this.agentSessionService.getById(sessionId);
+        let session = await this.agentSessionService.getById(sessionId);
         if (subscriber.closed) return;
-        if (version && session.startedAt.getTime() !== version.getTime()) {
-          throw new UnauthorizedException(
-            "This dialer session has been replaced.",
-          );
+        if (session.startedAt.getTime() !== version.getTime()) {
+          throw replaced;
         }
-        const awaiting =
-          session.status === "offline" && session.endedAt === null;
+        let awaiting = session.status === "offline" && session.endedAt === null;
+        if (awaiting) {
+          if (activationVersion?.getTime() !== version.getTime())
+            throw replaced;
+          if (!(await this.sseBridge.isRelayReady())) throw relayUnavailable;
+          if (subscriber.closed) return;
+          session = await this.agentSessionService.getById(sessionId);
+          if (session.startedAt.getTime() !== version.getTime()) throw replaced;
+          if (subscriber.closed) return;
+          awaiting = session.status === "offline" && session.endedAt === null;
+        }
         subscriber.next({
           type: "session.connected",
           data: JSON.stringify({
@@ -541,7 +568,33 @@ export class DialerController {
             session.startedAt,
           );
         }
-      })().catch((error: unknown) => subscriber.error(error));
+      })().catch((error: unknown) => {
+        if (
+          error === replaced ||
+          (error instanceof ConflictException &&
+            error.message === replaced.message)
+        ) {
+          subscriber.error(replaced);
+          return;
+        }
+        if (
+          error === relayUnavailable ||
+          (error instanceof ServiceUnavailableException &&
+            error.message === relayUnavailable.message)
+        ) {
+          subscriber.error(relayUnavailable);
+          return;
+        }
+        this.logger.error({
+          event: "dialer.stream_setup_failed",
+          errorType: error instanceof Error ? error.name : "unknown",
+        });
+        subscriber.error(
+          new ServiceUnavailableException(
+            "The dialer event stream could not be opened.",
+          ),
+        );
+      });
       return () => subscription.unsubscribe();
     });
     const heartbeat = interval(15000).pipe(

@@ -70,6 +70,8 @@ const UNDIALABLE_LEAD_DEFER_MS = 15 * 60_000;
  */
 const STALLED_DIAL_MS = DIAL_DISPATCH_TIMEOUT_MS;
 const STALLED_DIAL_SWEEP_EVERY_MS = 10_000;
+const CLOSED_WINDOW_LOOKUP_MS = 5_000;
+const WAITING_REFRESH_MS = 15_000;
 
 /** What the agent is told when their browser could not place the call. */
 const ABANDONED_DIAL_MESSAGES: Record<string, string> = {
@@ -136,7 +138,7 @@ interface DialerAgent {
   id: string;
   userId: string;
   organizationId: string;
-  startedAt?: Date;
+  startedAt: Date;
 }
 
 interface DialerLead {
@@ -262,8 +264,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   private readonly cooldownUntil = new Map<string, number>();
   private readonly waitingReasons = new Map<
     string,
-    { value: string; seenAt: number }
+    { value: string; seenAt: number; emittedAt: number }
   >();
+  private readonly closedWindowLookups = new Map<string, number>();
 
   constructor(
     private readonly campaignRepo: CampaignRepository,
@@ -390,13 +393,20 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         workDays: campaign.workDays,
       })
     ) {
+      const now = Date.now();
+      const lastLookup = this.closedWindowLookups.get(campaign.id);
+      if (
+        lastLookup !== undefined &&
+        now - lastLookup < CLOSED_WINDOW_LOOKUP_MS
+      )
+        return;
+      this.closedWindowLookups.set(campaign.id, now);
       const agents = await this.agentSessionService.findReadyByCampaign(
         campaign.id,
       );
       for (const agent of agents)
         this.emitWaiting(agent, campaign.id, "outside_calling_window");
       // Only log once per minute to avoid spam (use a simple throttle)
-      const now = Date.now();
       if (!this.lastWindowLog || now - this.lastWindowLog > 60_000) {
         this.lastWindowLog = now;
         this.logger.warn(
@@ -405,6 +415,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       }
       return;
     }
+    this.closedWindowLookups.delete(campaign.id);
 
     // Find ready agents
     const readyAgents = await this.agentSessionService.findReadyByCampaign(
@@ -512,6 +523,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         this.sseBridge.emit(`agent:${agent.id}`, "session.state", {
           status: "reserved",
           attemptId,
+          sessionStartedAt: agent.startedAt.toISOString(),
         });
         return;
       }
@@ -544,8 +556,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           sessionStartedAt: agent.startedAt,
           blocked: {
             reason: "DISPATCH_FAILED",
-            message:
-              "The next call could not be prepared. Your lead was released safely.",
+            message: "The next call could not be prepared.",
           },
         })
         .catch((releaseErr) =>
@@ -564,8 +575,15 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   ): void {
     const value = `${agent.startedAt?.getTime() ?? "legacy"}:${reason}`;
     const previous = this.waitingReasons.get(agent.id);
-    this.waitingReasons.set(agent.id, { value, seenAt: Date.now() });
-    if (previous?.value === value) return;
+    const now = Date.now();
+    if (
+      previous?.value === value &&
+      now - previous.emittedAt < WAITING_REFRESH_MS
+    ) {
+      previous.seenAt = now;
+      return;
+    }
+    this.waitingReasons.set(agent.id, { value, seenAt: now, emittedAt: now });
     this.sseBridge.emit(`agent:${agent.id}`, "session.waiting", {
       reason,
       campaignId,
@@ -589,6 +607,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       campaignLeadId: lead.id,
       agentSessionId: agent.id,
       agentUserId: agent.userId,
+      sessionStartedAt: agent.startedAt,
       attemptNumber: lead.attempts + 1,
     });
   }
@@ -1108,6 +1127,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         campaignLeadId: lead.id,
         attemptId: attempt?.id ?? null,
         sessionStartedAt: session.startedAt,
+        reservedAt: session.reservedAt,
         from: [AgentSessionStatus.reserved],
         to: AgentSessionStatus.ready,
       });
@@ -1284,12 +1304,13 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         session.id,
         session.currentLeadId,
       );
-      await this.callAttemptService.releaseUndialed({
+      const released = await this.callAttemptService.releaseUndialed({
         agentSessionId: session.id,
         agentUserId: session.userId,
         campaignLeadId: session.currentLeadId,
         attemptId: attempt?.id,
         sessionStartedAt: session.startedAt,
+        reservedAt: session.reservedAt,
         from: [AgentSessionStatus.reserved],
         to: AgentSessionStatus.paused,
         releaseLease: true,
@@ -1299,6 +1320,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
             "The next call was interrupted before dialing. Dialing is paused — resume when you're ready.",
         },
       });
+      if (!released) continue;
       this.logger.warn({
         event: "dialer.reservation_recovered",
         campaignId: session.campaignId,
@@ -1339,6 +1361,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     }
     for (const [id, entry] of this.waitingReasons) {
       if (now - entry.seenAt > STALLED_DIAL_MS) this.waitingReasons.delete(id);
+    }
+    for (const [id, seenAt] of this.closedWindowLookups) {
+      if (now - seenAt > STALLED_DIAL_MS) this.closedWindowLookups.delete(id);
     }
   }
 }

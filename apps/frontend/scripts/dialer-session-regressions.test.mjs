@@ -71,7 +71,7 @@ function fixture(t) {
     },
     patch: async (url) => {
       requests.push({ method: 'PATCH', url });
-      return { status: 'ready' };
+      return { status: 'ready', startedAt: first };
     }
   };
   const timers = new Map();
@@ -349,6 +349,60 @@ test('a call arriving during stop retains its screen and hang-up control', async
   assert.equal(await f.workspace.render().endSession(), false);
   assert.equal(f.session.getState().sessionId, 'session');
   assert.equal(f.call.getState().callId, 'leg');
+});
+
+test('stop succeeds when the offline event already cleared the session, while a live call keeps its screen', async (t) => {
+  const f = fixture(t);
+  await f.workspace.render().startSession();
+  f.api.delete = async () => f.session.getState().clear();
+  assert.equal(await f.workspace.render().endSession(), true);
+  await f.workspace.render().startSession();
+  f.api.delete = async () => {
+    f.session.getState().clear();
+    f.call.getState().begin('leg', 'attempt');
+  };
+  assert.equal(await f.workspace.render().endSession(), false);
+  assert.equal(await f.workspace.render().endSession(), false);
+});
+
+test('an empty rendered session can leave only when no call or replacement session is live', async (t) => {
+  const f = fixture(t);
+  const empty = f.workspace.render();
+  assert.equal(await empty.endSession(), true);
+  f.session
+    .getState()
+    .setSession('new-session', 'campaign', 'progressive', second);
+  assert.equal(await empty.endSession(), false);
+});
+
+test('a completed stop cannot clear a different session incarnation', async (t) => {
+  const f = fixture(t);
+  await f.workspace.render().startSession();
+  for (const [id, version] of [
+    ['session', second],
+    ['other-session', first]
+  ]) {
+    f.session
+      .getState()
+      .setSession('session', 'campaign', 'progressive', first);
+    f.api.delete = async () =>
+      f.session.getState().setSession(id, 'campaign', 'progressive', version);
+    assert.equal(await f.workspace.render().endSession(), false);
+    assert.equal(f.session.getState().sessionId, id);
+    assert.equal(f.session.getState().startedAt, version);
+  }
+});
+
+test('resume applies only a response for the current incarnation', async (t) => {
+  const f = fixture(t);
+  await f.workspace.render().startSession();
+  f.session.getState().setStatus('paused');
+  f.api.patch = async () => ({ status: 'ready', startedAt: second });
+  await f.workspace.render().resumeSession();
+  assert.equal(f.session.getState().status, 'paused');
+  f.api.patch = async () => ({ status: 'ready', startedAt: first });
+  await f.workspace.render().resumeSession();
+  assert.equal(f.session.getState().status, 'ready');
 });
 
 test('a reconnect snapshot cannot regress call events already received', async (t) => {

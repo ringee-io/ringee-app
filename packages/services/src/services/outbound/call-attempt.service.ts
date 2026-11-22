@@ -95,6 +95,7 @@ export class CallAttemptService {
     campaignLeadId: string;
     agentSessionId: string;
     agentUserId: string;
+    sessionStartedAt: Date;
     attemptNumber: number;
   }) {
     return this.attemptRepo.create(data);
@@ -177,7 +178,8 @@ export class CallAttemptService {
         ? await this.agentSessionService.getById(attempt.agentSessionId)
         : null;
     const currentIncarnation =
-      incarnation && attempt.initiatedAt >= incarnation.startedAt;
+      incarnation &&
+      attempt.sessionStartedAt?.getTime() === incarnation.startedAt.getTime();
 
     switch (eventType) {
       case "call.initiated": {
@@ -345,6 +347,11 @@ export class CallAttemptService {
     // Bound to a leg of its own: this was a second leg, and the first one
     // still owns the attempt's lifecycle.
     if (attempt.callId || !attempt.agentSessionId) return;
+    const session = await this.agentSessionService.getById(
+      attempt.agentSessionId,
+    );
+    if (attempt.sessionStartedAt?.getTime() !== session.startedAt.getTime())
+      return;
 
     // Not bound yet, but the agent is already on the line with this very
     // prospect: the first leg's own `call.initiated` simply has not linked it
@@ -365,6 +372,7 @@ export class CallAttemptService {
       agentUserId: attempt.agentUserId,
       campaignLeadId: attempt.campaignLeadId,
       attemptId: attempt.id,
+      sessionStartedAt: session.startedAt,
       from: [AgentSessionStatus.dialing],
       to: AgentSessionStatus.paused,
       releaseLease: true,
@@ -392,7 +400,8 @@ export class CallAttemptService {
     campaignLeadId: string;
     attemptId?: string | null;
     from: AgentSessionStatus[];
-    sessionStartedAt?: Date;
+    sessionStartedAt: Date;
+    reservedAt?: Date | null;
     to: UndialedOutcome;
     /** Keep the lead out of the queue until then. */
     deferLeadUntil?: Date;
@@ -410,6 +419,7 @@ export class CallAttemptService {
         from: input.from,
         currentLeadId: input.campaignLeadId,
         startedAt: input.sessionStartedAt,
+        reservedAt: input.reservedAt,
       },
       input.to,
       {
@@ -422,21 +432,24 @@ export class CallAttemptService {
 
     if (!moved) return false;
 
-    if (input.blocked) {
+    const notifyBlocked = (leadReleased: boolean) => {
+      if (!input.blocked) return;
       this.sseBridge.emit(channel, "call.blocked", {
         attemptId: input.attemptId ?? null,
-        ...(input.sessionStartedAt
-          ? { sessionStartedAt: input.sessionStartedAt.toISOString() }
-          : {}),
+        sessionStartedAt: input.sessionStartedAt.toISOString(),
         ...input.blocked,
+        ...(input.blocked.reason === "DISPATCH_FAILED" && leadReleased
+          ? {
+              message: `${input.blocked.message} Your lead was released safely.`,
+            }
+          : {}),
       });
-    }
+    };
+    if (input.blocked?.reason !== "DISPATCH_FAILED") notifyBlocked(false);
     this.sseBridge.emit(channel, "session.state", {
       status: input.to,
       attemptId: input.attemptId ?? null,
-      ...(input.sessionStartedAt
-        ? { sessionStartedAt: input.sessionStartedAt.toISOString() }
-        : {}),
+      sessionStartedAt: input.sessionStartedAt.toISOString(),
       ...(input.offlineReason ? { reason: input.offlineReason } : {}),
     });
 
@@ -461,16 +474,19 @@ export class CallAttemptService {
           ),
         );
     }
-    await this.campaignLeadRepo
+    const released = await this.campaignLeadRepo
       .releaseLock(input.campaignLeadId, {
         lockedBy: input.agentSessionId,
         nextCallAt: input.deferLeadUntil,
       })
-      .catch((err: Error) =>
+      .catch((err: Error) => {
         this.logger.warn(
           `Could not release lead ${input.campaignLeadId}: ${err.message}`,
-        ),
-      );
+        );
+        return 0;
+      });
+    if (input.blocked?.reason === "DISPATCH_FAILED")
+      notifyBlocked(released > 0);
     return true;
   }
 
@@ -504,7 +520,8 @@ export class CallAttemptService {
       ? await this.agentSessionService.getById(current.agentSessionId)
       : null;
     const currentIncarnation =
-      incarnation && current.initiatedAt >= incarnation.startedAt;
+      incarnation &&
+      current.sessionStartedAt?.getTime() === incarnation.startedAt.getTime();
     // The dialer is organization-only, so the campaign's workspace is the
     // organization the caller's attempt was verified against.
     if (

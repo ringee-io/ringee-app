@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CampaignLeadWriteService } from "./campaign-lead-write.service";
 import { CampaignService } from "./campaign.service";
+import { ForbiddenException } from "@nestjs/common";
 
 const ORG_CTX = { userId: "user-1", organizationId: "org-1" };
 const CAMPAIGN_ID = "3f8a1c54-9d2b-4e7a-b1c6-5a0d9e8f7c21";
@@ -13,6 +14,7 @@ interface BuildOptions {
   contactInWorkspace?: boolean;
   /** Rows `createMany` actually inserted — 0 when the lead already existed. */
   inserted?: number;
+  isMember?: boolean;
 }
 
 function build(options: BuildOptions = {}) {
@@ -69,7 +71,7 @@ function build(options: BuildOptions = {}) {
   const service = new CampaignService(
     campaignRepo,
     campaignLeadRepo,
-    {} as never,
+    { isMember: async () => options.isMember ?? false } as never,
     contactRepo,
     {} as never,
     {} as never,
@@ -185,6 +187,20 @@ describe("CampaignService.addContactToCampaign", () => {
 });
 
 describe("CampaignService.assertDialableCampaign", () => {
+  it("authorizes workspace and membership before rejecting a paused campaign", async () => {
+    for (const organizationId of ["org-2", "org-1"]) {
+      const { service } = build({
+        campaign: { id: CAMPAIGN_ID, organizationId, status: "paused" },
+        isMember: false,
+      });
+      await assert.rejects(
+        service.assertDialableCampaign(ORG_CTX, CAMPAIGN_ID, {
+          isOrgAdmin: organizationId === "org-2",
+        }),
+        ForbiddenException,
+      );
+    }
+  });
   it("refuses inactive campaigns before creating an agent that would wait forever", async () => {
     for (const status of ["draft", "paused", "completed", "archived"]) {
       const { service } = build({

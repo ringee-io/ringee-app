@@ -8,14 +8,20 @@ function fixture() {
   let subscribeCount = 0;
   let unsubscribeCount = 0;
   let gate: Promise<void> = Promise.resolve();
+  let subscribeGate: Promise<void> = Promise.resolve();
+  const connectionEvents = new Map<string, (...args: unknown[]) => void>();
   const subscriber = {
-    on: () => undefined,
+    isReady: false,
+    on: (event: string, listener: (...args: unknown[]) => void) =>
+      connectionEvents.set(event, listener),
     connect: async () => {
       await gate;
       if (connectFailures-- > 0) throw new Error("connection unavailable");
+      subscriber.isReady = true;
     },
     subscribe: async (channel: string, listener: (message: string) => void) => {
       subscribeCount++;
+      await subscribeGate;
       if (subscribeFailures-- > 0) throw new Error("subscription unavailable");
       listeners.set(channel, listener);
     },
@@ -44,6 +50,18 @@ function fixture() {
     },
     blockConnect: (value: Promise<void>) => {
       gate = value;
+    },
+    blockSubscribe: (value: Promise<void>) => {
+      subscribeGate = value;
+    },
+    disconnect: () => {
+      subscriber.isReady = false;
+      connectionEvents.get("reconnecting")?.();
+    },
+    reconnect: async () => {
+      await subscribeGate;
+      subscriber.isReady = true;
+      connectionEvents.get("ready")?.();
     },
     subscribeCount: () => subscribeCount,
     unsubscribeCount: () => unsubscribeCount,
@@ -88,7 +106,7 @@ describe("realtime relay initialization", () => {
   it("makes concurrent subscribers wait for the same real subscription", async () => {
     const f = fixture();
     let release!: () => void;
-    f.blockConnect(
+    f.blockSubscribe(
       new Promise((resolve) => {
         release = resolve;
       }),
@@ -104,10 +122,14 @@ describe("realtime relay initialization", () => {
         });
     const first = attach();
     const second = attach();
-    await Promise.resolve();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(f.subscribeCount()).toBe(1);
     expect(ready).toBe(0);
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(false);
     release();
     const [stopFirst, stopSecond] = await Promise.all([first, second]);
+    expect(ready).toBe(2);
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(true);
     expect(f.subscribeCount()).toBe(1);
     await f.bus.publish("dialer", "call.initiate");
     expect(received).toEqual(["call.initiate", "call.initiate"]);
@@ -115,6 +137,29 @@ describe("realtime relay initialization", () => {
     expect(f.unsubscribeCount()).toBe(0);
     stopSecond();
     expect(f.unsubscribeCount()).toBe(1);
+    await f.bus.onModuleDestroy();
+  });
+
+  it("invalidates readiness on disconnect until resubscription is acknowledged", async () => {
+    const f = fixture();
+    const stop = await f.bus.subscribe("dialer", () => undefined);
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(true);
+    f.disconnect();
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(false);
+    let release!: () => void;
+    f.blockSubscribe(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const reconnected = f.reconnect();
+    await Promise.resolve();
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(false);
+    release();
+    await reconnected;
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(true);
+    stop();
+    expect(f.bus.isSubscriptionReady("dialer")).toBe(false);
     await f.bus.onModuleDestroy();
   });
 });

@@ -240,7 +240,11 @@ export function useDialerSession(campaignId: string) {
   }, [api, campaignId, setSession]);
 
   const endSession = useCallback(async () => {
-    if (!sessionId) return true;
+    if (!sessionId)
+      return (
+        !useDialerSessionStore.getState().sessionId &&
+        !isLiveCallState(useDialerCallStore.getState().state)
+      );
     try {
       await api.delete(sessionUrl(sessionId, startedAt));
     } catch (err) {
@@ -250,6 +254,13 @@ export function useDialerSession(campaignId: string) {
       return false;
     }
     const current = useDialerSessionStore.getState();
+    if (
+      !current.sessionId &&
+      !isLiveCallState(useDialerCallStore.getState().state)
+    ) {
+      ownedSessionRef.current = null;
+      return true;
+    }
     if (current.sessionId !== sessionId || current.startedAt !== startedAt)
       return false;
     if (isLiveCallState(useDialerCallStore.getState().state)) return false;
@@ -275,13 +286,15 @@ export function useDialerSession(campaignId: string) {
   const resumeSession = useCallback(async () => {
     if (!sessionId) return;
     try {
-      const session = await api.patch<{ status: typeof status }>(
-        sessionUrl(sessionId, startedAt, '/resume')
-      );
+      const session = await api.patch<{
+        status: typeof status;
+        startedAt: string;
+      }>(sessionUrl(sessionId, startedAt, '/resume'));
       const current = useDialerSessionStore.getState();
       if (
         current.sessionId === sessionId &&
         current.startedAt === startedAt &&
+        session.startedAt === current.startedAt &&
         current.status === 'paused'
       )
         setStatus(session.status);

@@ -1,6 +1,21 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { CallAttempt, CallAttemptStatus, CallOutcome } from "@prisma/client";
+import {
+  CallAttempt,
+  CallAttemptStatus,
+  CallOutcome,
+  Prisma,
+} from "@prisma/client";
+
+export const DIAL_DISPATCH_TIMEOUT_MS = 90_000;
+
+/** Shared by session stop/takeover and lead recovery. */
+export function unconfirmedDialSql(now = new Date()): Prisma.Sql {
+  const cutoff = new Date(now.getTime() - DIAL_DISPATCH_TIMEOUT_MS);
+  return Prisma.sql`attempt."callId" IS NULL
+    AND attempt."status" = 'dialing'
+    AND attempt."initiatedAt" > (${cutoff}::timestamptz AT TIME ZONE 'UTC')`;
+}
 
 /** An attempt with no provider leg yet: assigned, or handed to the browser. */
 const UNDIALED_ATTEMPT_STATUSES: CallAttemptStatus[] = [
@@ -45,6 +60,7 @@ export class CallAttemptRepository {
     campaignLeadId: string;
     agentSessionId: string;
     agentUserId: string;
+    sessionStartedAt: Date;
     attemptNumber: number;
   }): Promise<CallAttempt> {
     return this.prisma.callAttempt.create({
@@ -53,6 +69,7 @@ export class CallAttemptRepository {
         campaignLead: { connect: { id: data.campaignLeadId } },
         agentSession: { connect: { id: data.agentSessionId } },
         agentUserId: data.agentUserId,
+        sessionStartedAt: data.sessionStartedAt,
         attemptNumber: data.attemptNumber,
         status: CallAttemptStatus.created,
       },
@@ -114,14 +131,12 @@ export class CallAttemptRepository {
   async findUnconfirmedDialForSession(
     agentSessionId: string,
   ): Promise<CallAttempt | null> {
-    return this.prisma.callAttempt.findFirst({
-      where: {
-        agentSessionId,
-        callId: null,
-        status: CallAttemptStatus.dialing,
-      },
-      orderBy: { initiatedAt: "desc" },
-    });
+    const attempts = await this.prisma.$queryRaw<CallAttempt[]>`
+      SELECT attempt.* FROM "CallAttempt" attempt
+      WHERE attempt."agentSessionId" = ${agentSessionId}::uuid
+        AND ${unconfirmedDialSql()}
+      ORDER BY attempt."initiatedAt" DESC LIMIT 1`;
+    return attempts[0] ?? null;
   }
 
   async linkCall(attemptId: string, callId: string): Promise<CallAttempt> {
@@ -146,11 +161,31 @@ export class CallAttemptRepository {
 
   /** Bind the provider leg. Only an attempt that has no leg yet accepts one. */
   async linkCallIfUnlinked(id: string, callId: string): Promise<boolean> {
-    const result = await this.prisma.callAttempt.updateMany({
-      where: { id, callId: null, status: { in: UNDIALED_ATTEMPT_STATUSES } },
-      data: { callId, status: CallAttemptStatus.dialing },
+    return this.prisma.$transaction(async (tx) => {
+      const attempt = await tx.callAttempt.findUnique({
+        where: { id },
+        select: { agentSessionId: true, sessionStartedAt: true },
+      });
+      if (!attempt) return false;
+      if (attempt.agentSessionId) {
+        // Replacement takes the same lock before checking for live legs. Its
+        // subsequent statement must see a link that committed while it waited.
+        const [session] = await tx.$queryRaw<Array<{ startedAt: Date }>>`
+          SELECT "startedAt" FROM "AgentSession"
+          WHERE "id" = ${attempt.agentSessionId}::uuid FOR UPDATE`;
+        if (
+          !session ||
+          (attempt.sessionStartedAt &&
+            attempt.sessionStartedAt.getTime() !== session.startedAt.getTime())
+        )
+          return false;
+      }
+      const result = await tx.callAttempt.updateMany({
+        where: { id, callId: null, status: { in: UNDIALED_ATTEMPT_STATUSES } },
+        data: { callId, status: CallAttemptStatus.dialing },
+      });
+      return result.count === 1;
     });
-    return result.count === 1;
   }
 
   /** Answered — by the leg the attempt is bound to, and only once. */

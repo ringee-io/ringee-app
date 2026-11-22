@@ -326,6 +326,11 @@ cleanup, late call events and disposition transitions cannot drive a newer
 incarnation. Start/stop persist the state change, discard undialed attempts and
 release the session's abandoned lead locks in one transaction. Cleanup compares
 the heartbeat it read too, so a recovered browser wins over a stale sweep.
+Account-disable cleanup instead compares the incarnation and assignment, ignoring
+heartbeat-only changes. Activation and cleanup lock the persisted user row before
+the session row; transitions to ready check `canCall` under that lock.
+Provider-leg linking and replacement share the session row lock. An attempt keeps
+its claimed `sessionStartedAt` independently of its mutable dispatch time.
 Live provider calls keep their leads, including when a heartbeat expires. A
 stopped dial whose provider placement is still uncertain retains its reservation
 until it is reconciled or reaches the existing dispatch timeout.
@@ -352,13 +357,19 @@ It also recovers a progressive session left `reserved` for 90 s, including a
 worker interrupted before the attempt was created. Preview reservations are
 intentional and are excluded. The retry sweep preserves preview assignments and
 live provider calls. A resumed wrap-up remains on its lead until disposition.
+Reservations record `reservedAt` when claimed; recovery compares that timestamp
+both when selecting and releasing, so heartbeats cannot hide an abandoned claim
+and an older sweep cannot release a newer claim for the same lead.
 `session.waiting` reports calling-window, eligibility or busy-agent reasons;
-the existing heartbeat also reconciles status if a state event was missed.
+unchanged reasons are refreshed every 15 seconds for reconnects. Closed-hours
+agent lookups are throttled to five seconds. The existing heartbeat also
+reconciles status if a state event was missed.
 
 The lifecycle PostgreSQL regression case runs against an isolated local socket
 with `RINGEE_DIALER_TEST_PG_SOCKET` (port 55445, database `postgres`). It uses its
-own schema and never uses `DATABASE_URL`. No schema migration is required for
-the stream handshake or incarnation fencing. Deploy the API before the new
+own schema and never uses `DATABASE_URL`. Apply
+`packages/database/prisma/migrations-pending/20261121120000_dialer_assignment_fences`
+before deploying these persistence changes. Deploy the API before the new
 dashboard, and update the orchestrator so its cleanup uses the same fences.
 
 The browser owns the leg once `call.initiate` arrives. The workspace tracks it by
