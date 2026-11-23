@@ -52,6 +52,88 @@ const LIVE_ATTEMPT_STATUSES: CallAttemptStatus[] = [
   CallAttemptStatus.in_call,
 ];
 
+export interface CampaignAttemptAssignment {
+  attemptId: string;
+  lockedBy: string | null;
+  lockedAt: Date | null;
+  reservedAt: Date | null;
+}
+
+export class CampaignAssignmentChangedError extends Error {}
+
+/** Recheck the attempt and assignment under the locks used by outcome saves and lead claims. */
+export async function assertCampaignAttemptAssignment(
+  tx: Prisma.TransactionClient,
+  expected: CampaignAttemptAssignment,
+): Promise<void> {
+  let attempt = await tx.callAttempt.findUnique({
+    where: { id: expected.attemptId },
+  });
+  if (!attempt) throw new CampaignAssignmentChangedError();
+  // Outcome/callback acceptance can insert rows referring to this user. Take
+  // that FK lock before the session, matching activation/account cleanup.
+  await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${attempt.agentUserId}::uuid FOR KEY SHARE`;
+  const sessions = attempt.agentSessionId
+    ? await tx.$queryRaw<
+        Array<{
+          startedAt: Date;
+          reservedAt: Date | null;
+          status: string;
+          currentLeadId: string | null;
+        }>
+      >`
+    SELECT "startedAt", "reservedAt", "status", "currentLeadId" FROM "AgentSession" WHERE id = ${attempt.agentSessionId}::uuid FOR UPDATE`
+    : [];
+  // Provider linking shares the session lock. Re-read mutable leg/state fields
+  // after waiting for that lock instead of deciding from the earlier snapshot.
+  attempt = await tx.callAttempt.findUnique({
+    where: { id: expected.attemptId },
+  });
+  if (!attempt) throw new CampaignAssignmentChangedError();
+  const [lead] = await tx.$queryRaw<
+    Array<{ lockedBy: string | null; lockedAt: Date | null; status: string }>
+  >`
+    SELECT "lockedBy", "lockedAt", "status" FROM "CampaignLead" WHERE id = ${attempt.campaignLeadId}::uuid FOR UPDATE`;
+  const latest = await tx.callAttempt.findFirst({
+    where: { campaignLeadId: attempt.campaignLeadId },
+    orderBy: [{ attemptNumber: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    select: { id: true },
+  });
+  if (!lead || latest?.id !== attempt.id)
+    throw new CampaignAssignmentChangedError();
+  if (lead.lockedBy !== null) {
+    const session = sessions[0];
+    if (
+      lead.lockedBy !== expected.lockedBy ||
+      lead.lockedAt?.getTime() !== expected.lockedAt?.getTime() ||
+      lead.lockedBy !== attempt.agentSessionId ||
+      !session ||
+      (attempt.sessionStartedAt !== null &&
+        session.startedAt.getTime() !== attempt.sessionStartedAt.getTime()) ||
+      session.reservedAt?.getTime() !== expected.reservedAt?.getTime() ||
+      (attempt.sessionReservedAt !== null &&
+        session.reservedAt?.getTime() !==
+          attempt.sessionReservedAt.getTime()) ||
+      session.currentLeadId !== attempt.campaignLeadId ||
+      session.status === "ready" ||
+      (session.status === "reserved" && attempt.callId !== null) ||
+      (attempt.sessionReservedAt === null &&
+        session.reservedAt !== null &&
+        ((session.status === "reserved" &&
+          !UNDIALED_ATTEMPT_STATUSES.includes(attempt.status)) ||
+          (session.status === "offline" &&
+            lead.status === "locked" &&
+            !UNDIALED_ATTEMPT_STATUSES.includes(attempt.status))))
+    )
+      throw new CampaignAssignmentChangedError();
+    if (attempt.sessionReservedAt === null && session.reservedAt !== null)
+      await tx.callAttempt.updateMany({
+        where: { id: attempt.id, sessionReservedAt: null },
+        data: { sessionReservedAt: session.reservedAt },
+      });
+  }
+}
+
 export interface CallAttemptWithRelations extends CallAttempt {
   campaignLead: {
     id: string;
@@ -82,18 +164,53 @@ export class CallAttemptRepository {
     agentSessionId: string;
     agentUserId: string;
     sessionStartedAt: Date;
+    reservedAt: Date | null;
     attemptNumber: number;
-  }): Promise<CallAttempt> {
-    return this.prisma.callAttempt.create({
-      data: {
-        campaign: { connect: { id: data.campaignId } },
-        campaignLead: { connect: { id: data.campaignLeadId } },
-        agentSession: { connect: { id: data.agentSessionId } },
-        agentUserId: data.agentUserId,
-        sessionStartedAt: data.sessionStartedAt,
-        attemptNumber: data.attemptNumber,
-        status: CallAttemptStatus.created,
-      },
+  }): Promise<CallAttempt | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const [session] = await tx.$queryRaw<
+        Array<{
+          startedAt: Date;
+          reservedAt: Date | null;
+          status: string;
+          currentLeadId: string | null;
+          campaignId: string;
+          userId: string;
+        }>
+      >`
+        SELECT "startedAt", "reservedAt", "status", "currentLeadId", "campaignId", "userId" FROM "AgentSession" WHERE id = ${data.agentSessionId}::uuid FOR UPDATE`;
+      if (
+        !data.reservedAt ||
+        !session ||
+        session.status !== "reserved" ||
+        session.currentLeadId !== data.campaignLeadId ||
+        session.campaignId !== data.campaignId ||
+        session.userId !== data.agentUserId ||
+        session.startedAt.getTime() !== data.sessionStartedAt.getTime() ||
+        session.reservedAt?.getTime() !== data.reservedAt?.getTime()
+      )
+        return null;
+      const [lead] = await tx.$queryRaw<
+        Array<{ lockedBy: string | null; status: string }>
+      >`SELECT "lockedBy", "status" FROM "CampaignLead" WHERE id = ${data.campaignLeadId}::uuid FOR UPDATE`;
+      if (
+        !lead ||
+        lead.lockedBy !== data.agentSessionId ||
+        lead.status !== "locked"
+      )
+        return null;
+      return tx.callAttempt.create({
+        data: {
+          campaign: { connect: { id: data.campaignId } },
+          campaignLead: { connect: { id: data.campaignLeadId } },
+          agentSession: { connect: { id: data.agentSessionId } },
+          agentUserId: data.agentUserId,
+          sessionStartedAt: data.sessionStartedAt,
+          sessionReservedAt: data.reservedAt,
+          attemptNumber: data.attemptNumber,
+          status: CallAttemptStatus.created,
+        },
+      });
     });
   }
 
@@ -273,9 +390,11 @@ export class CallAttemptRepository {
    */
   async markEndedIf(
     id: string,
-    options: { callId?: string } = {},
+    options: { callId?: string; assignment?: CampaignAttemptAssignment } = {},
   ): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
+      if (options.assignment)
+        await assertCampaignAttemptAssignment(tx, options.assignment);
       const attempt = await tx.callAttempt.findUnique({
         where: { id },
         select: { agentSessionId: true, campaignLeadId: true },
@@ -390,6 +509,7 @@ export class CallAttemptRepository {
       dispositionOutcome?: CallOutcome | null;
     },
     source?: { callId: string; revision: number },
+    assignment?: CampaignAttemptAssignment,
   ): Promise<CallAttempt | null> {
     return this.prisma.$transaction(async (tx) => {
       if (source) {
@@ -405,6 +525,7 @@ export class CallAttemptRepository {
         )
           return null;
       }
+      if (assignment) await assertCampaignAttemptAssignment(tx, assignment);
       const result = await tx.callAttempt.updateMany({
         where: {
           id: attemptId,

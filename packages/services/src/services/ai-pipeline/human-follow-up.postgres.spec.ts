@@ -9,11 +9,13 @@ import { after, before, describe, it } from "node:test";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   PrismaClient,
+  Prisma,
   PendingActionRepository,
   CallbackTaskRepository,
   ContactRepository,
   CallRepository,
   CallAttemptRepository,
+  CampaignAssignmentChangedError,
   CampaignLeadRepository,
   MeetingRepository,
   OrganizationRepository,
@@ -547,6 +549,238 @@ describe(
         [],
       );
     });
+    async function campaignAssignmentFixture() {
+      const f = await seed();
+      const campaign = await prisma.campaign.create({
+        data: { ...ctx, name: "Disposition assignment fixture" },
+      });
+      const sessionId = randomUUID();
+      const reservedAt = new Date(Date.now() - 5000);
+      const lead = await prisma.campaignLead.create({
+        data: {
+          campaignId: campaign.id,
+          contactId: f.contact.id,
+          status: "wrap_up",
+          lockedBy: sessionId,
+          lockedAt: reservedAt,
+          attempts: 1,
+        },
+      });
+      const session = await prisma.agentSession.create({
+        data: {
+          id: sessionId,
+          ...ctx,
+          campaignId: campaign.id,
+          currentLeadId: lead.id,
+          status: "wrap_up",
+          startedAt: new Date(Date.now() - 10_000),
+          reservedAt,
+        },
+      });
+      const attempt = await prisma.callAttempt.create({
+        data: {
+          campaignId: campaign.id,
+          campaignLeadId: lead.id,
+          callId: f.call.id,
+          agentSessionId: session.id,
+          agentUserId: userId,
+          sessionStartedAt: session.startedAt,
+          sessionReservedAt: reservedAt,
+          attemptNumber: 1,
+          status: "ended",
+          endedAt: new Date(),
+        },
+      });
+      return {
+        ...f,
+        campaign,
+        session,
+        lead,
+        attempt,
+        fence: {
+          attemptId: attempt.id,
+          lockedBy: session.id,
+          lockedAt: reservedAt,
+          reservedAt,
+        },
+      };
+    }
+
+    it("rejects human outcomes and callback creation after the campaign lead is reassigned", async () => {
+      const f = await campaignAssignmentFixture();
+      const next = new Date();
+      await prisma.$transaction([
+        prisma.agentSession.update({
+          where: { id: f.session.id },
+          data: { status: "reserved", reservedAt: next },
+        }),
+        prisma.campaignLead.update({
+          where: { id: f.lead.id },
+          data: { status: "locked", lockedAt: next },
+        }),
+      ]);
+      const before = await prisma.call.findUniqueOrThrow({
+        where: { id: f.call.id },
+      });
+      await assert.rejects(
+        service.recordHumanOutcome(ctx, f.call.id, {
+          outcome: "interested",
+          campaignLeadId: f.lead.id,
+          campaignAssignment: f.fence,
+        }),
+        CampaignAssignmentChangedError,
+      );
+      await assert.rejects(
+        callbacks.create(
+          {
+            ...ctx,
+            contactId: f.contact.id,
+            campaignLeadId: f.lead.id,
+            callId: f.call.id,
+            scheduledAt: new Date(Date.now() + 60_000),
+          },
+          { leadId: f.lead.id, assignment: f.fence },
+        ),
+        CampaignAssignmentChangedError,
+      );
+      const current = await prisma.campaignLead.findUniqueOrThrow({
+        where: { id: f.lead.id },
+      });
+      assert.equal(current.status, "locked");
+      assert.equal(current.lockedAt!.getTime(), next.getTime());
+      assert.equal(
+        (await prisma.call.findUniqueOrThrow({ where: { id: f.call.id } }))
+          .outcomeRevision,
+        before.outcomeRevision,
+      );
+      assert.equal(
+        await prisma.callbackTask.count({
+          where: { campaignLeadId: f.lead.id },
+        }),
+        0,
+      );
+    });
+
+    it("creates a callback and schedules its unchanged campaign assignment together", async () => {
+      for (const guarded of [false, true]) {
+        const f = await campaignAssignmentFixture();
+        const callback = await callbacks.create(
+          {
+            ...ctx,
+            contactId: f.contact.id,
+            campaignLeadId: f.lead.id,
+            callId: f.call.id,
+            scheduledAt: new Date(Date.now() + 60_000),
+          },
+          { leadId: f.lead.id, assignment: guarded ? f.fence : undefined },
+        );
+        assert.equal(callback.campaignLeadId, f.lead.id);
+        const lead = await prisma.campaignLead.findUniqueOrThrow({
+          where: { id: f.lead.id },
+        });
+        assert.equal(lead.status, "scheduled");
+        assert.equal(lead.lockedBy, null);
+      }
+    });
+
+    it(
+      "schedules a guarded callback while activation holds the user lock",
+      { timeout: 10_000 },
+      async () => {
+        const f = await campaignAssignmentFixture();
+        let held!: () => void;
+        let release!: () => void;
+        let began!: (pid: number) => void;
+        let holderPid = 0;
+        let timer!: ReturnType<typeof setTimeout>;
+        const userLocked = new Promise<void>((resolve) => {
+          held = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const backend = new Promise<number>((resolve) => {
+          began = resolve;
+        });
+        const holder = prisma.$transaction(async (tx) => {
+          const [pid] = await tx.$queryRaw<
+            Array<{ pid: number }>
+          >`SELECT pg_backend_pid() AS pid`;
+          holderPid = pid.pid;
+          await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId}::uuid FOR UPDATE`;
+          held();
+          await gate;
+          await tx.$queryRaw`SELECT id FROM "AgentSession" WHERE id = ${f.session.id}::uuid FOR UPDATE`;
+        });
+        let creating: ReturnType<CallbackTaskRepository["create"]> | undefined;
+        try {
+          await Promise.race([userLocked, holder]);
+          const observed = {
+            $transaction: (
+              run: (tx: Prisma.TransactionClient) => Promise<unknown>,
+            ) =>
+              prisma.$transaction(async (tx) => {
+                const [pid] = await tx.$queryRaw<
+                  Array<{ pid: number }>
+                >`SELECT pg_backend_pid() AS pid`;
+                began(pid.pid);
+                return run(tx);
+              }),
+          };
+          creating = new CallbackTaskRepository(observed as never).create(
+            {
+              ...ctx,
+              contactId: f.contact.id,
+              campaignLeadId: f.lead.id,
+              callId: f.call.id,
+              scheduledAt: new Date(Date.now() + 60_000),
+            },
+            { leadId: f.lead.id, assignment: f.fence },
+          );
+          const callbackPid = await Promise.race([
+            backend,
+            creating.then(() => {
+              throw new Error("Callback settled before its PID was captured");
+            }),
+            new Promise<never>((_resolve, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("Callback PID timed out")),
+                2000,
+              );
+            }),
+          ]);
+          const deadline = Date.now() + 2000;
+          while (true) {
+            const [state] = await prisma.$queryRaw<
+              Array<{ blocked: boolean }>
+            >`SELECT ${holderPid}::int = ANY(pg_blocking_pids(${callbackPid}::int)) AS blocked`;
+            if (state.blocked) break;
+            assert.ok(
+              Date.now() < deadline,
+              "callback must wait for the user lock",
+            );
+            await new Promise((resolve) => setTimeout(resolve, 5));
+          }
+          release();
+          await holder;
+          const callback = await creating;
+          assert.equal(callback.campaignLeadId, f.lead.id);
+          assert.equal(
+            (
+              await prisma.campaignLead.findUniqueOrThrow({
+                where: { id: f.lead.id },
+              })
+            ).status,
+            "scheduled",
+          );
+        } finally {
+          clearTimeout(timer);
+          release();
+          await Promise.allSettled([holder, creating]);
+        }
+      },
+    );
+
     it("accepts a campaign canonical outcome once and removes the contact from human queues", async () => {
       const f = await seed();
       const campaign = await prisma.campaign.create({

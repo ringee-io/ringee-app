@@ -377,6 +377,16 @@ live provider calls. A resumed wrap-up remains on its lead until disposition.
 Reservations record `reservedAt` when claimed; recovery compares that timestamp
 both when selecting and releasing, so heartbeats cannot hide an abandoned claim
 and an older sweep cannot release a newer claim for the same lead.
+The winning `reservedAt` also fences attempt insertion and the dispatch
+transition; reading a newer reservation later never transfers it to an older
+worker. New attempts retain that identity in `CallAttempt.sessionReservedAt`.
+Legacy held assignments are adopted only after checking ownership under locks.
+Lead-affecting disposition writes recheck the latest attempt and assignment
+under the session and lead locks, including retry and callback paths. A user
+key-share lock precedes the session; outcome/callback writes also acquire their
+contact and source-call locks first, so FK insertion cannot reverse that order.
+Disconnected undialed assignments retain their existing `nextCallAt`; a new
+retry delay applies only to the completed call of the retained assignment.
 Undialed cancellation discards the attempt under the provider linker's session
 row lock before releasing the lease or lead. A sweep's release also compares the
 lead's observed `lockedAt`, so a restarted session reusing the same id cannot
@@ -393,6 +403,8 @@ the dialer assignment fences in this order:
 
 1. Apply and commit
    `packages/database/prisma/migrations-pending/20261121120000_dialer_assignment_fences`.
+   Also apply `packages/database/prisma/migrations-pending/20261123043000_call_attempt_reservation_identity`
+   before running the updated API or orchestrator.
    The nullable columns must commit before the table-wide backfill begins.
 2. Stop or fully drain every pre-change API task that can dispatch calls or
    write `CallAttempt` rows, including in-flight assignments and long-lived

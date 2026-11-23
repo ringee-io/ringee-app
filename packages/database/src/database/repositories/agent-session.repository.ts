@@ -311,14 +311,32 @@ export class AgentSessionRepository {
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
   ): Promise<boolean> {
+    return (await this.transition(id, expected, status, extra)) !== null;
+  }
+
+  async reserveForLead(id: string, leadId: string, startedAt?: Date) {
+    return this.transition(
+      id,
+      { from: [AgentSessionStatus.ready], startedAt },
+      AgentSessionStatus.reserved,
+      { currentLeadId: leadId },
+    );
+  }
+
+  private async transition(
+    id: string,
+    expected: Parameters<AgentSessionRepository["transitionIf"]>[1],
+    status: AgentSessionStatus,
+    extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
+  ): Promise<AgentSession | null> {
     return this.prisma.$transaction(async (tx) => {
       if (status === "ready") {
         const session = await tx.agentSession.findUnique({ where: { id } });
         if (!session || !(await this.lockCallingUser(tx, session.userId)))
-          return false;
+          return null;
       }
       const [session] = await this.lockSession(tx, id);
-      if (!session) return false;
+      if (!session) return null;
       const where: Prisma.AgentSessionWhereInput = {
         id,
         status: { in: expected.from },
@@ -359,7 +377,7 @@ export class AgentSessionRepository {
           : {}),
       };
       if (expected.undialedAttemptId !== undefined) {
-        if (!(await tx.agentSession.count({ where }))) return false;
+        if (!(await tx.agentSession.count({ where }))) return null;
         if (
           expected.undialedAttemptId &&
           !(await deleteUndialedAttempt(tx, expected.undialedAttemptId, {
@@ -368,9 +386,9 @@ export class AgentSessionRepository {
             sessionStartedAt: expected.startedAt,
           }))
         )
-          return false;
+          return null;
       }
-      const result = await tx.agentSession.updateMany({
+      const result = await tx.agentSession.updateManyAndReturn({
         where,
         data: {
           status,
@@ -387,7 +405,7 @@ export class AgentSessionRepository {
             : {}),
         },
       });
-      return result.count === 1;
+      return result[0] ?? null;
     });
   }
 

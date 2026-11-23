@@ -139,12 +139,14 @@ interface DialerAgent {
   userId: string;
   organizationId: string;
   startedAt: Date;
+  reservedAt: Date | null;
 }
 
 interface DialerLead {
   id: string;
   attempts: number;
   priority: number;
+  lockedAt: Date | null;
   metadata?: unknown;
   contact: { phoneNumber: string };
 }
@@ -483,13 +485,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     // Claim the agent. Reading them as `ready` above proves nothing by now —
     // another tick or another API instance may have claimed them since — so
     // the move to `reserved` is the decision, and it is compare-and-set.
-    if (
-      !(await this.agentSessionService.claimForLead(
-        agent.id,
-        lead.id,
-        agent.startedAt,
-      ))
-    ) {
+    const reservation = await this.agentSessionService.reserveForLead(
+      agent.id,
+      lead.id,
+      agent.startedAt,
+    );
+    if (!reservation) {
       this.logger.debug(
         `Agent ${agent.id} was claimed elsewhere — handing lead ${lead.id} back`,
       );
@@ -499,12 +500,13 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         sessionId: agent.id,
       });
       await this.leadQueueService
-        .releaseLead(lead.id, { lockedBy: agent.id })
+        .releaseLead(lead.id, { lockedBy: agent.id, lockedAt: lead.lockedAt })
         .catch((err) =>
           this.logger.warn(`Could not release lead ${lead.id}: ${err}`),
         );
       return;
     }
+    agent = { ...agent, reservedAt: reservation.reservedAt };
 
     this.logger.log(
       `Assigning lead ${lead.id} in campaign ${campaign.id} to session ${agent.id}`,
@@ -549,6 +551,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           agentSessionId: agent.id,
           agentUserId: agent.userId,
           campaignLeadId: lead.id,
+          leadLockedAt: lead.lockedAt,
+          reservedAt: agent.reservedAt,
           attemptId,
           from: [AgentSessionStatus.reserved],
           to: AgentSessionStatus.ready,
@@ -608,6 +612,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       agentSessionId: agent.id,
       agentUserId: agent.userId,
       sessionStartedAt: agent.startedAt,
+      reservedAt: agent.reservedAt,
       attemptNumber: lead.attempts + 1,
     });
   }
@@ -858,6 +863,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       agentSessionId: agent.id,
       agentUserId: agent.userId,
       campaignLeadId: lead.id,
+      leadLockedAt: lead.lockedAt,
+      reservedAt: agent.reservedAt,
       attemptId,
       from: [AgentSessionStatus.reserved],
       to: refusal.to,
@@ -975,6 +982,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           from: [AgentSessionStatus.reserved],
           currentLeadId: lead.id,
           startedAt: agent.startedAt,
+          reservedAt: agent.reservedAt,
         },
         AgentSessionStatus.dialing,
       ));
@@ -989,6 +997,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         agentSessionId: agent.id,
         agentUserId: agent.userId,
         campaignLeadId: lead.id,
+        leadLockedAt: lead.lockedAt,
+        reservedAt: agent.reservedAt,
         attemptId,
         from: [AgentSessionStatus.reserved],
         to: AgentSessionStatus.ready,
@@ -1125,6 +1135,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         agentSessionId: session.id,
         agentUserId: session.userId,
         campaignLeadId: lead.id,
+        leadLockedAt: lead.lockedAt,
         attemptId: attempt?.id ?? null,
         sessionStartedAt: session.startedAt,
         reservedAt: session.reservedAt,
@@ -1155,6 +1166,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     }
     if (!session.currentLeadId) return;
 
+    const lead = await this.leadQueueService.getLeadById(session.currentLeadId);
+
     const attempt = await this.callAttemptService.findUndialedForSession(
       session.id,
       session.currentLeadId,
@@ -1163,6 +1176,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       agentSessionId: session.id,
       agentUserId: session.userId,
       campaignLeadId: session.currentLeadId,
+      leadLockedAt: lead?.lockedAt ?? null,
+      reservedAt: session.reservedAt,
       attemptId: attempt?.id ?? null,
       sessionStartedAt: session.startedAt,
       from: [AgentSessionStatus.reserved],
@@ -1213,10 +1228,15 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       Object.prototype.hasOwnProperty.call(ABANDONED_DIAL_MESSAGES, reason)
         ? reason
         : null;
+    const lead = await this.leadQueueService.getLeadById(
+      attempt.campaignLeadId,
+    );
     const released = await this.callAttemptService.releaseUndialed({
       agentSessionId: sessionId,
       agentUserId: session.userId,
       campaignLeadId: attempt.campaignLeadId,
+      leadLockedAt: lead?.lockedAt ?? null,
+      reservedAt: session.reservedAt,
       attemptId,
       from: [AgentSessionStatus.dialing],
       sessionStartedAt: session.startedAt,

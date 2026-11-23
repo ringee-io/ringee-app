@@ -376,12 +376,11 @@ export class AgentSessionService {
     leadId: string,
     startedAt?: Date,
   ): Promise<boolean> {
-    return this.sessionRepo.transitionIf(
-      sessionId,
-      { from: [AgentSessionStatus.ready], startedAt },
-      AgentSessionStatus.reserved,
-      { currentLeadId: leadId },
-    );
+    return (await this.reserveForLead(sessionId, leadId, startedAt)) !== null;
+  }
+
+  async reserveForLead(sessionId: string, leadId: string, startedAt?: Date) {
+    return this.sessionRepo.reserveForLead(sessionId, leadId, startedAt);
   }
 
   async incrementStats(
@@ -589,6 +588,18 @@ export class AgentSessionService {
         )
       )
         return false;
+      const completedCall = attempts.some(
+        (attempt) =>
+          attempt.agentSessionId === sessionId &&
+          (attempt.sessionStartedAt === null ||
+            attempt.sessionStartedAt.getTime() === startedAt.getTime()) &&
+          (attempt.sessionReservedAt !== null
+            ? attempt.sessionReservedAt.getTime() ===
+              session.reservedAt?.getTime()
+            : ["in_call", "wrap_up"].includes(lead.status)) &&
+          attempt.callId !== null &&
+          ["ended", "dispositioned"].includes(attempt.status),
+      );
       if (
         await this.sessionRepo.endIfUnchanged(session, false, {
           assignmentRetry: {
@@ -599,10 +610,9 @@ export class AgentSessionService {
             ...(lead.attempts >= campaign.maxAttempts
               ? { deadAt: new Date() }
               : {
-                  nextCallAt:
-                    lead.attempts > 0
-                      ? new Date(Date.now() + campaign.retryDelayMin * 60_000)
-                      : undefined,
+                  nextCallAt: completedCall
+                    ? new Date(Date.now() + campaign.retryDelayMin * 60_000)
+                    : undefined,
                 }),
           },
         })

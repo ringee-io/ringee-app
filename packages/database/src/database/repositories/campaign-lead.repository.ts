@@ -1,7 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CampaignLead, CampaignLeadStatus, Prisma } from "@prisma/client";
-import { unconfirmedDialSql } from "./call-attempt.repository";
+import {
+  unconfirmedDialSql,
+  assertCampaignAttemptAssignment,
+  type CampaignAttemptAssignment,
+} from "./call-attempt.repository";
 
 /** Enough contact to render a row in the campaign's lead table. */
 export interface CampaignLeadContactSummary {
@@ -325,11 +329,16 @@ export class CampaignLeadRepository {
     });
   }
 
-  async markAsDead(id: string): Promise<CampaignLead> {
-    return this.prisma.campaignLead.update({
-      where: { id },
-      data: { deadAt: new Date(), status: CampaignLeadStatus.exhausted },
-    });
+  async markAsDead(
+    id: string,
+    assignment?: CampaignAttemptAssignment,
+  ): Promise<CampaignLead> {
+    return this.mutateForAssignment(assignment, (tx) =>
+      tx.campaignLead.update({
+        where: { id },
+        data: { deadAt: new Date(), status: CampaignLeadStatus.exhausted },
+      }),
+    );
   }
 
   async updateStatus(
@@ -341,10 +350,24 @@ export class CampaignLeadRepository {
         "lockedBy" | "lockedAt" | "nextCallAt" | "userId" | "priority"
       >
     >,
+    assignment?: CampaignAttemptAssignment,
   ): Promise<CampaignLead> {
-    return this.prisma.campaignLead.update({
-      where: { id },
-      data: { status, ...extra },
+    return this.mutateForAssignment(assignment, (tx) =>
+      tx.campaignLead.update({
+        where: { id },
+        data: { status, ...extra },
+      }),
+    );
+  }
+
+  private async mutateForAssignment<T>(
+    assignment: CampaignAttemptAssignment | undefined,
+    mutate: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!assignment) return mutate(this.prisma);
+    return this.prisma.$transaction(async (tx) => {
+      await assertCampaignAttemptAssignment(tx, assignment);
+      return mutate(tx);
     });
   }
 

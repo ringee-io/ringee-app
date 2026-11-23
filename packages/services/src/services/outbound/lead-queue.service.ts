@@ -49,7 +49,11 @@ export class LeadQueueService {
    */
   async releaseLead(
     leadId: string,
-    options: { lockedBy?: string; nextCallAt?: Date } = {},
+    options: {
+      lockedBy?: string;
+      lockedAt?: Date | null;
+      nextCallAt?: Date;
+    } = {},
   ): Promise<void> {
     await this.campaignLeadRepo.releaseLock(leadId, options);
     this.logger.debug(`Released lead ${leadId} back to queue`);

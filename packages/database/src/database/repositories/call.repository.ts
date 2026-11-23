@@ -14,6 +14,10 @@ import {
   type HumanOutcomeAssignment,
 } from "./pending-action-follow-up.persistence";
 import { TRANSCRIPT_SEGMENT_ORDER } from "./call.transcription.repository";
+import {
+  assertCampaignAttemptAssignment,
+  type CampaignAttemptAssignment,
+} from "./call-attempt.repository";
 
 /**
  * The relations the call-detail screen reads.
@@ -1088,6 +1092,7 @@ export class CallRepository {
       requested: boolean;
       persist: (tx: Prisma.TransactionClient) => Promise<void>;
     },
+    campaignAssignment?: CampaignAttemptAssignment,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const seed = await tx.call.findUniqueOrThrow({ where: { id: callId } });
@@ -1096,6 +1101,8 @@ export class CallRepository {
       if (seed.contactId)
         await tx.$queryRaw`SELECT "id" FROM "Contact" WHERE "id" = ${seed.contactId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${callId}::uuid FOR UPDATE`;
+      if (campaignAssignment)
+        await assertCampaignAttemptAssignment(tx, campaignAssignment);
       const current = await tx.call.findUniqueOrThrow({
         where: { id: callId },
       });

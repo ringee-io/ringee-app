@@ -13,6 +13,7 @@ import {
   CampaignLeadRepository,
   CampaignLeadStatus,
   Disposition,
+  CampaignAssignmentChangedError,
 } from "@ringee/database";
 import { AgentSessionService } from "./agent-session.service";
 import {
@@ -96,9 +97,13 @@ export class CallAttemptService {
     agentSessionId: string;
     agentUserId: string;
     sessionStartedAt: Date;
+    reservedAt: Date | null;
     attemptNumber: number;
   }) {
-    return this.attemptRepo.create(data);
+    const attempt = await this.attemptRepo.create(data);
+    if (!attempt)
+      throw new ConflictException("This dialer reservation has been replaced.");
+    return attempt;
   }
 
   async linkCall(attemptId: string, callId: string) {
@@ -384,7 +389,8 @@ export class CallAttemptService {
       agentUserId: attempt.agentUserId,
       campaignLeadId: attempt.campaignLeadId,
       attemptId: attempt.id,
-      leadLockedAt: lead?.lockedAt,
+      leadLockedAt: lead?.lockedAt ?? null,
+      reservedAt: session.reservedAt,
       sessionStartedAt: session.startedAt,
       from: [AgentSessionStatus.dialing],
       to: AgentSessionStatus.paused,
@@ -415,7 +421,7 @@ export class CallAttemptService {
     from: AgentSessionStatus[];
     sessionStartedAt: Date;
     reservedAt?: Date | null;
-    leadLockedAt?: Date | null;
+    leadLockedAt: Date | null;
     to: UndialedOutcome;
     /** Keep the lead out of the queue until then. */
     deferLeadUntil?: Date;
@@ -426,6 +432,7 @@ export class CallAttemptService {
     /** `session.state` reason when the session goes offline. */
     offlineReason?: string;
   }): Promise<boolean> {
+    if (input.leadLockedAt === undefined) return false;
     const channel = `agent:${input.agentSessionId}`;
     const moved = await this.agentSessionService.transitionIf(
       input.agentSessionId,
@@ -562,26 +569,52 @@ export class CallAttemptService {
       (data.callback && !Number.isFinite(data.callback.scheduledAt.getTime()))
     )
       throw new BadRequestException("A valid callback date is required");
+    const lead = await this.campaignLeadRepo.findByIdWithContact(
+      current.campaignLeadId,
+    );
+    if (!lead || lead.campaignId !== current.campaignId)
+      throw new NotFoundException("Campaign lead not found");
+    const assignment = {
+      attemptId: current.id,
+      lockedBy: lead.lockedBy,
+      lockedAt: lead.lockedAt,
+      reservedAt: incarnation?.reservedAt ?? null,
+    };
+    const updateLead = (
+      status: CampaignLeadStatus,
+      extra?: Parameters<CampaignLeadRepository["updateStatus"]>[2],
+    ) =>
+      this.forCurrentAssignment(
+        this.campaignLeadRepo.updateStatus(
+          current.campaignLeadId,
+          status,
+          extra,
+          assignment,
+        ),
+      );
     // Acceptance must finish before the session advances or any human callback
     // can be enqueued. A persistence failure keeps wrap-up retryable.
     const accepted =
       current.callId && mapped
-        ? await this.pendingActions.recordHumanOutcome(
-            {
-              userId: current.agentUserId,
-              organizationId: data.organizationId,
-            },
-            current.callId,
-            {
-              outcome: mapped,
-              note: data.note,
-              disposition: { id: disposition.id, name: disposition.label },
-              purpose: data.followUpPurpose,
-              callbackAt: data.callback?.scheduledAt.toISOString(),
-              timezone: data.callback?.timezone,
-              stopRequested: data.stopRequested,
-              campaignLeadId: current.campaignLeadId,
-            },
+        ? await this.forCurrentAssignment(
+            this.pendingActions.recordHumanOutcome(
+              {
+                userId: current.agentUserId,
+                organizationId: data.organizationId,
+              },
+              current.callId,
+              {
+                outcome: mapped,
+                note: data.note,
+                disposition: { id: disposition.id, name: disposition.label },
+                purpose: data.followUpPurpose,
+                callbackAt: data.callback?.scheduledAt.toISOString(),
+                timezone: data.callback?.timezone,
+                stopRequested: data.stopRequested,
+                campaignLeadId: current.campaignLeadId,
+                campaignAssignment: assignment,
+              },
+            ),
           )
         : null;
     const assigned = accepted?.followUp;
@@ -589,7 +622,11 @@ export class CallAttemptService {
     // The browser saves the outcome the moment its call ends, which usually
     // beats the provider's hangup webhook. Whichever of the two ends the
     // attempt is the one that counts it; the other finds it already ended.
-    if (await this.attemptRepo.markEndedIf(current.id)) {
+    if (
+      await this.forCurrentAssignment(
+        this.attemptRepo.markEndedIf(current.id, { assignment }),
+      )
+    ) {
       if (current.agentSessionId && currentIncarnation) {
         await this.agentSessionService.incrementStats(
           current.agentSessionId,
@@ -601,17 +638,23 @@ export class CallAttemptService {
       }
     }
 
-    const attempt = await this.attemptRepo.setDisposition(
-      data.callAttemptId,
-      {
-        dispositionId: disposition.id,
-        dispositionCode: disposition.code,
-        dispositionNote: data.note,
-        dispositionOutcome: canonicalOutcomeOf(disposition),
-      },
-      accepted
-        ? { callId: accepted.call.id, revision: accepted.call.outcomeRevision }
-        : undefined,
+    const attempt = await this.forCurrentAssignment(
+      this.attemptRepo.setDisposition(
+        data.callAttemptId,
+        {
+          dispositionId: disposition.id,
+          dispositionCode: disposition.code,
+          dispositionNote: data.note,
+          dispositionOutcome: canonicalOutcomeOf(disposition),
+        },
+        accepted
+          ? {
+              callId: accepted.call.id,
+              revision: accepted.call.outcomeRevision,
+            }
+          : undefined,
+        assignment,
+      ),
     );
 
     if (!attempt) {
@@ -621,58 +664,51 @@ export class CallAttemptService {
     }
 
     // Mark lead as dispositioned first
-    await this.campaignLeadRepo.updateStatus(
-      attempt.campaignLeadId,
-      CampaignLeadStatus.dispositioned,
-      { lockedBy: null, lockedAt: null },
-    );
+    await updateLead(CampaignLeadStatus.dispositioned, {
+      lockedBy: null,
+      lockedAt: null,
+    });
 
     let action = "dispositioned";
 
     // Process disposition workflow triggers
     if (data.stopRequested) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.dnc,
-      );
+      await updateLead(CampaignLeadStatus.dnc);
       action = "dnc";
     } else if (assigned && !["closed", "resolved"].includes(assigned.state)) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.completed,
-      );
+      await updateLead(CampaignLeadStatus.completed);
       action = "ai_follow_up";
     } else if (disposition.triggersCompletion) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.completed,
-      );
+      await updateLead(CampaignLeadStatus.completed);
       action = "completed";
     } else if (disposition.triggersDnc) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.dnc,
-      );
+      await updateLead(CampaignLeadStatus.dnc);
       action = "dnc";
     } else if (
       !data.stopRequested &&
       disposition.triggersCallback &&
       data.callback?.scheduledAt
     ) {
-      await this.callbackService.scheduleFromCampaign({
-        campaignLeadId: attempt.campaignLeadId,
-        userId: attempt.agentUserId,
-        scheduledAt: data.callback.scheduledAt,
-        note: data.callback.note,
-      });
+      await this.forCurrentAssignment(
+        this.callbackService.scheduleFromCampaign({
+          campaignLeadId: attempt.campaignLeadId,
+          userId: attempt.agentUserId,
+          scheduledAt: data.callback.scheduledAt,
+          note: data.callback.note,
+          assignment,
+        }),
+      );
       action = "callback_scheduled";
     } else if (disposition.triggersRetry) {
-      const retryResult = await this.retryEngine.evaluateRetry(
-        attempt.campaignId,
-        attempt.campaignLeadId,
-        disposition.category,
-        attempt.attemptNumber,
-        data.campaignDefaults,
+      const retryResult = await this.forCurrentAssignment(
+        this.retryEngine.evaluateRetry(
+          attempt.campaignId,
+          attempt.campaignLeadId,
+          disposition.category,
+          attempt.attemptNumber,
+          data.campaignDefaults,
+          assignment,
+        ),
       );
       action = retryResult;
     } else {
@@ -683,13 +719,12 @@ export class CallAttemptService {
       // stuck in `dispositioned`, never re-queued nor terminal, which blocked
       // campaign auto-completion indefinitely.)
       if (attempt.attemptNumber >= data.campaignDefaults.maxAttempts) {
-        await this.campaignLeadRepo.markAsDead(attempt.campaignLeadId);
+        await this.forCurrentAssignment(
+          this.campaignLeadRepo.markAsDead(attempt.campaignLeadId, assignment),
+        );
         action = "exhausted";
       } else {
-        await this.campaignLeadRepo.updateStatus(
-          attempt.campaignLeadId,
-          CampaignLeadStatus.completed,
-        );
+        await updateLead(CampaignLeadStatus.completed);
         action = "completed";
       }
     }
@@ -737,6 +772,7 @@ export class CallAttemptService {
         ],
         currentLeadId: attempt.campaignLeadId,
         startedAt: incarnation.startedAt,
+        reservedAt: incarnation.reservedAt,
       };
       if (data.closeSession) {
         // The lead was just settled above, so there is no lock left to hand
@@ -833,6 +869,18 @@ export class CallAttemptService {
       callsConnected: session.callsConnected,
       totalTalkSec: session.totalTalkSec,
     };
+  }
+
+  private async forCurrentAssignment<T>(operation: Promise<T>): Promise<T> {
+    try {
+      return await operation;
+    } catch (error) {
+      if (error instanceof CampaignAssignmentChangedError)
+        throw new ConflictException(
+          "This lead has been dialed again or reassigned since that call; its outcome can no longer be changed from it.",
+        );
+      throw error;
+    }
   }
 
   /**
