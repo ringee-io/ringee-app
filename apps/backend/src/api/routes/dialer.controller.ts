@@ -416,7 +416,7 @@ export class DialerController {
     }
     return {
       ticket: signSseTicket(
-        this.streamPurpose(sessionId, version),
+        this.streamPurpose(sessionId, session.startedAt),
         createOwnershipContext(user),
       ),
     };
@@ -438,9 +438,23 @@ export class DialerController {
     @Query("ticket") ticket: string | undefined,
     @Query("startedAt") startedAt: string | undefined,
   ): Observable<MessageEvent> {
-    const version = this.sessionVersion(startedAt);
-    const ctx = verifySseTicket(ticket, this.streamPurpose(sessionId, version));
-    if (!ctx) throw new UnauthorizedException("Invalid stream ticket");
+    const requestedVersion = this.sessionVersion(startedAt);
+    let version: Date | undefined;
+    const ctx = verifySseTicket(ticket, (subject) => {
+      const prefix = `${this.streamPurpose(sessionId)}:`;
+      if (!subject.startsWith(prefix)) return false;
+      const signedVersion = new Date(subject.slice(prefix.length));
+      if (
+        !Number.isFinite(signedVersion.getTime()) ||
+        (requestedVersion &&
+          requestedVersion.getTime() !== signedVersion.getTime())
+      )
+        return false;
+      version = signedVersion;
+      return true;
+    });
+    if (!ctx || !version)
+      throw new UnauthorizedException("Invalid stream ticket");
     return defer(() => from(this.ownsSession(ctx, sessionId, version))).pipe(
       switchMap((session) => {
         if (!session) throw new UnauthorizedException("Invalid stream ticket");
@@ -451,9 +465,12 @@ export class DialerController {
           ),
           filter((stillAllowed) => !stillAllowed),
         );
-        return this.sessionEvents(sessionId, attachedVersion, version).pipe(
-          takeUntil(revoked),
-        );
+        return this.sessionEvents(
+          sessionId,
+          attachedVersion,
+          version,
+          requestedVersion === undefined,
+        ).pipe(takeUntil(revoked));
       }),
     );
   }
@@ -497,6 +514,7 @@ export class DialerController {
     sessionId: string,
     version: Date,
     activationVersion?: Date,
+    allowLegacyFallback = false,
   ): Observable<MessageEvent> {
     const replaced = new UnauthorizedException(
       "This dialer session has been replaced.",
@@ -506,13 +524,14 @@ export class DialerController {
     );
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
     const realEvents = new Observable<MessageEvent>((subscriber) => {
-      let receivedEvent = false;
+      let buffering = true;
+      const buffered: MessageEvent[] = [];
       let subscription: Subscription | undefined;
       void (async () => {
         const ownership = await this.agentSessionService.claimEventStreamSetup(
           sessionId,
           version,
-          activationVersion === undefined,
+          allowLegacyFallback || activationVersion === undefined,
         );
         try {
           if (subscriber.closed) return;
@@ -537,8 +556,8 @@ export class DialerController {
                     version.getTime()
                 )
                   return;
-                receivedEvent = true;
-                subscriber.next(event);
+                if (buffering) buffered.push(event);
+                else subscriber.next(event);
               },
               error: (error: unknown) => subscriber.error(error),
               complete: () => subscriber.complete(),
@@ -561,13 +580,28 @@ export class DialerController {
             if (subscriber.closed) return;
             awaiting = session.status === "offline" && session.endedAt === null;
           }
+          if (awaiting) {
+            const activated =
+              await this.agentSessionService.activateAfterEvents(
+                sessionId,
+                session.startedAt,
+                () => !subscriber.closed,
+                ownership.renew,
+                ownership.isSuperseded,
+              );
+            if (subscriber.closed) return;
+            if (!activated) throw relayUnavailable;
+            session = activated;
+          }
           subscriber.next({
             type: "session.connected",
             data: JSON.stringify({
-              status: awaiting ? "ready" : session.status,
+              status: session.status,
               sessionStartedAt: session.startedAt.toISOString(),
               currentLeadId: session.currentLeadId,
-              snapshotStale: receivedEvent,
+              assignmentVersion: session.reservedAt?.toISOString(),
+              // Live events cannot overtake this snapshot during setup.
+              snapshotStale: false,
               stats: {
                 callsAttempted: session.callsAttempted,
                 callsConnected: session.callsConnected,
@@ -575,17 +609,16 @@ export class DialerController {
               },
             }),
           });
-          if (awaiting && !subscriber.closed) {
-            await this.agentSessionService.activateAfterEvents(
-              sessionId,
-              session.startedAt,
-              () => !subscriber.closed,
-              ownership.renew,
-              ownership.lastHeartbeat,
-            );
-          }
+          for (const event of buffered) subscriber.next(event);
+          buffered.length = 0;
+          buffering = false;
         } finally {
-          await ownership.release();
+          await ownership.release().catch((error: unknown) => {
+            this.logger.warn({
+              event: "dialer.stream_setup_release_failed",
+              errorType: error instanceof Error ? error.name : "unknown",
+            });
+          });
         }
       })().catch((error: unknown) => {
         if (

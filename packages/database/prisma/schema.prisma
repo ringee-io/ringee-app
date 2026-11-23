@@ -2338,6 +2338,8 @@ model RetryRule {
 }
 
 model CallbackTask {
+  /// Campaign attempt + accepted disposition revision; stable across replay.
+  creationKey    String?        @unique
   id             String         @id @default(uuid()) @db.Uuid
   userId         String         @db.Uuid
   organizationId String?        @db.Uuid
@@ -2488,6 +2490,8 @@ model VoicemailDropAsset {
 }
 
 model AgentSession {
+  /// Last stream attachment, independent of the browser's ordinary heartbeat.
+  eventStreamId  String?            @db.Uuid
   id             String             @id @default(uuid()) @db.Uuid
   campaignId     String             @db.Uuid
   userId         String             @db.Uuid

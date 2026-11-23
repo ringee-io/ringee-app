@@ -526,6 +526,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           status: "reserved",
           attemptId,
           sessionStartedAt: agent.startedAt.toISOString(),
+          assignmentVersion: agent.reservedAt?.toISOString(),
         });
         return;
       }
@@ -646,6 +647,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       priority: lead.priority,
       attemptId,
       sessionStartedAt: agent.startedAt?.toISOString(),
+      assignmentVersion: agent.reservedAt?.toISOString(),
       history: history
         .filter((h: any) => h.id !== attemptId)
         .map((h: any) => ({
@@ -1022,12 +1024,14 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       status: "dialing",
       attemptId,
       sessionStartedAt: agent.startedAt?.toISOString(),
+      assignmentVersion: agent.reservedAt?.toISOString(),
     });
     // Emit call.initiate event — frontend uses this to place the WebRTC call.
     // A carrier dial also carries where to send the leg and its signed token.
     this.sseBridge.emit(`agent:${agent.id}`, "call.initiate", {
       attemptId,
       sessionStartedAt: agent.startedAt?.toISOString(),
+      assignmentVersion: agent.reservedAt?.toISOString(),
       phoneNumber: lead.contact.phoneNumber,
       callerIdNumber,
       ...(carrierRoute
@@ -1173,7 +1177,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       session.id,
       session.currentLeadId,
     );
-    await this.callAttemptService.releaseUndialed({
+    const released = await this.callAttemptService.releaseUndialed({
       agentSessionId: session.id,
       agentUserId: session.userId,
       campaignLeadId: session.currentLeadId,
@@ -1187,6 +1191,10 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       // the first one the next tick would hand straight back.
       deferLeadUntil: new Date(),
     });
+    if (!released)
+      throw new ConflictException(
+        "This lead assignment has changed. Try again.",
+      );
   }
 
   /**

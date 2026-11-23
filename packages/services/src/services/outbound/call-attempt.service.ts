@@ -435,23 +435,32 @@ export class CallAttemptService {
   }): Promise<boolean> {
     if (input.leadLockedAt === undefined) return false;
     const channel = `agent:${input.agentSessionId}`;
-    const moved = await this.agentSessionService.transitionIf(
-      input.agentSessionId,
-      {
-        from: input.from,
-        currentLeadId: input.campaignLeadId,
-        startedAt: input.sessionStartedAt,
-        reservedAt: input.reservedAt,
-        undialedAttemptId: input.attemptId ?? null,
-      },
-      input.to,
-      {
-        currentLeadId: null,
-        ...(input.to === AgentSessionStatus.offline
-          ? { endedAt: new Date() }
-          : {}),
-      },
-    );
+    const moved = await this.agentSessionService
+      .transitionIf(
+        input.agentSessionId,
+        {
+          from: input.from,
+          currentLeadId: input.campaignLeadId,
+          startedAt: input.sessionStartedAt,
+          reservedAt: input.reservedAt,
+          undialedAttemptId: input.attemptId ?? null,
+          undialedLead: {
+            lockedAt: input.leadLockedAt,
+            nextCallAt: input.deferLeadUntil,
+          },
+        },
+        input.to,
+        {
+          currentLeadId: null,
+          ...(input.to === AgentSessionStatus.offline
+            ? { endedAt: new Date() }
+            : {}),
+        },
+      )
+      .catch((error: unknown) => {
+        if (error instanceof CampaignAssignmentChangedError) return false;
+        throw error;
+      });
 
     if (!moved) return false;
 
@@ -473,11 +482,13 @@ export class CallAttemptService {
       status: input.to,
       attemptId: input.attemptId ?? null,
       sessionStartedAt: input.sessionStartedAt.toISOString(),
+      assignmentVersion: input.reservedAt?.toISOString(),
+      assignmentReleased: true,
       ...(input.offlineReason ? { reason: input.offlineReason } : {}),
     });
 
-    // transitionIf discarded the unlinked attempt under the same session row
-    // lock as provider binding. Only that winner may release its lease/lead.
+    // The attempt discard, session transition and fenced lead unlock committed
+    // together. Only that winner may release its lease and publish the result.
     if (input.releaseLease) {
       await this.concurrentCallGuard
         .releasePending(
@@ -490,20 +501,7 @@ export class CallAttemptService {
           ),
         );
     }
-    const released = await this.campaignLeadRepo
-      .releaseLock(input.campaignLeadId, {
-        lockedBy: input.agentSessionId,
-        lockedAt: input.leadLockedAt,
-        nextCallAt: input.deferLeadUntil,
-      })
-      .catch((err: Error) => {
-        this.logger.warn(
-          `Could not release lead ${input.campaignLeadId}: ${err.message}`,
-        );
-        return 0;
-      });
-    if (input.blocked?.reason === "DISPATCH_FAILED")
-      notifyBlocked(released > 0);
+    if (input.blocked?.reason === "DISPATCH_FAILED") notifyBlocked(true);
     return true;
   }
 
@@ -674,11 +672,20 @@ export class CallAttemptService {
         ),
       );
 
-    // Mark lead as dispositioned first
-    await updateLead(CampaignLeadStatus.dispositioned, {
-      lockedBy: null,
-      lockedAt: null,
-    });
+    // Callback creation owns its lead transition atomically. A replay must
+    // reach the persisted key without first rewinding the lead here.
+    const schedulesCallback =
+      !data.stopRequested &&
+      (!assigned || ["closed", "resolved"].includes(assigned.state)) &&
+      !disposition.triggersCompletion &&
+      !disposition.triggersDnc &&
+      disposition.triggersCallback &&
+      data.callback?.scheduledAt;
+    if (!schedulesCallback)
+      await updateLead(CampaignLeadStatus.dispositioned, {
+        lockedBy: null,
+        lockedAt: null,
+      });
 
     let action = "dispositioned";
 

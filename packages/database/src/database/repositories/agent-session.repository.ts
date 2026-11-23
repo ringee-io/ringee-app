@@ -2,7 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { randomUUID } from "node:crypto";
 import { AgentSession, AgentSessionStatus, Prisma } from "@prisma/client";
-import { deleteUndialedAttempt } from "./call-attempt.repository";
+import {
+  deleteUndialedAttempt,
+  CampaignAssignmentChangedError,
+} from "./call-attempt.repository";
+import { releaseCampaignLeadLock } from "./campaign-lead.repository";
 
 export type AgentSessionReservation = AgentSession & {
   leadLockedAt: Date | null;
@@ -20,6 +24,7 @@ interface AssignmentRetry {
 export type AccountDisableEndResult =
   | { outcome: "ended"; session: AgentSession }
   | { outcome: "changed" }
+  | { outcome: "awaiting_finalization" }
   | { outcome: "calling_enabled" };
 
 @Injectable()
@@ -104,6 +109,13 @@ export class AgentSessionRepository {
     return this.endSnapshot(previous, preserveLiveLead, false);
   }
 
+  async endAssignmentIfUnchanged(
+    previous: AgentSession,
+    retry: AssignmentRetry,
+  ) {
+    return this.endSnapshot(previous, false, true, false, retry);
+  }
+
   private async endSnapshot(
     previous: AgentSession,
     preserveLiveLead: boolean,
@@ -140,7 +152,7 @@ export class AgentSessionRepository {
             },
           })
         )
-          return { outcome: "changed" };
+          return { outcome: "awaiting_finalization" };
         if (assignmentRetry.nextCallAtAfterCompletedCall) {
           const latest = await tx.callAttempt.findFirst({
             where: { campaignLeadId: assignmentRetry.leadId },
@@ -225,6 +237,7 @@ export class AgentSessionRepository {
       status: session.status,
       currentLeadId: session.currentLeadId,
       reservedAt: session.reservedAt,
+      eventStreamId: session.eventStreamId,
       endedAt: session.endedAt,
     };
   }
@@ -347,6 +360,7 @@ export class AgentSessionRepository {
       reservedAt?: Date | null;
       /** Atomically discard this assignment before moving its session. null means no attempt was observed. */
       undialedAttemptId?: string | null;
+      undialedLead?: { lockedAt: Date | null; nextCallAt?: Date };
       disposition?: { attemptId: string; dispositionedAt: Date };
     },
     status: AgentSessionStatus,
@@ -461,20 +475,46 @@ export class AgentSessionRepository {
             : {}),
         },
       });
+      if (result[0] && expected.undialedLead) {
+        if (!expected.currentLeadId) throw new CampaignAssignmentChangedError();
+        const released = await releaseCampaignLeadLock(
+          tx,
+          expected.currentLeadId,
+          {
+            lockedBy: id,
+            ...expected.undialedLead,
+          },
+        );
+        if (!released) {
+          const lead = await tx.campaignLead.findUnique({
+            where: { id: expected.currentLeadId },
+            select: { lockedBy: true },
+          });
+          // A different owner (or an already unlocked lead) owes no unlock
+          // here. Clear only this stale session and its undialed attempt.
+          // A newer lock held by the same session remains fenced out.
+          if (lead?.lockedBy === id) throw new CampaignAssignmentChangedError();
+        }
+      }
       return result[0] ?? null;
     });
   }
 
-  async heartbeat(id: string, startedAt?: Date): Promise<AgentSession | null> {
+  async heartbeat(
+    id: string,
+    startedAt?: Date,
+    stream?: { id: string; previousId: string | null },
+  ): Promise<AgentSession | null> {
     const now = new Date();
-    // Stream attachment also uses this fence. Even same-millisecond attaches
-    // must invalidate an earlier stream's disconnected activation snapshot.
+    // A stream-specific token distinguishes a successor from normal heartbeats.
     const updated = await this.prisma.$queryRaw<AgentSession[]>`
       UPDATE "AgentSession" SET
         "lastHeartbeat" = GREATEST((${now}::timestamptz AT TIME ZONE 'UTC'), "lastHeartbeat" + interval '1 millisecond'),
+        ${stream ? Prisma.sql`"eventStreamId" = ${stream.id}::uuid,` : Prisma.empty}
         "updatedAt" = (${now}::timestamptz AT TIME ZONE 'UTC')
       WHERE "id" = ${id}::uuid
         ${startedAt ? Prisma.sql`AND "startedAt" = (${startedAt}::timestamptz AT TIME ZONE 'UTC')` : Prisma.empty}
+        ${stream ? Prisma.sql`AND "eventStreamId" IS NOT DISTINCT FROM ${stream.previousId}::uuid` : Prisma.empty}
       RETURNING *`;
     return updated[0] ?? null;
   }

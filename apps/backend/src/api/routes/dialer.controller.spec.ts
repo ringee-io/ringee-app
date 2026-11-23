@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
-import { describe, it, type TestContext } from "node:test";
+import { after, before, describe, it, type TestContext } from "node:test";
 import {
   BadRequestException,
   ServiceUnavailableException,
@@ -13,10 +13,20 @@ const settle = async () => {
   for (let i = 0; i < 5; i++) await new Promise(setImmediate);
 };
 const startedAt = new Date("2026-11-21T10:00:00Z");
+const previousSigningSecret = process.env.SDK_SIGNING_SECRET;
+before(() => {
+  process.env.SDK_SIGNING_SECRET = "dialer-ticket-test-secret";
+});
+after(() => {
+  if (previousSigningSecret === undefined)
+    delete process.env.SDK_SIGNING_SECRET;
+  else process.env.SDK_SIGNING_SECRET = previousSigningSecret;
+});
 
 function fixture(t: TestContext, setups = new Map<string, string>()) {
   let relayAvailable = true;
   let claimAvailable = true;
+  let releaseAvailable = true;
   const handlers = new Set<(value: unknown) => void>();
   const bridge = new SSEBridgeService({
     isSubscriptionReady: () => relayAvailable,
@@ -37,6 +47,8 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
     status: "offline",
     startedAt,
     lastHeartbeat: startedAt,
+    eventStreamId: null as string | null,
+    reservedAt: null,
     endedAt: null,
     currentLeadId: null,
     callsAttempted: 0,
@@ -47,9 +59,15 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
   const streamOwner = {
     sessionRepo: {
       findById: async () => ({ ...session }),
-      heartbeat: async (_id: string, version: Date) => {
+      heartbeat: async (
+        _id: string,
+        version: Date,
+        stream?: { id: string; previousId: string | null },
+      ) => {
         if (version.getTime() !== session.startedAt.getTime()) return null;
+        if (stream && stream.previousId !== session.eventStreamId) return null;
         session.lastHeartbeat = new Date(session.lastHeartbeat.getTime() + 1);
+        if (stream) session.eventStreamId = stream.id;
         return { ...session };
       },
     },
@@ -64,12 +82,14 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
       renewLease: async (key: string, value: string) =>
         setups.get(key) === value,
       compareAndSwap: async (key: string, value: string) => {
+        if (!releaseAvailable) throw new Error("release failed");
         if (setups.get(key) !== value) return false;
         setups.delete(key);
         return true;
       },
     },
   };
+  Object.setPrototypeOf(streamOwner, AgentSessionService.prototype);
   const sessions = {
     claimEventStreamSetup: (id: string, version: Date, legacy = false) =>
       AgentSessionService.prototype.claimEventStreamSetup.call(
@@ -89,7 +109,7 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
       _version: Date,
       isAttached: () => boolean = () => true,
     ) => {
-      if (!isAttached()) return;
+      if (!isAttached()) return null;
       activations++;
       session.status = "ready";
       // Dispatch immediately on activation, before the activation request even
@@ -102,6 +122,7 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
         attemptId: "attempt",
         sessionStartedAt: startedAt.toISOString(),
       });
+      return { ...session };
     },
   };
   const controller = new DialerController(
@@ -115,7 +136,7 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
     {} as never,
     {} as never,
     bridge,
-    {} as never,
+    { isMember: async () => true } as never,
   );
   const stream = (version = startedAt, versionedTicket = true) =>
     (
@@ -140,10 +161,140 @@ function fixture(t: TestContext, setups = new Map<string, string>()) {
     failClaim: () => {
       claimAvailable = false;
     },
+    failRelease: () => {
+      releaseAvailable = false;
+    },
   };
 }
 
 describe("dialer stream activation", () => {
+  it("fails an attached stream that loses setup ownership instead of leaving it pending", async (t) => {
+    const f = fixture(t);
+    f.sessions.activateAfterEvents = async () => null;
+    const received: string[] = [];
+    let error: unknown;
+    const stream = f.stream().subscribe({
+      next: (event) => received.push(event.type!),
+      error: (value) => {
+        error = value;
+      },
+    });
+    t.after(() => stream.unsubscribe());
+    await settle();
+    assert.ok(error instanceof ServiceUnavailableException);
+    assert.deepEqual(received, []);
+    assert.equal(stream.closed, true);
+  });
+  it("buffers activation events until the committed snapshot is available", async (t) => {
+    const f = fixture(t);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const activate = f.sessions.activateAfterEvents;
+    f.sessions.activateAfterEvents = async (...args) => {
+      const committed = await activate(...args);
+      await gate;
+      return committed;
+    };
+    const received: Array<{ type?: string; data: string | object }> = [];
+    const subscription = f.stream().subscribe((event) => received.push(event));
+    t.after(() => {
+      release();
+      subscription.unsubscribe();
+    });
+    await settle();
+    assert.equal(f.activations(), 1);
+    assert.deepEqual(received, []);
+    release();
+    await settle();
+    assert.deepEqual(
+      received.map((event) => event.type),
+      ["session.connected", "lead.assigned", "call.initiate"],
+    );
+    assert.equal(JSON.parse(received[0].data as string).status, "ready");
+  });
+
+  for (const fails of [false, true]) {
+    it(`preserves ${fails ? "setup failure" : "activation success"} when lease release fails`, async (t) => {
+      const f = fixture(t);
+      f.failRelease();
+      if (fails)
+        f.sessions.activateAfterEvents = async () => {
+          f.bridge.emit("agent:session", "session.state", {
+            status: "ready",
+            sessionStartedAt: startedAt.toISOString(),
+          });
+          throw new ServiceUnavailableException(
+            "The dialer event relay is unavailable.",
+          );
+        };
+      let error: unknown;
+      const received: string[] = [];
+      const subscription = f.stream().subscribe({
+        next: (event) => received.push(event.type!),
+        error: (value) => {
+          error = value;
+        },
+      });
+      t.after(() => subscription.unsubscribe());
+      await settle();
+      if (fails) {
+        assert.ok(error instanceof ServiceUnavailableException);
+        assert.equal(error.message, "The dialer event relay is unavailable.");
+        assert.deepEqual(received, []);
+      } else {
+        assert.equal(error, undefined);
+        assert.deepEqual(received, [
+          "session.connected",
+          "lead.assigned",
+          "call.initiate",
+        ]);
+      }
+    });
+  }
+
+  it("binds tickets to the authorized incarnation even when legacy clients omit startedAt", async (t) => {
+    for (const body of [{}, { startedAt: startedAt.toISOString() }]) {
+      const f = fixture(t);
+      f.session.status = "ready";
+      const { ticket } = await f.controller.eventsTicket("session", body, {
+        id: "user",
+        activeOrgId: "org",
+      });
+      const received: string[] = [];
+      const stream = f.controller
+        .events("session", ticket, undefined)
+        .subscribe((event) => received.push(event.type!));
+      t.after(() => stream.unsubscribe());
+      await settle();
+      assert.deepEqual(received, ["session.connected"]);
+      stream.unsubscribe();
+      await settle();
+      f.session.startedAt = new Date(startedAt.getTime() + 1);
+      let error: unknown;
+      const stale = f.controller
+        .events("session", ticket, undefined)
+        .subscribe({
+          error: (value) => {
+            error = value;
+          },
+        });
+      t.after(() => stale.unsubscribe());
+      await settle();
+      assert.ok(error instanceof UnauthorizedException);
+      assert.throws(
+        () =>
+          f.controller.events(
+            "session",
+            ticket,
+            f.session.startedAt.toISOString(),
+          ),
+        UnauthorizedException,
+      );
+    }
+  });
+
   it(
     "passes the stream lifecycle through an in-flight activation",
     { timeout: 2_000 },
@@ -172,6 +323,7 @@ describe("dialer stream activation", () => {
         f.bridge.emit("agent:session", "lead.assigned", {
           sessionStartedAt: startedAt.toISOString(),
         });
+        return { ...f.session };
       };
       const events = f.stream();
       const subscription = events.subscribe({
@@ -187,7 +339,7 @@ describe("dialer stream activation", () => {
       release();
       await settle();
       assert.equal(attachedAtCompletion, false);
-      assert.deepEqual(received, ["session.connected"]);
+      assert.deepEqual(received, []);
     },
   );
   it(
@@ -211,6 +363,7 @@ describe("dialer stream activation", () => {
         first.session.status = "ready";
         began();
         await gate;
+        return { ...first.session };
       };
       const stream = first.stream().subscribe({ error: failed });
       t.after(() => {
@@ -243,11 +396,15 @@ describe("dialer stream activation", () => {
       assert.ok(received.includes("call.initiate"));
     },
   );
-  it("filters a delayed takeover event and identifies snapshots overtaken by live events", async (t) => {
+  it("filters a delayed takeover event and sends the snapshot before live events", async (t) => {
     const f = fixture(t);
     f.session.status = "ready";
     f.sessions.getById = async () => {
       const snapshot = { ...f.session };
+      f.bridge.emit("agent:session", "session.state", {
+        status: "offline",
+        sessionStartedAt: new Date(startedAt.getTime() - 1).toISOString(),
+      });
       f.bridge.emit("agent:session", "session.state", {
         status: "dialing",
         sessionStartedAt: startedAt.toISOString(),
@@ -257,20 +414,27 @@ describe("dialer stream activation", () => {
     const received: Array<{ type?: string; data: string | object }> = [];
     const subscription = f.stream().subscribe((event) => received.push(event));
     t.after(() => subscription.unsubscribe());
-    f.bridge.emit("agent:session", "session.state", {
-      status: "offline",
-      sessionStartedAt: new Date(startedAt.getTime() - 1).toISOString(),
-    });
     await settle();
     assert.equal(
       received.filter((event) => event.type === "session.state").length,
       1,
     );
+    assert.equal(
+      JSON.parse(
+        received.find((event) => event.type === "session.state")!
+          .data as string,
+      ).status,
+      "dialing",
+    );
     const snapshot = JSON.parse(
       received.find((event) => event.type === "session.connected")!
         .data as string,
     );
-    assert.equal(snapshot.snapshotStale, true);
+    assert.equal(snapshot.snapshotStale, false);
+    assert.deepEqual(
+      received.map((event) => event.type),
+      ["session.connected", "session.state"],
+    );
     subscription.unsubscribe();
     f.bridge.onModuleDestroy();
   });

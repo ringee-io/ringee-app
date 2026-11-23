@@ -197,9 +197,7 @@ export function RotationMechanics() {
             <span className='text-foreground font-medium'>
               Off means nothing changes.
             </span>{' '}
-            Rotation is opt-in per workspace. While it’s off — or for any call
-            Ringee can’t safely match — you keep the exact fixed caller ID you
-            use today, so turning it on is risk-free.
+            {t('fixedCallerIdNotice')}
           </p>
         </Card>
       </Container>
@@ -258,6 +256,7 @@ const WHERE_IT_WORKS = [
  * cooling loop and where rotation applies — the "value" half of the page.
  */
 export function RotationHealth() {
+  const t = useTranslations('marketing.callerIdRotation');
   return (
     <Section>
       <Container>
@@ -327,8 +326,7 @@ export function RotationHealth() {
             </div>
             <p className='text-muted-foreground mt-4 flex items-center gap-2 text-xs'>
               <PhoneOff className='h-3.5 w-3.5' aria-hidden />
-              When no healthy local number is available, Ringee tells you
-              instead of dialing from the wrong one.
+              {t('randomFallbackNotice')}
             </p>
           </div>
         </div>

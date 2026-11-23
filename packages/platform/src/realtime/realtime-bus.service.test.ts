@@ -113,15 +113,15 @@ describe("realtime relay initialization", () => {
     );
     const received: unknown[] = [];
     let ready = 0;
-    const attach = () =>
+    const attach = (handler: string) =>
       f.bus
-        .subscribe("dialer", (value) => received.push(value))
+        .subscribe("dialer", (value) => received.push([handler, value]))
         .then((stop) => {
           ready++;
           return stop;
         });
-    const first = attach();
-    const second = attach();
+    const first = attach("first");
+    const second = attach("second");
     for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(f.subscribeCount()).toBe(1);
     expect(ready).toBe(0);
@@ -132,11 +132,17 @@ describe("realtime relay initialization", () => {
     expect(f.bus.isSubscriptionReady("dialer")).toBe(true);
     expect(f.subscribeCount()).toBe(1);
     await f.bus.publish("dialer", "call.initiate");
-    expect(received).toEqual(["call.initiate", "call.initiate"]);
+    expect(received).toEqual([
+      ["first", "call.initiate"],
+      ["second", "call.initiate"],
+    ]);
     stopFirst();
-    expect(f.unsubscribeCount()).toBe(0);
+    await f.bus.publish("dialer", "after-first");
+    expect(received.at(-1)).toEqual(["second", "after-first"]);
+    expect(received).toHaveLength(3);
     stopSecond();
-    expect(f.unsubscribeCount()).toBe(1);
+    await f.bus.publish("dialer", "after-second");
+    expect(received).toHaveLength(3);
     await f.bus.onModuleDestroy();
   });
 

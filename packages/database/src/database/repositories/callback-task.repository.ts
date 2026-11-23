@@ -104,10 +104,14 @@ export class CallbackTaskRepository {
     data: CreateCallbackTaskInput,
     campaign?: { leadId: string; assignment?: CampaignAttemptAssignment },
   ): Promise<CallbackTask> {
+    const creationKey = campaign?.assignment?.dispositionedAt
+      ? `campaign:${campaign.assignment.attemptId}:${campaign.assignment.dispositionedAt.toISOString()}`
+      : null;
     const create = (tx: Prisma.TransactionClient) =>
       tx.callbackTask.create({
         data: {
           id: data.id,
+          creationKey,
           userId: data.userId,
           organizationId: data.organizationId ?? null,
           contactId: data.contactId,
@@ -125,19 +129,13 @@ export class CallbackTaskRepository {
         await tx.$queryRaw`SELECT id FROM "Call" WHERE id = ${data.callId}::uuid FOR UPDATE`;
       if (campaign.assignment)
         await assertCampaignAttemptAssignment(tx, campaign.assignment);
-      const existing = campaign.assignment?.dispositionedAt
-        ? await tx.callbackTask.findFirst({
-            where: {
-              campaignLeadId: campaign.leadId,
-              contactId: data.contactId,
-              userId: data.userId,
-              organizationId: data.organizationId ?? null,
-              scheduledAt: data.scheduledAt,
-              note: data.note ?? null,
-            },
+      const existing = creationKey
+        ? await tx.callbackTask.findUnique({
+            where: { creationKey },
           })
         : null;
-      const callback = existing ?? (await create(tx));
+      if (existing) return existing;
+      const callback = await create(tx);
       await tx.campaignLead.updateMany({
         where: { id: campaign.leadId },
         data: { status: "scheduled", lockedBy: null, lockedAt: null },

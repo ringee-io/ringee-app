@@ -71,7 +71,12 @@ function build(options: BuildOptions = {}) {
   const service = new CampaignService(
     campaignRepo,
     campaignLeadRepo,
-    { isMember: async () => options.isMember ?? false } as never,
+    {
+      isMember: async (campaignId: string, userId: string) =>
+        options.isMember === true &&
+        campaignId === CAMPAIGN_ID &&
+        userId === ORG_CTX.userId,
+    } as never,
     contactRepo,
     {} as never,
     {} as never,
@@ -187,6 +192,28 @@ describe("CampaignService.addContactToCampaign", () => {
 });
 
 describe("CampaignService.assertDialableCampaign", () => {
+  it("admits the assigned member and refuses another member of the same organization", async () => {
+    const { service } = build({
+      campaign: { id: CAMPAIGN_ID, organizationId: "org-1", status: "active" },
+      isMember: true,
+    });
+    assert.equal(
+      (
+        await service.assertDialableCampaign(ORG_CTX, CAMPAIGN_ID, {
+          isOrgAdmin: false,
+        })
+      ).status,
+      "active",
+    );
+    await assert.rejects(
+      service.assertDialableCampaign(
+        { ...ORG_CTX, userId: "other-user" },
+        CAMPAIGN_ID,
+        { isOrgAdmin: false },
+      ),
+      ForbiddenException,
+    );
+  });
   it("authorizes workspace and membership before rejecting a paused campaign", async () => {
     for (const organizationId of ["org-2", "org-1"]) {
       const { service } = build({

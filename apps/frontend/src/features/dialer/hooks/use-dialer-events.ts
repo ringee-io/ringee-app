@@ -83,6 +83,23 @@ export function useDialerEvents(
 
     let cancelled = false;
     let retry: ReturnType<typeof setTimeout> | undefined;
+    let assignment: { version: number; released: boolean } | undefined;
+    const acceptsAssignment = (
+      data: { assignmentVersion?: string },
+      released = false
+    ) => {
+      if (!data.assignmentVersion) return true;
+      const version = new Date(data.assignmentVersion).getTime();
+      if (!Number.isFinite(version)) return false;
+      if (
+        assignment &&
+        (version < assignment.version ||
+          (version === assignment.version && assignment.released && !released))
+      )
+        return false;
+      assignment = { version, released };
+      return true;
+    };
     const belongsHere = (data: { sessionStartedAt?: string }) => {
       const current = useDialerSessionStore.getState();
       return (
@@ -117,6 +134,7 @@ export function useDialerEvents(
           err instanceof ApiError &&
           [401, 403, 404, 409].includes(err.status) &&
           !cancelled &&
+          belongsHere({}) &&
           !isLiveCallState(useDialerCallStore.getState().state)
         ) {
           clearLead();
@@ -139,7 +157,9 @@ export function useDialerEvents(
         const data = JSON.parse(e.data);
         if (!belongsHere(data)) return;
         setAwaitingEvents(false);
+        if (data.currentLeadId === null) acceptsAssignment(data, true);
         if (data.snapshotStale) return;
+        if (!acceptsAssignment(data, data.currentLeadId === null)) return;
         setSessionStatus(data.status);
         if (data.stats) setSessionStats(data.stats);
         if (
@@ -162,6 +182,7 @@ export function useDialerEvents(
       es.addEventListener('lead.assigned', (e) => {
         const data = JSON.parse(e.data);
         if (!belongsHere(data)) return;
+        if (!acceptsAssignment(data)) return;
         setWaitingReason(null);
         // The screen stays on the call that is actually up. The server does
         // not assign while one is, so this can only be a dial the engine is
@@ -182,6 +203,7 @@ export function useDialerEvents(
       es.addEventListener('call.initiate', (e) => {
         const data = JSON.parse(e.data);
         if (!belongsHere(data)) return;
+        if (!acceptsAssignment(data)) return;
         if (!data.attemptId) return;
         if (!hasLiveCallForAnotherAttempt(data.attemptId)) {
           setDialBlocked(null);
@@ -233,6 +255,7 @@ export function useDialerEvents(
       es.addEventListener('session.state', (e) => {
         const data = JSON.parse(e.data);
         if (!belongsHere(data)) return;
+        if (!acceptsAssignment(data, data.assignmentReleased === true)) return;
 
         // The server ended the session — because the agent asked to stop after
         // this lead, their account was disabled, or the dialer was opened again

@@ -178,6 +178,9 @@ function fixture(t) {
   ).useDialerSessionStore;
   const lead = load(base + 'store/dialer-lead.store.ts').useDialerLeadStore;
   const call = load(base + 'store/dialer-call.store.ts').useDialerCallStore;
+  const attempt = load(
+    base + 'store/dialer-attempt.store.ts'
+  ).useDialerAttemptStore;
   const useSession = load(
     base + 'hooks/use-dialer-session.ts'
   ).useDialerSession;
@@ -201,6 +204,7 @@ function fixture(t) {
     session,
     lead,
     call,
+    attempt,
     workspace,
     events,
     heartbeat: async (value) => {
@@ -210,6 +214,97 @@ function fixture(t) {
     }
   };
 }
+
+test('terminal ticket cleanup applies only to its current incarnation', async (t) => {
+  for (const replaced of [false, true]) {
+    const f = fixture(t);
+    f.session
+      .getState()
+      .setSession('session', 'campaign', 'progressive', first);
+    let reject;
+    f.api.post = () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      });
+    f.events.render();
+    f.lead.getState().setLead({ id: 'lead', contact: {} });
+    f.attempt.getState().setAttempt('attempt', 'created');
+    if (replaced)
+      f.session
+        .getState()
+        .setSession('session', 'campaign', 'progressive', second);
+    reject(new f.ApiError('replaced', 409));
+    await settle();
+    assert.equal(f.session.getState().sessionId, replaced ? 'session' : null);
+    assert.equal(
+      f.lead.getState().currentLead?.id ?? null,
+      replaced ? 'lead' : null
+    );
+    assert.equal(f.attempt.getState().attemptId, replaced ? 'attempt' : null);
+  }
+});
+
+test('released reservation versions reject late assignments and allow the next assignment', async (t) => {
+  const f = fixture(t);
+  f.session.getState().setSession('session', 'campaign', 'preview', first);
+  f.events.render();
+  await settle();
+  const stream = f.streams[0];
+  const old = {
+    sessionStartedAt: first,
+    assignmentVersion: first,
+    attemptId: 'old'
+  };
+  stream.emit('lead.assigned', { ...old, id: 'old-lead', contact: {} });
+  stream.emit('session.state', {
+    ...old,
+    status: 'paused',
+    assignmentReleased: true
+  });
+  stream.emit('lead.assigned', { ...old, id: 'old-lead', contact: {} });
+  stream.emit('call.initiate', old);
+  assert.equal(f.lead.getState().currentLead, null);
+  assert.equal(f.dials.length, 0);
+  f.attempt.getState().setAttempt('previous', 'ended');
+  stream.emit('lead.assigned', {
+    ...old,
+    assignmentVersion: second,
+    attemptId: 'new',
+    id: 'new-lead',
+    contact: {}
+  });
+  assert.equal(f.lead.getState().currentLead.id, 'new-lead');
+  assert.equal(f.attempt.getState().attemptId, 'new');
+  stream.emit('session.state', {
+    ...old,
+    status: 'paused',
+    assignmentReleased: true
+  });
+  assert.equal(f.lead.getState().currentLead.id, 'new-lead');
+});
+
+test('a released snapshot fences late assignments buffered during reconnect', async (t) => {
+  const f = fixture(t);
+  f.session.getState().setSession('session', 'campaign', 'preview', first);
+  f.events.render();
+  await settle();
+  const stream = f.streams[0];
+  stream.emit('session.connected', {
+    sessionStartedAt: first,
+    assignmentVersion: first,
+    currentLeadId: null,
+    status: 'paused',
+    snapshotStale: true
+  });
+  stream.emit('lead.assigned', {
+    sessionStartedAt: first,
+    assignmentVersion: first,
+    attemptId: 'old',
+    id: 'old-lead',
+    contact: {}
+  });
+  assert.equal(f.lead.getState().currentLead, null);
+});
 
 test('start requests are deduplicated and opt in to waiting for the event stream', async (t) => {
   const f = fixture(t);

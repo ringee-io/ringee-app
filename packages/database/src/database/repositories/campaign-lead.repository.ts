@@ -7,6 +7,32 @@ import {
   type CampaignAttemptAssignment,
 } from "./call-attempt.repository";
 
+export async function releaseCampaignLeadLock(
+  tx: Prisma.TransactionClient,
+  id: string,
+  options: {
+    lockedBy?: string;
+    lockedAt?: Date | null;
+    nextCallAt?: Date;
+  } = {},
+): Promise<number> {
+  const result = await tx.campaignLead.updateMany({
+    where: {
+      id,
+      status: { in: ["locked", "dialing", "in_call", "wrap_up"] },
+      ...(options.lockedBy ? { lockedBy: options.lockedBy } : {}),
+      ...(options.lockedAt !== undefined ? { lockedAt: options.lockedAt } : {}),
+    },
+    data: {
+      status: "queued",
+      lockedBy: null,
+      lockedAt: null,
+      ...(options.nextCallAt ? { nextCallAt: options.nextCallAt } : {}),
+    },
+  });
+  return result.count;
+}
+
 /** Enough contact to render a row in the campaign's lead table. */
 export interface CampaignLeadContactSummary {
   id: string;
@@ -449,30 +475,7 @@ export class CampaignLeadRepository {
       nextCallAt?: Date;
     } = {},
   ): Promise<number> {
-    const result = await this.prisma.campaignLead.updateMany({
-      where: {
-        id,
-        status: {
-          in: [
-            CampaignLeadStatus.locked,
-            CampaignLeadStatus.dialing,
-            CampaignLeadStatus.in_call,
-            CampaignLeadStatus.wrap_up,
-          ],
-        },
-        ...(options.lockedBy ? { lockedBy: options.lockedBy } : {}),
-        ...(options.lockedAt !== undefined
-          ? { lockedAt: options.lockedAt }
-          : {}),
-      },
-      data: {
-        status: CampaignLeadStatus.queued,
-        lockedBy: null,
-        lockedAt: null,
-        ...(options.nextCallAt ? { nextCallAt: options.nextCallAt } : {}),
-      },
-    });
-    return result.count;
+    return releaseCampaignLeadLock(this.prisma, id, options);
   }
 
   /**
@@ -533,6 +536,10 @@ export class CampaignLeadRepository {
           LEFT JOIN "AgentSession" session ON session."id" = attempt."agentSessionId"
           WHERE attempt."campaignLeadId" = lead."id" AND (
             (call."id" IS NOT NULL AND call."endedAt" IS NULL)
+            OR (
+              call."id" IS NOT NULL AND attempt."status" NOT IN ('ended', 'dispositioned')
+              AND session."id" = lead."lockedBy" AND session."currentLeadId" = lead."id"
+            )
             OR (${unconfirmedDialSql()})
             OR (
               attempt."status" IN ('created', 'dialing')
@@ -566,15 +573,14 @@ export class CampaignLeadRepository {
             AND lead."lockedAt" = (${candidate.lockedAt}::timestamptz AT TIME ZONE 'UTC')
             AND ${reclaimable} FOR UPDATE`;
         if (!eligible.length) return 0;
-        // Keep the attempt as reconciliation evidence, but fence holders that
-        // read it before recovery: none may bind or dispatch it after unlock.
-        await tx.callAttempt.updateMany({
+        // No provider leg was placed: discard it so it cannot count as a call
+        // or be bound/dispatched after recovery.
+        await tx.callAttempt.deleteMany({
           where: {
             campaignLeadId: candidate.id,
             callId: null,
             status: { in: ["created", "dialing"] },
           },
-          data: { status: "ended", endedAt: new Date() },
         });
         if (candidate.lockedBy) {
           await tx.agentSession.updateMany({

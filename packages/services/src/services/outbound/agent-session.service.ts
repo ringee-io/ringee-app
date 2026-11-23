@@ -47,6 +47,10 @@ export class AgentSessionService {
     startedAt: Date,
     allowLegacyFallback = false,
   ) {
+    // Capture the stream fence before taking the lease. An expired writer may
+    // resume after a successor attached; it must not overwrite that successor.
+    const previous = await this.getSession(sessionId);
+    this.assertIncarnation(previous, startedAt);
     const key = `dialer:stream-setup:${sessionId}:${startedAt.toISOString()}`;
     const token = randomUUID();
     let leased: boolean | null;
@@ -73,20 +77,31 @@ export class AgentSessionService {
         "This dialer event stream is already connecting.",
       );
     const ownership = {
-      renew: () =>
+      renew: async () =>
         leased
-          ? this.redis.renewLease(key, token, STREAM_SETUP_LEASE_SECONDS)
-          : Promise.resolve(false),
+          ? (await this.redis.renewLease(
+              key,
+              token,
+              STREAM_SETUP_LEASE_SECONDS,
+            )) || this.redis.setIfAbsent(key, token, STREAM_SETUP_LEASE_SECONDS)
+          : false,
       release: () =>
         leased
           ? this.redis.compareAndSwap(key, token, null)
           : Promise.resolve(false),
     };
     try {
-      const session = await this.sessionRepo.heartbeat(sessionId, startedAt);
+      const session = await this.sessionRepo.heartbeat(sessionId, startedAt, {
+        id: token,
+        previousId: previous.eventStreamId,
+      });
       if (!session)
         throw new ConflictException("This dialer session has been replaced.");
-      return { ...ownership, lastHeartbeat: session.lastHeartbeat };
+      return {
+        ...ownership,
+        isSuperseded: async () =>
+          (await this.getSession(sessionId)).eventStreamId !== token,
+      };
     } catch (error) {
       await ownership.release().catch(() => false);
       throw error;
@@ -260,17 +275,21 @@ export class AgentSessionService {
     startedAt: Date,
     isAttached: () => boolean = () => true,
     ownsStreamSetup: () => Promise<boolean> = async () => true,
-    attachedHeartbeat?: Date,
-  ): Promise<void> {
+    isSuperseded?: () => Promise<boolean>,
+  ): Promise<AgentSession | null> {
     const session = await this.getSession(sessionId);
-    const attachment = attachedHeartbeat ?? session.lastHeartbeat;
+    const attachment = session.eventStreamId;
+    const hasSuccessor =
+      isSuperseded ??
+      (async () =>
+        (await this.getSession(sessionId)).eventStreamId !== attachment);
     this.assertIncarnation(session, startedAt);
     await this.assertDialerEnabled(session.userId);
     if (!(await this.sseBridge.isRelayReady()))
       throw new ServiceUnavailableException(
         "The dialer event relay is unavailable.",
       );
-    if (!(await ownsStreamSetup()) || !isAttached()) return;
+    if (!(await ownsStreamSetup()) || !isAttached()) return null;
     const moved = await this.transitionIf(
       sessionId,
       {
@@ -281,19 +300,20 @@ export class AgentSessionService {
       },
       AgentSessionStatus.ready,
     );
+    const committed = await this.getSession(sessionId);
+    this.assertIncarnation(committed, startedAt);
     if (moved && !isAttached()) {
       // The stream may close while the ready write is in flight. End only the
       // incarnation we activated, retaining any leg that already reached it.
-      let current = await this.getSession(sessionId);
+      let current = committed;
       while (
         current.startedAt.getTime() === startedAt.getTime() &&
         !(current.status === AgentSessionStatus.offline && current.endedAt)
       ) {
-        if (current.lastHeartbeat.getTime() !== attachment.getTime()) return;
-        // A setup lease that expired may have admitted another API's stream.
-        // Renew it before the DB transaction. The attachment's persisted
-        // heartbeat also fences a successor admitted after this check.
-        if (!(await ownsStreamSetup())) return;
+        if (await hasSuccessor()) return null;
+        // Reclaim an expired, vacant lease; only another stream can supersede
+        // this attachment. The persisted token also fences the stop transaction.
+        if (!(await ownsStreamSetup())) return null;
         const preserve =
           current.currentLeadId !== null ||
           (await this.attemptRepo.hasLiveCallForSession(sessionId)) ||
@@ -314,18 +334,17 @@ export class AgentSessionService {
         }
         current = await this.getSession(sessionId);
       }
-      return;
+      return null;
     }
     if (moved)
       this.logger.log(
         `Session ${sessionId} for campaign ${session.campaignId} event stream attached; ready`,
       );
     else {
-      const current = await this.getSession(sessionId);
-      this.assertIncarnation(current, startedAt);
-      if (current.status === AgentSessionStatus.offline)
+      if (committed.status === AgentSessionStatus.offline)
         throw new ConflictException("This dialer session cannot be activated.");
     }
+    return committed;
   }
 
   async transitionTo(
@@ -359,6 +378,7 @@ export class AgentSessionService {
       endedAt?: Date | null;
       reservedAt?: Date | null;
       undialedAttemptId?: string | null;
+      undialedLead?: { lockedAt: Date | null; nextCallAt?: Date };
       disposition?: { attemptId: string; dispositionedAt: Date };
     },
     status: AgentSessionStatus,
@@ -579,25 +599,21 @@ export class AgentSessionService {
         this.campaigns.findById(session.campaignId),
       ]);
       if (!lead || !campaign || lead.campaignId !== campaign.id) return false;
-      if (
-        await this.sessionRepo.endIfUnchanged(session, false, {
-          assignmentRetry: {
-            leadId,
-            attempts: lead.attempts,
-            status:
-              lead.attempts >= campaign.maxAttempts ? "exhausted" : "queued",
-            ...(lead.attempts >= campaign.maxAttempts
-              ? { deadAt: new Date() }
-              : {
-                  nextCallAt: new Date(
-                    Date.now() + campaign.retryDelayMin * 60_000,
-                  ),
-                  nextCallAtAfterCompletedCall: true,
-                }),
-          },
-        })
-      )
-        return true;
+      const result = await this.sessionRepo.endAssignmentIfUnchanged(session, {
+        leadId,
+        attempts: lead.attempts,
+        status: lead.attempts >= campaign.maxAttempts ? "exhausted" : "queued",
+        ...(lead.attempts >= campaign.maxAttempts
+          ? { deadAt: new Date() }
+          : {
+              nextCallAt: new Date(
+                Date.now() + campaign.retryDelayMin * 60_000,
+              ),
+              nextCallAtAfterCompletedCall: true,
+            }),
+      });
+      if (result.outcome === "ended") return true;
+      if (result.outcome === "awaiting_finalization") return false;
     }
   }
 

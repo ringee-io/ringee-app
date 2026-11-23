@@ -47,7 +47,7 @@ export function signSseTicket(
 /** The context the ticket names, when it is authentic, current and for `subject`. */
 export function verifySseTicket(
   ticket: unknown,
-  subject: string,
+  subject: string | ((subject: string) => boolean),
   now = Date.now(),
 ): OwnershipContext | null {
   // Reject malformed/oversized public input before touching key material.
@@ -70,7 +70,7 @@ export function verifySseTicket(
     return null;
   }
   if (
-    claims?.s !== subject ||
+    typeof claims?.s !== "string" ||
     typeof claims.u !== "string" ||
     !claims.u ||
     (claims.o !== null && typeof claims.o !== "string") ||
@@ -79,5 +79,7 @@ export function verifySseTicket(
   ) {
     return null;
   }
+  if (typeof subject === "string" ? claims.s !== subject : !subject(claims.s))
+    return null;
   return { userId: claims.u, organizationId: claims.o };
 }
