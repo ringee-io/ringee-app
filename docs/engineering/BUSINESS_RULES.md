@@ -676,7 +676,13 @@ caps hold campaign-wide.
 
 Selection applies the canonical outbound number allow-list (`NUM-003`), then
 the campaign subset, country and daily cap. Local presence prefers the same
-area code, then the same US state, then the same country. Countries sharing a
+NANP area code, rotating local matches by health then least-recent use. With
+no eligible local match (including calling plans without a supported area-code
+model), it selects uniformly at random from the eligible campaign pool. State
+is not a fallback restriction. The balanced strategy keeps health/LRU ranking.
+An unparseable calling plan is refused instead of bypassing the pool with a
+fixed number. An empty campaign subset retains its existing meaning: use the
+workspace pool. Countries sharing a
 calling code remain distinct (US, Canada, Dominican Republic, Puerto Rico,
 etc.); non-geographic destinations use their calling plan. An empty eligible
 pool is a refusal: no dial surface may replace it with a fixed caller ID or
@@ -899,7 +905,8 @@ Promoting the column to an enum is blocked on `DEBT-002`.
 
 `DialerOrchestrationService.startPolling()` is called from
 `AppModule.onApplicationBootstrap` because lead assignment is pushed over
-in-process SSE. The worker imports the same module and must **not** poll.
+SSE. `SSEBridgeService` relays events over Redis between API instances. The
+worker imports the same module and must **not** poll.
 
 - **Risk if violated:** agents stuck on "Waiting for lead"
 
@@ -950,6 +957,7 @@ depends on why:
 | Already on a call (lease refused), caller-ID selector error        | `ready`, poller skips them for 5s | back as it was            |
 | No caller ID for the destination (country, daily cap, unparseable) | `ready`, 5s cooldown              | deferred 15 min           |
 | Rotation off and the agent may not present the campaign number     | `paused`                          | back as it was            |
+| No configured rotation numbers, or none eligible for the agent     | `paused`, actionable error        | back as it was            |
 | No credit                                                          | `paused`                          | back as it was            |
 | Calling disabled for the user                                      | `offline`                         | back as it was            |
 | The `call.initiated` backstop hung the leg up                      | `paused`                          | back, attempt not counted |
@@ -1003,9 +1011,34 @@ computer or a reload lands on the same id — and every tab attached to it would
 receive, and dial, the same `call.initiate`. `startSession` releases the previous
 incarnation's lead and tells its tabs `session.state offline` (`taken_over`); the
 browser also compares `startedAt` on each heartbeat. It is refused while that
-session is `dialing` or `in_call` with a live heartbeat.
+session is `dialing` or `in_call` with a live heartbeat, while a provider call is
+still live even without a heartbeat, or while an emitted dial is still awaiting
+provider confirmation within the dispatch timeout.
+
+Replacement and stop atomically release abandoned assignments with the state
+change. Lifecycle requests, agent claims, late events and disposition transitions
+are fenced by `startedAt`; stale cleanup also compares `lastHeartbeat`. The
+same session id alone never proves a request still owns its incarnation.
 
 - **Source of truth:** `AgentSessionService.startSession`
+
+### CMP-017 — A new workspace session receives leads only after its event stream is attached
+
+The workspace opts into `waitForEvents`. `offline` with `endedAt: null` is its
+pending stream state. The SSE controller subscribes and confirms the Redis relay
+before activating that incarnation; a tick during HTTP start or ticket issuance
+must not reserve a lead. A reconnect never replays a dial instruction. Previously
+released clients that omit the flag retain their existing start behavior.
+
+A progressive reservation interrupted before an attempt exists is recovered by
+the existing stalled-dispatch sweep. Preview reservations and live calls are not
+orphaned work. Only active campaigns may start or resume a calling session; a
+paused wrap-up returns to wrap-up until its lead is dispositioned.
+
+- **Source of truth:** `DialerController.sessionEvents`,
+  `AgentSessionService.activateAfterEvents`, `DialerOrchestrationService.sweepStalledDials`
+- **Risk if violated:** `lead.assigned` and `call.initiate` disappear before the
+  browser subscribes, leaving an agent waiting while its lead is already reserved
 
 ---
 

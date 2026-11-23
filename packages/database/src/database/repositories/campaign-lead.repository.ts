@@ -1,6 +1,37 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CampaignLead, CampaignLeadStatus, Prisma } from "@prisma/client";
+import {
+  unconfirmedDialSql,
+  assertCampaignAttemptAssignment,
+  type CampaignAttemptAssignment,
+} from "./call-attempt.repository";
+
+export async function releaseCampaignLeadLock(
+  tx: Prisma.TransactionClient,
+  id: string,
+  options: {
+    lockedBy?: string;
+    lockedAt?: Date | null;
+    nextCallAt?: Date;
+  } = {},
+): Promise<number> {
+  const result = await tx.campaignLead.updateMany({
+    where: {
+      id,
+      status: { in: ["locked", "dialing", "in_call", "wrap_up"] },
+      ...(options.lockedBy ? { lockedBy: options.lockedBy } : {}),
+      ...(options.lockedAt !== undefined ? { lockedAt: options.lockedAt } : {}),
+    },
+    data: {
+      status: "queued",
+      lockedBy: null,
+      lockedAt: null,
+      ...(options.nextCallAt ? { nextCallAt: options.nextCallAt } : {}),
+    },
+  });
+  return result.count;
+}
 
 /** Enough contact to render a row in the campaign's lead table. */
 export interface CampaignLeadContactSummary {
@@ -324,11 +355,16 @@ export class CampaignLeadRepository {
     });
   }
 
-  async markAsDead(id: string): Promise<CampaignLead> {
-    return this.prisma.campaignLead.update({
-      where: { id },
-      data: { deadAt: new Date(), status: CampaignLeadStatus.exhausted },
-    });
+  async markAsDead(
+    id: string,
+    assignment?: CampaignAttemptAssignment,
+  ): Promise<CampaignLead> {
+    return this.mutateForAssignment(assignment, (tx) =>
+      tx.campaignLead.update({
+        where: { id },
+        data: { deadAt: new Date(), status: CampaignLeadStatus.exhausted },
+      }),
+    );
   }
 
   async updateStatus(
@@ -340,10 +376,24 @@ export class CampaignLeadRepository {
         "lockedBy" | "lockedAt" | "nextCallAt" | "userId" | "priority"
       >
     >,
+    assignment?: CampaignAttemptAssignment,
   ): Promise<CampaignLead> {
-    return this.prisma.campaignLead.update({
-      where: { id },
-      data: { status, ...extra },
+    return this.mutateForAssignment(assignment, (tx) =>
+      tx.campaignLead.update({
+        where: { id },
+        data: { status, ...extra },
+      }),
+    );
+  }
+
+  private async mutateForAssignment<T>(
+    assignment: CampaignAttemptAssignment | undefined,
+    mutate: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!assignment) return mutate(this.prisma);
+    return this.prisma.$transaction(async (tx) => {
+      await assertCampaignAttemptAssignment(tx, assignment);
+      return mutate(tx);
     });
   }
 
@@ -413,33 +463,19 @@ export class CampaignLeadRepository {
    * `lockedBy` releases only a lead that session still holds: a lock the stale
    * sweep already recovered may have been claimed by another agent since, and
    * releasing it would put a lead that agent is calling back in the queue.
+   * `lockedAt` also fences a newer lock taken by a restarted session with the
+   * same id; recovery passes the timestamp it observed with the reservation.
    * `nextCallAt` keeps a released lead from being handed straight back out.
    */
   async releaseLock(
     id: string,
-    options: { lockedBy?: string; nextCallAt?: Date } = {},
+    options: {
+      lockedBy?: string;
+      lockedAt?: Date | null;
+      nextCallAt?: Date;
+    } = {},
   ): Promise<number> {
-    const result = await this.prisma.campaignLead.updateMany({
-      where: {
-        id,
-        status: {
-          in: [
-            CampaignLeadStatus.locked,
-            CampaignLeadStatus.dialing,
-            CampaignLeadStatus.in_call,
-            CampaignLeadStatus.wrap_up,
-          ],
-        },
-        ...(options.lockedBy ? { lockedBy: options.lockedBy } : {}),
-      },
-      data: {
-        status: CampaignLeadStatus.queued,
-        lockedBy: null,
-        lockedAt: null,
-        ...(options.nextCallAt ? { nextCallAt: options.nextCallAt } : {}),
-      },
-    });
-    return result.count;
+    return releaseCampaignLeadLock(this.prisma, id, options);
   }
 
   /**
@@ -492,18 +528,88 @@ export class CampaignLeadRepository {
    */
   async requeueStaleLocked(thresholdMs: number): Promise<number> {
     const cutoff = new Date(Date.now() - thresholdMs);
-    const result = await this.prisma.campaignLead.updateMany({
-      where: {
-        status: CampaignLeadStatus.locked,
-        lockedAt: { lt: cutoff },
-      },
-      data: {
-        status: CampaignLeadStatus.queued,
-        lockedBy: null,
-        lockedAt: null,
-      },
-    });
-    return result.count;
+    const reclaimable = Prisma.sql`lead."status" = 'locked'
+        AND lead."lockedAt" < (${cutoff}::timestamptz AT TIME ZONE 'UTC')
+        AND NOT EXISTS (
+          SELECT 1 FROM "CallAttempt" attempt
+          LEFT JOIN "Call" call ON call."id" = attempt."callId"
+          LEFT JOIN "AgentSession" session ON session."id" = attempt."agentSessionId"
+          WHERE attempt."campaignLeadId" = lead."id" AND (
+            (call."id" IS NOT NULL AND call."endedAt" IS NULL)
+            OR (
+              call."id" IS NOT NULL AND attempt."status" NOT IN ('ended', 'dispositioned')
+              AND session."id" = lead."lockedBy" AND session."currentLeadId" = lead."id"
+            )
+            OR (${unconfirmedDialSql()})
+            OR (
+              attempt."status" IN ('created', 'dialing')
+              AND session."id" = lead."lockedBy"
+              AND session."currentLeadId" = lead."id"
+              AND session."status" IN ('reserved', 'dialing', 'in_call')
+            )
+          )
+        )`;
+    const candidates = await this.prisma.$queryRaw<
+      Array<{ id: string; lockedBy: string | null; lockedAt: Date }>
+    >`
+      SELECT lead."id", lead."lockedBy", lead."lockedAt" FROM "CampaignLead" lead
+      WHERE ${reclaimable}
+      ORDER BY lead."lockedAt", lead."id" LIMIT 100`;
+    let recovered = 0;
+    for (const candidate of candidates) {
+      recovered += await this.prisma.$transaction(async (tx) => {
+        // Provider binding takes the session lock before the attempt lock too.
+        // Lock every attempt's session, including historical owners, in order.
+        await tx.$queryRaw`SELECT "id" FROM "AgentSession"
+          WHERE "id" = ${candidate.lockedBy}::uuid OR "id" IN (
+            SELECT "agentSessionId" FROM "CallAttempt" WHERE "campaignLeadId" = ${candidate.id}::uuid
+          ) ORDER BY "id" FOR UPDATE`;
+        await tx.$queryRaw`SELECT "id" FROM "CallAttempt"
+          WHERE "campaignLeadId" = ${candidate.id}::uuid ORDER BY "id" FOR UPDATE`;
+        const eligible = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT lead."id" FROM "CampaignLead" lead
+          WHERE lead."id" = ${candidate.id}::uuid
+            AND lead."lockedBy" IS NOT DISTINCT FROM ${candidate.lockedBy}::uuid
+            AND lead."lockedAt" = (${candidate.lockedAt}::timestamptz AT TIME ZONE 'UTC')
+            AND ${reclaimable} FOR UPDATE`;
+        if (!eligible.length) return 0;
+        // No provider leg was placed: discard it so it cannot count as a call
+        // or be bound/dispatched after recovery.
+        await tx.callAttempt.deleteMany({
+          where: {
+            campaignLeadId: candidate.id,
+            callId: null,
+            status: { in: ["created", "dialing"] },
+          },
+        });
+        if (candidate.lockedBy) {
+          await tx.agentSession.updateMany({
+            where: {
+              id: candidate.lockedBy,
+              currentLeadId: candidate.id,
+              status: { in: ["reserved", "dialing", "in_call"] },
+            },
+            data: { status: "paused", currentLeadId: null },
+          });
+          await tx.agentSession.updateMany({
+            where: { id: candidate.lockedBy, currentLeadId: candidate.id },
+            data: { currentLeadId: null },
+          });
+        }
+        return (
+          await tx.campaignLead.updateMany({
+            where: {
+              id: candidate.id,
+              status: "locked",
+              lockedBy: candidate.lockedBy,
+              lockedAt: candidate.lockedAt,
+            },
+            data: { status: "queued", lockedBy: null, lockedAt: null },
+          })
+        ).count;
+      });
+    }
+    return recovered;
   }
 
   /**

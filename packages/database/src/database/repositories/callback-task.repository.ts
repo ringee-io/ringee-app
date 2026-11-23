@@ -17,6 +17,10 @@ import {
 } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
 import {
+  assertCampaignAttemptAssignment,
+  type CampaignAttemptAssignment,
+} from "./call-attempt.repository";
+import {
   CallbackAgentKind,
   CallbackTask,
   CallbackStatus,
@@ -96,18 +100,47 @@ const OPEN_CALLBACK_STATUSES: CallbackStatus[] = [
 export class CallbackTaskRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateCallbackTaskInput): Promise<CallbackTask> {
-    return this.prisma.callbackTask.create({
-      data: {
-        id: data.id,
-        userId: data.userId,
-        organizationId: data.organizationId ?? null,
-        contactId: data.contactId,
-        callId: data.callId ?? null,
-        campaignLeadId: data.campaignLeadId ?? null,
-        scheduledAt: data.scheduledAt,
-        note: data.note,
-      },
+  async create(
+    data: CreateCallbackTaskInput,
+    campaign?: { leadId: string; assignment?: CampaignAttemptAssignment },
+  ): Promise<CallbackTask> {
+    const creationKey = campaign?.assignment?.dispositionedAt
+      ? `campaign:${campaign.assignment.attemptId}:${campaign.assignment.dispositionedAt.toISOString()}`
+      : null;
+    const create = (tx: Prisma.TransactionClient) =>
+      tx.callbackTask.create({
+        data: {
+          id: data.id,
+          creationKey,
+          userId: data.userId,
+          organizationId: data.organizationId ?? null,
+          contactId: data.contactId,
+          callId: data.callId ?? null,
+          campaignLeadId: data.campaignLeadId ?? null,
+          scheduledAt: data.scheduledAt,
+          note: data.note,
+        },
+      });
+    if (!campaign) return create(this.prisma);
+    return this.prisma.$transaction(async (tx) => {
+      // Match human-outcome acceptance before acquiring the assignment locks.
+      await tx.$queryRaw`SELECT id FROM "Contact" WHERE id = ${data.contactId}::uuid FOR UPDATE`;
+      if (data.callId)
+        await tx.$queryRaw`SELECT id FROM "Call" WHERE id = ${data.callId}::uuid FOR UPDATE`;
+      if (campaign.assignment)
+        await assertCampaignAttemptAssignment(tx, campaign.assignment);
+      const existing = creationKey
+        ? await tx.callbackTask.findUnique({
+            where: { creationKey },
+          })
+        : null;
+      if (existing) return existing;
+      const callback = await create(tx);
+      await tx.campaignLead.updateMany({
+        where: { id: campaign.leadId },
+        data: { status: "scheduled", lockedBy: null, lockedAt: null },
+      });
+      return callback;
     });
   }
 

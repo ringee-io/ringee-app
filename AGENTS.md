@@ -143,11 +143,14 @@ node_modules/.bin/eslint <changed paths>   # or: pnpm lint (repo-wide)
 pnpm lint:fix                              # eslint --fix
 pnpm format:check                          # prettier, incl. Markdown/JSON/YAML
 pnpm format                                # prettier --write
-pnpm --filter <workspace> run test         # services, platform, dialer-core, dialer-sdk, agent, browser-extension
-pnpm --filter <workspace> run typecheck    # dialer-*, agent, agent-cli, browser-extension, chatgpt-app
+pnpm --filter <workspace> run test         # services, database, platform, dialer-core, dialer-sdk, agent, browser-extension
+pnpm --filter <workspace> run typecheck    # services, database, dialer-*, agent, agent-cli, browser-extension, chatgpt-app
 pnpm build:backend | build:frontend | build:database | build:orchestrator
 pnpm prisma:generate                       # after any schema.prisma change
 ```
+
+In `services` and `database`, `test` runs ts-node transpile-only and reports no
+type errors — `typecheck` is what type-checks their source and specs.
 
 CI (`.github/workflows/ci.yml`) runs the same steps, and **`pnpm lint` and
 `pnpm format:check` both fail the build**. The **architecture-boundary gate on

@@ -59,7 +59,6 @@ export class SSEBridgeService implements OnModuleDestroy {
   private readonly subject = new Subject<SSEEvent>();
   private readonly origin = randomUUID();
   private relay: Promise<void> | null = null;
-  private relayActive = false;
   private stopRelay: (() => void) | null = null;
   private destroyed = false;
 
@@ -79,21 +78,33 @@ export class SSEBridgeService implements OnModuleDestroy {
             return;
           }
           this.stopRelay = unsubscribe;
-          this.relayActive = true;
         })
         .catch((error: unknown) => {
           this.relay = null;
           this.logger.error(
-            `SSE relay unavailable, delivering to local streams only: ${error instanceof Error ? error.message : String(error)}`,
+            `SSE relay unavailable, delivering to local streams only (${error instanceof Error ? error.name : "unknown"})`,
           );
         });
     }
     return this.relay;
   }
 
+  /** Call dispatch cannot rely on the local-only fallback across API tasks. */
+  async isRelayReady(): Promise<boolean> {
+    await this.listen();
+    return this.relayActive;
+  }
+
+  private get relayActive(): boolean {
+    return (
+      !this.destroyed &&
+      this.stopRelay !== null &&
+      this.bus.isSubscriptionReady(SSE_RELAY_CHANNEL)
+    );
+  }
+
   onModuleDestroy() {
     this.destroyed = true;
-    this.relayActive = false;
     this.stopRelay?.();
     this.stopRelay = null;
     this.subject.complete();

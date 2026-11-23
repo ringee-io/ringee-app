@@ -4,6 +4,7 @@ import {
   CampaignLeadRepository,
   CampaignLeadStatus,
   DispositionCategory,
+  CampaignAttemptAssignment,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { CampaignService } from "../campaign.service";
@@ -32,6 +33,7 @@ export class RetryEngine {
     dispositionCategory: DispositionCategory,
     currentAttempts: number,
     campaignDefaults: { maxAttempts: number; retryDelayMin: number },
+    assignment?: CampaignAttemptAssignment,
   ): Promise<"retried" | "exhausted" | "no_rule"> {
     const rule = await this.retryRuleRepo.findByCampaignAndCategory(
       campaignId,
@@ -43,7 +45,7 @@ export class RetryEngine {
     const delayMultiplier = rule?.delayMultiplier ?? 1.0;
 
     if (currentAttempts >= maxAttempts) {
-      await this.campaignLeadRepo.markAsDead(campaignLeadId);
+      await this.campaignLeadRepo.markAsDead(campaignLeadId, assignment);
       this.logger.debug(
         `Lead ${campaignLeadId} exhausted after ${currentAttempts} attempts`,
       );
@@ -59,6 +61,7 @@ export class RetryEngine {
       campaignLeadId,
       CampaignLeadStatus.queued,
       { nextCallAt, lockedBy: null, lockedAt: null },
+      assignment,
     );
 
     this.logger.debug(

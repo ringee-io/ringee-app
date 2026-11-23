@@ -2203,12 +2203,15 @@ model CampaignList {
 }
 
 model CallAttempt {
-  id             String  @id @default(uuid()) @db.Uuid
-  campaignId     String  @db.Uuid
-  campaignLeadId String  @db.Uuid
-  callId         String? @db.Uuid
-  agentSessionId String? @db.Uuid
-  agentUserId    String  @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  campaignId        String    @db.Uuid
+  campaignLeadId    String    @db.Uuid
+  callId            String?   @db.Uuid
+  agentSessionId    String?   @db.Uuid
+  agentUserId       String    @db.Uuid
+  sessionStartedAt  DateTime?
+  /// The winning reservation, independent of dispatch/creation timestamps.
+  sessionReservedAt DateTime?
 
   status        CallAttemptStatus @default(created)
   attemptNumber Int
@@ -2335,6 +2338,8 @@ model RetryRule {
 }
 
 model CallbackTask {
+  /// Campaign attempt + accepted disposition revision; stable across replay.
+  creationKey    String?        @unique
   id             String         @id @default(uuid()) @db.Uuid
   userId         String         @db.Uuid
   organizationId String?        @db.Uuid
@@ -2485,6 +2490,8 @@ model VoicemailDropAsset {
 }
 
 model AgentSession {
+  /// Last stream attachment, independent of the browser's ordinary heartbeat.
+  eventStreamId  String?            @db.Uuid
   id             String             @id @default(uuid()) @db.Uuid
   campaignId     String             @db.Uuid
   userId         String             @db.Uuid
@@ -2495,6 +2502,7 @@ model AgentSession {
   lastHeartbeat DateTime  @default(now())
   startedAt     DateTime  @default(now())
   endedAt       DateTime?
+  reservedAt    DateTime?
 
   callsAttempted Int @default(0)
   callsConnected Int @default(0)

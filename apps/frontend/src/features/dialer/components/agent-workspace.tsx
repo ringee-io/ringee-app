@@ -134,11 +134,10 @@ export function AgentWorkspace({
   async function endAndLeave() {
     setEnding(true);
     try {
-      await endSession();
+      if (await endSession()) leave();
     } finally {
       setEnding(false);
       setConfirmExit(false);
-      leave();
     }
   }
 

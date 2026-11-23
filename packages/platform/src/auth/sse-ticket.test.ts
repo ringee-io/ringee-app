@@ -42,6 +42,22 @@ describe("sse ticket", () => {
     expect(verifySseTicket(ticket, "ai:conv-1", 11)).toBeNull();
   });
 
+  it("exposes the signed subject to a matcher only after checking authenticity and expiry", () => {
+    const subject = "dialer:session:2026-11-21T10:00:00.000Z";
+    const matches = vi.fn((value: string) => value === subject);
+    const ticket = signSseTicket(subject, ctx, { now: 0, ttlMs: 10 });
+    expect(verifySseTicket(ticket, matches, 1)).toEqual(ctx);
+    expect(matches).toHaveBeenCalledWith(subject);
+    matches.mockClear();
+    expect(verifySseTicket(ticket, matches, 11)).toBeNull();
+    expect(verifySseTicket("invalid", matches, 1)).toBeNull();
+    const [payload, signature] = ticket.split(".");
+    const tampered = `${payload}.${signature[0] === "a" ? "b" : "a"}${signature.slice(1)}`;
+    expect(verifySseTicket(tampered, matches, 1)).toBeNull();
+    expect(matches).not.toHaveBeenCalled();
+    expect(verifySseTicket(ticket, () => false, 1)).toBeNull();
+  });
+
   it("refuses a tampered or malformed ticket", () => {
     const ticket = signSseTicket("ai:conv-1", ctx);
     const [, signature] = ticket.split(".");

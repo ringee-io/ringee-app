@@ -711,5 +711,10 @@
         "description": "I tuoi richiami, le riunioni e la cronologia ti seguono — non perdere mai un follow-up."
       }
     }
+  },
+  "callerIdRotation": {
+    "countryMatchDescription": "Per le destinazioni geografiche, Ringee considera solo i numeri idonei di tua proprietà nel paese di destinazione. Le destinazioni gratuite e le altre destinazioni non geografiche vengono abbinate tramite il piano di numerazione condiviso. Se il piano di numerazione non viene riconosciuto, la chiamata viene rifiutata con un errore chiaro.",
+    "localAreaDescription": "Con la strategia di presenza locale, ha la priorità un numero idoneo con lo stesso prefisso geografico NANP del contatto. Se non è disponibile o il piano di numerazione non ha un prefisso geografico supportato, Ringee seleziona casualmente un numero idoneo dal gruppo della campagna nello stesso paese.",
+    "healthDescription": "I numeri con corrispondenza locale ruotano in base allo stato di salute e poi al tempo trascorso dall’ultimo utilizzo. I numeri in pausa, disattivati o segnalati sono esclusi dalla selezione automatica, compresa l’alternativa casuale. Anche i numeri che hanno raggiunto il limite giornaliero sono esclusi, salvo quando tutti i numeri idonei hanno raggiunto il limite e allowOverCap è attivo; in tal caso può essere selezionato un numero oltre il limite, anche come alternativa casuale. La strategia bilanciata ordina i numeri idonei per stato di salute e tempo trascorso dall’ultimo utilizzo."
   }
 }

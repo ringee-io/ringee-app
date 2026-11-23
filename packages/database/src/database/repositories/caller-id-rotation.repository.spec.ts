@@ -4,10 +4,41 @@ import { userInfo } from "node:os";
 import { PrismaClient } from "@prisma/client";
 import { describe, it } from "node:test";
 import { CallerIdRotationRepository } from "./caller-id-rotation.repository";
+import { NumberPurchasedRepository } from "./number.purchased.repository";
 
 const ctx = { userId: "user-1", organizationId: null };
 
 describe("rotation persistence", () => {
+  it("loads only owned, undeleted, usable purchases or verified active caller IDs for rotation", async () => {
+    const queries: Array<{ where: Record<string, unknown> }> = [];
+    const repo = new NumberPurchasedRepository({
+      numberPurchased: {
+        findMany: async (query: { where: Record<string, unknown> }) => {
+          queries.push(query);
+          return [];
+        },
+      },
+    } as never);
+    for (const ownership of [
+      ctx,
+      { userId: "user-1", organizationId: "org-1" },
+    ]) {
+      await repo.findRotatable(ownership);
+      assert.deepEqual(queries.at(-1)!.where, {
+        ...(ownership.organizationId
+          ? { organizationId: ownership.organizationId }
+          : { userId: ownership.userId, organizationId: null }),
+        deletedAt: null,
+        OR: [
+          {
+            kind: "purchased",
+            OR: [{ status: { in: ["active", "assigned"] } }, { status: null }],
+          },
+          { kind: "verified_caller_id", verified: true, active: true },
+        ],
+      });
+    }
+  });
   it("scopes both the pool and the current number owner; excludes deleted numbers", async () => {
     const queries: Array<{ where: Record<string, unknown> }> = [];
     const repo = new CallerIdRotationRepository({

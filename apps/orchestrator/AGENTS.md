@@ -46,5 +46,6 @@ existing proxy that matches your workload instead of adding a new one.
 ## Not here
 
 The dialer poll loop is deliberately **not** in this process; it runs in the
-backend because lead assignment is pushed over in-process SSE. See
+backend because it serves the dialer's SSE lifecycle. Events are relayed between
+API instances over Redis; the worker must still never poll. See
 `DialerOrchestrationService.startPolling()`.

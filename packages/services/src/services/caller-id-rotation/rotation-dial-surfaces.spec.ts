@@ -117,6 +117,8 @@ describe("rotation across dial surfaces", () => {
     );
   });
   it("preview campaigns use the same rotation, caps and reservation gates as progressive campaigns", async () => {
+    const startedAt = new Date();
+    const reservedAt = new Date(startedAt.getTime() + 1);
     const events: string[] = [];
     const states: string[] = [];
     const releases: Array<{ to: string; reason?: string; deferred: boolean }> =
@@ -134,6 +136,8 @@ describe("rotation across dial surfaces", () => {
             status: "reserved",
             currentLeadId: "lead",
             campaignId: "campaign",
+            startedAt,
+            reservedAt,
             ...ctx,
           }),
           mayDialCampaign: async () => true,
@@ -145,6 +149,8 @@ describe("rotation across dial surfaces", () => {
             assert.deepEqual(expected, {
               from: ["reserved"],
               currentLeadId: "lead",
+              startedAt,
+              reservedAt,
             });
             states.push(state);
             return true;
@@ -166,6 +172,7 @@ describe("rotation across dial surfaces", () => {
             id: "lead",
             campaignId: "campaign",
             lockedBy: "session",
+            lockedAt: reservedAt,
             contact: { phoneNumber: "+12125550123" },
           }),
         },

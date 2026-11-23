@@ -58,7 +58,11 @@
       "script": "Roteiro",
       "transcript": "Transcrição",
       "outcome": "Resultado"
-    }
+    },
+    "endFailed": "Não foi possível encerrar a sessão. Tente novamente.",
+    "pauseFailed": "Não foi possível pausar a sessão. Tente novamente.",
+    "resumeFailed": "Não foi possível retomar a sessão. Tente novamente.",
+    "connectionFailed": "A conexão da sessão foi interrompida. Reconectando…"
   },
   "statusBar": {
     "statuses": {
@@ -108,6 +112,7 @@
     "shortcutsHint": "Dica: pressione 1–9 para escolher o resultado e Enter para salvar."
   },
   "lead": {
+    "dialBlocked": "Não foi possível iniciar a chamada",
     "waiting": "Aguardando lead",
     "waitingDescription": "O marcador atribuirá o próximo lead automaticamente.",
     "unknown": "Desconhecido",
@@ -136,7 +141,17 @@
       "in_call": "Em chamada",
       "ended": "Chamada encerrada",
       "dispositioned": "Salvo"
-    }
+    },
+    "connecting": "Conectando sessão de chamadas",
+    "connectingDescription": "Os leads serão atribuídos quando a conexão da sessão estiver pronta.",
+    "paused": "Sessão pausada",
+    "pausedDescription": "Retome a sessão quando estiver pronto para ligar.",
+    "outside_calling_window": "Fora do horário de chamadas",
+    "outside_calling_windowDescription": "A discagem continuará durante os horários permitidos desta campanha.",
+    "no_eligible_leads": "Nenhum lead elegível no momento",
+    "no_eligible_leadsDescription": "Os leads podem estar agendados para depois, esgotados, excluídos ou reservados por outra sessão.",
+    "agent_busy": "Aguardando sua chamada ativa",
+    "agent_busyDescription": "Termine sua chamada atual antes de esta sessão receber outro lead."
   },
   "softphone": {
     "dialFailed": "Não foi possível iniciar a chamada.",

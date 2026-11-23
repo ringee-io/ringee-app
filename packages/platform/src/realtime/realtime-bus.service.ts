@@ -12,6 +12,7 @@ import {
  * dependency on a specific redis major.
  */
 interface PubSubRedisClient {
+  readonly isReady: boolean;
   publish(channel: string, message: string): Promise<number>;
   subscribe(
     channel: string,
@@ -41,8 +42,11 @@ type Handler = (payload: unknown) => void;
 export class RealtimeBusService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RealtimeBusService.name);
   private readonly handlers = new Map<string, Set<Handler>>();
+  private readonly subscriptions = new Map<string, Promise<void>>();
   private subscriber: PubSubRedisClient | null = null;
   private subscriberReady: Promise<PubSubRedisClient> | null = null;
+  private subscriberConnected = false;
+  private readonly acknowledged = new Set<string>();
   private destroyed = false;
 
   constructor(
@@ -83,16 +87,34 @@ export class RealtimeBusService implements OnModuleInit, OnModuleDestroy {
 
   /** Register a handler for a channel. Returns an unsubscribe function. */
   async subscribe(channel: string, handler: Handler): Promise<() => void> {
-    const existing = this.handlers.get(channel);
-    if (existing) {
-      existing.add(handler);
-    } else {
-      this.handlers.set(channel, new Set([handler]));
-      const subscriber = await this.ensureSubscriber();
-      await subscriber.subscribe(channel, (message) =>
-        this.dispatch(channel, message),
+    let handlers = this.handlers.get(channel);
+    if (!handlers) {
+      handlers = new Set();
+      this.handlers.set(channel, handlers);
+      this.subscriptions.set(
+        channel,
+        this.ensureSubscriber().then(async (subscriber) => {
+          await subscriber.subscribe(channel, (message) =>
+            this.dispatch(channel, message),
+          );
+          this.acknowledged.add(channel);
+          this.logger.log(`Subscribed to realtime channel ${channel}`);
+        }),
       );
-      this.logger.log(`Subscribed to realtime channel ${channel}`);
+    }
+    handlers.add(handler);
+    try {
+      // A concurrent subscriber must wait for Redis too. Returning early can
+      // activate a dialer whose event relay is not actually listening yet.
+      await this.subscriptions.get(channel);
+    } catch (error) {
+      handlers.delete(handler);
+      if (handlers.size === 0 && this.handlers.get(channel) === handlers) {
+        this.handlers.delete(channel);
+        this.subscriptions.delete(channel);
+        this.acknowledged.delete(channel);
+      }
+      throw error;
     }
 
     return () => {
@@ -101,14 +123,29 @@ export class RealtimeBusService implements OnModuleInit, OnModuleDestroy {
       handlers.delete(handler);
       if (handlers.size === 0) {
         this.handlers.delete(channel);
+        this.subscriptions.delete(channel);
+        this.acknowledged.delete(channel);
         void this.subscriber?.unsubscribe(channel).catch(() => undefined);
       }
     };
   }
 
+  /** Current connection plus the channel's SUBSCRIBE acknowledgment. */
+  isSubscriptionReady(channel: string): boolean {
+    return (
+      !this.destroyed &&
+      this.subscriberConnected &&
+      this.subscriber?.isReady === true &&
+      this.acknowledged.has(channel)
+    );
+  }
+
   async onModuleDestroy(): Promise<void> {
     this.destroyed = true;
     this.handlers.clear();
+    this.subscriptions.clear();
+    this.acknowledged.clear();
+    this.subscriberConnected = false;
     const subscriber = this.subscriber;
     this.subscriber = null;
     this.subscriberReady = null;
@@ -126,11 +163,23 @@ export class RealtimeBusService implements OnModuleInit, OnModuleDestroy {
 
     this.subscriberReady = (async () => {
       const subscriber = this.client.duplicate();
-      subscriber.on("error", (error: unknown) =>
-        this.logger.error(`Realtime subscriber error: ${this.message(error)}`),
-      );
+      subscriber.on("error", (error: unknown) => {
+        this.subscriberConnected = false;
+        this.logger.error(`Realtime subscriber error: ${this.message(error)}`);
+      });
+      subscriber.on("reconnecting", () => {
+        this.subscriberConnected = false;
+      });
+      subscriber.on("end", () => {
+        this.subscriberConnected = false;
+      });
+      // node-redis emits ready only after its resubscriptions are acknowledged.
+      subscriber.on("ready", () => {
+        this.subscriberConnected = true;
+      });
       await subscriber.connect();
       this.subscriber = subscriber;
+      this.subscriberConnected = subscriber.isReady;
       return subscriber;
     })().catch((error) => {
       // Allow a later subscribe() to retry instead of caching the failure.

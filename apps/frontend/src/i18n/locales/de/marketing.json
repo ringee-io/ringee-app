@@ -711,5 +711,10 @@
         "description": "Deine Rückrufe, Meetings und dein Verlauf reisen mit — verpasse nie ein Follow-up."
       }
     }
+  },
+  "callerIdRotation": {
+    "countryMatchDescription": "Bei geografischen Zielen berücksichtigt Ringee nur geeignete Nummern, die dir im Zielland gehören. Gebührenfreie und andere nicht geografische Ziele werden anhand des gemeinsamen Nummerierungsplans zugeordnet. Wird der Nummerierungsplan nicht erkannt, wird der Anruf mit einer eindeutigen Fehlermeldung abgelehnt.",
+    "localAreaDescription": "Bei der Strategie für lokale Präsenz hat eine geeignete Nummer mit derselben NANP-Ortsvorwahl wie der Kontakt Vorrang. Ist keine verfügbar oder unterstützt der Nummerierungsplan keine Ortsvorwahl, wählt Ringee zufällig eine geeignete Nummer aus dem Nummernpool der Kampagne im selben Land.",
+    "healthDescription": "Lokal passende Nummern wechseln nach Zustandsbewertung und danach, welche am längsten nicht verwendet wurde. Pausierende, deaktivierte und markierte Nummern bleiben von der automatischen Auswahl ausgeschlossen, auch von der zufälligen Ersatzauswahl. Nummern mit erreichtem Tageslimit sind ebenfalls ausgeschlossen, außer wenn alle geeigneten Nummern ihr Limit erreicht haben und allowOverCap aktiviert ist; dann kann eine Nummer über dem Limit ausgewählt werden, auch als zufällige Ersatzauswahl. Die ausgewogene Strategie ordnet geeignete Nummern nach Zustandsbewertung und letzter Verwendung."
   }
 }

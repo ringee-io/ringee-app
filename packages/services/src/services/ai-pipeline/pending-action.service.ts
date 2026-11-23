@@ -34,6 +34,7 @@ import {
   PendingActionRepository,
   PendingActionStatus,
   Prisma,
+  CampaignAttemptAssignment,
 } from "@ringee/database";
 import {
   isInWorkspace,
@@ -259,6 +260,7 @@ export class PendingActionService {
       timezone?: string;
       stopRequested?: boolean;
       campaignLeadId?: string;
+      campaignAssignment?: CampaignAttemptAssignment;
     },
     now = new Date(),
   ) {
@@ -327,6 +329,7 @@ export class PendingActionService {
               },
             }
           : undefined,
+        input.campaignAssignment,
       );
       if (dncEntry) this.compliance.publishDncCreated(dncEntry);
       // The accepted outcome as an analytics fact (Stage 4B), after the

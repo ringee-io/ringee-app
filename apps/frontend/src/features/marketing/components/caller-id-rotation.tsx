@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   ArrowRight,
@@ -125,43 +126,40 @@ export function RotationLocalPresence() {
   );
 }
 
-/** The ordered selection priority, mirroring `selectForDial`. */
-const SELECTION_STEPS: {
-  icon: typeof ShieldCheck;
-  title: string;
-  description: string;
-}[] = [
-  {
-    icon: ShieldCheck,
-    title: 'Country match, guaranteed',
-    description:
-      'Ringee reads the destination’s country and only ever considers numbers you own in that same country. A prospect never sees a wrong-country caller ID — if Ringee can’t be sure of the country, it leaves your fixed caller ID untouched.'
-  },
-  {
-    icon: MapPin,
-    title: 'Local area code first',
-    description:
-      'On the local-presence strategy, a number sharing the prospect’s exact area code wins. If none is free, Ringee falls back to any number from the same country, so the call still goes out looking local.'
-  },
-  {
-    icon: Gauge,
-    title: 'Respect each number’s daily cap',
-    description:
-      'Every number has a daily call cap (50 by default, adjustable per number). Numbers that already hit their cap for the day are skipped, so dialing volume stays spread out and no single line looks like a robocaller.'
-  },
-  {
-    icon: Activity,
-    title: 'Rank by health, then rest',
-    description:
-      'Among the numbers still eligible, Ringee picks the healthiest one — best recent answer rate — and breaks ties by least-recently-used, so your pool rotates evenly instead of leaning on one favorite.'
-  }
-];
-
 /**
  * The core mechanism: how Ringee decides which number to present on each call.
  * This is the section that explains "the way we do it."
  */
 export function RotationMechanics() {
+  const t = useTranslations('marketing.callerIdRotation');
+  /** The ordered selection priority, mirroring `selectForDial`. */
+  const SELECTION_STEPS: {
+    icon: typeof ShieldCheck;
+    title: string;
+    description: string;
+  }[] = [
+    {
+      icon: ShieldCheck,
+      title: 'Country match, guaranteed',
+      description: t('countryMatchDescription')
+    },
+    {
+      icon: MapPin,
+      title: 'Local area code first',
+      description: t('localAreaDescription')
+    },
+    {
+      icon: Gauge,
+      title: 'Respect each number’s daily cap',
+      description:
+        'Every number has a daily call cap (50 by default, adjustable per number). Numbers that already hit their cap for the day are skipped, so dialing volume stays spread out and no single line looks like a robocaller.'
+    },
+    {
+      icon: Activity,
+      title: 'Rank by health, then rest',
+      description: t('healthDescription')
+    }
+  ];
   return (
     <Section className='bg-muted/20'>
       <Container>
@@ -199,9 +197,7 @@ export function RotationMechanics() {
             <span className='text-foreground font-medium'>
               Off means nothing changes.
             </span>{' '}
-            Rotation is opt-in per workspace. While it’s off — or for any call
-            Ringee can’t safely match — you keep the exact fixed caller ID you
-            use today, so turning it on is risk-free.
+            {t('fixedCallerIdNotice')}
           </p>
         </Card>
       </Container>
@@ -260,6 +256,7 @@ const WHERE_IT_WORKS = [
  * cooling loop and where rotation applies — the "value" half of the page.
  */
 export function RotationHealth() {
+  const t = useTranslations('marketing.callerIdRotation');
   return (
     <Section>
       <Container>
@@ -329,8 +326,7 @@ export function RotationHealth() {
             </div>
             <p className='text-muted-foreground mt-4 flex items-center gap-2 text-xs'>
               <PhoneOff className='h-3.5 w-3.5' aria-hidden />
-              When no healthy local number is available, Ringee tells you
-              instead of dialing from the wrong one.
+              {t('randomFallbackNotice')}
             </p>
           </div>
         </div>

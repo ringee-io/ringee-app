@@ -1285,5 +1285,12 @@
     "annual": "{amount} over a year",
     "note": "Illustrative subscription comparison, not a quote. Calling, numbers, and AI usage are excluded.",
     "noSavings": "No subscription savings at this price."
+  },
+  "callerIdRotation": {
+    "fixedCallerIdNotice": "Rotation is opt-in per workspace. While it’s off, you keep the fixed caller ID you use today. With rotation on, an unrecognized calling plan blocks dialing.",
+    "randomFallbackNotice": "When no eligible local number is available, Ringee randomly selects an eligible number from the same country.",
+    "countryMatchDescription": "For geographic destinations, Ringee only considers eligible numbers you own in the destination’s country. Toll-free and other non-geographic destinations match using the shared calling plan. If the calling plan cannot be recognized, dialing is refused with a clear error.",
+    "localAreaDescription": "On the local-presence strategy, an eligible number sharing the prospect’s NANP area code wins. If none is available, or the calling plan has no supported area code, Ringee randomly selects an eligible number from the campaign pool in the same country.",
+    "healthDescription": "Local matches rotate by health, then least-recent use. Resting, disabled and flagged numbers stay out of automatic selection, including random fallback. Numbers at their daily cap are also excluded unless every eligible number is capped and allowOverCap is enabled; then an over-cap number may be selected, including as a random fallback. The balanced strategy ranks eligible numbers by health and least-recent use."
   }
 }

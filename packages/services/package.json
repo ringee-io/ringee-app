@@ -6,7 +6,8 @@
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
     "build": "nest build",
-    "test": "TS_NODE_PROJECT=tsconfig.json node --env-file-if-exists=../../.env --require ts-node/register --require tsconfig-paths/register --test \"src/**/*.spec.ts\""
+    "test": "TS_NODE_PROJECT=tsconfig.json TS_NODE_TRANSPILE_ONLY=true node --env-file-if-exists=../../.env --require ts-node/register --require tsconfig-paths/register --test \"src/**/*.spec.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@nestjs/common": "~11.1.0",

@@ -116,13 +116,22 @@ pnpm prisma:format
 
 | Workspace                                          | test                              | typecheck |
 | -------------------------------------------------- | --------------------------------- | --------- |
-| `@ringee/services`                                 | node:test over `src/**/*.spec.ts` | —         |
+| `@ringee/services`                                 | node:test over `src/**/*.spec.ts` | ✔        |
+| `@ringee/database`                                 | node:test over `src/**/*.spec.ts` | ✔        |
 | `@ringee/platform`                                 | vitest                            | —         |
 | `@ringee/dialer-core`                              | vitest                            | ✔        |
 | `@ringee/dialer-sdk`                               | vitest                            | ✔        |
 | `@ringee-io/agent`                                 | node --test                       | ✔        |
 | `browser-extension`                                | vitest                            | ✔        |
 | `@ringee/dialer-ui`, `ringee` (CLI), `chatgpt-app` | —                                 | ✔        |
+
+`@ringee/services` and `@ringee/database` run their specs through ts-node with
+`TS_NODE_TRANSPILE_ONLY=true`, so `test` reports no type errors; `typecheck`
+(one `tsc --noEmit` over the package, specs included) does. `node --test` starts
+a process per spec file, and with type-checking on, each process re-checked the
+whole import graph (~320 files: the platform and database barrels plus the
+Prisma client types). That was 17–30 s per file before any test ran, and it took
+CI's Test step past 20 minutes.
 
 There are 29 test files / 244 tests, concentrated where a mistake costs money or
 duplicates a call: `call-cost.util`, `credit.repository`,

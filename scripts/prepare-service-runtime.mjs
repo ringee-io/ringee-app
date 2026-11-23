@@ -11,6 +11,7 @@ import {
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stageRequiredMigrations } from "../packages/database/prisma/required-migrations.mjs";
 
 const [appPath, runtimeRoot, ...extraArguments] = process.argv.slice(2);
 if (
@@ -133,6 +134,12 @@ if (appPath === "apps/backend") {
   await cp(join(sourceDatabase, "prisma"), join(deployedDatabase, "prisma"), {
     recursive: true,
   });
+  // Required migrations ship through the pending source folder;
+  // Prisma's deploy command discovers only the canonical migrations folder.
+  await stageRequiredMigrations(
+    join(sourceDatabase, "prisma"),
+    join(deployedDatabase, "prisma"),
+  );
   const databaseModulesLink = join(deployedDatabase, "node_modules");
   await rm(databaseModulesLink, { recursive: true, force: true });
   await symlink(

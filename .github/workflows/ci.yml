@@ -125,6 +125,10 @@ jobs:
       # never test files, the SDK, the CLI or the extension. The npm publish
       # workflow typechecks those too, so a break would otherwise first show up
       # there, after the merge.
+      #
+      # This is also the only type-check of the services and database specs:
+      # their tests run ts-node transpile-only, because type-checking again in
+      # every per-file test process is what pushed the Test step past 20 min.
       - name: Typecheck
         run: pnpm -r run typecheck
 
