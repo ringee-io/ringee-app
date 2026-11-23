@@ -4,19 +4,26 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import {
   AgentSession,
   AgentSessionRepository,
   CallAttemptRepository,
-  CampaignLeadRepository,
   CampaignMemberRepository,
   OrganizationRepository,
+  CampaignRepository,
+  CampaignLeadRepository,
   AgentSessionStatus,
+  DIAL_DISPATCH_TIMEOUT_MS,
 } from "@ringee/database";
+import { RedisService } from "@ringee/platform";
+import { randomUUID } from "node:crypto";
 import { UserService } from "../user.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 const HEARTBEAT_STALE_MS = 30_000; // 30 seconds
+const STREAM_SETUP_LEASE_SECONDS = 120;
+export { DIAL_DISPATCH_TIMEOUT_MS };
 
 @Injectable()
 export class AgentSessionService {
@@ -24,18 +31,74 @@ export class AgentSessionService {
 
   constructor(
     private readonly sessionRepo: AgentSessionRepository,
-    private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly userService: UserService,
     private readonly sseBridge: SSEBridgeService,
     private readonly attemptRepo: CallAttemptRepository,
     private readonly campaignMembers: CampaignMemberRepository,
     private readonly organizations: OrganizationRepository,
+    private readonly redis: RedisService,
+    private readonly campaigns: CampaignRepository,
+    private readonly leads: CampaignLeadRepository,
   ) {}
+
+  /** Reusable stream tickets must not admit overlapping setup/compensation. */
+  async claimEventStreamSetup(
+    sessionId: string,
+    startedAt: Date,
+    allowLegacyFallback = false,
+  ) {
+    const key = `dialer:stream-setup:${sessionId}:${startedAt.toISOString()}`;
+    const token = randomUUID();
+    let leased: boolean | null;
+    try {
+      leased = await this.redis.setIfAbsent(
+        key,
+        token,
+        STREAM_SETUP_LEASE_SECONDS,
+      );
+    } catch (error) {
+      const session = allowLegacyFallback
+        ? await this.getSession(sessionId)
+        : null;
+      if (
+        !session ||
+        session.status === AgentSessionStatus.offline ||
+        session.startedAt.getTime() !== startedAt.getTime()
+      )
+        throw error;
+      leased = null;
+    }
+    if (leased === false)
+      throw new ConflictException(
+        "This dialer event stream is already connecting.",
+      );
+    const ownership = {
+      renew: () =>
+        leased
+          ? this.redis.renewLease(key, token, STREAM_SETUP_LEASE_SECONDS)
+          : Promise.resolve(false),
+      release: () =>
+        leased
+          ? this.redis.compareAndSwap(key, token, null)
+          : Promise.resolve(false),
+    };
+    try {
+      const session = await this.sessionRepo.heartbeat(sessionId, startedAt);
+      if (!session)
+        throw new ConflictException("This dialer session has been replaced.");
+      return { ...ownership, lastHeartbeat: session.lastHeartbeat };
+    } catch (error) {
+      await ownership.release().catch(() => false);
+      throw error;
+    }
+  }
 
   async startSession(data: {
     campaignId: string;
     userId: string;
     organizationId: string;
+    /** Opt-in for clients that wait for their SSE stream before dialing. */
+    waitForEvents?: boolean;
   }) {
     await this.assertDialerEnabled(data.userId);
 
@@ -44,32 +107,91 @@ export class AgentSessionService {
     // incarnation it replaces has to let go first: otherwise every tab still
     // attached to it receives the same `call.initiate`, and each one places the
     // call.
-    const existing = await this.sessionRepo.findByCampaignAndUser(
+    let existing = await this.sessionRepo.findByCampaignAndUser(
       data.campaignId,
       data.userId,
     );
-    if (existing && existing.status !== AgentSessionStatus.offline) {
-      await this.retire(existing);
+    if (
+      existing?.status === AgentSessionStatus.offline &&
+      existing.endedAt &&
+      existing.currentLeadId
+    ) {
+      await this.releaseEndedAssignment(
+        existing.id,
+        existing.startedAt,
+        existing.currentLeadId,
+      );
+      existing = await this.sessionRepo.findByCampaignAndUser(
+        data.campaignId,
+        data.userId,
+      );
     }
-
-    const session = await this.sessionRepo.upsert(data);
+    if (existing) await this.assertCanReplace(existing);
+    // offline + no endedAt means created, awaiting its event stream. This is
+    // opt-in so previously released clients keep their start contract.
+    const session = await this.sessionRepo.restartIfUnchanged(
+      {
+        campaignId: data.campaignId,
+        userId: data.userId,
+        organizationId: data.organizationId,
+      },
+      existing,
+      data.waitForEvents
+        ? AgentSessionStatus.offline
+        : AgentSessionStatus.ready,
+    );
+    if (!session) {
+      throw new ConflictException(
+        "The dialer session changed while starting. Try starting again.",
+      );
+    }
+    if (existing && existing.status !== AgentSessionStatus.offline) {
+      this.sseBridge.emit(`agent:${existing.id}`, "session.state", {
+        status: AgentSessionStatus.offline,
+        reason: "taken_over",
+        sessionStartedAt: existing.startedAt.toISOString(),
+      });
+    }
 
     this.logger.log(
       `Agent ${data.userId} started session ${session.id} for campaign ${data.campaignId}`,
     );
-    return session;
+    return { ...session, awaitingEvents: data.waitForEvents === true };
   }
 
-  async endSession(sessionId: string) {
+  async endSession(sessionId: string, startedAt?: Date) {
     const session = await this.getSession(sessionId);
-
-    await this.releaseCurrentLead(session);
-
-    return this.sessionRepo.markOffline(sessionId);
+    if (startedAt && session.startedAt.getTime() !== startedAt.getTime())
+      return session;
+    if (session.status === AgentSessionStatus.offline && session.endedAt)
+      return session;
+    if (await this.attemptRepo.hasLiveCallForSession(sessionId)) {
+      throw new ConflictException(
+        "End the active call before ending this dialer session.",
+      );
+    }
+    // An emitted dial may still be reaching the provider. Keep its reservation
+    // until reconciliation rather than making that prospect callable twice.
+    const preserve = await this.hasUnconfirmedDial(session);
+    const ended = await this.sessionRepo.endIfUnchanged(session, preserve, {
+      rejectLiveCalls: true,
+    });
+    if (!ended)
+      throw new ConflictException("The dialer session changed while stopping.");
+    this.sseBridge.emit(`agent:${sessionId}`, "session.state", {
+      status: AgentSessionStatus.offline,
+      sessionStartedAt: session.startedAt.toISOString(),
+    });
+    this.logger.log(
+      `Session ${sessionId} for campaign ${session.campaignId} ended`,
+    );
+    return ended;
   }
 
-  async pause(sessionId: string) {
+  async pause(sessionId: string, startedAt?: Date) {
     const session = await this.getSession(sessionId);
+    this.assertIncarnation(session, startedAt);
+    if (session.status === AgentSessionStatus.paused) return session;
 
     if (
       session.status !== AgentSessionStatus.ready &&
@@ -80,22 +202,130 @@ export class AgentSessionService {
       );
     }
 
-    return this.sessionRepo.updateStatus(sessionId, AgentSessionStatus.paused);
+    const moved = await this.transitionIf(
+      sessionId,
+      {
+        from: [session.status],
+        currentLeadId: session.currentLeadId,
+        startedAt: session.startedAt,
+      },
+      AgentSessionStatus.paused,
+    );
+    if (!moved)
+      throw new ConflictException("The dialer session changed while pausing.");
+    return this.getSession(sessionId);
   }
 
-  async resume(sessionId: string) {
+  async resume(sessionId: string, startedAt?: Date) {
     const session = await this.getSession(sessionId);
+    this.assertIncarnation(session, startedAt);
     await this.assertDialerEnabled(session.userId);
+    if (
+      session.status === AgentSessionStatus.ready ||
+      session.status === AgentSessionStatus.wrap_up
+    )
+      return session;
 
     if (session.status !== AgentSessionStatus.paused) {
       throw new ConflictException("Session is not paused");
     }
 
-    return this.sessionRepo.updateStatus(sessionId, AgentSessionStatus.ready);
+    const nextStatus = session.currentLeadId
+      ? AgentSessionStatus.wrap_up
+      : AgentSessionStatus.ready;
+    const moved = await this.transitionIf(
+      sessionId,
+      {
+        from: [AgentSessionStatus.paused],
+        currentLeadId: session.currentLeadId,
+        startedAt: session.startedAt,
+      },
+      nextStatus,
+    );
+    if (!moved)
+      throw new ConflictException("The dialer session changed while resuming.");
+    return this.getSession(sessionId);
   }
 
-  async heartbeat(sessionId: string) {
-    return this.sessionRepo.heartbeat(sessionId);
+  async heartbeat(sessionId: string, startedAt?: Date) {
+    const session = await this.sessionRepo.heartbeat(sessionId, startedAt);
+    if (!session)
+      throw new ConflictException("This dialer session has been replaced.");
+    return session;
+  }
+
+  /** Called only after the stream has subscribed, never from the start request. */
+  async activateAfterEvents(
+    sessionId: string,
+    startedAt: Date,
+    isAttached: () => boolean = () => true,
+    ownsStreamSetup: () => Promise<boolean> = async () => true,
+    attachedHeartbeat?: Date,
+  ): Promise<void> {
+    const session = await this.getSession(sessionId);
+    const attachment = attachedHeartbeat ?? session.lastHeartbeat;
+    this.assertIncarnation(session, startedAt);
+    await this.assertDialerEnabled(session.userId);
+    if (!(await this.sseBridge.isRelayReady()))
+      throw new ServiceUnavailableException(
+        "The dialer event relay is unavailable.",
+      );
+    if (!(await ownsStreamSetup()) || !isAttached()) return;
+    const moved = await this.transitionIf(
+      sessionId,
+      {
+        from: [AgentSessionStatus.offline],
+        currentLeadId: null,
+        endedAt: null,
+        startedAt,
+      },
+      AgentSessionStatus.ready,
+    );
+    if (moved && !isAttached()) {
+      // The stream may close while the ready write is in flight. End only the
+      // incarnation we activated, retaining any leg that already reached it.
+      let current = await this.getSession(sessionId);
+      while (
+        current.startedAt.getTime() === startedAt.getTime() &&
+        !(current.status === AgentSessionStatus.offline && current.endedAt)
+      ) {
+        if (current.lastHeartbeat.getTime() !== attachment.getTime()) return;
+        // A setup lease that expired may have admitted another API's stream.
+        // Renew it before the DB transaction. The attachment's persisted
+        // heartbeat also fences a successor admitted after this check.
+        if (!(await ownsStreamSetup())) return;
+        const preserve =
+          current.currentLeadId !== null ||
+          (await this.attemptRepo.hasLiveCallForSession(sessionId)) ||
+          (await this.hasUnconfirmedDial(current));
+        if (await this.sessionRepo.endIfUnchanged(current, preserve)) {
+          this.sseBridge.emit(`agent:${sessionId}`, "session.state", {
+            status: AgentSessionStatus.offline,
+            reason: "events_disconnected",
+            sessionStartedAt: startedAt.toISOString(),
+          });
+          if (preserve && current.currentLeadId)
+            await this.releaseEndedAssignment(
+              sessionId,
+              startedAt,
+              current.currentLeadId,
+            );
+          break;
+        }
+        current = await this.getSession(sessionId);
+      }
+      return;
+    }
+    if (moved)
+      this.logger.log(
+        `Session ${sessionId} for campaign ${session.campaignId} event stream attached; ready`,
+      );
+    else {
+      const current = await this.getSession(sessionId);
+      this.assertIncarnation(current, startedAt);
+      if (current.status === AgentSessionStatus.offline)
+        throw new ConflictException("This dialer session cannot be activated.");
+    }
   }
 
   async transitionTo(
@@ -122,7 +352,15 @@ export class AgentSessionService {
    */
   async transitionIf(
     sessionId: string,
-    expected: { from: AgentSessionStatus[]; currentLeadId?: string | null },
+    expected: {
+      from: AgentSessionStatus[];
+      currentLeadId?: string | null;
+      startedAt?: Date;
+      endedAt?: Date | null;
+      reservedAt?: Date | null;
+      undialedAttemptId?: string | null;
+      disposition?: { attemptId: string; dispositionedAt: Date };
+    },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
   ): Promise<boolean> {
@@ -134,13 +372,16 @@ export class AgentSessionService {
    * same agent — overlapping poll ticks, a second API instance — exactly one
    * gets them, and each loser must hand its lead back.
    */
-  async claimForLead(sessionId: string, leadId: string): Promise<boolean> {
-    return this.sessionRepo.transitionIf(
-      sessionId,
-      { from: [AgentSessionStatus.ready] },
-      AgentSessionStatus.reserved,
-      { currentLeadId: leadId },
-    );
+  async claimForLead(
+    sessionId: string,
+    leadId: string,
+    startedAt?: Date,
+  ): Promise<boolean> {
+    return (await this.reserveForLead(sessionId, leadId, startedAt)) !== null;
+  }
+
+  async reserveForLead(sessionId: string, leadId: string, startedAt?: Date) {
+    return this.sessionRepo.reserveForLead(sessionId, leadId, startedAt);
   }
 
   async incrementStats(
@@ -150,8 +391,9 @@ export class AgentSessionService {
       callsConnected?: number;
       totalTalkSec?: number;
     },
+    startedAt?: Date,
   ) {
-    return this.sessionRepo.incrementStats(sessionId, stats);
+    return this.sessionRepo.incrementStats(sessionId, stats, startedAt);
   }
 
   /**
@@ -193,28 +435,50 @@ export class AgentSessionService {
     return this.sessionRepo.findByStatus(AgentSessionStatus.dialing);
   }
 
+  async findStalledReservations(cutoff: Date) {
+    return this.sessionRepo.findStalledReservations(cutoff);
+  }
+
   /**
    * Immediately removes a user from every campaign dialer. Lead locks are
    * released best-effort, while marking the session offline is authoritative.
    */
   async disableForUser(userId: string): Promise<number> {
     const sessions = await this.sessionRepo.findActiveByUser(userId);
-    for (const session of sessions) {
-      await this.releaseCurrentLead(session).catch((error) =>
-        this.logger.warn(
-          `Could not release lead ${session.currentLeadId} while disabling agent ${userId}: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
-      await this.sessionRepo.markOffline(session.id);
+    let count = 0;
+    sessions: for (let session of sessions) {
+      // A heartbeat cannot defeat account cleanup. A changed assignment must
+      // be re-read so preservation is decided for the assignment actually ended.
+      while (true) {
+        const preserve =
+          (await this.attemptRepo.hasLiveCallForSession(session.id)) ||
+          (await this.hasUnconfirmedDial(session));
+        const result = await this.sessionRepo.endForAccountDisable(
+          session,
+          preserve,
+        );
+        if (result.outcome === "calling_enabled") return count;
+        if (result.outcome === "ended") {
+          session = result.session;
+          break;
+        }
+        const current = await this.sessionRepo.findById(session.id);
+        if (!current || (current.status === "offline" && current.endedAt)) {
+          continue sessions;
+        }
+        session = current;
+      }
       this.sseBridge.emit(`agent:${session.id}`, "session.state", {
         status: "offline",
         reason: "account_disabled",
+        sessionStartedAt: session.startedAt.toISOString(),
       });
       this.logger.warn(
         `Disabled dialer session ${session.id} for user ${userId}`,
       );
+      count++;
     }
-    return sessions.length;
+    return count;
   }
 
   async getById(sessionId: string) {
@@ -252,13 +516,38 @@ export class AgentSessionService {
     let count = 0;
 
     for (const session of staleSessions) {
-      try {
-        await this.releaseCurrentLead(session);
-      } catch {
-        // Lead may already be unlocked
+      if (
+        session.status === AgentSessionStatus.offline &&
+        session.endedAt &&
+        session.currentLeadId
+      ) {
+        if (
+          await this.releaseEndedAssignment(
+            session.id,
+            session.startedAt,
+            session.currentLeadId,
+          )
+        )
+          count++;
+        continue;
       }
-
-      await this.sessionRepo.markOffline(session.id);
+      const preserve =
+        session.currentLeadId !== null ||
+        (await this.attemptRepo.hasLiveCallForSession(session.id)) ||
+        (await this.hasUnconfirmedDial(session));
+      const ended = await this.sessionRepo.endIfUnchanged(session, preserve);
+      if (!ended) continue;
+      if (preserve && ended.currentLeadId)
+        await this.releaseEndedAssignment(
+          ended.id,
+          ended.startedAt,
+          ended.currentLeadId,
+        );
+      this.sseBridge.emit(`agent:${session.id}`, "session.state", {
+        status: AgentSessionStatus.offline,
+        reason: "heartbeat_expired",
+        sessionStartedAt: session.startedAt.toISOString(),
+      });
       count++;
       this.logger.warn(
         `Stale session ${session.id} for agent ${session.userId} marked offline`,
@@ -266,6 +555,50 @@ export class AgentSessionService {
     }
 
     return count;
+  }
+
+  /** A disconnected session has nobody to disposition its completed call. */
+  async releaseEndedAssignment(
+    sessionId: string,
+    startedAt: Date,
+    leadId: string,
+  ): Promise<boolean> {
+    while (true) {
+      const session = await this.getSession(sessionId);
+      if (
+        session.startedAt.getTime() !== startedAt.getTime() ||
+        session.status !== AgentSessionStatus.offline ||
+        !session.endedAt ||
+        session.currentLeadId !== leadId ||
+        (await this.attemptRepo.hasLiveCallForSession(sessionId)) ||
+        (await this.hasUnconfirmedDial(session))
+      )
+        return false;
+      const [lead, campaign] = await Promise.all([
+        this.leads.findByIdWithContact(leadId),
+        this.campaigns.findById(session.campaignId),
+      ]);
+      if (!lead || !campaign || lead.campaignId !== campaign.id) return false;
+      if (
+        await this.sessionRepo.endIfUnchanged(session, false, {
+          assignmentRetry: {
+            leadId,
+            attempts: lead.attempts,
+            status:
+              lead.attempts >= campaign.maxAttempts ? "exhausted" : "queued",
+            ...(lead.attempts >= campaign.maxAttempts
+              ? { deadAt: new Date() }
+              : {
+                  nextCallAt: new Date(
+                    Date.now() + campaign.retryDelayMin * 60_000,
+                  ),
+                  nextCallAtAfterCompletedCall: true,
+                }),
+          },
+        })
+      )
+        return true;
+    }
   }
 
   /**
@@ -277,46 +610,47 @@ export class AgentSessionService {
    * other state is handed over — its lead goes back to the queue, and every tab
    * still attached to the row is told it no longer owns it.
    */
-  private async retire(existing: AgentSession): Promise<void> {
+  private async assertCanReplace(existing: AgentSession): Promise<void> {
     const onCall =
       existing.status === AgentSessionStatus.dialing ||
       existing.status === AgentSessionStatus.in_call;
     const heartbeating =
       Date.now() - new Date(existing.lastHeartbeat).getTime() <
       HEARTBEAT_STALE_MS;
-    if (onCall && heartbeating) {
+    if (
+      (onCall && heartbeating) ||
+      (await this.attemptRepo.hasLiveCallForSession(existing.id)) ||
+      (await this.hasUnconfirmedDial(existing))
+    ) {
       throw new ConflictException(
         "This campaign's dialer is on a call in another tab or device. End that call before starting the dialer here.",
       );
     }
-
-    await this.releaseCurrentLead(existing);
-    this.sseBridge.emit(`agent:${existing.id}`, "session.state", {
-      status: AgentSessionStatus.offline,
-      reason: "taken_over",
-    });
-    this.logger.log(
-      `Session ${existing.id} (${existing.status}) was started again elsewhere — previous incarnation released`,
-    );
+    if (
+      existing.status === AgentSessionStatus.offline &&
+      existing.endedAt &&
+      existing.currentLeadId
+    )
+      throw new ConflictException(
+        "The previous campaign call is still being settled. Try starting again.",
+      );
   }
 
   /**
-   * Hand a session's current lead back to the queue, together with the attempt
-   * it was holding for it when that attempt never dialed. Only a lead this
-   * session still holds is released.
+   * A sent dial may have placed a leg before its webhook arrived. Check every
+   * unconfirmed dispatch, including legacy attempts missing from currentLeadId.
    */
-  private async releaseCurrentLead(session: AgentSession): Promise<void> {
-    if (!session.currentLeadId) return;
-    const undialed = await this.attemptRepo.findUndialedForSession(
+  private async hasUnconfirmedDial(session: AgentSession): Promise<boolean> {
+    const attempt = await this.attemptRepo.findUnconfirmedDialForSession(
       session.id,
-      session.currentLeadId,
     );
-    if (undialed) {
-      await this.attemptRepo.deleteUndialed(undialed.id);
+    return attempt !== null;
+  }
+
+  private assertIncarnation(session: AgentSession, startedAt?: Date) {
+    if (startedAt && session.startedAt.getTime() !== startedAt.getTime()) {
+      throw new ConflictException("This dialer session has been replaced.");
     }
-    await this.campaignLeadRepo.releaseLock(session.currentLeadId, {
-      lockedBy: session.id,
-    });
   }
 
   private async getSession(sessionId: string) {

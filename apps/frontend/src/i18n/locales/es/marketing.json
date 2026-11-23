@@ -1255,5 +1255,10 @@
       "recordings": "Grabaciones",
       "outcomes": "Resultados"
     }
+  },
+  "callerIdRotation": {
+    "countryMatchDescription": "Para destinos geográficos, Ringee solo considera números aptos que te pertenecen en el país de destino. Los destinos gratuitos y otros destinos no geográficos se emparejan mediante el plan de numeración compartido. Si no se reconoce el plan de numeración, la llamada se rechaza con un error claro.",
+    "localAreaDescription": "Con la estrategia de presencia local, tiene prioridad un número apto que comparta el código de área NANP del contacto. Si no hay ninguno disponible o el plan de numeración no tiene un código de área compatible, Ringee elige al azar un número apto del grupo de la campaña en el mismo país.",
+    "healthDescription": "Los números con coincidencia local rotan según su estado y, después, según el tiempo desde su último uso. Los números en descanso, desactivados o marcados quedan fuera de la selección automática, incluida la alternativa aleatoria. Los números que han alcanzado su límite diario también se excluyen, salvo que todos los números aptos hayan alcanzado su límite y allowOverCap esté activado; en ese caso, puede seleccionarse un número por encima del límite, incluso como alternativa aleatoria. La estrategia equilibrada ordena los números aptos por estado y tiempo desde su último uso."
   }
 }

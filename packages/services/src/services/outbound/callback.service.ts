@@ -19,6 +19,7 @@ import {
   CallbackStatus,
   CampaignLeadStatus,
   ReminderSubjectType,
+  CampaignAttemptAssignment,
 } from "@ringee/database";
 import { ReminderService } from "../reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
@@ -132,6 +133,7 @@ export class CallbackService {
     userId: string;
     scheduledAt: Date;
     note?: string;
+    assignment?: CampaignAttemptAssignment;
   }) {
     const lead = await this.campaignLeadRepo.findByIdWithContact(
       data.campaignLeadId,
@@ -140,19 +142,16 @@ export class CallbackService {
 
     const campaign = await this.campaignRepo.findById(lead.campaignId);
 
-    const callback = await this.callbackRepo.create({
-      userId: data.userId,
-      organizationId: campaign?.organizationId ?? null,
-      contactId: lead.contactId,
-      campaignLeadId: data.campaignLeadId,
-      scheduledAt: data.scheduledAt,
-      note: data.note,
-    });
-
-    await this.campaignLeadRepo.updateStatus(
-      data.campaignLeadId,
-      CampaignLeadStatus.scheduled,
-      { lockedBy: null, lockedAt: null },
+    const callback = await this.callbackRepo.create(
+      {
+        userId: data.userId,
+        organizationId: campaign?.organizationId ?? null,
+        contactId: lead.contactId,
+        campaignLeadId: data.campaignLeadId,
+        scheduledAt: data.scheduledAt,
+        note: data.note,
+      },
+      { leadId: data.campaignLeadId, assignment: data.assignment },
     );
 
     await this.scheduleReminders(

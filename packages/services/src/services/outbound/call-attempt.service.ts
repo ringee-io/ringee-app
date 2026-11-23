@@ -13,6 +13,7 @@ import {
   CampaignLeadRepository,
   CampaignLeadStatus,
   Disposition,
+  CampaignAssignmentChangedError,
 } from "@ringee/database";
 import { AgentSessionService } from "./agent-session.service";
 import {
@@ -95,9 +96,15 @@ export class CallAttemptService {
     campaignLeadId: string;
     agentSessionId: string;
     agentUserId: string;
+    sessionStartedAt: Date;
+    reservedAt: Date | null;
+    leadLockedAt: Date | null;
     attemptNumber: number;
   }) {
-    return this.attemptRepo.create(data);
+    const attempt = await this.attemptRepo.create(data);
+    if (!attempt)
+      throw new ConflictException("This dialer reservation has been replaced.");
+    return attempt;
   }
 
   async linkCall(attemptId: string, callId: string) {
@@ -172,6 +179,13 @@ export class CallAttemptService {
     const sessionChannel = attempt.agentSessionId
       ? `agent:${attempt.agentSessionId}`
       : null;
+    const incarnation =
+      eventType !== "call.initiated" && attempt.agentSessionId
+        ? await this.agentSessionService.getById(attempt.agentSessionId)
+        : null;
+    const currentIncarnation =
+      incarnation &&
+      attempt.sessionStartedAt?.getTime() === incarnation.startedAt.getTime();
 
     switch (eventType) {
       case "call.initiated": {
@@ -191,7 +205,8 @@ export class CallAttemptService {
         if (!(await this.attemptRepo.markAnsweredIf(attempt.id, call.id))) {
           return;
         }
-        if (!attempt.agentSessionId || !sessionChannel) return;
+        if (!attempt.agentSessionId || !sessionChannel || !currentIncarnation)
+          return;
 
         await this.campaignLeadRepo.advanceIfHeldBy(
           attempt.campaignLeadId,
@@ -201,12 +216,15 @@ export class CallAttemptService {
         const session = await this.agentSessionService.incrementStats(
           attempt.agentSessionId,
           { callsConnected: 1 },
+          incarnation.startedAt,
         );
+        if (!session) return;
         const moved = await this.agentSessionService.transitionIf(
           attempt.agentSessionId,
           {
             from: [AgentSessionStatus.dialing, AgentSessionStatus.reserved],
             currentLeadId: attempt.campaignLeadId,
+            startedAt: incarnation.startedAt,
           },
           AgentSessionStatus.in_call,
         );
@@ -214,10 +232,12 @@ export class CallAttemptService {
           this.sseBridge.emit(sessionChannel, "call.state", {
             status: "in_call",
             attemptId: callAttemptId,
+            sessionStartedAt: incarnation.startedAt.toISOString(),
           });
           this.sseBridge.emit(sessionChannel, "session.state", {
             status: AgentSessionStatus.in_call,
             attemptId: callAttemptId,
+            sessionStartedAt: incarnation.startedAt.toISOString(),
             stats: this.statsOf(session),
           });
         }
@@ -239,17 +259,24 @@ export class CallAttemptService {
         const talkToAdd = firstMetrics ? talkSec : 0;
 
         if (!endedHere) {
-          if (talkToAdd > 0 && attempt.agentSessionId) {
+          if (talkToAdd > 0 && attempt.agentSessionId && currentIncarnation) {
             await this.agentSessionService.incrementStats(
               attempt.agentSessionId,
               { totalTalkSec: talkToAdd },
+              incarnation.startedAt,
             );
           }
+          if (attempt.agentSessionId && currentIncarnation)
+            await this.agentSessionService.releaseEndedAssignment(
+              attempt.agentSessionId,
+              incarnation.startedAt,
+              attempt.campaignLeadId,
+            );
           return;
         }
 
-        await this.campaignLeadRepo.incrementAttempt(attempt.campaignLeadId);
-        if (!attempt.agentSessionId || !sessionChannel) return;
+        if (!attempt.agentSessionId || !sessionChannel || !currentIncarnation)
+          return;
 
         await this.campaignLeadRepo.advanceIfHeldBy(
           attempt.campaignLeadId,
@@ -259,7 +286,9 @@ export class CallAttemptService {
         const session = await this.agentSessionService.incrementStats(
           attempt.agentSessionId,
           { callsAttempted: 1, totalTalkSec: talkToAdd },
+          incarnation.startedAt,
         );
+        if (!session) return;
         const moved = await this.agentSessionService.transitionIf(
           attempt.agentSessionId,
           {
@@ -269,10 +298,18 @@ export class CallAttemptService {
               AgentSessionStatus.reserved,
             ],
             currentLeadId: attempt.campaignLeadId,
+            startedAt: incarnation.startedAt,
           },
           AgentSessionStatus.wrap_up,
         );
-        if (!moved) return;
+        if (!moved) {
+          await this.agentSessionService.releaseEndedAssignment(
+            attempt.agentSessionId,
+            incarnation.startedAt,
+            attempt.campaignLeadId,
+          );
+          return;
+        }
 
         // Load dispositions and emit disposition.required via SSE
         const dispositions = await this.dispositionService.listByCampaign(
@@ -281,9 +318,11 @@ export class CallAttemptService {
         this.sseBridge.emit(sessionChannel, "call.state", {
           status: "ended",
           attemptId: callAttemptId,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
         });
         this.sseBridge.emit(sessionChannel, "disposition.required", {
           callAttemptId,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
           dispositions: dispositions.map((d) => ({
             id: d.id,
             code: d.code,
@@ -297,6 +336,7 @@ export class CallAttemptService {
         this.sseBridge.emit(sessionChannel, "session.state", {
           status: AgentSessionStatus.wrap_up,
           attemptId: callAttemptId,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
           stats: this.statsOf(session),
         });
         return;
@@ -325,6 +365,11 @@ export class CallAttemptService {
     // Bound to a leg of its own: this was a second leg, and the first one
     // still owns the attempt's lifecycle.
     if (attempt.callId || !attempt.agentSessionId) return;
+    const session = await this.agentSessionService.getById(
+      attempt.agentSessionId,
+    );
+    if (attempt.sessionStartedAt?.getTime() !== session.startedAt.getTime())
+      return;
 
     // Not bound yet, but the agent is already on the line with this very
     // prospect: the first leg's own `call.initiated` simply has not linked it
@@ -345,6 +390,9 @@ export class CallAttemptService {
       agentUserId: attempt.agentUserId,
       campaignLeadId: attempt.campaignLeadId,
       attemptId: attempt.id,
+      leadLockedAt: lead?.lockedAt ?? null,
+      reservedAt: session.reservedAt,
+      sessionStartedAt: session.startedAt,
       from: [AgentSessionStatus.dialing],
       to: AgentSessionStatus.paused,
       releaseLease: true,
@@ -372,6 +420,9 @@ export class CallAttemptService {
     campaignLeadId: string;
     attemptId?: string | null;
     from: AgentSessionStatus[];
+    sessionStartedAt: Date;
+    reservedAt?: Date | null;
+    leadLockedAt: Date | null;
     to: UndialedOutcome;
     /** Keep the lead out of the queue until then. */
     deferLeadUntil?: Date;
@@ -382,10 +433,17 @@ export class CallAttemptService {
     /** `session.state` reason when the session goes offline. */
     offlineReason?: string;
   }): Promise<boolean> {
+    if (input.leadLockedAt === undefined) return false;
     const channel = `agent:${input.agentSessionId}`;
     const moved = await this.agentSessionService.transitionIf(
       input.agentSessionId,
-      { from: input.from, currentLeadId: input.campaignLeadId },
+      {
+        from: input.from,
+        currentLeadId: input.campaignLeadId,
+        startedAt: input.sessionStartedAt,
+        reservedAt: input.reservedAt,
+        undialedAttemptId: input.attemptId ?? null,
+      },
       input.to,
       {
         currentLeadId: null,
@@ -397,27 +455,29 @@ export class CallAttemptService {
 
     if (!moved) return false;
 
-    if (input.blocked) {
+    const notifyBlocked = (leadReleased: boolean) => {
+      if (!input.blocked) return;
       this.sseBridge.emit(channel, "call.blocked", {
         attemptId: input.attemptId ?? null,
+        sessionStartedAt: input.sessionStartedAt.toISOString(),
         ...input.blocked,
+        ...(input.blocked.reason === "DISPATCH_FAILED" && leadReleased
+          ? {
+              message: `${input.blocked.message} Your lead was released safely.`,
+            }
+          : {}),
       });
-    }
+    };
+    if (input.blocked?.reason !== "DISPATCH_FAILED") notifyBlocked(false);
     this.sseBridge.emit(channel, "session.state", {
       status: input.to,
       attemptId: input.attemptId ?? null,
+      sessionStartedAt: input.sessionStartedAt.toISOString(),
       ...(input.offlineReason ? { reason: input.offlineReason } : {}),
     });
 
-    if (input.attemptId) {
-      await this.attemptRepo
-        .deleteUndialed(input.attemptId)
-        .catch((err: Error) =>
-          this.logger.warn(
-            `Could not discard undialed attempt ${input.attemptId}: ${err.message}`,
-          ),
-        );
-    }
+    // transitionIf discarded the unlinked attempt under the same session row
+    // lock as provider binding. Only that winner may release its lease/lead.
     if (input.releaseLease) {
       await this.concurrentCallGuard
         .releasePending(
@@ -430,16 +490,20 @@ export class CallAttemptService {
           ),
         );
     }
-    await this.campaignLeadRepo
+    const released = await this.campaignLeadRepo
       .releaseLock(input.campaignLeadId, {
         lockedBy: input.agentSessionId,
+        lockedAt: input.leadLockedAt,
         nextCallAt: input.deferLeadUntil,
       })
-      .catch((err: Error) =>
+      .catch((err: Error) => {
         this.logger.warn(
           `Could not release lead ${input.campaignLeadId}: ${err.message}`,
-        ),
-      );
+        );
+        return 0;
+      });
+    if (input.blocked?.reason === "DISPATCH_FAILED")
+      notifyBlocked(released > 0);
     return true;
   }
 
@@ -469,6 +533,12 @@ export class CallAttemptService {
     if (!current) {
       throw new NotFoundException("Call attempt not found");
     }
+    const incarnation = current.agentSessionId
+      ? await this.agentSessionService.getById(current.agentSessionId)
+      : null;
+    const currentIncarnation =
+      incarnation &&
+      current.sessionStartedAt?.getTime() === incarnation.startedAt.getTime();
     // The dialer is organization-only, so the campaign's workspace is the
     // organization the caller's attempt was verified against.
     if (
@@ -500,26 +570,41 @@ export class CallAttemptService {
       (data.callback && !Number.isFinite(data.callback.scheduledAt.getTime()))
     )
       throw new BadRequestException("A valid callback date is required");
+    const lead = await this.campaignLeadRepo.findByIdWithContact(
+      current.campaignLeadId,
+    );
+    if (!lead || lead.campaignId !== current.campaignId)
+      throw new NotFoundException("Campaign lead not found");
+    const assignment = {
+      attemptId: current.id,
+      lockedBy: lead.lockedBy,
+      lockedAt: lead.lockedAt,
+      reservedAt: incarnation?.reservedAt ?? null,
+      dispositionedAt: current.dispositionedAt,
+    };
     // Acceptance must finish before the session advances or any human callback
     // can be enqueued. A persistence failure keeps wrap-up retryable.
     const accepted =
       current.callId && mapped
-        ? await this.pendingActions.recordHumanOutcome(
-            {
-              userId: current.agentUserId,
-              organizationId: data.organizationId,
-            },
-            current.callId,
-            {
-              outcome: mapped,
-              note: data.note,
-              disposition: { id: disposition.id, name: disposition.label },
-              purpose: data.followUpPurpose,
-              callbackAt: data.callback?.scheduledAt.toISOString(),
-              timezone: data.callback?.timezone,
-              stopRequested: data.stopRequested,
-              campaignLeadId: current.campaignLeadId,
-            },
+        ? await this.forCurrentAssignment(
+            this.pendingActions.recordHumanOutcome(
+              {
+                userId: current.agentUserId,
+                organizationId: data.organizationId,
+              },
+              current.callId,
+              {
+                outcome: mapped,
+                note: data.note,
+                disposition: { id: disposition.id, name: disposition.label },
+                purpose: data.followUpPurpose,
+                callbackAt: data.callback?.scheduledAt.toISOString(),
+                timezone: data.callback?.timezone,
+                stopRequested: data.stopRequested,
+                campaignLeadId: current.campaignLeadId,
+                campaignAssignment: assignment,
+              },
+            ),
           )
         : null;
     const assigned = accepted?.followUp;
@@ -527,26 +612,41 @@ export class CallAttemptService {
     // The browser saves the outcome the moment its call ends, which usually
     // beats the provider's hangup webhook. Whichever of the two ends the
     // attempt is the one that counts it; the other finds it already ended.
-    if (await this.attemptRepo.markEndedIf(current.id)) {
-      await this.campaignLeadRepo.incrementAttempt(current.campaignLeadId);
-      if (current.agentSessionId) {
-        await this.agentSessionService.incrementStats(current.agentSessionId, {
-          callsAttempted: 1,
-        });
+    if (
+      await this.forCurrentAssignment(
+        this.attemptRepo.markEndedIf(current.id, {
+          assignment: { ...assignment, dispositionedAt: undefined },
+        }),
+      )
+    ) {
+      if (current.agentSessionId && currentIncarnation) {
+        await this.agentSessionService.incrementStats(
+          current.agentSessionId,
+          {
+            callsAttempted: 1,
+          },
+          incarnation.startedAt,
+        );
       }
     }
 
-    const attempt = await this.attemptRepo.setDisposition(
-      data.callAttemptId,
-      {
-        dispositionId: disposition.id,
-        dispositionCode: disposition.code,
-        dispositionNote: data.note,
-        dispositionOutcome: canonicalOutcomeOf(disposition),
-      },
-      accepted
-        ? { callId: accepted.call.id, revision: accepted.call.outcomeRevision }
-        : undefined,
+    const attempt = await this.forCurrentAssignment(
+      this.attemptRepo.setDisposition(
+        data.callAttemptId,
+        {
+          dispositionId: disposition.id,
+          dispositionCode: disposition.code,
+          dispositionNote: data.note,
+          dispositionOutcome: canonicalOutcomeOf(disposition),
+        },
+        accepted
+          ? {
+              callId: accepted.call.id,
+              revision: accepted.call.outcomeRevision,
+            }
+          : undefined,
+        assignment,
+      ),
     );
 
     if (!attempt) {
@@ -555,58 +655,71 @@ export class CallAttemptService {
       );
     }
 
+    // Every subsequent lifecycle write belongs to this save. A newer
+    // disposition may keep the same assignment but choose a different action.
+    const savedAssignment = {
+      ...assignment,
+      dispositionedAt: attempt.dispositionedAt,
+    };
+    const updateLead = (
+      status: CampaignLeadStatus,
+      extra?: Parameters<CampaignLeadRepository["updateStatus"]>[2],
+    ) =>
+      this.forCurrentAssignment(
+        this.campaignLeadRepo.updateStatus(
+          current.campaignLeadId,
+          status,
+          extra,
+          savedAssignment,
+        ),
+      );
+
     // Mark lead as dispositioned first
-    await this.campaignLeadRepo.updateStatus(
-      attempt.campaignLeadId,
-      CampaignLeadStatus.dispositioned,
-    );
+    await updateLead(CampaignLeadStatus.dispositioned, {
+      lockedBy: null,
+      lockedAt: null,
+    });
 
     let action = "dispositioned";
 
     // Process disposition workflow triggers
     if (data.stopRequested) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.dnc,
-      );
+      await updateLead(CampaignLeadStatus.dnc);
       action = "dnc";
     } else if (assigned && !["closed", "resolved"].includes(assigned.state)) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.completed,
-      );
+      await updateLead(CampaignLeadStatus.completed);
       action = "ai_follow_up";
     } else if (disposition.triggersCompletion) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.completed,
-      );
+      await updateLead(CampaignLeadStatus.completed);
       action = "completed";
     } else if (disposition.triggersDnc) {
-      await this.campaignLeadRepo.updateStatus(
-        attempt.campaignLeadId,
-        CampaignLeadStatus.dnc,
-      );
+      await updateLead(CampaignLeadStatus.dnc);
       action = "dnc";
     } else if (
       !data.stopRequested &&
       disposition.triggersCallback &&
       data.callback?.scheduledAt
     ) {
-      await this.callbackService.scheduleFromCampaign({
-        campaignLeadId: attempt.campaignLeadId,
-        userId: attempt.agentUserId,
-        scheduledAt: data.callback.scheduledAt,
-        note: data.callback.note,
-      });
+      await this.forCurrentAssignment(
+        this.callbackService.scheduleFromCampaign({
+          campaignLeadId: attempt.campaignLeadId,
+          userId: attempt.agentUserId,
+          scheduledAt: data.callback.scheduledAt,
+          note: data.callback.note,
+          assignment: savedAssignment,
+        }),
+      );
       action = "callback_scheduled";
     } else if (disposition.triggersRetry) {
-      const retryResult = await this.retryEngine.evaluateRetry(
-        attempt.campaignId,
-        attempt.campaignLeadId,
-        disposition.category,
-        attempt.attemptNumber,
-        data.campaignDefaults,
+      const retryResult = await this.forCurrentAssignment(
+        this.retryEngine.evaluateRetry(
+          attempt.campaignId,
+          attempt.campaignLeadId,
+          disposition.category,
+          attempt.attemptNumber,
+          data.campaignDefaults,
+          savedAssignment,
+        ),
       );
       action = retryResult;
     } else {
@@ -617,13 +730,15 @@ export class CallAttemptService {
       // stuck in `dispositioned`, never re-queued nor terminal, which blocked
       // campaign auto-completion indefinitely.)
       if (attempt.attemptNumber >= data.campaignDefaults.maxAttempts) {
-        await this.campaignLeadRepo.markAsDead(attempt.campaignLeadId);
+        await this.forCurrentAssignment(
+          this.campaignLeadRepo.markAsDead(
+            attempt.campaignLeadId,
+            savedAssignment,
+          ),
+        );
         action = "exhausted";
       } else {
-        await this.campaignLeadRepo.updateStatus(
-          attempt.campaignLeadId,
-          CampaignLeadStatus.completed,
-        );
+        await updateLead(CampaignLeadStatus.completed);
         action = "completed";
       }
     }
@@ -660,7 +775,7 @@ export class CallAttemptService {
     // a lead, and a `ready` that arrived after it would wipe that lead off the
     // agent's screen mid-dial.
     let sessionClosed = false;
-    if (attempt.agentSessionId) {
+    if (attempt.agentSessionId && currentIncarnation) {
       const channel = `agent:${attempt.agentSessionId}`;
       const onThisLead = {
         from: [
@@ -670,6 +785,12 @@ export class CallAttemptService {
           AgentSessionStatus.reserved,
         ],
         currentLeadId: attempt.campaignLeadId,
+        startedAt: incarnation.startedAt,
+        reservedAt: incarnation.reservedAt,
+        disposition: {
+          attemptId: attempt.id,
+          dispositionedAt: attempt.dispositionedAt!,
+        },
       };
       if (data.closeSession) {
         // The lead was just settled above, so there is no lock left to hand
@@ -689,6 +810,12 @@ export class CallAttemptService {
             {
               from: [AgentSessionStatus.ready, AgentSessionStatus.paused],
               currentLeadId: null,
+              startedAt: incarnation.startedAt,
+              reservedAt: incarnation.reservedAt,
+              disposition: {
+                attemptId: attempt.id,
+                dispositionedAt: attempt.dispositionedAt!,
+              },
             },
             AgentSessionStatus.offline,
             offline,
@@ -698,6 +825,7 @@ export class CallAttemptService {
             status: AgentSessionStatus.offline,
             reason: "closed_after_lead",
             attemptId: attempt.id,
+            sessionStartedAt: incarnation.startedAt.toISOString(),
           });
         }
       } else if (
@@ -711,6 +839,7 @@ export class CallAttemptService {
         this.sseBridge.emit(channel, "session.state", {
           status: AgentSessionStatus.ready,
           attemptId: attempt.id,
+          sessionStartedAt: incarnation.startedAt.toISOString(),
         });
       }
     }
@@ -763,6 +892,18 @@ export class CallAttemptService {
       callsConnected: session.callsConnected,
       totalTalkSec: session.totalTalkSec,
     };
+  }
+
+  private async forCurrentAssignment<T>(operation: Promise<T>): Promise<T> {
+    try {
+      return await operation;
+    } catch (error) {
+      if (error instanceof CampaignAssignmentChangedError)
+        throw new ConflictException(
+          "This lead has been dialed again or reassigned since that call; its outcome can no longer be changed from it.",
+        );
+      throw error;
+    }
   }
 
   /**

@@ -88,6 +88,7 @@ export function SoftphonePanel({
   const api = useApi();
   const t = useTranslations('dialer.softphone');
   const status = useDialerSessionStore((s) => s.status);
+  const dialBlocked = useDialerSessionStore((s) => s.dialBlocked);
   const currentLead = useDialerLeadStore((s) => s.currentLead);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
   const callDuration = useDialerAttemptStore((s) => s.callDuration);
@@ -298,7 +299,11 @@ export function SoftphonePanel({
           </div>
         ) : (
           <p className='text-muted-foreground text-sm'>
-            {status === 'paused' ? t('paused') : t('waiting')}
+            {dialBlocked
+              ? t('dialFailed')
+              : status === 'paused'
+                ? t('paused')
+                : t('waiting')}
           </p>
         )}
       </div>

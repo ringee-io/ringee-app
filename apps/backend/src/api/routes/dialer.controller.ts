@@ -6,7 +6,6 @@ import {
   Get,
   Body,
   Param,
-  Req,
   Sse,
   ForbiddenException,
   BadRequestException,
@@ -14,6 +13,9 @@ import {
   Query,
   UnauthorizedException,
   UseGuards,
+  ServiceUnavailableException,
+  ConflictException,
+  Logger,
 } from "@nestjs/common";
 import {
   Observable,
@@ -25,9 +27,9 @@ import {
   map,
   switchMap,
   takeUntil,
+  Subscription,
 } from "rxjs";
 import { isUUID } from "class-validator";
-import { Request } from "express";
 import { SseRateLimitGuard } from "../guards/sse-rate-limit.guard";
 import {
   CurrentUser,
@@ -51,7 +53,7 @@ import {
 
 /** How often an open event stream re-checks its reader still owns the session. */
 const STREAM_ACCESS_RECHECK_MS = 60_000;
-import {} from "@ringee/database";
+import type { AgentSession } from "@ringee/database";
 
 interface CurrentUserData {
   id: string;
@@ -61,6 +63,7 @@ interface CurrentUserData {
 
 @Controller("dialer")
 export class DialerController {
+  private readonly logger = new Logger(DialerController.name);
   constructor(
     private readonly agentSessionService: AgentSessionService,
     private readonly dialerOrchestration: DialerOrchestrationService,
@@ -86,9 +89,14 @@ export class DialerController {
 
   @Post("sessions")
   async startSession(
-    @Body() body: { campaignId: string },
+    @Body() body: { campaignId: string; waitForEvents?: boolean },
     @CurrentUser() user: CurrentUserData,
   ) {
+    if (
+      body.waitForEvents !== undefined &&
+      typeof body.waitForEvents !== "boolean"
+    )
+      throw new BadRequestException("waitForEvents must be a boolean");
     const orgId = this.requireOrg(user);
     const ctx = createOwnershipContext(user);
 
@@ -103,6 +111,7 @@ export class DialerController {
       campaignId: body.campaignId,
       userId: ctx.userId,
       organizationId: orgId,
+      waitForEvents: body.waitForEvents === true,
     });
 
     // The workspace UI needs the dial mode to decide what it may offer — the
@@ -115,6 +124,7 @@ export class DialerController {
   @Delete("sessions/:sessionId")
   async endSession(
     @Param("sessionId") sessionId: string,
+    @Query("startedAt") startedAt: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
@@ -122,12 +132,16 @@ export class DialerController {
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.endSession(sessionId);
+    return this.agentSessionService.endSession(
+      sessionId,
+      this.sessionVersion(startedAt),
+    );
   }
 
   @Patch("sessions/:sessionId/pause")
   async pause(
     @Param("sessionId") sessionId: string,
+    @Query("startedAt") startedAt: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
@@ -135,25 +149,38 @@ export class DialerController {
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.pause(sessionId);
+    return this.agentSessionService.pause(
+      sessionId,
+      this.sessionVersion(startedAt),
+    );
   }
 
   @Patch("sessions/:sessionId/resume")
   async resume(
     @Param("sessionId") sessionId: string,
+    @Query("startedAt") startedAt: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(
+    const session = await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.resume(sessionId);
+    await this.campaignService.assertDialableCampaign(
+      createOwnershipContext(user),
+      session.campaignId,
+      { isOrgAdmin: user.activeOrgRole === "org:admin" },
+    );
+    return this.agentSessionService.resume(
+      sessionId,
+      this.sessionVersion(startedAt),
+    );
   }
 
   @Post("sessions/:sessionId/heartbeat")
   async heartbeat(
     @Param("sessionId") sessionId: string,
+    @Body() body: { startedAt?: string },
     @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
@@ -161,7 +188,10 @@ export class DialerController {
       this.requireOrg(user),
       user.id,
     );
-    return this.agentSessionService.heartbeat(sessionId);
+    return this.agentSessionService.heartbeat(
+      sessionId,
+      this.sessionVersion(body?.startedAt),
+    );
   }
 
   @Post("dial")
@@ -372,16 +402,21 @@ export class DialerController {
   @Post("sessions/:sessionId/events-ticket")
   async eventsTicket(
     @Param("sessionId") sessionId: string,
+    @Body() body: { startedAt?: string },
     @CurrentUser() user: CurrentUserData,
   ): Promise<{ ticket: string }> {
-    await this.agentSessionService.getByIdForOrg(
+    const session = await this.agentSessionService.getByIdForOrg(
       sessionId,
       this.requireOrg(user),
       user.id,
     );
+    const version = this.sessionVersion(body?.startedAt);
+    if (version && version.getTime() !== session.startedAt.getTime()) {
+      throw new UnauthorizedException("This dialer session has been replaced.");
+    }
     return {
       ticket: signSseTicket(
-        `dialer:${sessionId}`,
+        this.streamPurpose(sessionId, version),
         createOwnershipContext(user),
       ),
     };
@@ -401,17 +436,24 @@ export class DialerController {
   events(
     @Param("sessionId") sessionId: string,
     @Query("ticket") ticket: string | undefined,
+    @Query("startedAt") startedAt: string | undefined,
   ): Observable<MessageEvent> {
-    const ctx = verifySseTicket(ticket, `dialer:${sessionId}`);
+    const version = this.sessionVersion(startedAt);
+    const ctx = verifySseTicket(ticket, this.streamPurpose(sessionId, version));
     if (!ctx) throw new UnauthorizedException("Invalid stream ticket");
-    return defer(() => from(this.ownsSession(ctx, sessionId))).pipe(
-      switchMap((allowed) => {
-        if (!allowed) throw new UnauthorizedException("Invalid stream ticket");
+    return defer(() => from(this.ownsSession(ctx, sessionId, version))).pipe(
+      switchMap((session) => {
+        if (!session) throw new UnauthorizedException("Invalid stream ticket");
+        const attachedVersion = session.startedAt;
         const revoked = interval(STREAM_ACCESS_RECHECK_MS).pipe(
-          switchMap(() => from(this.ownsSession(ctx, sessionId))),
+          switchMap(() =>
+            from(this.ownsSession(ctx, sessionId, attachedVersion)),
+          ),
           filter((stillAllowed) => !stillAllowed),
         );
-        return this.sessionEvents(sessionId).pipe(takeUntil(revoked));
+        return this.sessionEvents(sessionId, attachedVersion, version).pipe(
+          takeUntil(revoked),
+        );
       }),
     );
   }
@@ -420,27 +462,160 @@ export class DialerController {
   private async ownsSession(
     ctx: OwnershipContext,
     sessionId: string,
-  ): Promise<boolean> {
-    if (!ctx.organizationId) return false;
+    startedAt?: Date,
+  ): Promise<AgentSession | null> {
+    if (!ctx.organizationId) return null;
     try {
       if (!(await this.organizations.isMember(ctx.userId, ctx.organizationId)))
-        return false;
-      await this.agentSessionService.getByIdForOrg(
+        return null;
+      const session = await this.agentSessionService.getByIdForOrg(
         sessionId,
         ctx.organizationId,
         ctx.userId,
       );
-      return true;
+      return !startedAt || session.startedAt.getTime() === startedAt.getTime()
+        ? session
+        : null;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  private sessionEvents(sessionId: string): Observable<MessageEvent> {
+  private sessionVersion(value?: string): Date | undefined {
+    if (value === undefined) return undefined;
+    const date = typeof value === "string" ? new Date(value) : new Date(NaN);
+    if (!Number.isFinite(date.getTime()))
+      throw new BadRequestException("Invalid session startedAt");
+    return date;
+  }
+
+  private streamPurpose(sessionId: string, version?: Date): string {
+    return `dialer:${sessionId}${version ? `:${version.toISOString()}` : ""}`;
+  }
+
+  private sessionEvents(
+    sessionId: string,
+    version: Date,
+    activationVersion?: Date,
+  ): Observable<MessageEvent> {
+    const replaced = new UnauthorizedException(
+      "This dialer session has been replaced.",
+    );
+    const relayUnavailable = new ServiceUnavailableException(
+      "The dialer event relay is unavailable.",
+    );
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
-    const realEvents = this.sseBridge.subscribe(
-      `agent:${sessionId}`,
-    ) as Observable<MessageEvent>;
+    const realEvents = new Observable<MessageEvent>((subscriber) => {
+      let receivedEvent = false;
+      let subscription: Subscription | undefined;
+      void (async () => {
+        const ownership = await this.agentSessionService.claimEventStreamSetup(
+          sessionId,
+          version,
+          activationVersion === undefined,
+        );
+        try {
+          if (subscriber.closed) return;
+          // Keep setup exclusive even after unsubscribe, until any in-flight
+          // readiness write and its disconnected-stream cleanup have finished.
+          // Subscribe before activating: the relay never replays a dial.
+          subscription = this.sseBridge
+            .subscribe(`agent:${sessionId}`)
+            .subscribe({
+              next: (event) => {
+                if (event.type === "heartbeat") {
+                  subscriber.next(event);
+                  return;
+                }
+                const data =
+                  typeof event.data === "string"
+                    ? JSON.parse(event.data)
+                    : event.data;
+                if (
+                  !data.sessionStartedAt ||
+                  new Date(data.sessionStartedAt).getTime() !==
+                    version.getTime()
+                )
+                  return;
+                receivedEvent = true;
+                subscriber.next(event);
+              },
+              error: (error: unknown) => subscriber.error(error),
+              complete: () => subscriber.complete(),
+            });
+          let session = await this.agentSessionService.getById(sessionId);
+          if (subscriber.closed) return;
+          if (session.startedAt.getTime() !== version.getTime()) {
+            throw replaced;
+          }
+          let awaiting =
+            session.status === "offline" && session.endedAt === null;
+          if (awaiting) {
+            if (activationVersion?.getTime() !== version.getTime())
+              throw replaced;
+            if (!(await this.sseBridge.isRelayReady())) throw relayUnavailable;
+            if (subscriber.closed) return;
+            session = await this.agentSessionService.getById(sessionId);
+            if (session.startedAt.getTime() !== version.getTime())
+              throw replaced;
+            if (subscriber.closed) return;
+            awaiting = session.status === "offline" && session.endedAt === null;
+          }
+          subscriber.next({
+            type: "session.connected",
+            data: JSON.stringify({
+              status: awaiting ? "ready" : session.status,
+              sessionStartedAt: session.startedAt.toISOString(),
+              currentLeadId: session.currentLeadId,
+              snapshotStale: receivedEvent,
+              stats: {
+                callsAttempted: session.callsAttempted,
+                callsConnected: session.callsConnected,
+                totalTalkSec: session.totalTalkSec,
+              },
+            }),
+          });
+          if (awaiting && !subscriber.closed) {
+            await this.agentSessionService.activateAfterEvents(
+              sessionId,
+              session.startedAt,
+              () => !subscriber.closed,
+              ownership.renew,
+              ownership.lastHeartbeat,
+            );
+          }
+        } finally {
+          await ownership.release();
+        }
+      })().catch((error: unknown) => {
+        if (
+          error === replaced ||
+          (error instanceof ConflictException &&
+            error.message === replaced.message)
+        ) {
+          subscriber.error(replaced);
+          return;
+        }
+        if (
+          error === relayUnavailable ||
+          (error instanceof ServiceUnavailableException &&
+            error.message === relayUnavailable.message)
+        ) {
+          subscriber.error(relayUnavailable);
+          return;
+        }
+        this.logger.error({
+          event: "dialer.stream_setup_failed",
+          errorType: error instanceof Error ? error.name : "unknown",
+        });
+        subscriber.error(
+          new ServiceUnavailableException(
+            "The dialer event stream could not be opened.",
+          ),
+        );
+      });
+      return () => subscription?.unsubscribe();
+    });
     const heartbeat = interval(15000).pipe(
       map(
         (): MessageEvent => ({

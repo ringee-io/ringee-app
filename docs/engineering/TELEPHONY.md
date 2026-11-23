@@ -311,6 +311,47 @@ test suite skips this integration case when the variable is absent.
 
 ## Campaigns
 
+The workspace starts a session with `waitForEvents: true`. Its initial
+`offline` state with `endedAt: null` means it is waiting for its event stream,
+not ended. `DialerController` subscribes to the shared SSE relay, sends
+`session.connected`, then activates that incarnation. Never mark it ready in
+the HTTP start request: the poller can otherwise consume a lead and emit the
+only dial instruction before the browser has opened its stream. A failed relay
+does not activate a pending session. Reconnecting never replays `call.initiate`.
+Older clients that omit the flag retain their existing start behavior.
+Stream setup holds an incarnation-scoped Redis lease through activation and
+any disconnect compensation, even after unsubscription. Overlapping setup is
+refused across API instances; an expired owner cannot end a successor's stream.
+Every attachment advances the persisted heartbeat monotonically, fencing a late
+disconnect write even if its Redis lease expired after renewal. A running legacy
+session retains local delivery when Redis claim operations are unavailable.
+
+Session IDs are reused per campaign/user. `startedAt` is the incarnation fence:
+the workspace includes it in lifecycle requests and stream tickets; claims,
+cleanup, late call events and disposition transitions cannot drive a newer
+incarnation. Start/stop persist the state change, discard undialed attempts and
+release the session's abandoned lead locks in one transaction. Cleanup compares
+the heartbeat it read too, so a recovered browser wins over a stale sweep.
+Account-disable cleanup instead compares the incarnation and assignment, ignoring
+heartbeat-only changes. Activation and cleanup lock the persisted user row before
+the session row; transitions to ready check `canCall` under that lock.
+Provider-leg linking and replacement share the session row lock. An attempt keeps
+its claimed `sessionStartedAt` independently of its mutable dispatch time.
+Live provider calls keep their leads, including when a heartbeat expires. A
+stopped dial whose provider placement is still uncertain retains its reservation
+until it is reconciled or reaches the existing dispatch timeout.
+An explicit stop rejects a live leg under the session lock, even while preserving
+an unconfirmed dispatch. Stale or disabled sessions may end while retaining a
+live call; once that call completes, the held lead follows the campaign's retry
+delay or becomes exhausted at its attempt cap, and the attempt keeps its
+recorded metrics. Cleanup waits for the persisted hangup count and compares it
+under the lead lock before clearing the assignment. Attempt finalization and its
+lead counter increment commit together. Ended sessions retaining an assignment
+remain eligible for cleanup retries, and a restart settles that assignment first.
+An offline session does not
+wait for a disposition prompt it can no longer display. Account cleanup stops if
+the locked user row shows calling has been enabled again.
+
 `DialerOrchestrationService` polls every 500 ms **in the API process**
 (`CMP-010`), one tick at a time (`CMP-012`). Per tick, per active campaign:
 
@@ -329,6 +370,68 @@ test suite skips this integration case when the variable is absent.
 
 A refused dial follows `CMP-013`. The same tick runs the stalled-dial sweep every
 10 s: a session `dialing` an attempt with no provider leg for 90 s is paused.
+It also recovers a progressive session left `reserved` for 90 s, including a
+worker interrupted before the attempt was created. Preview reservations are
+intentional and are excluded. The retry sweep preserves preview assignments and
+live provider calls. A resumed wrap-up remains on its lead until disposition.
+Reservations record `reservedAt` when claimed; recovery compares that timestamp
+both when selecting and releasing, so heartbeats cannot hide an abandoned claim
+and an older sweep cannot release a newer claim for the same lead.
+The winning `reservedAt` also fences attempt insertion and the dispatch
+transition; reading a newer reservation later never transfers it to an older
+worker. New attempts retain that identity in `CallAttempt.sessionReservedAt`.
+Legacy held assignments are adopted only after checking ownership under locks.
+Lead-affecting disposition writes recheck the latest attempt and assignment
+under the session and lead locks, including retry and callback paths. The saved
+`dispositionedAt` advances monotonically and fences subsequent lead, callback,
+and session writes; identical accepted saves share that revision. A user
+key-share lock precedes the session; outcome/callback writes also acquire their
+contact and source-call locks first, so FK insertion cannot reverse that order.
+Disconnected undialed assignments retain their existing `nextCallAt`; a new
+retry delay applies only to the completed call of the retained assignment.
+Legacy attempts use their latest linked terminal call under those locks,
+including when the lead has not yet advanced out of `locked`.
+Undialed cancellation discards the attempt under the provider linker's session
+row lock before releasing the lease or lead. A sweep's release also compares the
+lead's observed `lockedAt`, so a restarted session reusing the same id cannot
+lose a replacement lock to delayed cleanup.
+`session.waiting` reports calling-window, eligibility or busy-agent reasons;
+unchanged reasons are refreshed every 15 seconds for reconnects. Closed-hours
+agent lookups are throttled to five seconds. The existing heartbeat also
+reconciles status if a state event was missed.
+
+The lifecycle PostgreSQL regression case runs against an isolated local socket
+with `RINGEE_DIALER_TEST_PG_SOCKET` (port 55445, database `postgres`). It uses its
+own schema and never uses `DATABASE_URL`. Apply
+the dialer assignment fences in this order:
+
+1. Apply and commit
+   `packages/database/prisma/migrations-pending/20261121120000_dialer_assignment_fences`.
+   Also apply `packages/database/prisma/migrations-pending/20261123043000_call_attempt_reservation_identity`
+   before running the updated API or orchestrator.
+   The API image stages this required migration into Prisma's discovery folder.
+   AWS deployment always runs the migrate task and verifies its committed
+   migration record and column before updating any ECS service; it cannot be
+   disabled with `RUN_MIGRATIONS`.
+   The nullable columns must commit before the table-wide backfill begins.
+2. Stop or fully drain every pre-change API task that can dispatch calls or
+   write `CallAttempt` rows, including in-flight assignments and long-lived
+   streams. Keep those writers stopped through the backfill; a rolling deploy
+   alone leaves old writers able to create attempts without the new identity.
+   Pause the `ringee.retry-scheduler` schedule until the updated orchestrator
+   is running, or deploy the updated orchestrator before enabling campaign
+   calls through the new API. Old retry workers must not release locks held
+   by new API sessions.
+   In either deployment order, drain or finish every pre-change retry execution
+   and confirm that no pre-change retry activity can still write before enabling
+   campaign calls. Pausing the schedule does not stop runs already started.
+3. Run and commit the separate
+   `packages/database/prisma/migrations-pending/20261121121000_backfill_dialer_assignment_fences`
+   migration. Confirm that no pre-change task can resume writing. Only then let
+   the new API handler serve campaign calls.
+4. Deploy the dashboard after the API. If the retry schedule was paused, deploy
+   the updated orchestrator before resuming `ringee.retry-scheduler` so cleanup
+   uses the same fences.
 
 The browser owns the leg once `call.initiate` arrives. The workspace tracks it by
 its own Telnyx call id (chosen before `newCall`, which reports the first state

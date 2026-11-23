@@ -58,7 +58,11 @@
       "script": "Skript",
       "transcript": "Transkript",
       "outcome": "Ergebnis"
-    }
+    },
+    "endFailed": "Die Sitzung konnte nicht beendet werden. Bitte erneut versuchen.",
+    "pauseFailed": "Die Sitzung konnte nicht pausiert werden. Bitte erneut versuchen.",
+    "resumeFailed": "Die Sitzung konnte nicht fortgesetzt werden. Bitte erneut versuchen.",
+    "connectionFailed": "Die Sitzungsverbindung wurde unterbrochen. Verbindung wird wiederhergestellt…"
   },
   "statusBar": {
     "statuses": {
@@ -108,6 +112,7 @@
     "shortcutsHint": "Tipp: Drücke 1–9, um ein Ergebnis zu wählen, und Enter zum Speichern."
   },
   "lead": {
+    "dialBlocked": "Anruf konnte nicht gestartet werden",
     "waiting": "Warte auf Lead",
     "waitingDescription": "Der Dialer weist dir den nächsten Lead automatisch zu.",
     "unknown": "Unbekannt",
@@ -136,7 +141,17 @@
       "in_call": "Im Gespräch",
       "ended": "Anruf beendet",
       "dispositioned": "Gespeichert"
-    }
+    },
+    "connecting": "Anrufsitzung wird verbunden",
+    "connectingDescription": "Leads werden zugewiesen, sobald die Sitzungsverbindung bereit ist.",
+    "paused": "Sitzung pausiert",
+    "pausedDescription": "Setzen Sie die Sitzung fort, wenn Sie anrufen möchten.",
+    "outside_calling_window": "Außerhalb der Anrufzeiten",
+    "outside_calling_windowDescription": "Die Anrufe werden während der erlaubten Zeiten dieser Kampagne fortgesetzt.",
+    "no_eligible_leads": "Derzeit keine geeigneten Leads",
+    "no_eligible_leadsDescription": "Leads können für später geplant, ausgeschöpft, ausgeschlossen oder von einer anderen Sitzung reserviert sein.",
+    "agent_busy": "Warten auf Ihren laufenden Anruf",
+    "agent_busyDescription": "Beenden Sie Ihren aktuellen Anruf, bevor diese Sitzung einen weiteren Lead erhält."
   },
   "softphone": {
     "dialFailed": "Der Anruf konnte nicht gestartet werden.",

@@ -114,6 +114,13 @@ function build(
     numberRepo as never,
     numbers as never,
   );
+  const logs: Record<string, unknown>[] = [];
+  Object.assign(service, {
+    logger: {
+      debug: (data: Record<string, unknown>) => logs.push(data),
+      warn: (data: Record<string, unknown>) => logs.push(data),
+    },
+  });
   const select = (destination = "+12125550123", opts = {}) =>
     service.selectForDial(ctx, destination, { phoneNumber: null }, opts);
   return {
@@ -123,6 +130,7 @@ function build(
     pool,
     settings,
     updates,
+    logs,
     failClaims: (n: number) => {
       claimsFail = n;
     },
@@ -130,7 +138,132 @@ function build(
 }
 
 describe("caller-ID rotation", () => {
-  it("prefers area, then US state, then country; ignores stale cached area codes", async () => {
+  it("dials the reported 307 destination even without a local match", async () => {
+    const b = build([
+      member("ny", "+12125550101"),
+      member("ca", "+14155550101"),
+      member("nyc", "+16465550101"),
+    ]);
+    const result = await b.select("+1 (307) 555-1234");
+    assert.ok(b.pool.some((m) => m.numberId === result.numberId));
+    assert.ok(result.phoneNumber);
+  });
+  it("uses uniform random fallback across the entire eligible campaign pool, without state or health ranking", async (t) => {
+    const b = build([
+      member("ny", "+15185550101", { healthScore: 100 }),
+      member("ca", "+14155550101", { healthScore: 60 }),
+      member("tx", "+12145550101", { healthScore: 80 }),
+    ]);
+    const random = t.mock.method(Math, "random", () => 0);
+    // Include the edges of every equal-width bucket, including a number in
+    // another state with lower health. Every eligible number gets a chance.
+    for (const [value, expected] of [
+      [0, "ny"],
+      [0.32, "ny"],
+      [1 / 3, "ca"],
+      [0.66, "ca"],
+      [2 / 3, "tx"],
+      [0.999999, "tx"],
+    ] as const) {
+      random.mock.mockImplementation(() => value);
+      assert.equal((await b.select()).numberId, expected);
+    }
+  });
+  it("rotates local matches by health and LRU without consulting randomness", async (t) => {
+    t.mock.method(Math, "random", () => {
+      throw new Error("local matching must not use random fallback");
+    });
+    const b = build([
+      member("nonlocal", "+14155550101"),
+      member("a", "+12125550101"),
+      member("b", "+12125550102"),
+      member("unhealthy", "+12125550103", { healthScore: 10 }),
+    ]);
+    assert.equal((await b.select("0012125550123")).numberId, "a");
+    assert.equal((await b.select("011 1 212 555 0123")).numberId, "b");
+  });
+  it("falls back only within the authorized, under-cap campaign subset when local numbers are unavailable", async (t) => {
+    t.mock.method(Math, "random", () => 0.999999);
+    const b = build([
+      member("local-capped", "+12125550101", { dailyCap: 0 }),
+      member("local-disabled", "+12125550102", { rotationStatus: "disabled" }),
+      member("outside-campaign", "+12125550103"),
+      member("outside-workspace", "+12125550104"),
+      member("fallback-a", "+14155550101"),
+      member("fallback-b", "+16465550101"),
+    ]);
+    const outside = b.pool.find((m) => m.numberId === "outside-workspace")!;
+    outside.number.allowedOutboundUserIds = ["another-user"];
+    const result = await b.select(undefined, {
+      restrictToNumberIds: b.pool
+        .filter((m) => m.numberId !== "outside-campaign")
+        .map((m) => m.numberId),
+    });
+    assert.equal(result.numberId, "fallback-b");
+  });
+  it("does not escape the campaign pool through the fixed fallback when the destination is invalid", async () => {
+    const b = build([member("fixed", "+12125550101")]);
+    const result = await b.service.selectForDial(
+      ctx,
+      "not a phone",
+      { phoneNumber: "+12125550101", numberId: "fixed" },
+      { restrictToNumberIds: ["different-number"] },
+    );
+    assert.equal(result.phoneNumber, null);
+    assert.equal(result.reason, RotationReason.UNPARSEABLE);
+  });
+  it("uses random fallback when a valid calling plan has no supported geographic area", async (t) => {
+    t.mock.method(Math, "random", () => 0.999999);
+    const b = build([
+      member("gb-a", "+442079460958"),
+      member("gb-b", "+442079460959"),
+      member("us", "+12125550101"),
+    ]);
+    assert.equal(resolveRegion("+44 20 7946 0960").areaCode, null);
+    const result = await b.select("+44 20 7946 0960");
+    assert.equal(result.numberId, "gb-b");
+    assert.equal(result.reason, RotationReason.RANDOM_FALLBACK);
+    const single = build([member("single", "+12125550101")]);
+    assert.equal((await single.select("+13075551234")).numberId, "single");
+  });
+  it("reports selection counts, fallback and session context without phone numbers", async (t) => {
+    t.mock.method(Math, "random", () => 0.999999);
+    const b = build([member("a", "+12125550101"), member("b", "+14155550101")]);
+    await b.select("+13075551234", {
+      logContext: { campaignId: "campaign", sessionId: "session" },
+    });
+    assert.deepEqual(b.logs.at(-1), {
+      event: "caller_id.selection",
+      campaignId: "campaign",
+      sessionId: "session",
+      configuredCount: 2,
+      eligibleCount: 2,
+      localMatchCount: 0,
+      randomFallback: true,
+      reason: RotationReason.RANDOM_FALLBACK,
+      selectedNumberId: "b",
+    });
+    assert.ok(!JSON.stringify(b.logs).includes("+1"));
+  });
+  it("never selects malformed caller IDs or numbers absent from the workspace allow-list", async () => {
+    const good = member("good", "+14155550101");
+    const b = build(
+      [
+        member("foreign", "+12125550101"),
+        member("invalid", "not a phone"),
+        good,
+      ],
+      { owned: [good.number, member("invalid", "not a phone").number] },
+    );
+    assert.equal((await b.select()).numberId, "good");
+    assert.equal(
+      (await b.select(undefined, { restrictToNumberIds: ["foreign"] }))
+        .phoneNumber,
+      null,
+    );
+  });
+  it("prefers area and otherwise randomly falls back within country; ignores stale cached area codes", async (t) => {
+    t.mock.method(Math, "random", () => 0.999999);
     const b = build([
       member("ca", "+14155550101"),
       member("ny", "+15185550101"),
@@ -196,8 +329,17 @@ describe("caller-ID rotation", () => {
         phoneNumber: n.number.phoneNumber,
       });
       assert.equal(result.phoneNumber, null);
-      assert.equal(result.reason, RotationReason.NO_CALLER_ID_FOR_COUNTRY);
+      assert.equal(result.reason, RotationReason.NO_ELIGIBLE_CALLER_IDS);
     }
+  });
+  it("excludes inactive purchased numbers and surface-restricted local matches before random fallback", async (t) => {
+    t.mock.method(Math, "random", () => 0.999999);
+    const inactive = member("inactive", "+12125550101");
+    inactive.number.status = "released";
+    const restricted = member("restricted", "+12125550102");
+    restricted.number.allowedOutboundSources = ["sip_device"];
+    const b = build([inactive, restricted, member("fallback", "+14155550101")]);
+    assert.equal((await b.select()).numberId, "fallback");
   });
   it("honors daily limits before area preference and an explicit over-cap override", async () => {
     const b = build(
@@ -265,13 +407,13 @@ describe("caller-ID rotation", () => {
     });
     assert.equal(bad.phoneNumber, null);
   });
-  it("keeps an authorized fixed fallback for unparseable destinations", async () => {
+  it("refuses an unparseable calling plan instead of bypassing rotation eligibility", async () => {
     const n = member("ny", "+12125550101");
     const b = build([n]);
     const result = await b.service.selectForDial(ctx, "not a phone", {
       phoneNumber: n.number.phoneNumber,
     });
-    assert.equal(result.numberId, "ny");
+    assert.equal(result.numberId, null);
     assert.equal(result.reason, RotationReason.UNPARSEABLE);
   });
   it("does not reuse the same LRU snapshot for simultaneous callers", async () => {
