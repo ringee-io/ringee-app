@@ -27,6 +27,7 @@ import {
   map,
   switchMap,
   takeUntil,
+  Subscription,
 } from "rxjs";
 import { isUUID } from "class-validator";
 import { SseRateLimitGuard } from "../guards/sse-rate-limit.guard";
@@ -506,68 +507,85 @@ export class DialerController {
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
     const realEvents = new Observable<MessageEvent>((subscriber) => {
       let receivedEvent = false;
-      // Subscribe before activating. A Subject and Redis pub/sub do not replay
-      // events emitted while the HTTP start/ticket requests are in flight.
-      const subscription = this.sseBridge
-        .subscribe(`agent:${sessionId}`)
-        .subscribe({
-          next: (event) => {
-            if (event.type === "heartbeat") {
-              subscriber.next(event);
-              return;
-            }
-            const data =
-              typeof event.data === "string"
-                ? JSON.parse(event.data)
-                : event.data;
-            if (
-              !data.sessionStartedAt ||
-              new Date(data.sessionStartedAt).getTime() !== version.getTime()
-            )
-              return;
-            receivedEvent = true;
-            subscriber.next(event);
-          },
-          error: (error: unknown) => subscriber.error(error),
-          complete: () => subscriber.complete(),
-        });
+      let subscription: Subscription | undefined;
       void (async () => {
-        let session = await this.agentSessionService.getById(sessionId);
-        if (subscriber.closed) return;
-        if (session.startedAt.getTime() !== version.getTime()) {
-          throw replaced;
-        }
-        let awaiting = session.status === "offline" && session.endedAt === null;
-        if (awaiting) {
-          if (activationVersion?.getTime() !== version.getTime())
+        const ownership = await this.agentSessionService.claimEventStreamSetup(
+          sessionId,
+          version,
+          activationVersion === undefined,
+        );
+        try {
+          if (subscriber.closed) return;
+          // Keep setup exclusive even after unsubscribe, until any in-flight
+          // readiness write and its disconnected-stream cleanup have finished.
+          // Subscribe before activating: the relay never replays a dial.
+          subscription = this.sseBridge
+            .subscribe(`agent:${sessionId}`)
+            .subscribe({
+              next: (event) => {
+                if (event.type === "heartbeat") {
+                  subscriber.next(event);
+                  return;
+                }
+                const data =
+                  typeof event.data === "string"
+                    ? JSON.parse(event.data)
+                    : event.data;
+                if (
+                  !data.sessionStartedAt ||
+                  new Date(data.sessionStartedAt).getTime() !==
+                    version.getTime()
+                )
+                  return;
+                receivedEvent = true;
+                subscriber.next(event);
+              },
+              error: (error: unknown) => subscriber.error(error),
+              complete: () => subscriber.complete(),
+            });
+          let session = await this.agentSessionService.getById(sessionId);
+          if (subscriber.closed) return;
+          if (session.startedAt.getTime() !== version.getTime()) {
             throw replaced;
-          if (!(await this.sseBridge.isRelayReady())) throw relayUnavailable;
-          if (subscriber.closed) return;
-          session = await this.agentSessionService.getById(sessionId);
-          if (session.startedAt.getTime() !== version.getTime()) throw replaced;
-          if (subscriber.closed) return;
-          awaiting = session.status === "offline" && session.endedAt === null;
-        }
-        subscriber.next({
-          type: "session.connected",
-          data: JSON.stringify({
-            status: awaiting ? "ready" : session.status,
-            sessionStartedAt: session.startedAt.toISOString(),
-            currentLeadId: session.currentLeadId,
-            snapshotStale: receivedEvent,
-            stats: {
-              callsAttempted: session.callsAttempted,
-              callsConnected: session.callsConnected,
-              totalTalkSec: session.totalTalkSec,
-            },
-          }),
-        });
-        if (awaiting && !subscriber.closed) {
-          await this.agentSessionService.activateAfterEvents(
-            sessionId,
-            session.startedAt,
-            () => !subscriber.closed,
-          );
+          }
+          let awaiting =
+            session.status === "offline" && session.endedAt === null;
+          if (awaiting) {
+            if (activationVersion?.getTime() !== version.getTime())
+              throw replaced;
+            if (!(await this.sseBridge.isRelayReady())) throw relayUnavailable;
+            if (subscriber.closed) return;
+            session = await this.agentSessionService.getById(sessionId);
+            if (session.startedAt.getTime() !== version.getTime())
+              throw replaced;
+            if (subscriber.closed) return;
+            awaiting = session.status === "offline" && session.endedAt === null;
+          }
+          subscriber.next({
+            type: "session.connected",
+            data: JSON.stringify({
+              status: awaiting ? "ready" : session.status,
+              sessionStartedAt: session.startedAt.toISOString(),
+              currentLeadId: session.currentLeadId,
+              snapshotStale: receivedEvent,
+              stats: {
+                callsAttempted: session.callsAttempted,
+                callsConnected: session.callsConnected,
+                totalTalkSec: session.totalTalkSec,
+              },
+            }),
+          });
+          if (awaiting && !subscriber.closed) {
+            await this.agentSessionService.activateAfterEvents(
+              sessionId,
+              session.startedAt,
+              () => !subscriber.closed,
+              ownership.renew,
+              ownership.lastHeartbeat,
+            );
+          }
+        } finally {
+          await ownership.release();
         }
       })().catch((error: unknown) => {
         if (
@@ -596,7 +614,7 @@ export class DialerController {
           ),
         );
       });
-      return () => subscription.unsubscribe();
+      return () => subscription?.unsubscribe();
     });
     const heartbeat = interval(15000).pipe(
       map(

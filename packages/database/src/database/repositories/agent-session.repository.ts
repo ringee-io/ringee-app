@@ -2,6 +2,19 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { randomUUID } from "node:crypto";
 import { AgentSession, AgentSessionStatus, Prisma } from "@prisma/client";
+import { deleteUndialedAttempt } from "./call-attempt.repository";
+
+export type AgentSessionReservation = AgentSession & {
+  leadLockedAt: Date | null;
+};
+
+interface AssignmentRetry {
+  leadId: string;
+  attempts: number;
+  status: "queued" | "exhausted";
+  nextCallAt?: Date;
+  deadAt?: Date;
+}
 
 export type AccountDisableEndResult =
   | { outcome: "ended"; session: AgentSession }
@@ -35,6 +48,12 @@ export class AgentSessionRepository {
       }
 
       await this.lockSession(tx, previous.id);
+      if (
+        previous.status === "offline" &&
+        previous.endedAt &&
+        previous.currentLeadId
+      )
+        return null;
       const changed = await tx.agentSession.updateMany({
         where: {
           ...this.snapshotFilter(previous),
@@ -61,13 +80,17 @@ export class AgentSessionRepository {
   async endIfUnchanged(
     previous: AgentSession,
     preserveLiveLead = false,
-    options: { rejectLiveCalls?: boolean } = {},
+    options: {
+      rejectLiveCalls?: boolean;
+      assignmentRetry?: AssignmentRetry;
+    } = {},
   ): Promise<AgentSession | null> {
     const result = await this.endSnapshot(
       previous,
       preserveLiveLead,
       true,
       options.rejectLiveCalls,
+      options.assignmentRetry,
     );
     return result.outcome === "ended" ? result.session : null;
   }
@@ -85,6 +108,7 @@ export class AgentSessionRepository {
     preserveLiveLead: boolean,
     compareHeartbeat: boolean,
     rejectLiveCalls = false,
+    assignmentRetry?: AssignmentRetry,
   ): Promise<AccountDisableEndResult> {
     return this.prisma.$transaction(async (tx) => {
       // User updates (including canCall=false), activation and account cleanup
@@ -95,6 +119,25 @@ export class AgentSessionRepository {
       )
         return { outcome: "calling_enabled" };
       await this.lockSession(tx, previous.id);
+      if (assignmentRetry) {
+        const [lead] = await tx.$queryRaw<Array<{ attempts: number }>>`
+          SELECT "attempts" FROM "CampaignLead" WHERE "id" = ${assignmentRetry.leadId}::uuid FOR UPDATE`;
+        if (!lead || lead.attempts !== assignmentRetry.attempts)
+          return { outcome: "changed" };
+        // A provider hangup can precede attempt finalization. The terminal
+        // marker and its lead counter commit together; wait for that commit.
+        if (
+          await tx.callAttempt.count({
+            where: {
+              agentSessionId: previous.id,
+              campaignLeadId: assignmentRetry.leadId,
+              callId: { not: null },
+              status: { notIn: ["ended", "dispositioned"] },
+            },
+          })
+        )
+          return { outcome: "changed" };
+      }
       const changed = await tx.agentSession.updateMany({
         where: {
           ...this.snapshotFilter(previous),
@@ -110,6 +153,22 @@ export class AgentSessionRepository {
         },
       });
       if (!changed.count) return { outcome: "changed" };
+      if (assignmentRetry)
+        await tx.campaignLead.updateMany({
+          where: {
+            id: assignmentRetry.leadId,
+            lockedBy: previous.id,
+            status: { in: ["locked", "dialing", "in_call", "wrap_up"] },
+            attempts: assignmentRetry.attempts,
+          },
+          data: {
+            status: assignmentRetry.status,
+            lockedBy: null,
+            lockedAt: null,
+            deadAt: assignmentRetry.deadAt,
+            nextCallAt: assignmentRetry.nextCallAt,
+          },
+        });
       if (!preserveLiveLead) await this.releaseAssignments(tx, previous.id);
       const session = await tx.agentSession.findUnique({
         where: { id: previous.id },
@@ -195,8 +254,13 @@ export class AgentSessionRepository {
     });
   }
 
-  async findByStatus(status: AgentSessionStatus): Promise<AgentSession[]> {
-    return this.prisma.agentSession.findMany({ where: { status } });
+  async findByStatus(
+    status: AgentSessionStatus,
+  ): Promise<AgentSessionReservation[]> {
+    return this.prisma.$queryRaw<AgentSessionReservation[]>`
+      SELECT session.*, lead."lockedAt" AS "leadLockedAt" FROM "AgentSession" session
+      LEFT JOIN "CampaignLead" lead ON lead."id" = session."currentLeadId" AND lead."lockedBy" = session."id"
+      WHERE session."status" = ${status}::"AgentSessionStatus"`;
   }
 
   async findActiveByUser(userId: string): Promise<AgentSession[]> {
@@ -241,6 +305,8 @@ export class AgentSessionRepository {
       startedAt?: Date;
       endedAt?: Date | null;
       reservedAt?: Date | null;
+      /** Atomically discard this assignment before moving its session. null means no attempt was observed. */
+      undialedAttemptId?: string | null;
     },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
@@ -253,21 +319,59 @@ export class AgentSessionRepository {
       }
       const [session] = await this.lockSession(tx, id);
       if (!session) return false;
+      const where: Prisma.AgentSessionWhereInput = {
+        id,
+        status: { in: expected.from },
+        ...(expected.startedAt ? { startedAt: expected.startedAt } : {}),
+        ...(expected.endedAt !== undefined
+          ? { endedAt: expected.endedAt }
+          : {}),
+        ...(expected.currentLeadId !== undefined
+          ? { currentLeadId: expected.currentLeadId }
+          : {}),
+        ...(expected.reservedAt !== undefined
+          ? { reservedAt: expected.reservedAt }
+          : {}),
+        ...(expected.undialedAttemptId !== undefined
+          ? {
+              callAttempts: {
+                none: {
+                  ...(expected.undialedAttemptId
+                    ? {
+                        id: expected.undialedAttemptId,
+                        callId: { not: null },
+                        call: { endedAt: null },
+                      }
+                    : {
+                        campaignLeadId: expected.currentLeadId ?? undefined,
+                        sessionStartedAt: expected.startedAt,
+                        OR: [
+                          { callId: { not: null }, call: { endedAt: null } },
+                          {
+                            callId: null,
+                            status: { in: ["created", "dialing"] },
+                          },
+                        ],
+                      }),
+                },
+              },
+            }
+          : {}),
+      };
+      if (expected.undialedAttemptId !== undefined) {
+        if (!(await tx.agentSession.count({ where }))) return false;
+        if (
+          expected.undialedAttemptId &&
+          !(await deleteUndialedAttempt(tx, expected.undialedAttemptId, {
+            agentSessionId: id,
+            campaignLeadId: expected.currentLeadId ?? undefined,
+            sessionStartedAt: expected.startedAt,
+          }))
+        )
+          return false;
+      }
       const result = await tx.agentSession.updateMany({
-        where: {
-          id,
-          status: { in: expected.from },
-          ...(expected.startedAt ? { startedAt: expected.startedAt } : {}),
-          ...(expected.endedAt !== undefined
-            ? { endedAt: expected.endedAt }
-            : {}),
-          ...(expected.currentLeadId !== undefined
-            ? { currentLeadId: expected.currentLeadId }
-            : {}),
-          ...(expected.reservedAt !== undefined
-            ? { reservedAt: expected.reservedAt }
-            : {}),
-        },
+        where,
         data: {
           status,
           ...extra,
@@ -288,22 +392,30 @@ export class AgentSessionRepository {
   }
 
   async heartbeat(id: string, startedAt?: Date): Promise<AgentSession | null> {
-    const updated = await this.prisma.agentSession.updateManyAndReturn({
-      where: { id, ...(startedAt ? { startedAt } : {}) },
-      data: { lastHeartbeat: new Date() },
-    });
+    const now = new Date();
+    // Stream attachment also uses this fence. Even same-millisecond attaches
+    // must invalidate an earlier stream's disconnected activation snapshot.
+    const updated = await this.prisma.$queryRaw<AgentSession[]>`
+      UPDATE "AgentSession" SET
+        "lastHeartbeat" = GREATEST((${now}::timestamptz AT TIME ZONE 'UTC'), "lastHeartbeat" + interval '1 millisecond'),
+        "updatedAt" = (${now}::timestamptz AT TIME ZONE 'UTC')
+      WHERE "id" = ${id}::uuid
+        ${startedAt ? Prisma.sql`AND "startedAt" = (${startedAt}::timestamptz AT TIME ZONE 'UTC')` : Prisma.empty}
+      RETURNING *`;
     return updated[0] ?? null;
   }
 
-  async findStalledReservations(cutoff: Date): Promise<AgentSession[]> {
-    return this.prisma.agentSession.findMany({
-      where: {
-        status: AgentSessionStatus.reserved,
-        reservedAt: { lt: cutoff },
-        campaign: { dialerMode: "progressive" },
-        callAttempts: { none: { call: { endedAt: null } } },
-      },
-    });
+  async findStalledReservations(
+    cutoff: Date,
+  ): Promise<AgentSessionReservation[]> {
+    return this.prisma.$queryRaw<AgentSessionReservation[]>`
+      SELECT session.*, lead."lockedAt" AS "leadLockedAt" FROM "AgentSession" session
+      JOIN "Campaign" campaign ON campaign."id" = session."campaignId"
+      LEFT JOIN "CampaignLead" lead ON lead."id" = session."currentLeadId" AND lead."lockedBy" = session."id"
+      WHERE session."status" = 'reserved' AND session."reservedAt" < (${cutoff}::timestamptz AT TIME ZONE 'UTC')
+        AND campaign."dialerMode" = 'progressive'
+        AND NOT EXISTS (SELECT 1 FROM "CallAttempt" attempt JOIN "Call" call ON call."id" = attempt."callId"
+          WHERE attempt."agentSessionId" = session."id" AND call."endedAt" IS NULL)`;
   }
 
   async incrementStats(
@@ -339,6 +451,7 @@ export class AgentSessionRepository {
         OR: [
           { status: { not: AgentSessionStatus.offline } },
           { endedAt: null },
+          { currentLeadId: { not: null } },
         ],
         lastHeartbeat: { lt: cutoff },
       },

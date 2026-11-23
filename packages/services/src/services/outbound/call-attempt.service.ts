@@ -269,7 +269,6 @@ export class CallAttemptService {
           return;
         }
 
-        await this.campaignLeadRepo.incrementAttempt(attempt.campaignLeadId);
         if (!attempt.agentSessionId || !sessionChannel || !currentIncarnation)
           return;
 
@@ -385,6 +384,7 @@ export class CallAttemptService {
       agentUserId: attempt.agentUserId,
       campaignLeadId: attempt.campaignLeadId,
       attemptId: attempt.id,
+      leadLockedAt: lead?.lockedAt,
       sessionStartedAt: session.startedAt,
       from: [AgentSessionStatus.dialing],
       to: AgentSessionStatus.paused,
@@ -415,6 +415,7 @@ export class CallAttemptService {
     from: AgentSessionStatus[];
     sessionStartedAt: Date;
     reservedAt?: Date | null;
+    leadLockedAt?: Date | null;
     to: UndialedOutcome;
     /** Keep the lead out of the queue until then. */
     deferLeadUntil?: Date;
@@ -433,6 +434,7 @@ export class CallAttemptService {
         currentLeadId: input.campaignLeadId,
         startedAt: input.sessionStartedAt,
         reservedAt: input.reservedAt,
+        undialedAttemptId: input.attemptId ?? null,
       },
       input.to,
       {
@@ -466,15 +468,8 @@ export class CallAttemptService {
       ...(input.offlineReason ? { reason: input.offlineReason } : {}),
     });
 
-    if (input.attemptId) {
-      await this.attemptRepo
-        .deleteUndialed(input.attemptId)
-        .catch((err: Error) =>
-          this.logger.warn(
-            `Could not discard undialed attempt ${input.attemptId}: ${err.message}`,
-          ),
-        );
-    }
+    // transitionIf discarded the unlinked attempt under the same session row
+    // lock as provider binding. Only that winner may release its lease/lead.
     if (input.releaseLease) {
       await this.concurrentCallGuard
         .releasePending(
@@ -490,6 +485,7 @@ export class CallAttemptService {
     const released = await this.campaignLeadRepo
       .releaseLock(input.campaignLeadId, {
         lockedBy: input.agentSessionId,
+        lockedAt: input.leadLockedAt,
         nextCallAt: input.deferLeadUntil,
       })
       .catch((err: Error) => {
@@ -594,7 +590,6 @@ export class CallAttemptService {
     // beats the provider's hangup webhook. Whichever of the two ends the
     // attempt is the one that counts it; the other finds it already ended.
     if (await this.attemptRepo.markEndedIf(current.id)) {
-      await this.campaignLeadRepo.incrementAttempt(current.campaignLeadId);
       if (current.agentSessionId && currentIncarnation) {
         await this.agentSessionService.incrementStats(
           current.agentSessionId,

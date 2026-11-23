@@ -414,11 +414,17 @@ export class CampaignLeadRepository {
    * `lockedBy` releases only a lead that session still holds: a lock the stale
    * sweep already recovered may have been claimed by another agent since, and
    * releasing it would put a lead that agent is calling back in the queue.
+   * `lockedAt` also fences a newer lock taken by a restarted session with the
+   * same id; recovery passes the timestamp it observed with the reservation.
    * `nextCallAt` keeps a released lead from being handed straight back out.
    */
   async releaseLock(
     id: string,
-    options: { lockedBy?: string; nextCallAt?: Date } = {},
+    options: {
+      lockedBy?: string;
+      lockedAt?: Date | null;
+      nextCallAt?: Date;
+    } = {},
   ): Promise<number> {
     const result = await this.prisma.campaignLead.updateMany({
       where: {
@@ -432,6 +438,9 @@ export class CampaignLeadRepository {
           ],
         },
         ...(options.lockedBy ? { lockedBy: options.lockedBy } : {}),
+        ...(options.lockedAt !== undefined
+          ? { lockedAt: options.lockedAt }
+          : {}),
       },
       data: {
         status: CampaignLeadStatus.queued,
@@ -514,7 +523,8 @@ export class CampaignLeadRepository {
       Array<{ id: string; lockedBy: string | null; lockedAt: Date }>
     >`
       SELECT lead."id", lead."lockedBy", lead."lockedAt" FROM "CampaignLead" lead
-      WHERE ${reclaimable}`;
+      WHERE ${reclaimable}
+      ORDER BY lead."lockedAt", lead."id" LIMIT 100`;
     let recovered = 0;
     for (const candidate of candidates) {
       recovered += await this.prisma.$transaction(async (tx) => {

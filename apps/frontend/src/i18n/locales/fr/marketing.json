@@ -713,8 +713,8 @@
     }
   },
   "callerIdRotation": {
-    "countryMatchDescription": "Ringee identifie le pays de destination et ne considère que les numéros éligibles qui vous appartiennent dans ce même pays. Si le plan de numérotation ne peut pas être reconnu, l’appel est refusé avec une erreur explicite.",
+    "countryMatchDescription": "Pour les destinations géographiques, Ringee ne considère que les numéros éligibles qui vous appartiennent dans le pays de destination. Les destinations gratuites et les autres destinations non géographiques sont associées selon le plan de numérotation partagé. Si le plan de numérotation ne peut pas être reconnu, l’appel est refusé avec une erreur explicite.",
     "localAreaDescription": "Avec la stratégie de présence locale, un numéro éligible partageant l’indicatif régional NANP du prospect est prioritaire. Si aucun n’est disponible ou si le plan de numérotation ne possède pas d’indicatif régional pris en charge, Ringee choisit au hasard un numéro éligible du groupe de la campagne dans le même pays.",
-    "healthDescription": "Les numéros correspondant à la zone locale alternent selon leur état, puis selon l’ancienneté de leur dernière utilisation. Les numéros au repos, désactivés, signalés ou ayant atteint leur limite quotidienne sont exclus de la sélection automatique, y compris du choix aléatoire de secours. La stratégie équilibrée classe les numéros éligibles selon leur état et l’ancienneté de leur dernière utilisation."
+    "healthDescription": "Les numéros correspondant à la zone locale alternent selon leur état, puis selon l’ancienneté de leur dernière utilisation. Les numéros au repos, désactivés ou signalés sont exclus de la sélection automatique, y compris du choix aléatoire de secours. Les numéros ayant atteint leur limite quotidienne sont également exclus, sauf si tous les numéros éligibles ont atteint leur limite et si allowOverCap est activé ; un numéro au-delà de sa limite peut alors être sélectionné, y compris comme choix aléatoire de secours. La stratégie équilibrée classe les numéros éligibles selon leur état et l’ancienneté de leur dernière utilisation."
   }
 }

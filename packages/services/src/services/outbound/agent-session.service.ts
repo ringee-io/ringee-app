@@ -12,12 +12,17 @@ import {
   CallAttemptRepository,
   CampaignMemberRepository,
   OrganizationRepository,
+  CampaignRepository,
+  CampaignLeadRepository,
   AgentSessionStatus,
   DIAL_DISPATCH_TIMEOUT_MS,
 } from "@ringee/database";
+import { RedisService } from "@ringee/platform";
+import { randomUUID } from "node:crypto";
 import { UserService } from "../user.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 const HEARTBEAT_STALE_MS = 30_000; // 30 seconds
+const STREAM_SETUP_LEASE_SECONDS = 120;
 export { DIAL_DISPATCH_TIMEOUT_MS };
 
 @Injectable()
@@ -31,7 +36,62 @@ export class AgentSessionService {
     private readonly attemptRepo: CallAttemptRepository,
     private readonly campaignMembers: CampaignMemberRepository,
     private readonly organizations: OrganizationRepository,
+    private readonly redis: RedisService,
+    private readonly campaigns: CampaignRepository,
+    private readonly leads: CampaignLeadRepository,
   ) {}
+
+  /** Reusable stream tickets must not admit overlapping setup/compensation. */
+  async claimEventStreamSetup(
+    sessionId: string,
+    startedAt: Date,
+    allowLegacyFallback = false,
+  ) {
+    const key = `dialer:stream-setup:${sessionId}:${startedAt.toISOString()}`;
+    const token = randomUUID();
+    let leased: boolean | null;
+    try {
+      leased = await this.redis.setIfAbsent(
+        key,
+        token,
+        STREAM_SETUP_LEASE_SECONDS,
+      );
+    } catch (error) {
+      const session = allowLegacyFallback
+        ? await this.getSession(sessionId)
+        : null;
+      if (
+        !session ||
+        session.status === AgentSessionStatus.offline ||
+        session.startedAt.getTime() !== startedAt.getTime()
+      )
+        throw error;
+      leased = null;
+    }
+    if (leased === false)
+      throw new ConflictException(
+        "This dialer event stream is already connecting.",
+      );
+    const ownership = {
+      renew: () =>
+        leased
+          ? this.redis.renewLease(key, token, STREAM_SETUP_LEASE_SECONDS)
+          : Promise.resolve(false),
+      release: () =>
+        leased
+          ? this.redis.compareAndSwap(key, token, null)
+          : Promise.resolve(false),
+    };
+    try {
+      const session = await this.sessionRepo.heartbeat(sessionId, startedAt);
+      if (!session)
+        throw new ConflictException("This dialer session has been replaced.");
+      return { ...ownership, lastHeartbeat: session.lastHeartbeat };
+    } catch (error) {
+      await ownership.release().catch(() => false);
+      throw error;
+    }
+  }
 
   async startSession(data: {
     campaignId: string;
@@ -47,10 +107,25 @@ export class AgentSessionService {
     // incarnation it replaces has to let go first: otherwise every tab still
     // attached to it receives the same `call.initiate`, and each one places the
     // call.
-    const existing = await this.sessionRepo.findByCampaignAndUser(
+    let existing = await this.sessionRepo.findByCampaignAndUser(
       data.campaignId,
       data.userId,
     );
+    if (
+      existing?.status === AgentSessionStatus.offline &&
+      existing.endedAt &&
+      existing.currentLeadId
+    ) {
+      await this.releaseEndedAssignment(
+        existing.id,
+        existing.startedAt,
+        existing.currentLeadId,
+      );
+      existing = await this.sessionRepo.findByCampaignAndUser(
+        data.campaignId,
+        data.userId,
+      );
+    }
     if (existing) await this.assertCanReplace(existing);
     // offline + no endedAt means created, awaiting its event stream. This is
     // opt-in so previously released clients keep their start contract.
@@ -184,15 +259,18 @@ export class AgentSessionService {
     sessionId: string,
     startedAt: Date,
     isAttached: () => boolean = () => true,
+    ownsStreamSetup: () => Promise<boolean> = async () => true,
+    attachedHeartbeat?: Date,
   ): Promise<void> {
     const session = await this.getSession(sessionId);
+    const attachment = attachedHeartbeat ?? session.lastHeartbeat;
     this.assertIncarnation(session, startedAt);
     await this.assertDialerEnabled(session.userId);
     if (!(await this.sseBridge.isRelayReady()))
       throw new ServiceUnavailableException(
         "The dialer event relay is unavailable.",
       );
-    if (!isAttached()) return;
+    if (!(await ownsStreamSetup()) || !isAttached()) return;
     const moved = await this.transitionIf(
       sessionId,
       {
@@ -211,7 +289,13 @@ export class AgentSessionService {
         current.startedAt.getTime() === startedAt.getTime() &&
         !(current.status === AgentSessionStatus.offline && current.endedAt)
       ) {
+        if (current.lastHeartbeat.getTime() !== attachment.getTime()) return;
+        // A setup lease that expired may have admitted another API's stream.
+        // Renew it before the DB transaction. The attachment's persisted
+        // heartbeat also fences a successor admitted after this check.
+        if (!(await ownsStreamSetup())) return;
         const preserve =
+          current.currentLeadId !== null ||
           (await this.attemptRepo.hasLiveCallForSession(sessionId)) ||
           (await this.hasUnconfirmedDial(current));
         if (await this.sessionRepo.endIfUnchanged(current, preserve)) {
@@ -274,6 +358,7 @@ export class AgentSessionService {
       startedAt?: Date;
       endedAt?: Date | null;
       reservedAt?: Date | null;
+      undialedAttemptId?: string | null;
     },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
@@ -431,7 +516,23 @@ export class AgentSessionService {
     let count = 0;
 
     for (const session of staleSessions) {
+      if (
+        session.status === AgentSessionStatus.offline &&
+        session.endedAt &&
+        session.currentLeadId
+      ) {
+        if (
+          await this.releaseEndedAssignment(
+            session.id,
+            session.startedAt,
+            session.currentLeadId,
+          )
+        )
+          count++;
+        continue;
+      }
       const preserve =
+        session.currentLeadId !== null ||
         (await this.attemptRepo.hasLiveCallForSession(session.id)) ||
         (await this.hasUnconfirmedDial(session));
       const ended = await this.sessionRepo.endIfUnchanged(session, preserve);
@@ -473,7 +574,40 @@ export class AgentSessionService {
         (await this.hasUnconfirmedDial(session))
       )
         return false;
-      if (await this.sessionRepo.endIfUnchanged(session, false)) return true;
+      const [lead, campaign, attempts] = await Promise.all([
+        this.leads.findByIdWithContact(leadId),
+        this.campaigns.findById(session.campaignId),
+        this.attemptRepo.findByCampaignLead(leadId),
+      ]);
+      if (!lead || !campaign || lead.campaignId !== campaign.id) return false;
+      if (
+        attempts.some(
+          (attempt) =>
+            attempt.agentSessionId === sessionId &&
+            attempt.callId &&
+            !["ended", "dispositioned"].includes(attempt.status),
+        )
+      )
+        return false;
+      if (
+        await this.sessionRepo.endIfUnchanged(session, false, {
+          assignmentRetry: {
+            leadId,
+            attempts: lead.attempts,
+            status:
+              lead.attempts >= campaign.maxAttempts ? "exhausted" : "queued",
+            ...(lead.attempts >= campaign.maxAttempts
+              ? { deadAt: new Date() }
+              : {
+                  nextCallAt:
+                    lead.attempts > 0
+                      ? new Date(Date.now() + campaign.retryDelayMin * 60_000)
+                      : undefined,
+                }),
+          },
+        })
+      )
+        return true;
     }
   }
 
@@ -502,6 +636,14 @@ export class AgentSessionService {
         "This campaign's dialer is on a call in another tab or device. End that call before starting the dialer here.",
       );
     }
+    if (
+      existing.status === AgentSessionStatus.offline &&
+      existing.endedAt &&
+      existing.currentLeadId
+    )
+      throw new ConflictException(
+        "The previous campaign call is still being settled. Try starting again.",
+      );
   }
 
   /**

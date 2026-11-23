@@ -319,6 +319,12 @@ the HTTP start request: the poller can otherwise consume a lead and emit the
 only dial instruction before the browser has opened its stream. A failed relay
 does not activate a pending session. Reconnecting never replays `call.initiate`.
 Older clients that omit the flag retain their existing start behavior.
+Stream setup holds an incarnation-scoped Redis lease through activation and
+any disconnect compensation, even after unsubscription. Overlapping setup is
+refused across API instances; an expired owner cannot end a successor's stream.
+Every attachment advances the persisted heartbeat monotonically, fencing a late
+disconnect write even if its Redis lease expired after renewal. A running legacy
+session retains local delivery when Redis claim operations are unavailable.
 
 Session IDs are reused per campaign/user. `startedAt` is the incarnation fence:
 the workspace includes it in lifecycle requests and stream tickets; claims,
@@ -336,10 +342,15 @@ stopped dial whose provider placement is still uncertain retains its reservation
 until it is reconciled or reaches the existing dispatch timeout.
 An explicit stop rejects a live leg under the session lock, even while preserving
 an unconfirmed dispatch. Stale or disabled sessions may end while retaining a
-live call; once that call completes, the held lead is released to the queue and
-the attempt keeps its recorded metrics. An offline session does not wait for a
-disposition prompt it can no longer display. Account cleanup stops if the locked
-user row shows calling has been enabled again.
+live call; once that call completes, the held lead follows the campaign's retry
+delay or becomes exhausted at its attempt cap, and the attempt keeps its
+recorded metrics. Cleanup waits for the persisted hangup count and compares it
+under the lead lock before clearing the assignment. Attempt finalization and its
+lead counter increment commit together. Ended sessions retaining an assignment
+remain eligible for cleanup retries, and a restart settles that assignment first.
+An offline session does not
+wait for a disposition prompt it can no longer display. Account cleanup stops if
+the locked user row shows calling has been enabled again.
 
 `DialerOrchestrationService` polls every 500 ms **in the API process**
 (`CMP-010`), one tick at a time (`CMP-012`). Per tick, per active campaign:
@@ -366,6 +377,10 @@ live provider calls. A resumed wrap-up remains on its lead until disposition.
 Reservations record `reservedAt` when claimed; recovery compares that timestamp
 both when selecting and releasing, so heartbeats cannot hide an abandoned claim
 and an older sweep cannot release a newer claim for the same lead.
+Undialed cancellation discards the attempt under the provider linker's session
+row lock before releasing the lease or lead. A sweep's release also compares the
+lead's observed `lockedAt`, so a restarted session reusing the same id cannot
+lose a replacement lock to delayed cleanup.
 `session.waiting` reports calling-window, eligibility or busy-agent reasons;
 unchanged reasons are refreshed every 15 seconds for reconnects. Closed-hours
 agent lookups are throttled to five seconds. The existing heartbeat also
@@ -383,11 +398,19 @@ the dialer assignment fences in this order:
    write `CallAttempt` rows, including in-flight assignments and long-lived
    streams. Keep those writers stopped through the backfill; a rolling deploy
    alone leaves old writers able to create attempts without the new identity.
+   Pause the `ringee.retry-scheduler` schedule until the updated orchestrator
+   is running, or deploy the updated orchestrator before enabling campaign
+   calls through the new API. Old retry workers must not release locks held
+   by new API sessions.
+   In either deployment order, drain or finish every pre-change retry execution
+   and confirm that no pre-change retry activity can still write before enabling
+   campaign calls. Pausing the schedule does not stop runs already started.
 3. Run and commit the separate
    `packages/database/prisma/migrations-pending/20261121121000_backfill_dialer_assignment_fences`
    migration. Confirm that no pre-change task can resume writing. Only then let
    the new API handler serve campaign calls.
-4. Deploy the dashboard after the API, and update the orchestrator so cleanup
+4. Deploy the dashboard after the API. If the retry schedule was paused, deploy
+   the updated orchestrator before resuming `ringee.retry-scheduler` so cleanup
    uses the same fences.
 
 The browser owns the leg once `call.initiate` arrives. The workspace tracks it by

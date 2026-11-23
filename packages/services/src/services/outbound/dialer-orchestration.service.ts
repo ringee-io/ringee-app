@@ -1283,6 +1283,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         sessionStartedAt: session.startedAt,
         reservedAt: session.reservedAt,
         from: [AgentSessionStatus.dialing],
+        leadLockedAt: session.leadLockedAt,
         to: AgentSessionStatus.paused,
         releaseLease: true,
         blocked: {
@@ -1313,6 +1314,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         sessionStartedAt: session.startedAt,
         reservedAt: session.reservedAt,
         from: [AgentSessionStatus.reserved],
+        leadLockedAt: session.leadLockedAt,
         to: AgentSessionStatus.paused,
         releaseLease: true,
         blocked: {

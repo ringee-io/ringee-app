@@ -1287,8 +1287,8 @@
     "noSavings": "No subscription savings at this price."
   },
   "callerIdRotation": {
-    "countryMatchDescription": "Ringee reads the destination’s country and only ever considers eligible numbers you own in that same country. If the calling plan cannot be recognized, dialing is refused with a clear error.",
+    "countryMatchDescription": "For geographic destinations, Ringee only considers eligible numbers you own in the destination’s country. Toll-free and other non-geographic destinations match using the shared calling plan. If the calling plan cannot be recognized, dialing is refused with a clear error.",
     "localAreaDescription": "On the local-presence strategy, an eligible number sharing the prospect’s NANP area code wins. If none is available, or the calling plan has no supported area code, Ringee randomly selects an eligible number from the campaign pool in the same country.",
-    "healthDescription": "Local matches rotate by health, then least-recent use. Numbers that are resting, disabled, flagged or over their daily cap stay out of automatic selection, including random fallback. The balanced strategy ranks eligible numbers by health and least-recent use."
+    "healthDescription": "Local matches rotate by health, then least-recent use. Resting, disabled and flagged numbers stay out of automatic selection, including random fallback. Numbers at their daily cap are also excluded unless every eligible number is capped and allowOverCap is enabled; then an over-cap number may be selected, including as a random fallback. The balanced strategy ranks eligible numbers by health and least-recent use."
   }
 }

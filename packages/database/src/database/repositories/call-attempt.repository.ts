@@ -23,6 +23,27 @@ const UNDIALED_ATTEMPT_STATUSES: CallAttemptStatus[] = [
   CallAttemptStatus.dialing,
 ];
 
+/** The caller holds the attempt's session row lock, as provider binding does. */
+export async function deleteUndialedAttempt(
+  tx: Prisma.TransactionClient,
+  id: string,
+  assignment: {
+    agentSessionId?: string;
+    campaignLeadId?: string;
+    sessionStartedAt?: Date;
+  } = {},
+): Promise<boolean> {
+  const result = await tx.callAttempt.deleteMany({
+    where: {
+      id,
+      ...assignment,
+      callId: null,
+      status: { in: UNDIALED_ATTEMPT_STATUSES },
+    },
+  });
+  return result.count === 1;
+}
+
 /** Every status in which the attempt's call may still be going on. */
 const LIVE_ATTEMPT_STATUSES: CallAttemptStatus[] = [
   ...UNDIALED_ATTEMPT_STATUSES,
@@ -164,14 +185,24 @@ export class CallAttemptRepository {
     return this.prisma.$transaction(async (tx) => {
       const attempt = await tx.callAttempt.findUnique({
         where: { id },
-        select: { agentSessionId: true, sessionStartedAt: true },
+        select: {
+          agentSessionId: true,
+          sessionStartedAt: true,
+          campaignLeadId: true,
+        },
       });
       if (!attempt) return false;
       if (attempt.agentSessionId) {
         // Replacement takes the same lock before checking for live legs. Its
         // subsequent statement must see a link that committed while it waited.
-        const [session] = await tx.$queryRaw<Array<{ startedAt: Date }>>`
-          SELECT "startedAt" FROM "AgentSession"
+        const [session] = await tx.$queryRaw<
+          Array<{
+            startedAt: Date;
+            status: string;
+            currentLeadId: string | null;
+          }>
+        >`
+          SELECT "startedAt", "status", "currentLeadId" FROM "AgentSession"
           WHERE "id" = ${attempt.agentSessionId}::uuid FOR UPDATE`;
         if (
           !session ||
@@ -179,6 +210,35 @@ export class CallAttemptRepository {
             attempt.sessionStartedAt.getTime() !== session.startedAt.getTime())
         )
           return false;
+        if (session.status === "paused") {
+          // A provider leg can arrive after a pause. Reclaim its still-held
+          // assignment before linking so the live call has a dialer owner.
+          if (
+            (session.currentLeadId !== null &&
+              session.currentLeadId !== attempt.campaignLeadId) ||
+            !(await tx.campaignLead.count({
+              where: {
+                id: attempt.campaignLeadId,
+                lockedBy: attempt.agentSessionId,
+              },
+            }))
+          )
+            return false;
+          const linked = await tx.callAttempt.updateMany({
+            where: {
+              id,
+              callId: null,
+              status: { in: UNDIALED_ATTEMPT_STATUSES },
+            },
+            data: { callId, status: CallAttemptStatus.dialing },
+          });
+          if (!linked.count) return false;
+          await tx.agentSession.update({
+            where: { id: attempt.agentSessionId },
+            data: { status: "dialing", currentLeadId: attempt.campaignLeadId },
+          });
+          return true;
+        }
       }
       const result = await tx.callAttempt.updateMany({
         where: { id, callId: null, status: { in: UNDIALED_ATTEMPT_STATUSES } },
@@ -209,21 +269,38 @@ export class CallAttemptRepository {
    *
    * The hangup webhook and the agent's disposition both end attempts and
    * routinely arrive together. Exactly one of them wins here, and only the
-   * winner may count the attempt against the lead.
+   * winner counts the attempt against the lead in the same transaction.
    */
   async markEndedIf(
     id: string,
     options: { callId?: string } = {},
   ): Promise<boolean> {
-    const result = await this.prisma.callAttempt.updateMany({
-      where: {
-        id,
-        status: { in: LIVE_ATTEMPT_STATUSES },
-        ...(options.callId ? { callId: options.callId } : {}),
-      },
-      data: { status: CallAttemptStatus.ended, endedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const attempt = await tx.callAttempt.findUnique({
+        where: { id },
+        select: { agentSessionId: true, campaignLeadId: true },
+      });
+      if (!attempt) return false;
+      if (attempt.agentSessionId)
+        await tx.$queryRaw`
+        SELECT "id" FROM "AgentSession" WHERE "id" = ${attempt.agentSessionId}::uuid FOR UPDATE`;
+      const result = await tx.callAttempt.updateMany({
+        where: {
+          id,
+          status: { in: LIVE_ATTEMPT_STATUSES },
+          ...(options.callId ? { callId: options.callId } : {}),
+        },
+        data: { status: CallAttemptStatus.ended, endedAt: new Date() },
+      });
+      if (!result.count) return false;
+      const counted = await tx.campaignLead.updateMany({
+        where: { id: attempt.campaignLeadId },
+        data: { attempts: { increment: 1 }, lastCallAt: new Date() },
+      });
+      if (counted.count !== 1)
+        throw new Error("Call attempt lead no longer exists");
+      return true;
     });
-    return result.count === 1;
   }
 
   /**
@@ -250,10 +327,17 @@ export class CallAttemptRepository {
    * every campaign rate.
    */
   async deleteUndialed(id: string): Promise<boolean> {
-    const result = await this.prisma.callAttempt.deleteMany({
-      where: { id, callId: null, status: { in: UNDIALED_ATTEMPT_STATUSES } },
+    return this.prisma.$transaction(async (tx) => {
+      const attempt = await tx.callAttempt.findUnique({
+        where: { id },
+        select: { agentSessionId: true },
+      });
+      if (!attempt) return false;
+      if (attempt.agentSessionId)
+        await tx.$queryRaw`
+        SELECT "id" FROM "AgentSession" WHERE "id" = ${attempt.agentSessionId}::uuid FOR UPDATE`;
+      return deleteUndialedAttempt(tx, id);
     });
-    return result.count === 1;
   }
 
   /** The not-yet-dialed attempt an agent session holds for its current lead. */
