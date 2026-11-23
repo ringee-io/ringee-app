@@ -13,6 +13,7 @@ interface AssignmentRetry {
   attempts: number;
   status: "queued" | "exhausted";
   nextCallAt?: Date;
+  nextCallAtAfterCompletedCall?: boolean;
   deadAt?: Date;
 }
 
@@ -119,9 +120,12 @@ export class AgentSessionRepository {
       )
         return { outcome: "calling_enabled" };
       await this.lockSession(tx, previous.id);
+      let nextCallAt = assignmentRetry?.nextCallAt;
       if (assignmentRetry) {
-        const [lead] = await tx.$queryRaw<Array<{ attempts: number }>>`
-          SELECT "attempts" FROM "CampaignLead" WHERE "id" = ${assignmentRetry.leadId}::uuid FOR UPDATE`;
+        const [lead] = await tx.$queryRaw<
+          Array<{ attempts: number; lockedBy: string | null }>
+        >`
+          SELECT "attempts", "lockedBy" FROM "CampaignLead" WHERE "id" = ${assignmentRetry.leadId}::uuid FOR UPDATE`;
         if (!lead || lead.attempts !== assignmentRetry.attempts)
           return { outcome: "changed" };
         // A provider hangup can precede attempt finalization. The terminal
@@ -137,6 +141,42 @@ export class AgentSessionRepository {
           })
         )
           return { outcome: "changed" };
+        if (assignmentRetry.nextCallAtAfterCompletedCall) {
+          const latest = await tx.callAttempt.findFirst({
+            where: { campaignLeadId: assignmentRetry.leadId },
+            orderBy: [
+              { attemptNumber: "desc" },
+              { createdAt: "desc" },
+              { id: "desc" },
+            ],
+            select: {
+              agentSessionId: true,
+              sessionStartedAt: true,
+              sessionReservedAt: true,
+              status: true,
+              call: { select: { endedAt: true } },
+            },
+          });
+          // The linked terminal call is the legacy assignment's completion
+          // marker, even before its lead advances out of locked. New attempts
+          // must match the exact reservation, regardless of historical calls.
+          if (
+            !(
+              lead.lockedBy === previous.id &&
+              previous.currentLeadId === assignmentRetry.leadId &&
+              latest?.agentSessionId === previous.id &&
+              (latest.sessionStartedAt === null ||
+                latest.sessionStartedAt.getTime() ===
+                  previous.startedAt.getTime()) &&
+              (latest.sessionReservedAt === null ||
+                latest.sessionReservedAt.getTime() ===
+                  previous.reservedAt?.getTime()) &&
+              latest.call?.endedAt &&
+              ["ended", "dispositioned"].includes(latest.status)
+            )
+          )
+            nextCallAt = undefined;
+        }
       }
       const changed = await tx.agentSession.updateMany({
         where: {
@@ -166,7 +206,7 @@ export class AgentSessionRepository {
             lockedBy: null,
             lockedAt: null,
             deadAt: assignmentRetry.deadAt,
-            nextCallAt: assignmentRetry.nextCallAt,
+            nextCallAt,
           },
         });
       if (!preserveLiveLead) await this.releaseAssignments(tx, previous.id);
@@ -307,6 +347,7 @@ export class AgentSessionRepository {
       reservedAt?: Date | null;
       /** Atomically discard this assignment before moving its session. null means no attempt was observed. */
       undialedAttemptId?: string | null;
+      disposition?: { attemptId: string; dispositionedAt: Date };
     },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
@@ -349,6 +390,21 @@ export class AgentSessionRepository {
           : {}),
         ...(expected.reservedAt !== undefined
           ? { reservedAt: expected.reservedAt }
+          : {}),
+        ...(expected.disposition
+          ? {
+              AND: [
+                {
+                  callAttempts: {
+                    some: {
+                      id: expected.disposition.attemptId,
+                      status: "dispositioned",
+                      dispositionedAt: expected.disposition.dispositionedAt,
+                    },
+                  },
+                },
+              ],
+            }
           : {}),
         ...(expected.undialedAttemptId !== undefined
           ? {

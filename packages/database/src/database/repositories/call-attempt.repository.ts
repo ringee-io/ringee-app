@@ -57,6 +57,8 @@ export interface CampaignAttemptAssignment {
   lockedBy: string | null;
   lockedAt: Date | null;
   reservedAt: Date | null;
+  /** A saved disposition's monotonic revision, or null before its first save. */
+  dispositionedAt?: Date | null;
 }
 
 export class CampaignAssignmentChangedError extends Error {}
@@ -99,7 +101,13 @@ export async function assertCampaignAttemptAssignment(
     orderBy: [{ attemptNumber: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     select: { id: true },
   });
-  if (!lead || latest?.id !== attempt.id)
+  if (
+    !lead ||
+    latest?.id !== attempt.id ||
+    (expected.dispositionedAt !== undefined &&
+      attempt.dispositionedAt?.getTime() !==
+        expected.dispositionedAt?.getTime())
+  )
     throw new CampaignAssignmentChangedError();
   if (lead.lockedBy !== null) {
     const session = sessions[0];
@@ -165,6 +173,7 @@ export class CallAttemptRepository {
     agentUserId: string;
     sessionStartedAt: Date;
     reservedAt: Date | null;
+    leadLockedAt: Date | null;
     attemptNumber: number;
   }): Promise<CallAttempt | null> {
     return this.prisma.$transaction(async (tx) => {
@@ -191,11 +200,17 @@ export class CallAttemptRepository {
       )
         return null;
       const [lead] = await tx.$queryRaw<
-        Array<{ lockedBy: string | null; status: string }>
-      >`SELECT "lockedBy", "status" FROM "CampaignLead" WHERE id = ${data.campaignLeadId}::uuid FOR UPDATE`;
+        Array<{
+          lockedBy: string | null;
+          lockedAt: Date | null;
+          status: string;
+        }>
+      >`SELECT "lockedBy", "lockedAt", "status" FROM "CampaignLead" WHERE id = ${data.campaignLeadId}::uuid FOR UPDATE`;
       if (
+        !data.leadLockedAt ||
         !lead ||
         lead.lockedBy !== data.agentSessionId ||
+        lead.lockedAt?.getTime() !== data.leadLockedAt.getTime() ||
         lead.status !== "locked"
       )
         return null;
@@ -525,10 +540,37 @@ export class CallAttemptRepository {
         )
           return null;
       }
-      if (assignment) await assertCampaignAttemptAssignment(tx, assignment);
+      if (assignment)
+        await assertCampaignAttemptAssignment(tx, {
+          ...assignment,
+          dispositionedAt: undefined,
+        });
+      const previous = await tx.callAttempt.findUnique({
+        where: { id: attemptId },
+      });
+      if (!previous) return null;
+      // Identical accepted canonical saves share their existing revision. A
+      // changed save must still compare-and-set the revision it originally read.
+      if (
+        source &&
+        previous.status === CallAttemptStatus.dispositioned &&
+        previous.dispositionId === data.dispositionId &&
+        previous.dispositionCode === data.dispositionCode &&
+        (data.dispositionNote === undefined ||
+          previous.dispositionNote === data.dispositionNote) &&
+        previous.dispositionOutcome === (data.dispositionOutcome ?? null)
+      )
+        return previous;
+      if (
+        assignment?.dispositionedAt !== undefined &&
+        previous.dispositionedAt?.getTime() !==
+          assignment.dispositionedAt?.getTime()
+      )
+        return null;
       const result = await tx.callAttempt.updateMany({
         where: {
           id: attemptId,
+          dispositionedAt: previous.dispositionedAt,
           ...(source ? { callId: source.callId } : {}),
           status: source
             ? { in: [CallAttemptStatus.ended, CallAttemptStatus.dispositioned] }
@@ -540,7 +582,12 @@ export class CallAttemptRepository {
           dispositionCode: data.dispositionCode,
           dispositionNote: data.dispositionNote,
           dispositionOutcome: data.dispositionOutcome ?? null,
-          dispositionedAt: new Date(),
+          dispositionedAt: new Date(
+            Math.max(
+              Date.now(),
+              (previous.dispositionedAt?.getTime() ?? 0) + 1,
+            ),
+          ),
         },
       });
       if (result.count === 0) return null;

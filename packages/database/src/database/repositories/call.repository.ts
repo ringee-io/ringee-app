@@ -1101,8 +1101,6 @@ export class CallRepository {
       if (seed.contactId)
         await tx.$queryRaw`SELECT "id" FROM "Contact" WHERE "id" = ${seed.contactId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT "id" FROM "Call" WHERE "id" = ${callId}::uuid FOR UPDATE`;
-      if (campaignAssignment)
-        await assertCampaignAttemptAssignment(tx, campaignAssignment);
       const current = await tx.call.findUniqueOrThrow({
         where: { id: callId },
       });
@@ -1138,6 +1136,15 @@ export class CallRepository {
             (current.dispositionId !== disposition.id ||
               current.dispositionName !== disposition.name),
         );
+      if (campaignAssignment)
+        await assertCampaignAttemptAssignment(tx, {
+          ...campaignAssignment,
+          // An unchanged accepted save is a replay of the current meaning.
+          // A correction must still own the disposition revision it read.
+          dispositionedAt: changed
+            ? campaignAssignment.dispositionedAt
+            : undefined,
+        });
       const call = changed
         ? await tx.call.update({
             where: { id: callId },

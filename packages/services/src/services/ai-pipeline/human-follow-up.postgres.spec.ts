@@ -606,19 +606,13 @@ describe(
       };
     }
 
-    it("rejects human outcomes and callback creation after the campaign lead is reassigned", async () => {
+    it("rejects human outcomes and callbacks when only the reservation has changed", async () => {
       const f = await campaignAssignmentFixture();
       const next = new Date();
-      await prisma.$transaction([
-        prisma.agentSession.update({
-          where: { id: f.session.id },
-          data: { status: "reserved", reservedAt: next },
-        }),
-        prisma.campaignLead.update({
-          where: { id: f.lead.id },
-          data: { status: "locked", lockedAt: next },
-        }),
-      ]);
+      const retainedSession = await prisma.agentSession.update({
+        where: { id: f.session.id },
+        data: { reservedAt: next },
+      });
       const before = await prisma.call.findUniqueOrThrow({
         where: { id: f.call.id },
       });
@@ -646,12 +640,70 @@ describe(
       const current = await prisma.campaignLead.findUniqueOrThrow({
         where: { id: f.lead.id },
       });
-      assert.equal(current.status, "locked");
-      assert.equal(current.lockedAt!.getTime(), next.getTime());
+      assert.deepEqual(current, f.lead);
+      assert.deepEqual(
+        await prisma.agentSession.findUniqueOrThrow({
+          where: { id: f.session.id },
+        }),
+        retainedSession,
+      );
+      assert.deepEqual(
+        await prisma.callAttempt.findUniqueOrThrow({
+          where: { id: f.attempt.id },
+        }),
+        f.attempt,
+      );
+      assert.deepEqual(
+        await prisma.call.findUniqueOrThrow({ where: { id: f.call.id } }),
+        before,
+      );
       assert.equal(
-        (await prisma.call.findUniqueOrThrow({ where: { id: f.call.id } }))
-          .outcomeRevision,
-        before.outcomeRevision,
+        await prisma.callbackTask.count({
+          where: { campaignLeadId: f.lead.id },
+        }),
+        0,
+      );
+    });
+
+    it("rejects a stale correction while accepting an identical canonical replay", async () => {
+      const f = await campaignAssignmentFixture();
+      await calls.recordOutcome(f.call.id, "not_interested");
+      const dispositionedAt = new Date();
+      await prisma.callAttempt.update({
+        where: { id: f.attempt.id },
+        data: { status: "dispositioned", dispositionedAt },
+      });
+      const before = await prisma.call.findUniqueOrThrow({
+        where: { id: f.call.id },
+      });
+      const old = { ...f.fence, dispositionedAt: null };
+      await assert.rejects(
+        calls.recordOutcome(
+          f.call.id,
+          "interested",
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          old,
+        ),
+        CampaignAssignmentChangedError,
+      );
+      const replayed = await calls.recordOutcome(
+        f.call.id,
+        "not_interested",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        old,
+      );
+      assert.deepEqual(replayed.call, before);
+      assert.deepEqual(
+        await prisma.campaignLead.findUniqueOrThrow({
+          where: { id: f.lead.id },
+        }),
+        f.lead,
       );
       assert.equal(
         await prisma.callbackTask.count({
@@ -664,17 +716,35 @@ describe(
     it("creates a callback and schedules its unchanged campaign assignment together", async () => {
       for (const guarded of [false, true]) {
         const f = await campaignAssignmentFixture();
-        const callback = await callbacks.create(
-          {
-            ...ctx,
-            contactId: f.contact.id,
-            campaignLeadId: f.lead.id,
-            callId: f.call.id,
-            scheduledAt: new Date(Date.now() + 60_000),
-          },
-          { leadId: f.lead.id, assignment: guarded ? f.fence : undefined },
+        const dispositionedAt = new Date();
+        if (guarded)
+          await prisma.callAttempt.update({
+            where: { id: f.attempt.id },
+            data: { status: "dispositioned", dispositionedAt },
+          });
+        const input = {
+          ...ctx,
+          contactId: f.contact.id,
+          campaignLeadId: f.lead.id,
+          callId: f.call.id,
+          scheduledAt: new Date(Date.now() + 60_000),
+        };
+        const saved = await Promise.all(
+          Array.from({ length: guarded ? 2 : 1 }, () =>
+            callbacks.create(input, {
+              leadId: f.lead.id,
+              assignment: guarded ? { ...f.fence, dispositionedAt } : undefined,
+            }),
+          ),
         );
-        assert.equal(callback.campaignLeadId, f.lead.id);
+        assert.equal(new Set(saved.map((row) => row.id)).size, 1);
+        assert.equal(saved[0].campaignLeadId, f.lead.id);
+        assert.equal(
+          await prisma.callbackTask.count({
+            where: { campaignLeadId: f.lead.id },
+          }),
+          1,
+        );
         const lead = await prisma.campaignLead.findUniqueOrThrow({
           where: { id: f.lead.id },
         });

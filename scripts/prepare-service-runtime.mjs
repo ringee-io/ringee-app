@@ -133,6 +133,25 @@ if (appPath === "apps/backend") {
   await cp(join(sourceDatabase, "prisma"), join(deployedDatabase, "prisma"), {
     recursive: true,
   });
+  // This required additive migration ships through the pending source folder;
+  // Prisma's deploy command discovers only the canonical migrations folder.
+  const reservationMigration =
+    "20261123043000_call_attempt_reservation_identity";
+  const migrationDestination = join(
+    deployedDatabase,
+    "prisma/migrations",
+    reservationMigration,
+  );
+  await mkdir(migrationDestination, { recursive: true });
+  await cp(
+    join(
+      sourceDatabase,
+      "prisma/migrations-pending",
+      reservationMigration,
+      "migration.sql",
+    ),
+    join(migrationDestination, "migration.sql"),
+  );
   const databaseModulesLink = join(deployedDatabase, "node_modules");
   await rm(databaseModulesLink, { recursive: true, force: true });
   await symlink(

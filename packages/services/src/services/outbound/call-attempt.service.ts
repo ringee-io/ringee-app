@@ -98,6 +98,7 @@ export class CallAttemptService {
     agentUserId: string;
     sessionStartedAt: Date;
     reservedAt: Date | null;
+    leadLockedAt: Date | null;
     attemptNumber: number;
   }) {
     const attempt = await this.attemptRepo.create(data);
@@ -579,19 +580,8 @@ export class CallAttemptService {
       lockedBy: lead.lockedBy,
       lockedAt: lead.lockedAt,
       reservedAt: incarnation?.reservedAt ?? null,
+      dispositionedAt: current.dispositionedAt,
     };
-    const updateLead = (
-      status: CampaignLeadStatus,
-      extra?: Parameters<CampaignLeadRepository["updateStatus"]>[2],
-    ) =>
-      this.forCurrentAssignment(
-        this.campaignLeadRepo.updateStatus(
-          current.campaignLeadId,
-          status,
-          extra,
-          assignment,
-        ),
-      );
     // Acceptance must finish before the session advances or any human callback
     // can be enqueued. A persistence failure keeps wrap-up retryable.
     const accepted =
@@ -624,7 +614,9 @@ export class CallAttemptService {
     // attempt is the one that counts it; the other finds it already ended.
     if (
       await this.forCurrentAssignment(
-        this.attemptRepo.markEndedIf(current.id, { assignment }),
+        this.attemptRepo.markEndedIf(current.id, {
+          assignment: { ...assignment, dispositionedAt: undefined },
+        }),
       )
     ) {
       if (current.agentSessionId && currentIncarnation) {
@@ -663,6 +655,25 @@ export class CallAttemptService {
       );
     }
 
+    // Every subsequent lifecycle write belongs to this save. A newer
+    // disposition may keep the same assignment but choose a different action.
+    const savedAssignment = {
+      ...assignment,
+      dispositionedAt: attempt.dispositionedAt,
+    };
+    const updateLead = (
+      status: CampaignLeadStatus,
+      extra?: Parameters<CampaignLeadRepository["updateStatus"]>[2],
+    ) =>
+      this.forCurrentAssignment(
+        this.campaignLeadRepo.updateStatus(
+          current.campaignLeadId,
+          status,
+          extra,
+          savedAssignment,
+        ),
+      );
+
     // Mark lead as dispositioned first
     await updateLead(CampaignLeadStatus.dispositioned, {
       lockedBy: null,
@@ -695,7 +706,7 @@ export class CallAttemptService {
           userId: attempt.agentUserId,
           scheduledAt: data.callback.scheduledAt,
           note: data.callback.note,
-          assignment,
+          assignment: savedAssignment,
         }),
       );
       action = "callback_scheduled";
@@ -707,7 +718,7 @@ export class CallAttemptService {
           disposition.category,
           attempt.attemptNumber,
           data.campaignDefaults,
-          assignment,
+          savedAssignment,
         ),
       );
       action = retryResult;
@@ -720,7 +731,10 @@ export class CallAttemptService {
       // campaign auto-completion indefinitely.)
       if (attempt.attemptNumber >= data.campaignDefaults.maxAttempts) {
         await this.forCurrentAssignment(
-          this.campaignLeadRepo.markAsDead(attempt.campaignLeadId, assignment),
+          this.campaignLeadRepo.markAsDead(
+            attempt.campaignLeadId,
+            savedAssignment,
+          ),
         );
         action = "exhausted";
       } else {
@@ -773,6 +787,10 @@ export class CallAttemptService {
         currentLeadId: attempt.campaignLeadId,
         startedAt: incarnation.startedAt,
         reservedAt: incarnation.reservedAt,
+        disposition: {
+          attemptId: attempt.id,
+          dispositionedAt: attempt.dispositionedAt!,
+        },
       };
       if (data.closeSession) {
         // The lead was just settled above, so there is no lock left to hand
@@ -793,6 +811,11 @@ export class CallAttemptService {
               from: [AgentSessionStatus.ready, AgentSessionStatus.paused],
               currentLeadId: null,
               startedAt: incarnation.startedAt,
+              reservedAt: incarnation.reservedAt,
+              disposition: {
+                attemptId: attempt.id,
+                dispositionedAt: attempt.dispositionedAt!,
+              },
             },
             AgentSessionStatus.offline,
             offline,

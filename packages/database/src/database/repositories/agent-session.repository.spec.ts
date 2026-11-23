@@ -145,7 +145,7 @@ async function withDatabase(
         status "${schema}"."AgentSessionStatus" NOT NULL, "currentLeadId" uuid, "lastHeartbeat" timestamp(3) NOT NULL DEFAULT now(), "startedAt" timestamp(3) NOT NULL DEFAULT now(), "endedAt" timestamp(3), "reservedAt" timestamp(3),
         "callsAttempted" integer NOT NULL DEFAULT 0, "callsConnected" integer NOT NULL DEFAULT 0, "totalTalkSec" integer NOT NULL DEFAULT 0,
         "createdAt" timestamp(3) NOT NULL DEFAULT now(), "updatedAt" timestamp(3) NOT NULL DEFAULT now(), UNIQUE ("campaignId","userId"))`,
-      `CREATE TABLE "${schema}"."Call" (id uuid PRIMARY KEY, "endedAt" timestamp(3))`,
+      `CREATE TABLE "${schema}"."Call" (id uuid PRIMARY KEY, "endedAt" timestamp(3), "outcomeRevision" integer NOT NULL DEFAULT 0, "dispositionId" uuid)`,
       `CREATE TABLE "${schema}"."CampaignLead" (id uuid PRIMARY KEY, "campaignId" uuid, "contactId" uuid, "listId" uuid, "userId" uuid, priority integer NOT NULL DEFAULT 0, metadata jsonb, status "${schema}"."CampaignLeadStatus" NOT NULL, "lockedBy" uuid, "lockedAt" timestamp(3), attempts integer NOT NULL DEFAULT 0, "lastCallAt" timestamp(3), "nextCallAt" timestamp(3), "deadAt" timestamp(3), "createdAt" timestamp(3) NOT NULL DEFAULT now(), "updatedAt" timestamp(3) NOT NULL DEFAULT now())`,
       `CREATE TABLE "${schema}"."CallAttempt" (id uuid PRIMARY KEY, "campaignId" uuid, "agentSessionId" uuid, "sessionStartedAt" timestamp(3), "sessionReservedAt" timestamp(3), "agentUserId" uuid, "campaignLeadId" uuid, "callId" uuid, status "${schema}"."CallAttemptStatus" NOT NULL,
         "attemptNumber" integer NOT NULL DEFAULT 1, "initiatedAt" timestamp(3) NOT NULL DEFAULT now(), "ringStartedAt" timestamp(3), "answeredAt" timestamp(3), "endedAt" timestamp(3), "dispositionedAt" timestamp(3), "hangupCause" text, "durationSec" integer,
@@ -997,7 +997,7 @@ it(
         const attemptId = randomUUID();
         const callId = randomUUID();
         await prisma.$executeRaw`UPDATE "AgentSession" SET "currentLeadId"=${leadId}::uuid,"endedAt"=NOW() AT TIME ZONE 'UTC' WHERE id=${session.id}::uuid`;
-        await prisma.$executeRaw`INSERT INTO "CampaignLead" (id,status,"lockedBy","lockedAt",attempts) VALUES (${leadId}::uuid,'wrap_up',${session.id}::uuid,NOW() AT TIME ZONE 'UTC',${attempts - 1})`;
+        await prisma.$executeRaw`INSERT INTO "CampaignLead" (id,status,"lockedBy","lockedAt",attempts) VALUES (${leadId}::uuid,'locked',${session.id}::uuid,NOW() AT TIME ZONE 'UTC',${attempts - 1})`;
         await prisma.$executeRaw`INSERT INTO "Call" (id,"endedAt") VALUES (${callId}::uuid,NOW() AT TIME ZONE 'UTC')`;
         await prisma.$executeRaw`INSERT INTO "CallAttempt" (id,"agentSessionId","campaignLeadId","callId",status,"attemptNumber") VALUES (${attemptId}::uuid,${session.id}::uuid,${leadId}::uuid,${callId}::uuid,'dialing',${attempts})`;
         await prisma.$executeRaw`UPDATE "AgentSession" SET "lastHeartbeat"=(NOW() AT TIME ZONE 'UTC') - interval '1 minute' WHERE id=${session.id}::uuid`;
@@ -1037,7 +1037,13 @@ it(
         const status = attempts >= 3 ? "exhausted" : "queued";
         assert.ok(
           await repo.endIfUnchanged(current, false, {
-            assignmentRetry: { leadId, attempts, status, nextCallAt },
+            assignmentRetry: {
+              leadId,
+              attempts,
+              status,
+              nextCallAt,
+              nextCallAtAfterCompletedCall: true,
+            },
           }),
         );
         const [lead] = await prisma.$queryRaw<
@@ -1173,7 +1179,8 @@ it(
       );
       const session = (await repo.restartIfUnchanged(input, null, "ready"))!;
       const leadId = randomUUID();
-      await prisma.$executeRaw`INSERT INTO "CampaignLead" (id,"campaignId","contactId",status,"lockedBy","lockedAt") VALUES (${leadId}::uuid,${input.campaignId}::uuid,${randomUUID()}::uuid,'locked',${session.id}::uuid,NOW() AT TIME ZONE 'UTC')`;
+      const leadLockedAt = new Date();
+      await prisma.$executeRaw`INSERT INTO "CampaignLead" (id,"campaignId","contactId",status,"lockedBy","lockedAt") VALUES (${leadId}::uuid,${input.campaignId}::uuid,${randomUUID()}::uuid,'locked',${session.id}::uuid,${leadLockedAt}::timestamptz AT TIME ZONE 'UTC')`;
       const claimed = (await repo.reserveForLead(
         session.id,
         leadId,
@@ -1187,6 +1194,7 @@ it(
         agentUserId: input.userId,
         sessionStartedAt: session.startedAt,
         reservedAt: claimed.reservedAt,
+        leadLockedAt,
         attemptNumber: 1,
       };
       let written!: () => void;
@@ -1225,9 +1233,25 @@ it(
         release();
         await replacing;
         assert.equal(await creating, null);
+        const replacementLock = new Date(leadLockedAt.getTime() + 1);
+        await prisma.campaignLead.update({
+          where: { id: leadId },
+          data: { lockedAt: replacementLock },
+        });
+        const attempts = new CallAttemptRepository(prisma as never);
+        for (const missingOrStale of [null, leadLockedAt])
+          assert.equal(
+            await attempts.create({
+              ...data,
+              reservedAt: replacementAt,
+              leadLockedAt: missingOrStale,
+            }),
+            null,
+          );
         const valid = await new CallAttemptRepository(prisma as never).create({
           ...data,
           reservedAt: replacementAt,
+          leadLockedAt: replacementLock,
         });
         assert.ok(valid);
         assert.deepEqual(valid.sessionReservedAt, replacementAt);
@@ -1297,6 +1321,7 @@ async function endedAssignment(
     agentUserId: input.userId,
     sessionStartedAt: session.startedAt,
     reservedAt: claimed.reservedAt,
+    leadLockedAt: lockedAt,
     attemptNumber: 1,
   }))!;
   assert.ok(attempt);
@@ -1511,4 +1536,109 @@ it(
           );
       });
   },
+);
+
+it(
+  "keeps lead, callback and session writes on the saved disposition revision",
+  { skip: !socket, timeout: 10_000 },
+  () =>
+    withDatabase(async (prisma, repo, input) => {
+      const f = await endedAssignment(prisma, repo, input);
+      const attempts = new CallAttemptRepository(prisma as never);
+      const future = new Date(Date.now() + 60_000);
+      await prisma.callAttempt.update({
+        where: { id: f.attempt.id },
+        data: { dispositionedAt: future },
+      });
+      const first = (await attempts.setDisposition(
+        f.attempt.id,
+        { dispositionId: randomUUID(), dispositionCode: "older" },
+        undefined,
+        { ...f.fence, dispositionedAt: future },
+      ))!;
+      assert.ok(first.dispositionedAt! > future);
+      const old = { ...f.fence, dispositionedAt: first.dispositionedAt };
+      const newerId = randomUUID();
+      await prisma.$executeRaw`UPDATE "Call" SET "outcomeRevision" = 1, "dispositionId" = ${newerId}::uuid WHERE id = ${first.callId!}::uuid`;
+      const newer = (await attempts.setDisposition(
+        f.attempt.id,
+        { dispositionId: newerId, dispositionCode: "newer" },
+        { callId: first.callId!, revision: 1 },
+        old,
+      ))!;
+      assert.ok(newer.dispositionedAt! > first.dispositionedAt!);
+      const leads = new CampaignLeadRepository(prisma as never);
+      await assert.rejects(
+        leads.updateStatus(f.leadId, "completed", undefined, old),
+        CampaignAssignmentChangedError,
+      );
+      await assert.rejects(
+        attempts.markEndedIf(f.attempt.id, { assignment: old }),
+        CampaignAssignmentChangedError,
+      );
+      await assert.rejects(
+        new CallbackTaskRepository(prisma as never).create(
+          {
+            userId: input.userId,
+            contactId: f.contactId,
+            campaignLeadId: f.leadId,
+            scheduledAt: new Date(),
+          },
+          { leadId: f.leadId, assignment: old },
+        ),
+        CampaignAssignmentChangedError,
+      );
+      const nextCallAt = new Date(Date.now() + 60_000);
+      await leads.updateStatus(
+        f.leadId,
+        "queued",
+        { lockedBy: null, lockedAt: null, nextCallAt },
+        { ...f.fence, dispositionedAt: newer.dispositionedAt },
+      );
+      const expected = {
+        from: ["wrap_up" as const],
+        currentLeadId: f.leadId,
+        startedAt: f.session.startedAt,
+        reservedAt: f.session.reservedAt,
+      };
+      assert.equal(
+        await repo.transitionIf(
+          f.session.id,
+          {
+            ...expected,
+            disposition: {
+              attemptId: f.attempt.id,
+              dispositionedAt: first.dispositionedAt!,
+            },
+          },
+          "ready",
+          { currentLeadId: null },
+        ),
+        false,
+      );
+      assert.equal(
+        await repo.transitionIf(
+          f.session.id,
+          {
+            ...expected,
+            disposition: {
+              attemptId: f.attempt.id,
+              dispositionedAt: newer.dispositionedAt!,
+            },
+          },
+          "ready",
+          { currentLeadId: null },
+        ),
+        true,
+      );
+      assert.deepEqual(
+        (await attempts.findById(f.attempt.id))!.dispositionedAt,
+        newer.dispositionedAt,
+      );
+      const lead = await prisma.campaignLead.findUniqueOrThrow({
+        where: { id: f.leadId },
+      });
+      assert.equal(lead.status, "queued");
+      assert.deepEqual(lead.nextCallAt, nextCallAt);
+    }),
 );

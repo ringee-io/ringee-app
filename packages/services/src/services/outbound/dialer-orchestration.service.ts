@@ -613,6 +613,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       agentUserId: agent.userId,
       sessionStartedAt: agent.startedAt,
       reservedAt: agent.reservedAt,
+      leadLockedAt: lead.lockedAt,
       attemptNumber: lead.attempts + 1,
     });
   }

@@ -337,6 +337,11 @@ function createWorld(
           b.id.localeCompare(a.id),
       )[0];
     if (latest?.id !== attempt.id) throw new CampaignAssignmentChangedError();
+    if (
+      expected.dispositionedAt !== undefined &&
+      attempt.dispositionedAt?.getTime() !== expected.dispositionedAt?.getTime()
+    )
+      throw new CampaignAssignmentChangedError();
     if (lead.lockedBy !== null) {
       const session = sessions.get(attempt.agentSessionId ?? "");
       if (
@@ -421,6 +426,7 @@ function createWorld(
         endedAt?: Date | null;
         reservedAt?: Date | null;
         undialedAttemptId?: string | null;
+        disposition?: { attemptId: string; dispositionedAt: Date };
       },
       status: string,
       extra: Partial<SessionRow> = {},
@@ -472,6 +478,15 @@ function createWorld(
               !attempt.callId &&
               UNDIALED_ATTEMPT.includes(attempt.status),
           )
+        )
+          return false;
+      }
+      if (expected.disposition) {
+        const saved = attempts.get(expected.disposition.attemptId);
+        if (
+          saved?.status !== "dispositioned" ||
+          saved.dispositionedAt?.getTime() !==
+            expected.disposition.dispositionedAt.getTime()
         )
           return false;
       }
@@ -539,6 +554,7 @@ function createWorld(
           attempts: number;
           status: "queued" | "exhausted";
           nextCallAt?: Date;
+          nextCallAtAfterCompletedCall?: boolean;
           deadAt?: Date;
         };
       } = {},
@@ -564,12 +580,31 @@ function createWorld(
           )
         )
           return null;
+        const latest = [...attempts.values()]
+          .filter((a) => a.campaignLeadId === lead.id)
+          .sort(
+            (a, b) =>
+              b.attemptNumber - a.attemptNumber ||
+              b.createdAt.getTime() - a.createdAt.getTime() ||
+              b.id.localeCompare(a.id),
+          )[0];
+        const completed =
+          latest?.agentSessionId === s.id &&
+          (latest.sessionStartedAt === null ||
+            latest.sessionStartedAt.getTime() === s.startedAt.getTime()) &&
+          (latest.sessionReservedAt === null ||
+            latest.sessionReservedAt.getTime() === s.reservedAt?.getTime()) &&
+          latest.callId !== null &&
+          ["ended", "dispositioned"].includes(latest.status);
         if (lead.lockedBy === s.id && RELEASABLE_LEAD.includes(lead.status))
           Object.assign(lead, {
             status: retry.status,
             lockedBy: null,
             lockedAt: null,
-            ...(retry.nextCallAt ? { nextCallAt: retry.nextCallAt } : {}),
+            ...(retry.nextCallAt &&
+            (!retry.nextCallAtAfterCompletedCall || completed)
+              ? { nextCallAt: retry.nextCallAt }
+              : {}),
           });
       }
       Object.assign(s, {
@@ -805,13 +840,19 @@ function createWorld(
       await roundTrip();
       if (failures.createAttempt) throw new Error("database unavailable");
       const session = sessions.get(data.agentSessionId);
+      const lead = leads.get(data.campaignLeadId);
       if (
         !data.reservedAt ||
         !session ||
         session.status !== "reserved" ||
         session.currentLeadId !== data.campaignLeadId ||
         session.startedAt.getTime() !== data.sessionStartedAt.getTime() ||
-        session.reservedAt?.getTime() !== data.reservedAt?.getTime()
+        session.reservedAt?.getTime() !== data.reservedAt?.getTime() ||
+        !data.leadLockedAt ||
+        !lead ||
+        lead.status !== "locked" ||
+        lead.lockedBy !== data.agentSessionId ||
+        lead.lockedAt?.getTime() !== data.leadLockedAt.getTime()
       )
         return null;
       const id = `attempt-${++attemptSeq}`;
@@ -932,17 +973,45 @@ function createWorld(
     },
     setDisposition: async (
       id: string,
-      data: { dispositionId: string; dispositionCode: string },
+      data: {
+        dispositionId: string;
+        dispositionCode: string;
+        dispositionNote?: string;
+        dispositionOutcome?: string | null;
+      },
       _source?: { callId: string; revision: number },
       assignment?: CampaignAttemptAssignment,
     ) => {
       await roundTrip();
-      assertAssignment(assignment);
+      assertAssignment(
+        assignment ? { ...assignment, dispositionedAt: undefined } : undefined,
+      );
       const a = attempts.get(id);
-      if (!a || a.status !== "ended") return null;
+      if (
+        !a ||
+        !(_source ? ["ended", "dispositioned"] : ["ended"]).includes(a.status)
+      )
+        return null;
+      if (
+        _source &&
+        a.status === "dispositioned" &&
+        a.dispositionId === data.dispositionId &&
+        a.dispositionCode === data.dispositionCode &&
+        (data.dispositionNote === undefined ||
+          a.dispositionNote === data.dispositionNote) &&
+        (a.dispositionOutcome ?? null) === (data.dispositionOutcome ?? null)
+      )
+        return copyAttempt(a);
+      if (
+        assignment?.dispositionedAt !== undefined &&
+        a.dispositionedAt?.getTime() !== assignment.dispositionedAt?.getTime()
+      )
+        return null;
       Object.assign(a, data, {
         status: "dispositioned",
-        dispositionedAt: new Date(),
+        dispositionedAt: new Date(
+          Math.max(Date.now(), (a.dispositionedAt?.getTime() ?? 0) + 1),
+        ),
       });
       return copyAttempt(a);
     },
@@ -993,6 +1062,22 @@ function createWorld(
     { findById: async () => campaign } as never,
     leadRepo as never,
   );
+  const campaignCallbacks: string[] = [];
+  const callbackService = {
+    scheduleFromCampaign: async (data: {
+      campaignLeadId: string;
+      assignment?: CampaignAttemptAssignment;
+    }) => {
+      await roundTrip();
+      assertAssignment(data.assignment);
+      campaignCallbacks.push(data.campaignLeadId);
+      Object.assign(leads.get(data.campaignLeadId)!, {
+        status: "scheduled",
+        lockedBy: null,
+        lockedAt: null,
+      });
+    },
+  };
   const callAttemptService = new CallAttemptService(
     attemptRepo as never,
     leadRepo as never,
@@ -1003,7 +1088,7 @@ function createWorld(
       leadRepo as never,
       {} as never,
     ),
-    {} as never,
+    callbackService as never,
     complianceService as never,
     sseBridge as never,
     {
@@ -1070,6 +1155,8 @@ function createWorld(
   };
 
   return {
+    callbackService,
+    campaignCallbacks,
     campaign,
     failures,
     outcomeWrites,
@@ -1996,6 +2083,7 @@ describe("CallAttemptService lifecycle", () => {
       if (legacy) {
         attempt.sessionStartedAt = null;
         attempt.sessionReservedAt = null;
+        world.lead("lead-1").status = "locked";
       }
       world.session().lastHeartbeat = new Date(Date.now() - 60_000);
       const before = Date.now();
@@ -2052,6 +2140,94 @@ describe("CallAttemptService lifecycle", () => {
       assert.equal(world.session().status, "reserved");
       assert.equal(world.attempts.get("replacement")!.status, "created");
     }
+  });
+
+  it("rejects an older disposition's retry or callback after a newer save wins", async () => {
+    for (const callback of [false, true]) {
+      const { world, attemptId } = await dialedAndAnswered();
+      await hangup(world, attemptId);
+      const newer = () =>
+        world.callAttemptService.submitDisposition({
+          callAttemptId: attemptId,
+          disposition: {
+            ...notInterested,
+            id: "newer",
+            code: "newer",
+            triggersCompletion: true,
+          },
+          campaignDefaults: world.campaign,
+          organizationId: "org-1",
+        });
+      let superseded = false;
+      if (callback) {
+        const schedule = world.callbackService.scheduleFromCampaign;
+        world.callbackService.scheduleFromCampaign = async (input) => {
+          superseded = true;
+          await newer();
+          return schedule(input);
+        };
+      } else {
+        const update = world.leadRepo.updateStatus;
+        world.leadRepo.updateStatus = async (...args) => {
+          if (args[1] === "queued" && !superseded) {
+            superseded = true;
+            await newer();
+          }
+          return update(...args);
+        };
+      }
+      await assert.rejects(
+        world.callAttemptService.submitDisposition({
+          callAttemptId: attemptId,
+          disposition: {
+            ...notInterested,
+            triggersRetry: !callback,
+            triggersCallback: callback,
+          },
+          ...(callback
+            ? { callback: { scheduledAt: new Date(Date.now() + 60_000) } }
+            : {}),
+          campaignDefaults: world.campaign,
+          organizationId: "org-1",
+        }),
+        ConflictException,
+      );
+      assert.equal(superseded, true);
+      assert.equal(world.attempts.get(attemptId)!.dispositionCode, "newer");
+      assert.equal(world.lead("lead-1").status, "completed");
+      assert.equal(world.session().status, "ready");
+      assert.equal(world.campaignCallbacks.length, 0);
+    }
+  });
+
+  it("does not close the session after a newer disposition queues an unchanged retry", async () => {
+    const { world, attemptId } = await dialedAndAnswered();
+    await hangup(world, attemptId);
+    const transition = world.sessionRepo.transitionIf;
+    let superseded = false;
+    world.sessionRepo.transitionIf = async (...args) => {
+      if (args[2] === "offline" && !superseded) {
+        superseded = true;
+        await world.callAttemptService.submitDisposition({
+          callAttemptId: attemptId,
+          disposition: {
+            ...notInterested,
+            id: "retry",
+            code: "retry",
+            triggersRetry: true,
+          },
+          campaignDefaults: world.campaign,
+          organizationId: "org-1",
+        });
+      }
+      return transition(...args);
+    };
+    assert.equal((await dispose(world, attemptId, true)).sessionClosed, false);
+    assert.equal(superseded, true);
+    assert.equal(world.session().status, "ready");
+    assert.equal(world.lead("lead-1").status, "queued");
+    assert.ok(world.lead("lead-1").nextCallAt! > new Date());
+    assert.equal(world.attempts.get(attemptId)!.dispositionCode, "retry");
   });
 
   it("leaves a reclaimed reservation intact when a disposition finishes after its lead write", async () => {
@@ -2597,6 +2773,7 @@ describe("AgentSessionService.startSession", () => {
         agentUserId: "user-1",
         sessionStartedAt: world.session().startedAt,
         reservedAt: world.session().reservedAt,
+        leadLockedAt: world.lead("lead-1").lockedAt,
         attemptNumber: 1,
       });
       return release(...args);
@@ -2611,13 +2788,17 @@ describe("AgentSessionService.startSession", () => {
   it("fences a former worker at attempt creation and at dispatch after the same lead is reclaimed", async () => {
     for (const beforeCreate of [true, false]) {
       const world = createWorld({ leads: 1 });
+      let replacementReservation: Date | undefined;
+      let replacementLock: Date | undefined;
       const reclaim = () => {
-        world.session().reservedAt = new Date(
+        replacementReservation = new Date(
           world.session().reservedAt!.getTime() + 1,
         );
-        world.lead("lead-1").lockedAt = new Date(
+        replacementLock = new Date(
           world.lead("lead-1").lockedAt!.getTime() + 1,
         );
+        world.session().reservedAt = replacementReservation;
+        world.lead("lead-1").lockedAt = replacementLock;
       };
       if (beforeCreate) {
         const create = world.attemptRepo.create;
@@ -2633,6 +2814,10 @@ describe("AgentSessionService.startSession", () => {
         };
       }
       await world.runTick();
+      assert.ok(replacementReservation);
+      assert.ok(replacementLock);
+      assert.deepEqual(world.session().reservedAt, replacementReservation);
+      assert.deepEqual(world.lead("lead-1").lockedAt, replacementLock);
       assert.equal(world.of("call.initiate").length, 0);
       assert.equal(world.session().status, "reserved");
       assert.equal(world.lead("lead-1").lockedBy, "session-1");
@@ -2903,6 +3088,7 @@ describe("AgentSessionService.startSession", () => {
         agentUserId: "user-1",
         sessionStartedAt: world.session().startedAt,
         reservedAt: world.session().reservedAt,
+        leadLockedAt: world.lead("lead-1").lockedAt,
         attemptNumber: 1,
       });
       return observed;

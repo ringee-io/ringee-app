@@ -12,7 +12,6 @@ name: Deploy to AWS
 # Environment variables (Settings → Environments → <env> → Variables):
 #   AWS_DEPLOY_ROLE_ARN   github-deploy role of that account (bootstrap output)
 #   API_HOST              api.staging.ringee.io / api.ringee.io (smoke test)
-#   RUN_MIGRATIONS        "true" once migrations are in git (AWS-09)
 #
 # Infrastructure (cluster, task families, roles) comes from the ringee-infra
 # repository. This workflow only builds images and rolls them out.
@@ -161,8 +160,14 @@ jobs:
           # Terraform last changed (variables, secrets, size), and swap the image.
           register() { # <task name> <repository>
             aws ecs describe-task-definition --task-definition "ringee-$STACK-$1" --query taskDefinition --output json |
-              jq --arg image "$REGISTRY/$2:$TAG" '
+              jq --arg image "$REGISTRY/$2:$TAG" --arg task "$1" '
                 .containerDefinitions[0].image = $image
+                | if $task == "migrate" then
+                    .containerDefinitions[0].workingDirectory = "/app"
+                    | .containerDefinitions[0].entryPoint = ["/bin/sh", "-ec"]
+                    | .containerDefinitions[0].command = [
+                        "node packages/database/node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma && node packages/database/prisma/verify-required-migrations.mjs"]
+                  else . end
                 | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
                       .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)' > task-definition.json
             aws ecs register-task-definition --cli-input-json file://task-definition.json \
@@ -176,7 +181,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Migrate the database
-        if: vars.RUN_MIGRATIONS == 'true'
         env:
           TASK_DEFINITION: ${{ steps.revisions.outputs.migrate }}
         run: |

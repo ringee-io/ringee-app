@@ -359,6 +359,7 @@ export class AgentSessionService {
       endedAt?: Date | null;
       reservedAt?: Date | null;
       undialedAttemptId?: string | null;
+      disposition?: { attemptId: string; dispositionedAt: Date };
     },
     status: AgentSessionStatus,
     extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
@@ -573,33 +574,11 @@ export class AgentSessionService {
         (await this.hasUnconfirmedDial(session))
       )
         return false;
-      const [lead, campaign, attempts] = await Promise.all([
+      const [lead, campaign] = await Promise.all([
         this.leads.findByIdWithContact(leadId),
         this.campaigns.findById(session.campaignId),
-        this.attemptRepo.findByCampaignLead(leadId),
       ]);
       if (!lead || !campaign || lead.campaignId !== campaign.id) return false;
-      if (
-        attempts.some(
-          (attempt) =>
-            attempt.agentSessionId === sessionId &&
-            attempt.callId &&
-            !["ended", "dispositioned"].includes(attempt.status),
-        )
-      )
-        return false;
-      const completedCall = attempts.some(
-        (attempt) =>
-          attempt.agentSessionId === sessionId &&
-          (attempt.sessionStartedAt === null ||
-            attempt.sessionStartedAt.getTime() === startedAt.getTime()) &&
-          (attempt.sessionReservedAt !== null
-            ? attempt.sessionReservedAt.getTime() ===
-              session.reservedAt?.getTime()
-            : ["in_call", "wrap_up"].includes(lead.status)) &&
-          attempt.callId !== null &&
-          ["ended", "dispositioned"].includes(attempt.status),
-      );
       if (
         await this.sessionRepo.endIfUnchanged(session, false, {
           assignmentRetry: {
@@ -610,9 +589,10 @@ export class AgentSessionService {
             ...(lead.attempts >= campaign.maxAttempts
               ? { deadAt: new Date() }
               : {
-                  nextCallAt: completedCall
-                    ? new Date(Date.now() + campaign.retryDelayMin * 60_000)
-                    : undefined,
+                  nextCallAt: new Date(
+                    Date.now() + campaign.retryDelayMin * 60_000,
+                  ),
+                  nextCallAtAfterCompletedCall: true,
                 }),
           },
         })

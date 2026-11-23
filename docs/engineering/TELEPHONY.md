@@ -382,11 +382,15 @@ transition; reading a newer reservation later never transfers it to an older
 worker. New attempts retain that identity in `CallAttempt.sessionReservedAt`.
 Legacy held assignments are adopted only after checking ownership under locks.
 Lead-affecting disposition writes recheck the latest attempt and assignment
-under the session and lead locks, including retry and callback paths. A user
+under the session and lead locks, including retry and callback paths. The saved
+`dispositionedAt` advances monotonically and fences subsequent lead, callback,
+and session writes; identical accepted saves share that revision. A user
 key-share lock precedes the session; outcome/callback writes also acquire their
 contact and source-call locks first, so FK insertion cannot reverse that order.
 Disconnected undialed assignments retain their existing `nextCallAt`; a new
 retry delay applies only to the completed call of the retained assignment.
+Legacy attempts use their latest linked terminal call under those locks,
+including when the lead has not yet advanced out of `locked`.
 Undialed cancellation discards the attempt under the provider linker's session
 row lock before releasing the lease or lead. A sweep's release also compares the
 lead's observed `lockedAt`, so a restarted session reusing the same id cannot
@@ -405,6 +409,10 @@ the dialer assignment fences in this order:
    `packages/database/prisma/migrations-pending/20261121120000_dialer_assignment_fences`.
    Also apply `packages/database/prisma/migrations-pending/20261123043000_call_attempt_reservation_identity`
    before running the updated API or orchestrator.
+   The API image stages this required migration into Prisma's discovery folder.
+   AWS deployment always runs the migrate task and verifies its committed
+   migration record and column before updating any ECS service; it cannot be
+   disabled with `RUN_MIGRATIONS`.
    The nullable columns must commit before the table-wide backfill begins.
 2. Stop or fully drain every pre-change API task that can dispatch calls or
    write `CallAttempt` rows, including in-flight assignments and long-lived
