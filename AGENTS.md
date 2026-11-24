@@ -103,8 +103,8 @@ Retries must never produce a duplicate call, charge, balance mutation, or event.
   `ConcurrentCallGuardService` (organizations are not limited). Any new dial
   surface must go through it.
 - Database migrations are manual operations outside GitHub Actions. Never run
-  migrations from workflows, their scripts or application startup. Deployment
-  workflows may verify schema prerequisites with read-only queries. SQL suites
+  migrations from workflows, their scripts or application startup. Keep migration
+  tasks and migration-history checks out of deployment workflows. SQL suites
   that apply migrations to disposable databases run locally, outside Actions.
 
 ## Security

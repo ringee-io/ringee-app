@@ -53,7 +53,7 @@ _4 nov: escrito en `ringee-infra` (local, sin commit ni repo en GitHub todavía)
 
 ### Fase 3 — Pipeline
 
-- [ ] **AWS-21** `deploy-aws.yml`: build ARM64, push a ECR, verificación de esquema de solo lectura, rolling deploy y smoke test. _4 nov: escrito en `feat/aws-migration-prep`, sin commit. `staging` despliega en la cuenta de staging y `main` en prod, con aprobación. Nada despliega hasta definir `AWS_DEPLOY_ENVIRONMENTS`._
+- [ ] **AWS-21** `deploy-aws.yml`: build ARM64, push a ECR, rolling deploy y smoke test. _4 nov: escrito en `feat/aws-migration-prep`, sin commit. `staging` despliega en la cuenta de staging y `main` en prod, con aprobación. Nada despliega hasta definir `AWS_DEPLOY_ENVIRONMENTS`._
 - [ ] **AWS-22** Entorno `production` de GitHub con revisores; ninguna clave de AWS en GitHub. _Los dos repos son públicos y cada uno tiene sus entornos `staging` (solo su branch) y `production` (solo `main`, con revisor). `ringee-infra` aplica desde el CI cuando `TF_APPLY_ENVIRONMENTS` lo permite; el primer apply de cada entorno se hace desde una estación con SSO._
 
 ### Fase 4 — Ensayo
@@ -340,9 +340,9 @@ node-redis encola los comandos mientras reconecta, sin límite de tiempo. Durant
 - `deploy-aws.yml` en este repo, por branch (decidido el 4 de noviembre de 2026): un push a `staging` despliega en la cuenta de staging y uno al branch de producción (`main` o un `prod` nuevo, por confirmar) en la de prod. Cada entorno de GitHub solo acepta su branch, y producción además pide tu aprobación. Usa los mismos filtros de rutas que los Watch Paths de Railway:
   1. build de las imágenes que cambiaron para `linux/arm64`, en un runner ARM (sin emular con QEMU);
   2. push a ECR con el SHA como tag;
-  3. verificación de esquema de solo lectura con `verify-required-migrations.mjs`, esperando a que termine bien; las migraciones se aplican manualmente fuera de GitHub Actions;
-  4. nueva revisión de cada servicio con circuit breaker y rollback automático, esperando a que estén estables;
-  5. smoke test de `/api/health`.
+  3. nueva revisión de cada servicio con circuit breaker y rollback automático, esperando a que estén estables;
+  4. smoke test de `/api/health`.
+     El workflow no ejecuta tareas de migración ni comprueba su historial; la preparación de la base de datos se realiza manualmente fuera de GitHub Actions.
 - Autenticación por OIDC: un rol de solo lectura para los planes, uno de apply para `ringee-infra` y uno de deploy para `ringee-app`. Los dos últimos solo aceptan su entorno de GitHub (`staging` o `production`, este con revisor). Ninguna clave de AWS en GitHub.
 - Rollback: volver a desplegar el SHA anterior, cuya imagen sigue en ECR.
 - Deploys sin corte: `api` y `orchestrator` con 100 % mínimo y 200 % máximo (dos workers de Temporal sobre la misma cola conviven bien); `temporal` con 0 % y 100 %, una pausa de segundos que los workers reintentan.

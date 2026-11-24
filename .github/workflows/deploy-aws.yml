@@ -15,8 +15,6 @@ name: Deploy to AWS
 #
 # Infrastructure (cluster, task families, roles) comes from the ringee-infra
 # repository. This workflow only builds images and rolls them out.
-# Database migrations must be applied manually, outside GitHub Actions.
-# The database readiness gate below only reads the existing schema and ledger.
 
 on:
   push:
@@ -162,14 +160,8 @@ jobs:
           # Terraform last changed (variables, secrets, size), and swap the image.
           register() { # <task name> <repository>
             aws ecs describe-task-definition --task-definition "ringee-$STACK-$1" --query taskDefinition --output json |
-              jq --arg image "$REGISTRY/$2:$TAG" --arg task "$1" '
+              jq --arg image "$REGISTRY/$2:$TAG" '
                 .containerDefinitions[0].image = $image
-                | if $task == "migrate" then
-                    .containerDefinitions[0].workingDirectory = "/app"
-                    | .containerDefinitions[0].entryPoint = ["/bin/sh", "-ec"]
-                    | .containerDefinitions[0].command = [
-                        "node packages/database/prisma/verify-required-migrations.mjs"]
-                  else . end
                 | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
                       .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)' > task-definition.json
             aws ecs register-task-definition --cli-input-json file://task-definition.json \
@@ -179,30 +171,7 @@ jobs:
             echo "api=$(register api ringee/api)"
             echo "orchestrator=$(register orchestrator ringee/orchestrator)"
             echo "chatgpt=$(register chatgpt-mcp ringee/chatgpt-mcp)"
-            # Reuse the existing task family with a read-only command override.
-            echo "database_check=$(register migrate ringee/api)"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Verify database readiness (read-only)
-        env:
-          TASK_DEFINITION: ${{ steps.revisions.outputs.database_check }}
-        run: |
-          subnets=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=ringee-$STACK-public-*" \
-            --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
-          group=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ringee-$STACK-ops" \
-            --query 'SecurityGroups[0].GroupId' --output text)
-          task=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$TASK_DEFINITION" --launch-type FARGATE \
-            --started-by "deploy-aws ${TAG::7}" \
-            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$group],assignPublicIp=ENABLED}" \
-            --query 'tasks[0].taskArn' --output text)
-          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$task"
-          code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task" --query 'tasks[0].containers[0].exitCode' --output text)
-          aws logs get-log-events --log-group-name "/ecs/ringee-$STACK-migrate" --log-stream-name "migrate/migrate/${task##*/}" \
-            --query 'events[].message' --output text | tr '\t' '\n' || true
-          if [[ $code != 0 ]]; then
-            echo "::error::database readiness check exited with $code; apply required migrations manually outside GitHub Actions before deploying"
-            exit 1
-          fi
 
       - name: Update the services
         env:
