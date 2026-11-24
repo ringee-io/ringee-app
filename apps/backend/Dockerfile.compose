@@ -41,5 +41,5 @@ ENV NODE_ENV=production
 COPY --from=builder --chown=node:node /prod /app
 USER node
 EXPOSE 3000
-# Invoke the bundled Prisma CLI directly; startup never downloads a package manager.
-CMD ["sh", "-c", "node packages/database/node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma && exec node apps/backend/dist/apps/backend/src/main"]
+# Database migrations are a manual operation, separate from application startup.
+CMD ["node", "apps/backend/dist/apps/backend/src/main"]

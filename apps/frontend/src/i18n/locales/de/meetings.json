@@ -104,5 +104,46 @@
     "retry": "Externen Eintrag erneut versuchen",
     "retrySucceeded": "Externer Eintrag erstellt.",
     "retryFailed": "Der externe Eintrag konnte nicht erstellt werden."
+  },
+  "booking": {
+    "emailRequired": "Bitte gib eine E-Mail-Adresse für den Kontakt an",
+    "success": "Termin vereinbart — {date} um {time}",
+    "failed": "Termin konnte nicht vereinbart werden",
+    "availabilityFailed": "Die Ringee-Verfügbarkeit konnte nicht geprüft werden. Versuche es erneut.",
+    "noSlots": "Keine freien Zeiten",
+    "duration": "Dauer",
+    "contactEmail": "E-Mail des Kontakts",
+    "emailPlaceholder": "Für die Kalendereinladung erforderlich",
+    "selectCalendar": "Kalender auswählen",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "loadFailed": "Kontakt oder Kalender konnten nicht geladen werden. Versuche es erneut.",
+    "retry": "Erneut versuchen",
+    "booked": "Termin vereinbart",
+    "showTimesIn": "Zeiten anzeigen in",
+    "minutes": "{count} Min.",
+    "noCalendars": "Kein Kalender verfügbar",
+    "connectCalendar": "Google Kalender oder Outlook verbinden",
+    "validation": {
+      "calendar": "Wähle einen verfügbaren Kalender.",
+      "duration": "Wähle eine gültige Dauer.",
+      "email": "Gib eine gültige E-Mail-Adresse ein.",
+      "maxLength": "Verwende höchstens {count} Zeichen."
+    },
+    "previousMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat"
+  },
+  "page": {
+    "new": {
+      "book": "Termin vereinbaren",
+      "calendar": "Kalender",
+      "notes": "Notizen",
+      "notesPlaceholder": "Was soll vorbereitet werden?",
+      "onlyRingee": "Nur in Ringee",
+      "reason": "Anlass des Termins",
+      "reasonPlaceholder": "Preisübersicht besprechen",
+      "startTime": "Startzeit",
+      "taken": "Diese Zeit wurde gerade gebucht. Wähle eine andere."
+    }
   }
 }

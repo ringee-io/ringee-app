@@ -104,5 +104,46 @@
     "retry": "Externe afspraak opnieuw proberen",
     "retrySucceeded": "Externe afspraak aangemaakt.",
     "retryFailed": "De externe afspraak kon niet worden aangemaakt."
+  },
+  "booking": {
+    "emailRequired": "Vul een e-mailadres in voor het contact",
+    "success": "Afspraak gepland — {date} om {time}",
+    "failed": "Afspraak plannen mislukt",
+    "availabilityFailed": "De beschikbaarheid in Ringee kon niet worden gecontroleerd. Probeer het opnieuw.",
+    "noSlots": "Geen tijden beschikbaar",
+    "duration": "Duur",
+    "contactEmail": "E-mail van contact",
+    "emailPlaceholder": "Vereist voor de agenda-uitnodiging",
+    "selectCalendar": "Agenda selecteren",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "loadFailed": "Het contact of de agenda’s konden niet worden geladen. Probeer het opnieuw.",
+    "retry": "Opnieuw proberen",
+    "booked": "Afspraak gepland",
+    "showTimesIn": "Tijden tonen in",
+    "minutes": "{count} min",
+    "noCalendars": "Geen agenda beschikbaar",
+    "connectCalendar": "Google Agenda of Outlook koppelen",
+    "validation": {
+      "calendar": "Kies een beschikbare agenda.",
+      "duration": "Kies een geldige duur.",
+      "email": "Voer een geldig e-mailadres in.",
+      "maxLength": "Gebruik maximaal {count} tekens."
+    },
+    "previousMonth": "Vorige maand",
+    "nextMonth": "Volgende maand"
+  },
+  "page": {
+    "new": {
+      "book": "Afspraak plannen",
+      "calendar": "Agenda",
+      "notes": "Notities",
+      "notesPlaceholder": "Wat moet worden voorbereid?",
+      "onlyRingee": "Alleen in Ringee",
+      "reason": "Reden voor de afspraak",
+      "reasonPlaceholder": "Prijzen bespreken",
+      "startTime": "Begintijd",
+      "taken": "Deze tijd is zojuist geboekt. Kies een andere."
+    }
   }
 }

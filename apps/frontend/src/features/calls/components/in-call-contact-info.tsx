@@ -1,11 +1,19 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  ContactActivities,
+  type ContactActivityData
+} from './contact-activities';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
+import {
+  Avatar,
+  AvatarFallback
+} from '@ringee/frontend-shared/components/ui/avatar';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { toast } from 'sonner';
@@ -147,6 +155,8 @@ type ContactPayload = {
   > | null;
   revenue?: string | null;
   companySize?: string | null;
+  calls?: ContactActivityData['calls'];
+  meetings?: ContactActivityData['meetings'];
 };
 
 type FormState = {
@@ -194,7 +204,17 @@ function toForm(c: ContactPayload | null | undefined): FormState {
   };
 }
 
-export function InCallContactInfo({ contactId }: { contactId: string }) {
+export function InCallContactInfo({
+  contactId,
+  profileActionsContainer,
+  showActivities = false,
+  refreshKey = 0
+}: {
+  contactId: string;
+  profileActionsContainer?: HTMLElement | null;
+  showActivities?: boolean;
+  refreshKey?: number;
+}) {
   const api = useApi();
   const format = useFormatter();
   const t = useTranslations('calls.inCallContact');
@@ -205,6 +225,11 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const loadedContactId = useRef<string | null>(null);
+  const savedRevision = useRef(0);
+  const [failedContactId, setFailedContactId] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const loadError = failedContactId === contactId;
 
   function formatCompanyAmount(value: string | number | null | undefined) {
     if (value == null || (typeof value === 'string' && !value.trim()))
@@ -217,19 +242,30 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
 
   useEffect(() => {
     let active = true;
+    const revision = savedRevision.current;
+    const initial = loadedContactId.current !== contactId;
     setLoading(true);
-    setContact(null);
-    setEditing(false);
+    if (initial) {
+      setContact(null);
+      setEditing(false);
+    }
     api
       .get<ContactPayload | null | undefined>(`/contacts/${contactId}`)
       .then((c) => {
         if (!active) return;
+        if (revision !== savedRevision.current) {
+          // Re-read history without replacing the newer successful edit.
+          setRetry((value) => value + 1);
+          return;
+        }
+        loadedContactId.current = c ? contactId : null;
         setContact(c ?? null);
-        setForm(toForm(c));
+        setFailedContactId(null);
+        if (initial) setForm(toForm(c));
       })
       .catch(() => {
-        if (active) {
-          setContact(null);
+        if (active && revision === savedRevision.current) {
+          setFailedContactId(contactId);
           toast.error(t('loadFailed'));
         }
       })
@@ -239,7 +275,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
     return () => {
       active = false;
     };
-  }, [api, contactId, t]);
+  }, [api, contactId, t, refreshKey, retry]);
 
   const setField = (key: keyof FormState) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -266,6 +302,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
         toast.error(t('saveFailed'));
         return;
       }
+      savedRevision.current++;
       setContact((current) => ({
         ...(current ?? {}),
         ...updated,
@@ -286,7 +323,10 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
     setEditing(false);
   }
 
-  if (loading) {
+  if (
+    (loading && !contact && !loadError) ||
+    (contact && loadedContactId.current !== contactId)
+  ) {
     return (
       <div className='space-y-3 p-4 md:p-6'>
         <Skeleton className='h-6 w-40' />
@@ -301,7 +341,22 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <UserCircle2 className='text-muted-foreground mb-2 h-8 w-8' />
-        <p className='text-muted-foreground text-sm'>{t('notFound')}</p>
+        <div role={loadError ? 'alert' : undefined} className='space-y-3'>
+          <p className='text-muted-foreground text-sm'>
+            {loadError ? t('loadFailed') : t('notFound')}
+          </p>
+          <Button
+            type='button'
+            variant='outline'
+            disabled={loading}
+            onClick={() => setRetry((value) => value + 1)}
+          >
+            {t('retry')}
+          </Button>
+        </div>
+        {showActivities && (
+          <ContactActivities key={contactId} contactId={contactId} />
+        )}
       </div>
     );
   }
@@ -326,17 +381,65 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
     website: tContactActions('website')
   };
 
+  const profileButtons = (
+    <ExternalProfileButtons
+      urls={{
+        linkedinUrl: contact.linkedinUrl,
+        companyLinkedinUrl: primaryCompany?.linkedinUrl,
+        websiteUrl:
+          primaryCompany?.website ||
+          primaryCompany?.domain ||
+          contact.websiteUrl
+      }}
+      labels={externalLinkLabels}
+      iconOnly={!!profileActionsContainer}
+    />
+  );
+
   return (
-    <ScrollArea className='h-full'>
+    <div className='@container'>
       <div className='flex flex-col gap-4 p-4 md:p-6'>
-        <div className='flex flex-wrap items-start justify-between gap-3'>
+        {loadError && (
+          <div role='alert' className='space-y-2'>
+            <p className='text-destructive text-xs'>{t('loadFailed')}</p>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={loading}
+              onClick={() => setRetry((value) => value + 1)}
+            >
+              {t('retry')}
+            </Button>
+          </div>
+        )}
+        <div className='flex flex-wrap items-start gap-3'>
+          <Avatar className='size-11'>
+            <AvatarFallback>
+              {displayName
+                .trim()
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join('')
+                .toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div className='min-w-0 flex-1'>
             <h3 className='text-base font-bold break-words md:text-lg'>
               {displayName}
             </h3>
             <p className='text-muted-foreground text-xs break-words'>
-              {contact.phoneNumber}
+              {contact.jobTitle || contact.phoneNumber}
             </p>
+            {(contact.organization ||
+              contact.company ||
+              primaryCompany?.name) && (
+              <p className='text-muted-foreground mt-2 text-sm'>
+                {contact.organization ||
+                  contact.company ||
+                  primaryCompany?.name}
+              </p>
+            )}
           </div>
           {editing ? (
             <div className='flex gap-1'>
@@ -358,7 +461,10 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
             <Button
               size='sm'
               variant='outline'
-              onClick={() => setEditing(true)}
+              onClick={() => {
+                setForm(toForm(contact));
+                setEditing(true);
+              }}
             >
               <Pencil className='mr-1 h-4 w-4' />
               {t('edit')}
@@ -366,18 +472,17 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
           )}
         </div>
 
-        <ExternalProfileButtons
-          urls={{
-            linkedinUrl: contact.linkedinUrl,
-            companyLinkedinUrl: primaryCompany?.linkedinUrl,
-            websiteUrl: contact.websiteUrl
-          }}
-          labels={externalLinkLabels}
-        />
+        {profileActionsContainer
+          ? createPortal(profileButtons, profileActionsContainer)
+          : profileButtons}
+
+        {showActivities && (
+          <ContactActivities contactId={contactId} contact={contact} />
+        )}
 
         {editing ? (
           <>
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('firstName')}
                 value={form.firstName}
@@ -415,7 +520,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
               disabled={!editing}
             />
 
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('company')}
                 value={form.organization}
@@ -430,7 +535,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
               />
             </div>
 
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('state')}
                 value={form.state}
@@ -445,7 +550,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
               />
             </div>
 
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('revenue')}
                 value={form.revenue}
@@ -614,15 +719,17 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
             [t('phoneVerified'), contact.phoneVerified]
           ]}
         />
-        <ContactDetails
-          title={tDetail('notes')}
-          rows={
-            contact.notes?.map((note) => [tDetail('notes'), note?.content]) ??
-            []
-          }
-        />
+        {!showActivities && (
+          <ContactDetails
+            title={tDetail('notes')}
+            rows={
+              contact.notes?.map((note) => [tDetail('notes'), note?.content]) ??
+              []
+            }
+          />
+        )}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 
@@ -723,15 +830,17 @@ function ContactDetails({
   if (populated.length === 0) return null;
   return (
     <section className='min-w-0 space-y-3 border-t pt-4'>
-      <h4 className='text-sm font-semibold break-words'>{title}</h4>
-      <dl className='grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2'>
+      <h4 className='text-muted-foreground text-xs font-semibold tracking-wide break-words uppercase'>
+        {title}
+      </h4>
+      <dl className='grid min-w-0 grid-cols-1 gap-3 @sm:grid-cols-2'>
         {populated.map(([label, value], index) => (
           <div
             key={`${label}-${index}`}
             className={
               typeof value === 'object' ||
               (typeof value === 'string' && value.length > 120)
-                ? 'min-w-0 sm:col-span-2'
+                ? 'min-w-0 @sm:col-span-2'
                 : 'min-w-0'
             }
           >

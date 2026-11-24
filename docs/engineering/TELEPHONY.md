@@ -433,16 +433,18 @@ the dialer assignment fences in this order:
    In either deployment order, drain or finish every pre-change retry execution
    and confirm that no pre-change retry activity can still write before enabling
    campaign calls. Pausing the schedule does not stop runs already started.
-2. Deploy the API. `packages/database/prisma/required-migrations.mjs` is the
+2. Apply the required migrations manually, outside GitHub Actions, then deploy
+   the API. `packages/database/prisma/required-migrations.mjs` is the
    shared release manifest for runtime promotion and rollout verification.
    It stages the assignment columns, separate assignment backfill, reservation
    identity, and stream/callback fences from `migrations-pending/` into Prisma's
    discovery folder. Prisma commits the nullable assignment columns before
-   starting the table-wide backfill. AWS deployment always runs the migrate
-   task and verifies every required migration record, `AgentSession.reservedAt`,
+   starting the table-wide backfill. AWS deployment never applies migrations;
+   its read-only readiness check verifies every required migration record, `AgentSession.reservedAt`,
    `CallAttempt.sessionStartedAt`, `CallAttempt.sessionReservedAt`,
    `AgentSession.eventStreamId`, and the unique `CallbackTask.creationKey` before
-   updating any ECS service; `RUN_MIGRATIONS` cannot disable this gate.
+   updating any ECS service. Missing prerequisites block rollout and must be
+   applied manually; workflow variables cannot enable automatic migrations.
    Keep old writers stopped through migration and confirm they cannot resume
    before enabling campaign calls.
 3. Deploy the dashboard after the API. If the retry schedule was paused, deploy

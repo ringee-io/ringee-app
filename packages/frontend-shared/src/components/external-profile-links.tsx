@@ -152,26 +152,37 @@ export function ExternalProfileMenuItems({
 export function ExternalProfileButtons({
   urls,
   labels,
+  iconOnly = false,
 }: {
   urls: ExternalProfileUrls;
   labels: ExternalProfileLabels;
+  iconOnly?: boolean;
 }) {
   const links = externalProfileLinks(urls, labels);
   if (links.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2" aria-label={labels.group}>
+    <div
+      className={iconOnly ? "flex items-center gap-1" : "flex flex-wrap gap-2"}
+      aria-label={labels.group}
+    >
       {links.map(({ key, label, url, icon: Icon }) => (
         <Button
           key={key}
           type="button"
           variant="outline"
-          size="sm"
-          className="cursor-pointer"
+          size={iconOnly ? "icon" : "sm"}
+          className={
+            iconOnly
+              ? "size-11 cursor-pointer bg-transparent shadow-none"
+              : "cursor-pointer"
+          }
+          aria-label={label}
+          title={label}
           onClick={() => openExternalProfileWindow(url)}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
-          {label}
+          {iconOnly ? null : label}
         </Button>
       ))}
     </div>

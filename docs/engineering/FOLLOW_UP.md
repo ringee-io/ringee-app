@@ -289,8 +289,9 @@ remain concurrent within each suite. It uses the same local-only `RINGEE_FOLLOWU
 No real calls or production migrations were performed. Live provider validation
 still requires named test contacts and an expressly authorized pilot organization.
 
-CI starts PostgreSQL 16 with an empty `ringee_followup_test` database. Before the
-Test step it runs:
+GitHub Actions never applies migrations, including to disposable test databases.
+The PostgreSQL suites run locally: start an empty `ringee_followup_test` database,
+then prepare it outside Actions:
 
 ```bash
 FOLLOWUP_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ringee_followup_test \
@@ -302,9 +303,10 @@ It derives the schema preceding follow-up from the current Prisma schema, adds
 the SQL-only DNC partial indexes, then applies the actual Stage 1 migration,
 callback index/foreign-key validation and Stage 2/3 migrations. This includes the
 lifecycle checks that `prisma db push` omits. The generated baseline already
-includes the Step 0 callback uniqueness indexes. The Test step alone receives
-`RINGEE_FOLLOWUP_TEST_DATABASE_URL` pointing at this prepared database, so both
-PostgreSQL suites execute in CI. Each suite enforces a ten-minute timeout;
+includes the Step 0 callback uniqueness indexes. Set
+`RINGEE_FOLLOWUP_TEST_DATABASE_URL` to this prepared database when running the
+SQL suites locally. CI leaves this opt-in unset and skips those suites while
+running the remaining tests. Each suite enforces a ten-minute timeout;
 the shared advisory-lock transaction allows twenty-one minutes, covering a
 competing suite and the full bounded run. Providers remain mocked.
 

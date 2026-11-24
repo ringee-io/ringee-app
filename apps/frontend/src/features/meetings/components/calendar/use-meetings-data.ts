@@ -176,6 +176,7 @@ export function useReminderPlan(): {
 interface AvailabilitySlot {
   time: string;
   available: boolean;
+  eventName?: string;
 }
 
 /**
@@ -195,15 +196,23 @@ export function useOpenSlots({
   enabled?: boolean;
 }) {
   const api = useApi();
-  const [slots, setSlots] = useState<string[]>([]);
+  const [result, setResult] = useState<{
+    key: string;
+    slots: AvailabilitySlot[];
+    failed: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
   const request = useRef(0);
   const day = dateKey(date);
+  const key = JSON.stringify([calendarId, day, duration]);
 
   const load = useCallback(async () => {
-    if (!enabled) return;
     const id = ++request.current;
+    if (!enabled) {
+      setResult(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -216,20 +225,31 @@ export function useOpenSlots({
         `/calendar/availability?${params}`
       );
       if (id !== request.current) return;
-      setSlots(res.filter((slot) => slot.available).map((slot) => slot.time));
-      setFailed(false);
+      setResult({ key, slots: res, failed: false });
     } catch {
       if (id !== request.current) return;
-      setSlots([]);
-      setFailed(true);
+      setResult({ key, slots: [], failed: true });
     } finally {
       if (id === request.current) setLoading(false);
     }
-  }, [api, calendarId, day, duration, enabled]);
+  }, [api, calendarId, day, duration, enabled, key]);
 
   useEffect(() => {
     void load();
+    // A disabled query or an unmount also invalidates an in-flight answer.
+    return () => {
+      request.current += 1;
+    };
   }, [load]);
 
-  return { slots, loading, failed, reload: load };
+  // Never expose the previous calendar/day/duration's times during a new query.
+  const current = enabled && result?.key === key ? result : null;
+  const allSlots = current?.slots ?? [];
+  return {
+    slots: allSlots.filter((slot) => slot.available).map((slot) => slot.time),
+    allSlots,
+    loading: enabled && (loading || !current),
+    failed: current?.failed ?? false,
+    reload: load
+  };
 }

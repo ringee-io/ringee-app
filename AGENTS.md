@@ -102,6 +102,10 @@ Retries must never produce a duplicate call, charge, balance mutation, or event.
 - One call at a time per user in the personal workspace is enforced by
   `ConcurrentCallGuardService` (organizations are not limited). Any new dial
   surface must go through it.
+- Database migrations are manual operations outside GitHub Actions. Never run
+  migrations from workflows, their scripts or application startup. Deployment
+  workflows may verify schema prerequisites with read-only queries. SQL suites
+  that apply migrations to disposable databases run locally, outside Actions.
 
 ## Security
 

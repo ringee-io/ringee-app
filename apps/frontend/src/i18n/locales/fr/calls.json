@@ -140,7 +140,9 @@
         "invalidTime": "Choisissez une heure valide",
         "mustBeFuture": "Choisissez une heure dans le futur",
         "saveFailed": "Impossible de planifier le rappel"
-      }
+      },
+      "previousWeek": "Semaine précédente",
+      "nextWeek": "Semaine suivante"
     }
   },
   "dnc": {
@@ -379,7 +381,9 @@
     "emptyDescription": "Créez votre script dans Paramètres → Aperçu → Script pour le voir ici pendant l'appel.",
     "configure": "Configurer le script",
     "untitled": "Sans titre",
-    "noContent": "(Aucun contenu)"
+    "noContent": "(Aucun contenu)",
+    "loadFailed": "Impossible de charger le script d’appel.",
+    "retry": "Réessayer"
   },
   "inCallContact": {
     "loadFailed": "Impossible de charger le contact",
@@ -436,7 +440,8 @@
     "companyType": "Type d’entreprise",
     "address": "Adresse",
     "annualRevenue": "Chiffre d’affaires annuel",
-    "fundingTotal": "Financement total"
+    "fundingTotal": "Financement total",
+    "retry": "Réessayer"
   },
   "numberSelector": {
     "callFrom": "Appeler depuis :",
@@ -635,5 +640,89 @@
       "clear": "Effacer la recherche",
       "hint": "Ils sont désactivés pendant la saisie, un appel ou lorsqu’une fenêtre de dialogue est ouverte."
     }
+  },
+  "workspace": {
+    "title": "Espace d’appel",
+    "controls": "Commandes d’appel",
+    "manualCall": "Appel manuel",
+    "contact": "Contact",
+    "history": "Activité récente",
+    "script": "Script d’appel",
+    "schedule": "Planifier une réunion",
+    "callNotes": "Notes de l’appel",
+    "notesHint": "Conservées avec cet appel",
+    "notesPlaceholder": "Notez l’essentiel…",
+    "inProgress": "Appel en cours",
+    "keepContext": "Vos notes et votre réunion restent ici après la fin de l’appel.",
+    "wrapUpHint": "Le bilan commence à la fin de l’appel",
+    "wrapUp": "Bilan de l’appel",
+    "ended": "Appel terminé",
+    "outcomeHint": "Choisissez un résultat, puis enregistrez votre appel.",
+    "mute": "Couper le micro",
+    "unmute": "Activer le micro",
+    "hold": "Mettre en attente",
+    "resume": "Reprendre",
+    "keypad": "Clavier",
+    "record": "Enregistrer",
+    "recording": "Enregistrement",
+    "autoRecording": "Enregistrement activé par les paramètres de l’espace de travail",
+    "transcript": "Transcription",
+    "subtitles": "Sous-titres",
+    "endCall": "Raccrocher",
+    "freeTrial": "Essai gratuit",
+    "meetingBooked": "Réunion planifiée",
+    "contactPending": "Les informations du contact ne sont pas encore disponibles.",
+    "noScript": "Aucun script d’appel configuré",
+    "noCalendar": "La planification n’est pas disponible pour ce contact.",
+    "skip": "Passer",
+    "save": "Enregistrer et fermer",
+    "saveFailed": "Impossible d’enregistrer. Vos notes et votre résultat sont toujours ici. Réessayez.",
+    "saved": "Résultat de l’appel enregistré",
+    "selectOutcome": "Comment s’est passé l’appel ?",
+    "sendVoicemail": "Envoyer un message vocal",
+    "meeting_booked": "Réunion planifiée",
+    "sale": "Vente",
+    "interested": "Intéressé",
+    "follow_up": "Suivi",
+    "callback_scheduled": "Rappel",
+    "not_interested": "Pas intéressé",
+    "no_answer": "Sans réponse",
+    "no_conversation": "Aucune conversation",
+    "voicemail": "Messagerie vocale",
+    "wrong_number": "Mauvais numéro",
+    "gatekeeper": "Barrage au standard",
+    "connecting": "Connexion…",
+    "dtmfSend": "Envoyer DTMF",
+    "dtmfLettersHint": "Les lettres sont envoyées comme les chiffres du clavier téléphonique (ABC → 2).",
+    "dtmfNumbersHint": "A–D sont des tonalités DTMF spéciales. + sert uniquement à composer un numéro.",
+    "unknownContact": "Inconnu",
+    "meetingBookedDuringCall": "Réunion planifiée pendant l’appel",
+    "voicemailSent": "Message vocal envoyé",
+    "voicemailOnItsWay": "Message vocal en cours d’envoi",
+    "successfulOutcomes": "Résultats positifs",
+    "otherDispositions": "Autres résultats",
+    "bookMeeting": "Planifier une réunion",
+    "quickNotePlaceholder": "Ajoutez une note rapide…"
+  },
+  "contactContext": {
+    "notes": "Notes du contact",
+    "history": "Historique du contact",
+    "noNotes": "Aucune note pour ce contact pour le moment.",
+    "noHistory": "Aucun appel ni aucune réunion antérieurs.",
+    "loadFailed": "Impossible de charger l’historique du contact.",
+    "retry": "Réessayer",
+    "incomingCall": "Appel entrant",
+    "outgoingCall": "Appel sortant",
+    "meeting": "Réunion",
+    "minutes": "{count} min",
+    "call": "Appel"
+  },
+  "automaticFollowUp": {
+    "preparing": "Enregistrement du résultat et préparation du suivi…",
+    "accepted": "L’IA se charge du suivi",
+    "blocked": "Suivi bloqué",
+    "stopped": "Le suivi est en pause ou terminé",
+    "policyTime": "Appel planifié selon les règles",
+    "agreedTime": "Rappel convenu"
   }
 }

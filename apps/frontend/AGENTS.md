@@ -54,6 +54,11 @@ capability to the UI without the matching server guard.
 - Every list view needs all three states — loading, empty, error. Reuse the
   existing skeletons rather than inventing a spinner.
 - Copy goes through `next-intl` (`useTranslations`), not string literals.
+  Add new messages to every base locale (`en`, `es`, `fr`, `pt`, `de`, `it`,
+  `nl`); regional variants inherit their base. The shared call UI receives
+  translations through `DialerProvider`: keep `DEFAULT_WORKSPACE_LABELS` in
+  sync with `calls.workspace` instead of importing `next-intl` into
+  `@ringee/dialer-ui`.
 - `next-intl` runs with `timeZone: 'UTC'` (`i18n/request.ts`), so
   `useFormatter().dateTime` prints UTC. A time the user reads as theirs — a
   callback at 10:30 — is formatted with `Intl.DateTimeFormat` in the browser,
@@ -114,6 +119,12 @@ dial time, and a call that will go out from the public number is announced
 first (`confirmPublicNumberCall`, which the user can silence per browser). The
 campaign dialer never uses the public number: its caller ID is resolved
 server-side.
+
+The full active-call modal keeps contact, script and booking panels mounted
+through wrap-up. Call notes use the shared store's `outcomeNote` during both
+phases; do not create a second notes draft or replace the workspace on hang-up.
+The extension uses the same modal in `compact` mode. Availability and bookings
+use the selected Ringee calendar; an external calendar is an optional copy.
 
 **A live call is ended by the hang-up button or by the person on the other end,
 and by nothing else.** That includes a dialog's corner close: the active-call

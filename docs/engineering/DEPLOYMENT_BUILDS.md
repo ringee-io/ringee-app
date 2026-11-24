@@ -32,11 +32,11 @@ client installation. Compiled workspace imports continue resolving through the
 app's `node_modules`. Package-local links beneath `dist/packages` can load
 different identities of `@nestjs/core` and break Nest dependency injection.
 
-Prisma's CLI is a production dependency of `@ringee/database` because the API's
-Docker Compose startup runs migrations. The helper prepares its schema,
-migrations and CLI dependency link under `/app/packages/database`, outside
-`dist`. The final image excludes the frontend, unrelated apps, TypeScript build
-tools and the monorepo's development dependencies.
+Prisma's CLI is a production dependency of `@ringee/database` for manual database
+operations. The helper prepares its schema, migrations and CLI dependency link
+under `/app/packages/database`, outside `dist`. The final image excludes the
+frontend, unrelated apps, TypeScript build tools and the monorepo's development
+dependencies.
 
 Both stages use Node 22 on Debian Bookworm slim with OpenSSL and CA certificates.
 The Temporal worker needs glibc; using the same Linux base for building and
@@ -85,18 +85,20 @@ or `/apps/orchestrator/**` for Orchestrator:
 Frontend-only source changes therefore do not rebuild either backend service;
 changes to the shared lockfile still do.
 
-Railway's start commands invoke Node directly, preserving the existing Railpack
-startup. The API start command overrides its Docker Compose command, which runs
-Prisma migrations first. Compose invokes the installed CLI directly:
+Railway and Docker Compose start the API with Node directly. Application startup
+never applies migrations. Apply required migrations manually, outside GitHub
+Actions, before deploying code that needs them. The packaged Prisma CLI is
+available for that separate operation:
 
 ```bash
 node packages/database/node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma
 ```
 
-The Dockerfile then uses `exec node` to start the API. This preserves the effect
-of `db:deploy` while avoiding a Corepack or pnpm download at startup as the `node`
-user. Do not add migration pre-deploy commands to Railway as part of this build
-optimization; preserve the project's existing migration process.
+GitHub Actions only verifies that required migrations, columns and indexes
+already exist before rolling out ECS services. Its database check reuses the
+existing `migrate` task family with an explicit read-only command override; it
+does not run Prisma's migration CLI. Do not add automatic migration steps to
+workflows or application startup.
 
 These settings use the existing Railway services; no new infrastructure
 configuration is required. See [Dockerfile builds](https://docs.railway.com/builds/dockerfiles)

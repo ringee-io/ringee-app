@@ -42,6 +42,7 @@ const DialerContext = createContext<DialerContextValue>({
 });
 
 export interface DialerProviderProps {
+  locale?: string;
   data: DialerDataClient;
   recordingSettings?: DialerRecordingSettings;
   slots?: DialerSlots;
@@ -56,6 +57,7 @@ export interface DialerProviderProps {
  * extension's side panel root).
  */
 export function DialerProvider({
+  locale,
   data,
   recordingSettings = DEFAULT_RECORDING_SETTINGS,
   slots = {},
@@ -64,6 +66,7 @@ export function DialerProvider({
   children,
 }: DialerProviderProps) {
   const value: DialerContextValue = {
+    locale,
     data,
     recordingSettings,
     slots,
