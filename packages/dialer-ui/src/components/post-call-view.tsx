@@ -129,6 +129,9 @@ interface PostCallViewProps {
   onClose: () => void;
   layout?: "workspace";
   pending?: boolean;
+  onPendingChange?: (pending: boolean) => boolean | void;
+  onBookingPendingChange?: (pending: boolean) => boolean | void;
+  canClose?: () => boolean;
   actionsContainer?: HTMLElement | null;
 }
 
@@ -136,6 +139,9 @@ export function PostCallView({
   onClose,
   layout,
   pending = false,
+  onPendingChange,
+  onBookingPendingChange,
+  canClose,
   actionsContainer,
 }: PostCallViewProps) {
   const { data, slots, labels, notify } = useDialer();
@@ -205,6 +211,7 @@ export function PostCallView({
 
   const handleSave = async () => {
     if (!outcome || submitting.current || pending) return;
+    if (onPendingChange?.(true) === false) return;
     submitting.current = true;
     setIsSaving(true);
     setSaveError(false);
@@ -237,12 +244,13 @@ export function PostCallView({
           `Call outcome saved. ${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,
         );
       } else notify("success", "Call outcome saved");
-      onClose();
+      if (canClose?.() !== false) onClose();
     } catch {
       setSaveError(true);
       notify("error", copy.saveFailed);
     } finally {
       submitting.current = false;
+      onPendingChange?.(false);
       setIsSaving(false);
     }
   };
@@ -259,6 +267,7 @@ export function PostCallView({
 
   const handleSkip = async () => {
     if (submitting.current || pending) return;
+    if (onPendingChange?.(true) === false) return;
     submitting.current = true;
     setIsSaving(true);
     setSaveError(false);
@@ -270,12 +279,13 @@ export function PostCallView({
           outcomeNote: outcomeNote || undefined,
         });
       }
-      onClose();
+      if (canClose?.() !== false) onClose();
     } catch {
       setSaveError(true);
       notify("error", copy.saveFailed);
     } finally {
       submitting.current = false;
+      onPendingChange?.(false);
       setIsSaving(false);
     }
   };
@@ -670,6 +680,11 @@ export function PostCallView({
         slots.renderBookMeeting?.({
           contactId: callContactId,
           callId,
+          disabled: isSaving,
+          onPendingChange: (active) => {
+            if (active && submitting.current) return false;
+            return onBookingPendingChange?.(active);
+          },
           onBooked: handleMeetingBooked,
           onCancel: () => setShowBooking(false),
         })}
@@ -717,6 +732,7 @@ export function PostCallView({
       <Textarea
         placeholder="Add a quick note..."
         value={outcomeNote}
+        readOnly={isSaving}
         onChange={(e) => setOutcomeNote(e.target.value)}
         className="min-h-[56px] resize-none text-sm"
         rows={2}

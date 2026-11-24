@@ -53,8 +53,8 @@ function FormTextarea<
               {required && <span className="ml-1 text-red-500">*</span>}
             </FormLabel>
           )}
-          <FormControl>
-            <div className="space-y-2">
+          <div className="space-y-2">
+            <FormControl>
               <Textarea
                 placeholder={placeholder}
                 disabled={disabled}
@@ -63,13 +63,13 @@ function FormTextarea<
                 maxLength={maxLength}
                 {...field}
               />
-              {showCharCount && maxLength && (
-                <div className="text-muted-foreground text-right text-sm">
-                  {field.value?.length || 0} / {maxLength}
-                </div>
-              )}
-            </div>
-          </FormControl>
+            </FormControl>
+            {showCharCount && maxLength && (
+              <div className="text-muted-foreground text-right text-sm">
+                {field.value?.length || 0} / {maxLength}
+              </div>
+            )}
+          </div>
           {description && <FormDescription>{description}</FormDescription>}
           <FormMessage />
         </FormItem>

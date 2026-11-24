@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Clock,
   History,
+  Phone,
   PhoneIncoming,
   PhoneOutgoing,
   StickyNote
@@ -197,7 +198,9 @@ export function ContactActivities({
               const Icon = call
                 ? call.direction === 'inbound'
                   ? PhoneIncoming
-                  : PhoneOutgoing
+                  : call.direction === 'outbound'
+                    ? PhoneOutgoing
+                    : Phone
                 : CalendarDays;
               return (
                 <article
@@ -214,7 +217,9 @@ export function ContactActivities({
                         ? t(
                             call.direction === 'inbound'
                               ? 'incomingCall'
-                              : 'outgoingCall'
+                              : call.direction === 'outbound'
+                                ? 'outgoingCall'
+                                : 'call'
                           )
                         : t('meeting')}
                     </span>

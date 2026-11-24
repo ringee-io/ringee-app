@@ -487,7 +487,8 @@
     "companyType": "Company type",
     "address": "Address",
     "annualRevenue": "Annual revenue",
-    "fundingTotal": "Total funding"
+    "fundingTotal": "Total funding",
+    "retry": "Try again"
   },
   "numberSelector": {
     "callFrom": "Call from:",
@@ -937,6 +938,7 @@
     "incomingCall": "Incoming call",
     "outgoingCall": "Outgoing call",
     "meeting": "Meeting",
-    "minutes": "{count} min"
+    "minutes": "{count} min",
+    "call": "Call"
   }
 }

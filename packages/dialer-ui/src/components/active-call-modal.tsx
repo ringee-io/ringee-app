@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogPortal,
   DialogTitle,
 } from "@ringee/frontend-shared/components/ui/dialog";
 import { Button } from "@ringee/frontend-shared/components/ui/button";
@@ -134,7 +133,23 @@ export function ActiveCallModal({
   const copy = labels.workspace;
   const [elapsed, setElapsed] = useState(0);
   const [showSubtitles, setShowSubtitles] = useState(true);
-  const [bookingPending, setBookingPending] = useState(false);
+  const pendingOperation = useRef<"booking" | "saving" | null>(null);
+  const [pending, setPending] = useState<"booking" | "saving" | null>(null);
+  const [contactRefresh, setContactRefresh] = useState({
+    contactId,
+    revision: 0,
+  });
+  const changePending = (operation: "booking" | "saving", active: boolean) => {
+    if (active) {
+      if (pendingOperation.current !== null) return false;
+      pendingOperation.current = operation;
+      setPending(operation);
+    } else if (pendingOperation.current === operation) {
+      pendingOperation.current = null;
+      setPending(null);
+    }
+    return true;
+  };
   const [transcriptDialogOpen, setTranscriptDialogOpen] = useState(false);
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null);
@@ -195,6 +210,10 @@ export function ActiveCallModal({
         .toUpperCase()
     : null;
   const handleBooked = () => {
+    setContactRefresh((previous) => ({
+      contactId,
+      revision: previous.contactId === contactId ? previous.revision + 1 : 1,
+    }));
     const chosen = useCallStore.getState().outcome;
     setMeetingBooked(true);
     // A booking suggests an outcome, but never replaces the agent's choice.
@@ -326,7 +345,14 @@ export function ActiveCallModal({
       <PanelHeading icon={<UserRound />} title={copy.contact} />
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:flex-none max-md:overflow-visible max-md:overscroll-auto">
         {contactId && slots.renderContactInfo ? (
-          slots.renderContactInfo({ contactId, profileActionsContainer })
+          slots.renderContactInfo({
+            contactId,
+            profileActionsContainer,
+            refreshKey:
+              contactRefresh.contactId === contactId
+                ? contactRefresh.revision
+                : 0,
+          })
         ) : (
           <EmptyPanel icon={<UserRound />} text={copy.contactPending} />
         )}
@@ -365,7 +391,11 @@ export function ActiveCallModal({
         <Textarea
           id="active-call-notes"
           value={outcomeNote}
-          onChange={(event) => setOutcomeNote(event.target.value)}
+          readOnly={pending === "saving"}
+          onChange={(event) => {
+            if (pendingOperation.current !== "saving")
+              setOutcomeNote(event.target.value);
+          }}
           placeholder={copy.notesPlaceholder}
           rows={3}
           className="bg-background min-h-20 resize-none text-sm"
@@ -385,7 +415,8 @@ export function ActiveCallModal({
             contactId,
             callId,
             layout: "workspace",
-            onPendingChange: setBookingPending,
+            disabled: pending === "saving",
+            onPendingChange: (active) => changePending("booking", active),
             onBooked: handleBooked,
             onCancel: () => {},
           })
@@ -397,10 +428,7 @@ export function ActiveCallModal({
   );
 
   return (
-    <Dialog modal={false} open={open} onOpenChange={() => {}}>
-      <DialogPortal>
-        <div aria-hidden className="fixed inset-0 z-50 bg-black/75" />
-      </DialogPortal>
+    <Dialog modal open={open} onOpenChange={() => {}}>
       {slots.renderTranscriptDialog?.({
         open: open && transcriptDialogOpen,
         onOpenChange: setTranscriptDialogOpen,
@@ -440,7 +468,15 @@ export function ActiveCallModal({
         )}
         {compact && isPostCall ? (
           <div className="p-5">
-            <PostCallView onClose={onPostCallClose} />
+            <PostCallView
+              onClose={onPostCallClose}
+              pending={pending === "booking"}
+              onPendingChange={(active) => changePending("saving", active)}
+              onBookingPendingChange={(active) =>
+                changePending("booking", active)
+              }
+              canClose={() => pendingOperation.current !== "booking"}
+            />
           </div>
         ) : (
           <>
@@ -557,7 +593,11 @@ export function ActiveCallModal({
                     <PostCallView
                       onClose={onPostCallClose}
                       layout="workspace"
-                      pending={bookingPending}
+                      pending={pending === "booking"}
+                      onPendingChange={(active) =>
+                        changePending("saving", active)
+                      }
+                      canClose={() => pendingOperation.current !== "booking"}
                       actionsContainer={actionsContainer}
                     />
                   </div>

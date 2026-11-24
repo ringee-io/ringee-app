@@ -22,6 +22,7 @@ function fixture() {
   let stateIndex = 0;
   const hooks = {
     useEffect: () => {},
+    useRef: (initial) => ({ current: initial }),
     useMemo: (fn) => fn(),
     useState: (initial) => [stateIndex++ === 0 ? elapsed : initial, () => {}]
   };

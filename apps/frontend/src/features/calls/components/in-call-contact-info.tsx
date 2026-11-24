@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ContactActivities,
@@ -207,11 +207,13 @@ function toForm(c: ContactPayload | null | undefined): FormState {
 export function InCallContactInfo({
   contactId,
   profileActionsContainer,
-  showActivities = false
+  showActivities = false,
+  refreshKey = 0
 }: {
   contactId: string;
   profileActionsContainer?: HTMLElement | null;
   showActivities?: boolean;
+  refreshKey?: number;
 }) {
   const api = useApi();
   const format = useFormatter();
@@ -223,6 +225,11 @@ export function InCallContactInfo({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const loadedContactId = useRef<string | null>(null);
+  const savedRevision = useRef(0);
+  const [failedContactId, setFailedContactId] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const loadError = failedContactId === contactId;
 
   function formatCompanyAmount(value: string | number | null | undefined) {
     if (value == null || (typeof value === 'string' && !value.trim()))
@@ -235,19 +242,30 @@ export function InCallContactInfo({
 
   useEffect(() => {
     let active = true;
+    const revision = savedRevision.current;
+    const initial = loadedContactId.current !== contactId;
     setLoading(true);
-    setContact(null);
-    setEditing(false);
+    if (initial) {
+      setContact(null);
+      setEditing(false);
+    }
     api
       .get<ContactPayload | null | undefined>(`/contacts/${contactId}`)
       .then((c) => {
         if (!active) return;
+        if (revision !== savedRevision.current) {
+          // Re-read history without replacing the newer successful edit.
+          setRetry((value) => value + 1);
+          return;
+        }
+        loadedContactId.current = c ? contactId : null;
         setContact(c ?? null);
-        setForm(toForm(c));
+        setFailedContactId(null);
+        if (initial) setForm(toForm(c));
       })
       .catch(() => {
-        if (active) {
-          setContact(null);
+        if (active && revision === savedRevision.current) {
+          setFailedContactId(contactId);
           toast.error(t('loadFailed'));
         }
       })
@@ -257,7 +275,7 @@ export function InCallContactInfo({
     return () => {
       active = false;
     };
-  }, [api, contactId, t]);
+  }, [api, contactId, t, refreshKey, retry]);
 
   const setField = (key: keyof FormState) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -284,6 +302,7 @@ export function InCallContactInfo({
         toast.error(t('saveFailed'));
         return;
       }
+      savedRevision.current++;
       setContact((current) => ({
         ...(current ?? {}),
         ...updated,
@@ -304,7 +323,10 @@ export function InCallContactInfo({
     setEditing(false);
   }
 
-  if (loading) {
+  if (
+    (loading && !contact && !loadError) ||
+    (contact && loadedContactId.current !== contactId)
+  ) {
     return (
       <div className='space-y-3 p-4 md:p-6'>
         <Skeleton className='h-6 w-40' />
@@ -319,7 +341,22 @@ export function InCallContactInfo({
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <UserCircle2 className='text-muted-foreground mb-2 h-8 w-8' />
-        <p className='text-muted-foreground text-sm'>{t('notFound')}</p>
+        <div role={loadError ? 'alert' : undefined} className='space-y-3'>
+          <p className='text-muted-foreground text-sm'>
+            {loadError ? t('loadFailed') : t('notFound')}
+          </p>
+          <Button
+            type='button'
+            variant='outline'
+            disabled={loading}
+            onClick={() => setRetry((value) => value + 1)}
+          >
+            {t('retry')}
+          </Button>
+        </div>
+        {showActivities && (
+          <ContactActivities key={contactId} contactId={contactId} />
+        )}
       </div>
     );
   }
@@ -362,6 +399,19 @@ export function InCallContactInfo({
   return (
     <div className='@container'>
       <div className='flex flex-col gap-4 p-4 md:p-6'>
+        {loadError && (
+          <div role='alert' className='space-y-2'>
+            <p className='text-destructive text-xs'>{t('loadFailed')}</p>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={loading}
+              onClick={() => setRetry((value) => value + 1)}
+            >
+              {t('retry')}
+            </Button>
+          </div>
+        )}
         <div className='flex flex-wrap items-start gap-3'>
           <Avatar className='size-11'>
             <AvatarFallback>
@@ -411,7 +461,10 @@ export function InCallContactInfo({
             <Button
               size='sm'
               variant='outline'
-              onClick={() => setEditing(true)}
+              onClick={() => {
+                setForm(toForm(contact));
+                setEditing(true);
+              }}
             >
               <Pencil className='mr-1 h-4 w-4' />
               {t('edit')}

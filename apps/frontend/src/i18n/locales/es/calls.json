@@ -448,7 +448,8 @@
     "companyType": "Tipo de empresa",
     "address": "Dirección",
     "annualRevenue": "Ingresos anuales",
-    "fundingTotal": "Financiación total"
+    "fundingTotal": "Financiación total",
+    "retry": "Intentar de nuevo"
   },
   "publicNumberPrompt": {
     "title": "Vas a llamar desde el número público",
@@ -728,6 +729,7 @@
     "incomingCall": "Llamada entrante",
     "outgoingCall": "Llamada saliente",
     "meeting": "Reunión",
-    "minutes": "{count} min"
+    "minutes": "{count} min",
+    "call": "Llamada"
   }
 }

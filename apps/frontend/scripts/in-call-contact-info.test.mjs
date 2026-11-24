@@ -12,7 +12,14 @@ const native = createRequire(source);
 const React = native('react');
 const { renderToStaticMarkup } = native('react-dom/server');
 
-function fixture({ get, put, contactId = 'ana', deferStateUpdates = false }) {
+function fixture({
+  get,
+  put,
+  contactId = 'ana',
+  deferStateUpdates = false,
+  refreshKey = 0,
+  showActivities = false
+}) {
   const states = [];
   const pendingStates = [];
   const effects = [];
@@ -50,6 +57,11 @@ function fixture({ get, put, contactId = 'ana', deferStateUpdates = false }) {
     react: {
       ...React,
       useId: () => `field-${nextId++}`,
+      useRef: (initial) => {
+        const index = cursor++;
+        if (!Object.hasOwn(states, index)) states[index] = { current: initial };
+        return states[index];
+      },
       useState: (initial) => {
         const index = cursor++;
         if (!Object.hasOwn(states, index)) {
@@ -164,7 +176,11 @@ function fixture({ get, put, contactId = 'ana', deferStateUpdates = false }) {
       pendingStates.splice(0).forEach((update) => update());
       dirty = false;
       cursor = 0;
-      tree = module.exports.InCallContactInfo({ contactId });
+      tree = module.exports.InCallContactInfo({
+        contactId,
+        refreshKey,
+        showActivities
+      });
       pendingEffects.splice(0).forEach((run) => run());
     }
     return tree;
@@ -178,6 +194,11 @@ function fixture({ get, put, contactId = 'ana', deferStateUpdates = false }) {
     html: () => renderToStaticMarkup(render()),
     settle: async () => {
       await new Promise(setImmediate);
+      render();
+    },
+    refresh: () => {
+      refreshKey++;
+      dirty = true;
       render();
     },
     setContactId: (id) => {
@@ -509,7 +530,8 @@ test('switching contacts clears the previous details and editing state, includin
   rejectNext(new Error('Contact unavailable'));
   await f.settle();
   const html = f.html();
-  assert.match(html, /No contact information was found/);
+  assert.match(html, /Could not load contact/);
+  assert.match(html, /Try again/);
   assert.doesNotMatch(
     html,
     /Ana|Unsaved first name|Manual lead assignment|<input/
@@ -713,4 +735,71 @@ test('the company website action prefers the primary company over the contact we
   await f.settle();
   f.html();
   assert.equal(f.externalUrls().websiteUrl, 'https://acme.example');
+});
+
+test('refreshing the same contact keeps its edit draft and updates the history snapshot', async () => {
+  let row = importedLead();
+  const f = fixture({ get: async () => row });
+  await f.settle();
+  await f.click('Edit');
+  f.change('First name', 'Unsaved draft');
+  row = {
+    ...row,
+    customFields: { ...row.customFields, 'New meeting': 'Demo booked' }
+  };
+  f.refresh();
+  assert.match(f.html(), /Unsaved draft/);
+  await f.settle();
+  assert.match(f.html(), /Unsaved draft/);
+  assert.match(f.html(), /Demo booked/);
+  assert.equal(f.requests.length, 2);
+});
+
+test('a failed contact read can be retried in place', async () => {
+  let failing = true;
+  const f = fixture({
+    get: async () => {
+      if (failing) throw new Error('offline');
+      return importedLead();
+    }
+  });
+  await f.settle();
+  assert.match(f.html(), /Try again/);
+  failing = false;
+  await f.click('Try again');
+  await f.settle();
+  assert.match(f.html(), /Ana Moreno/);
+  assert.equal(f.requests.length, 2);
+});
+
+test('a refresh resolved after a successful edit cannot restore the old contact', async () => {
+  let resolveRead;
+  const staleRead = new Promise((resolve) => {
+    resolveRead = resolve;
+  });
+  const original = importedLead();
+  const updated = { ...original, firstName: 'Bea', name: 'Bea Moreno' };
+  let reads = 0;
+  const f = fixture({
+    get: async () => {
+      reads++;
+      if (reads === 2) return staleRead;
+      return reads === 1 ? original : updated;
+    },
+    put: async () => updated
+  });
+  await f.settle();
+  await f.click('Edit');
+  f.change('First name', 'Bea');
+  f.refresh();
+  await f.click('Save');
+  assert.match(f.html(), /Bea Moreno/);
+  resolveRead(original);
+  await f.settle();
+  await f.settle();
+  assert.match(f.html(), /Bea Moreno/);
+  await f.click('Edit');
+  assert.match(f.html(), /value="Bea"/);
+  assert.doesNotMatch(f.html(), /value="Ana"/);
+  assert.equal(reads, 3);
 });

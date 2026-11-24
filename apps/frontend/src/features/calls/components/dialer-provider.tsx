@@ -65,11 +65,16 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
 
   const slots = useMemo<DialerSlots>(
     () => ({
-      renderContactInfo: ({ contactId, profileActionsContainer }) => (
+      renderContactInfo: ({
+        contactId,
+        profileActionsContainer,
+        refreshKey
+      }) => (
         <InCallContactInfo
           key={contactId}
           contactId={contactId}
           profileActionsContainer={profileActionsContainer}
+          refreshKey={refreshKey}
           showActivities
         />
       ),
@@ -80,11 +85,13 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
         onBooked,
         onCancel,
         layout,
+        disabled,
         onPendingChange
       }) => (
         <BookMeetingForm
           key={contactId}
           layout={layout}
+          disabled={disabled}
           onPendingChange={onPendingChange}
           contactId={contactId}
           callId={callId}

@@ -173,7 +173,13 @@
     "showTimesIn": "Show times in",
     "minutes": "{count} min",
     "noCalendars": "No calendar available",
-    "connectCalendar": "Connect Google Calendar or Outlook"
+    "connectCalendar": "Connect Google Calendar or Outlook",
+    "validation": {
+      "calendar": "Choose an available calendar.",
+      "duration": "Choose a valid duration.",
+      "email": "Enter a valid email address.",
+      "maxLength": "Use {count} characters or fewer."
+    }
   },
   "toasts": {
     "failedToLoad": "Failed to load meetings",

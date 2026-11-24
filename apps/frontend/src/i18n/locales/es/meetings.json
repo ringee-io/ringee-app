@@ -136,7 +136,13 @@
     "emailPlaceholder": "Para enviar la invitación",
     "selectCalendar": "Calendario",
     "cancel": "Cancelar",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "validation": {
+      "calendar": "Elige un calendario disponible.",
+      "duration": "Elige una duración válida.",
+      "email": "Introduce un correo electrónico válido.",
+      "maxLength": "Usa un máximo de {count} caracteres."
+    }
   },
   "calendars": {
     "title": "Calendarios",

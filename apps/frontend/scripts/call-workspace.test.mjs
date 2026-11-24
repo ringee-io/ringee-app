@@ -300,3 +300,106 @@ test('disabling availability invalidates an in-flight reply; failures offer no i
   assert.equal(failed.failed, true);
   assert.deepEqual(failed.slots, []);
 });
+
+test('save and skip respect the shared operation gate and recheck whether closure is allowed', async () => {
+  for (const label of [copy.save, copy.skip]) {
+    const request = deferred();
+    let allowClose = false;
+    const pending = [];
+    const h = postCall(() => request.promise);
+    const tree = h.render({
+      ...h.props,
+      onPendingChange: (active) => {
+        pending.push(active);
+        return true;
+      },
+      canClose: () => allowClose
+    });
+    const saving = button(tree, label).onClick();
+    request.resolve();
+    await saving;
+    assert.equal(h.closed(), 0);
+    assert.deepEqual(pending, [true, false]);
+    allowClose = true;
+    await button(h.render(), label).onClick();
+    assert.equal(h.closed(), 1);
+  }
+});
+
+test('the live workspace atomically excludes saving and booking and locks the submitted note', () => {
+  let booking;
+  let detail;
+  const store = {
+    outcomeNote: 'Original note',
+    outcome: 'interested',
+    callDuration: 12,
+    setOutcomeNote: (note) => {
+      store.outcomeNote = note;
+    },
+    setMeetingBooked: () => {},
+    setOutcome: () => {}
+  };
+  const useCallStore = Object.assign(() => store, { getState: () => store });
+  const h = harness(
+    '../../../packages/dialer-ui/src/components/active-call-modal.tsx',
+    'ActiveCallModal',
+    {
+      '@ringee/dialer-core/store': { useCallStore },
+      '../data/context': {
+        useDialer: () => ({
+          data: {},
+          labels: { workspace: copy },
+          recordingSettings: {},
+          slots: {
+            renderBookMeeting: (args) => {
+              booking = args;
+              return null;
+            },
+            renderContactInfo: (args) => {
+              detail = args;
+              return null;
+            }
+          }
+        })
+      }
+    }
+  );
+  const props = {
+    open: false,
+    isPostCall: true,
+    contactId: 'contact',
+    number: '+13125550187',
+    onPostCallClose: () => {}
+  };
+  const wrapUp = (tree) =>
+    nodes(tree, (node) => node.type === 'PostCallView')[0].props;
+  const note = (tree) =>
+    nodes(tree, (node) => node.props?.id === 'active-call-notes')[0].props;
+  let tree = h.render(props);
+  assert.equal(wrapUp(tree).onPendingChange(true), true);
+  tree = h.render();
+  assert.equal(note(tree).readOnly, true);
+  assert.equal(booking.disabled, true);
+  assert.equal(booking.onPendingChange(true), false);
+  note(tree).onChange({ target: { value: 'Changed after submit' } });
+  assert.equal(store.outcomeNote, 'Original note');
+  wrapUp(tree).onPendingChange(false);
+  tree = h.render();
+  assert.equal(note(tree).readOnly, false);
+  assert.equal(booking.onPendingChange(true), true);
+  assert.equal(wrapUp(tree).onPendingChange(true), false);
+  assert.equal(wrapUp(tree).canClose(), false);
+  booking.onPendingChange(false);
+  booking.onBooked();
+  h.render();
+  assert.equal(detail.refreshKey, 1);
+  assert.equal(store.outcomeNote, 'Original note');
+
+  tree = h.render({ ...props, compact: true });
+  assert.equal(wrapUp(tree).onBookingPendingChange(true), true);
+  assert.equal(wrapUp(tree).onPendingChange(true), false);
+  tree = h.render();
+  assert.equal(wrapUp(tree).pending, true);
+  assert.equal(wrapUp(tree).canClose(), false);
+  wrapUp(tree).onBookingPendingChange(false);
+});

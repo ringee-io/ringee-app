@@ -1,15 +1,20 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form } from '@ringee/frontend-shared/components/ui/form';
+import { FormInput } from '@ringee/frontend-shared/components/forms/form-input';
+import { FormSelect } from '@ringee/frontend-shared/components/forms/form-select';
+import { FormTextarea } from '@ringee/frontend-shared/components/forms/form-textarea';
 import { useLocale, useTranslations } from 'next-intl';
 import { es } from 'date-fns/locale/es';
 import { startOfToday } from 'date-fns';
 import { CalendarCheck, CalendarPlus, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Calendar } from '@ringee/frontend-shared/components/ui/calendar';
-import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
-import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
@@ -32,7 +37,8 @@ interface BookMeetingFormProps {
   onBooked: () => void;
   onCancel: () => void;
   layout?: 'workspace';
-  onPendingChange?: (pending: boolean) => void;
+  disabled?: boolean;
+  onPendingChange?: (pending: boolean) => boolean | void;
 }
 
 export function BookMeetingForm({
@@ -41,6 +47,7 @@ export function BookMeetingForm({
   onBooked,
   onCancel,
   layout,
+  disabled = false,
   onPendingChange
 }: BookMeetingFormProps) {
   const api = useApi();
@@ -48,14 +55,7 @@ export function BookMeetingForm({
   const t = useTranslations('meetings.booking');
   const tNew = useTranslations('meetings.page.new');
   const id = useId();
-  const [selectedDate, setSelectedDate] = useState(startOfToday);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [duration, setDuration] = useState(30);
-  const [title, setTitle] = useState('');
-  const [notes, setNotes] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
   const [calendars, setCalendars] = useState<RingeeCalendar[]>([]);
-  const [calendarId, setCalendarId] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadRevision, setLoadRevision] = useState(0);
@@ -77,6 +77,88 @@ export function BookMeetingForm({
     ],
     [browserZone]
   );
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          selectedDate: z.date(),
+          selectedTime: z.string().nullable(),
+          duration: z
+            .number()
+            .refine(
+              (value) => (DURATIONS as readonly number[]).includes(value),
+              t('validation.duration')
+            ),
+          calendarId: z
+            .string()
+            .refine(
+              (value) => calendars.some((item) => item.id === value),
+              t('validation.calendar')
+            ),
+          title: z
+            .string()
+            .trim()
+            .max(200, t('validation.maxLength', { count: 200 })),
+          notes: z
+            .string()
+            .trim()
+            .max(2000, t('validation.maxLength', { count: 2000 })),
+          attendeeEmail: z
+            .string()
+            .trim()
+            .max(320, t('validation.email'))
+            .refine(
+              (value) => !value || z.email().safeParse(value).success,
+              t('validation.email')
+            )
+        })
+        .superRefine((values, context) => {
+          if (
+            calendars.find((item) => item.id === values.calendarId)
+              ?.integration &&
+            !values.attendeeEmail
+          ) {
+            context.addIssue({
+              code: 'custom',
+              path: ['attendeeEmail'],
+              message: t('emailRequired')
+            });
+          }
+        }),
+    [calendars, t]
+  );
+  type BookingValues = z.infer<typeof schema>;
+  const form = useForm<BookingValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      selectedDate: startOfToday(),
+      selectedTime: null,
+      duration: 30,
+      calendarId: '',
+      title: '',
+      notes: '',
+      attendeeEmail: ''
+    }
+  });
+  const [selectedDate, selectedTime, duration, calendarId, title] = useWatch({
+    control: form.control,
+    name: ['selectedDate', 'selectedTime', 'duration', 'calendarId', 'title']
+  });
+  const blocked = disabled || isSubmitting;
+  // Only user edits dismiss a server error. Programmatic invalidation after a
+  // conflict must leave the conflict visible until a new choice or a retry.
+  useEffect(() => {
+    const subscription = form.watch((_values, { name, type }) => {
+      if (type !== 'change') return;
+      if (name === 'calendarId') form.setValue('selectedTime', null);
+      setSubmitError(null);
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+  const selectTime = (time: string | null) => {
+    if (form.getValues('selectedTime') !== time) setSubmitError(null);
+    form.setValue('selectedTime', time, { shouldDirty: true });
+  };
   const calendar = calendars.find((item) => item.id === calendarId);
   const { slots, allSlots, loading, failed, reload } = useOpenSlots({
     calendarId,
@@ -105,10 +187,11 @@ export function BookMeetingForm({
       .then(([contact, rows]) => {
         if (!active) return;
         const available = rows.filter((item) => !item.archivedAt);
-        setContactEmail(contact.email ?? '');
+        form.setValue('attendeeEmail', contact.email ?? '');
         setCalendars(available);
-        setCalendarId(
-          (available.find((item) => item.isDefault) ?? available[0])?.id ?? null
+        form.setValue(
+          'calendarId',
+          (available.find((item) => item.isDefault) ?? available[0])?.id ?? ''
         );
       })
       .catch(() => {
@@ -120,47 +203,57 @@ export function BookMeetingForm({
     return () => {
       active = false;
     };
-  }, [api, contactId, loadRevision]);
+  }, [api, contactId, loadRevision, form]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = async (values: BookingValues) => {
+    const {
+      selectedDate: date,
+      selectedTime: time,
+      duration: minutes,
+      title,
+      notes,
+      attendeeEmail
+    } = values;
+    const selectedCalendar = calendars.find(
+      (item) => item.id === values.calendarId
+    );
     if (
+      disabled ||
       submitting.current ||
-      !selectedTime ||
-      !calendar ||
+      !time ||
+      !selectedCalendar ||
+      values.calendarId !== calendarId ||
+      minutes !== duration ||
+      date.getTime() !== selectedDate.getTime() ||
       loading ||
       failed ||
-      !slots.includes(selectedTime)
+      !slots.includes(time)
     )
       return;
-    if (calendar.integration && !contactEmail.trim()) {
-      setSubmitError(t('emailRequired'));
-      return;
-    }
-    const scheduledAt = atTime(selectedDate, selectedTime);
+    const scheduledAt = atTime(date, time);
     if (scheduledAt <= new Date()) {
-      setSelectedTime(null);
+      form.setValue('selectedTime', null);
       void reload();
       return;
     }
+    if (onPendingChange?.(true) === false) return;
     submitting.current = true;
-    onPendingChange?.(true);
     setIsSubmitting(true);
     setSubmitError(null);
     try {
       const meeting = await api.post<{ id: string }>('/meetings', {
         contactId,
         callId: callId || undefined,
-        calendarId: calendar.id,
+        calendarId: selectedCalendar.id,
         scheduledAt: scheduledAt.toISOString(),
-        duration,
+        duration: minutes,
         title: title.trim() || undefined,
         notes: notes.trim() || undefined,
-        attendeeEmail: contactEmail.trim() || undefined,
+        attendeeEmail: attendeeEmail || undefined,
         requireAvailableSlot: true,
         bookingTimeZone: browserZone
       });
-      setBooked({ at: scheduledAt, calendar: calendar.name });
+      setBooked({ at: scheduledAt, calendar: selectedCalendar.name });
       offerMeetingInvitation({ meetingId: meeting.id, callId });
       toast.success(
         t('success', {
@@ -172,7 +265,7 @@ export function BookMeetingForm({
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setSubmitError(tNew('taken'));
-        setSelectedTime(null);
+        form.setValue('selectedTime', null);
         void reload();
       } else setSubmitError(t('failed'));
     } finally {
@@ -245,28 +338,31 @@ export function BookMeetingForm({
     );
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-4'>
+    <Form
+      form={form}
+      onSubmit={(event) => {
+        if (disabled || submitting.current) {
+          event.preventDefault();
+          return;
+        }
+        setSubmitError(null);
+        void form.handleSubmit(handleSubmit)(event);
+      }}
+      className='space-y-4'
+    >
       <div className='space-y-2'>
-        <Label htmlFor={`${id}-calendar`} className='text-xs'>
-          {t('selectCalendar')}
-        </Label>
-        <select
-          id={`${id}-calendar`}
-          value={calendarId ?? ''}
-          onChange={(event) => {
-            setCalendarId(event.target.value);
-            setSelectedTime(null);
-          }}
-          className={selectClass}
-          disabled={isSubmitting || !calendars.length}
-        >
-          {!calendars.length && <option value=''>{t('noCalendars')}</option>}
-          {calendars.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
+        <FormSelect
+          control={form.control}
+          name='calendarId'
+          label={t('selectCalendar')}
+          placeholder={t('noCalendars')}
+          options={calendars.map((item) => ({
+            value: item.id,
+            label: item.name
+          }))}
+          disabled={blocked || !calendars.length}
+          className='[&_button]:h-11 [&_button]:w-full [&_label]:text-xs'
+        />
         <p className='text-muted-foreground text-xs'>
           {calendar?.integration
             ? `${calendar.integration.provider === 'google' ? 'Google Calendar' : 'Microsoft Outlook'}${calendar.integration.email ? ` · ${calendar.integration.email}` : ''}`
@@ -284,20 +380,14 @@ export function BookMeetingForm({
         )}
       </div>
       <div className='grid grid-cols-[minmax(0,1fr)_100px] gap-3'>
-        <div className='space-y-2'>
-          <Label htmlFor={`${id}-title`} className='text-xs'>
-            {tNew('reason')}
-          </Label>
-          <Input
-            id={`${id}-title`}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            maxLength={200}
-            disabled={isSubmitting}
-            placeholder={tNew('reasonPlaceholder')}
-            className='h-11 text-sm'
-          />
-        </div>
+        <FormInput
+          control={form.control}
+          name='title'
+          label={tNew('reason')}
+          placeholder={tNew('reasonPlaceholder')}
+          disabled={blocked}
+          className='[&_input]:h-11 [&_input]:text-sm [&_label]:text-xs'
+        />
         <div className='space-y-2'>
           <Label htmlFor={`${id}-duration`} className='text-xs'>
             {t('duration')}
@@ -306,10 +396,12 @@ export function BookMeetingForm({
             id={`${id}-duration`}
             value={duration}
             onChange={(event) => {
-              setDuration(Number(event.target.value));
-              setSelectedTime(null);
+              const next = Number(event.target.value);
+              if (next !== duration) setSubmitError(null);
+              form.setValue('duration', next, { shouldDirty: true });
+              form.setValue('selectedTime', null);
             }}
-            disabled={isSubmitting}
+            disabled={blocked}
             className={selectClass}
           >
             {DURATIONS.map((minutes) => (
@@ -342,12 +434,14 @@ export function BookMeetingForm({
           mode='single'
           selected={selectedDate}
           onSelect={(date) => {
-            if (date && !isSubmitting) {
-              setSelectedDate(date);
-              setSelectedTime(null);
+            if (date && !blocked) {
+              if (date.getTime() !== selectedDate.getTime())
+                setSubmitError(null);
+              form.setValue('selectedDate', date, { shouldDirty: true });
+              selectTime(null);
             }
           }}
-          disabled={isSubmitting ? true : { before: startOfToday() }}
+          disabled={blocked ? true : { before: startOfToday() }}
           fromMonth={startOfToday()}
           weekStartsOn={1}
           locale={locale.startsWith('es') ? es : undefined}
@@ -394,7 +488,7 @@ export function BookMeetingForm({
               type='button'
               variant='outline'
               onClick={() => {
-                setSelectedTime(null);
+                selectTime(null);
                 void reload();
               }}
               className='h-11 cursor-pointer'
@@ -411,9 +505,9 @@ export function BookMeetingForm({
                 <button
                   type='button'
                   key={slot.time}
-                  disabled={!available || isSubmitting}
+                  disabled={!available || blocked}
                   aria-pressed={selectedTime === slot.time}
-                  onClick={() => setSelectedTime(slot.time)}
+                  onClick={() => selectTime(slot.time)}
                   title={slot.eventName}
                   className={cn(
                     'focus-visible:ring-ring min-h-11 cursor-pointer rounded-md border px-1 py-2 font-mono text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40',
@@ -440,37 +534,25 @@ export function BookMeetingForm({
           </p>
         )}
       </div>
-      <div className='space-y-2 border-t pt-4'>
-        <Label htmlFor={`${id}-email`} className='text-xs'>
-          {t('contactEmail')}
-        </Label>
-        <Input
-          id={`${id}-email`}
-          type='email'
-          value={contactEmail}
-          onChange={(event) => setContactEmail(event.target.value)}
-          placeholder={t('emailPlaceholder')}
-          required={!!calendar?.integration}
-          maxLength={320}
-          disabled={isSubmitting}
-          className='h-11 text-sm'
-        />
-      </div>
-      <div className='space-y-2'>
-        <Label htmlFor={`${id}-notes`} className='text-xs'>
-          {tNew('notes')}
-        </Label>
-        <Textarea
-          id={`${id}-notes`}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          placeholder={tNew('notesPlaceholder')}
-          maxLength={2000}
-          disabled={isSubmitting}
-          rows={2}
-          className='text-sm'
-        />
-      </div>
+      <FormInput
+        control={form.control}
+        name='attendeeEmail'
+        label={t('contactEmail')}
+        type='email'
+        placeholder={t('emailPlaceholder')}
+        required={!!calendar?.integration}
+        disabled={blocked}
+        className='border-t pt-4 [&_input]:h-11 [&_input]:text-sm [&_label]:text-xs'
+      />
+      <FormTextarea
+        control={form.control}
+        name='notes'
+        label={tNew('notes')}
+        placeholder={tNew('notesPlaceholder')}
+        disabled={blocked}
+        config={{ maxLength: 2000, rows: 2, showCharCount: false }}
+        className='[&_label]:text-xs [&_textarea]:text-sm'
+      />
       {submitError && (
         <p role='alert' className='text-destructive text-xs'>
           {submitError}
@@ -482,7 +564,7 @@ export function BookMeetingForm({
             type='button'
             variant='ghost'
             onClick={onCancel}
-            disabled={isSubmitting}
+            disabled={blocked}
             className='h-11'
           >
             {t('cancel')}
@@ -493,7 +575,7 @@ export function BookMeetingForm({
           disabled={
             !selectedTime ||
             !calendar ||
-            isSubmitting ||
+            blocked ||
             loading ||
             failed ||
             !slots.includes(selectedTime)
@@ -508,7 +590,7 @@ export function BookMeetingForm({
           {tNew('book')}
         </Button>
       </div>
-    </form>
+    </Form>
   );
 }
 

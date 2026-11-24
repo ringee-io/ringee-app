@@ -80,13 +80,16 @@ export interface DialerSlots {
     contactId: string;
     /** The call toolbar's host for the contact's external-profile buttons. */
     profileActionsContainer?: HTMLElement | null;
+    refreshKey?: number;
   }) => ReactNode;
   renderScript?: () => ReactNode;
   renderBookMeeting?: (args: {
     contactId: string;
     callId?: string | null;
     layout?: "workspace";
-    onPendingChange?: (pending: boolean) => void;
+    disabled?: boolean;
+    /** Return false to reject a submission before it starts. */
+    onPendingChange?: (pending: boolean) => boolean | void;
     onBooked: () => void;
     onCancel: () => void;
   }) => ReactNode;
