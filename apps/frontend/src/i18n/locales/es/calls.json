@@ -140,7 +140,9 @@
         "invalidTime": "Elige una hora válida",
         "mustBeFuture": "Elige una hora en el futuro",
         "saveFailed": "No se pudo agendar la devolución"
-      }
+      },
+      "previousWeek": "Semana anterior",
+      "nextWeek": "Semana siguiente"
     }
   },
   "dnc": {
@@ -389,7 +391,9 @@
     "emptyDescription": "Crea tu guion en Ajustes → Resumen → Guion para verlo aquí durante la llamada.",
     "configure": "Configurar guion",
     "untitled": "Sin título",
-    "noContent": "(Sin contenido)"
+    "noContent": "(Sin contenido)",
+    "loadFailed": "No se pudo cargar el guion de llamada.",
+    "retry": "Intentar de nuevo"
   },
   "inCallContact": {
     "loadFailed": "No se pudo cargar el contacto",
@@ -446,7 +450,8 @@
     "companyType": "Tipo de empresa",
     "address": "Dirección",
     "annualRevenue": "Ingresos anuales",
-    "fundingTotal": "Financiación total"
+    "fundingTotal": "Financiación total",
+    "retry": "Intentar de nuevo"
   },
   "publicNumberPrompt": {
     "title": "Vas a llamar desde el número público",
@@ -664,5 +669,81 @@
     "stopped": "El seguimiento está pausado o cerrado",
     "policyTime": "Llamada programada por política",
     "agreedTime": "Callback acordado"
+  },
+  "workspace": {
+    "title": "Espacio de llamada",
+    "controls": "Controles de llamada",
+    "manualCall": "Llamada manual",
+    "contact": "Contacto",
+    "history": "Actividad reciente",
+    "script": "Guion de llamada",
+    "schedule": "Agendar una reunión",
+    "callNotes": "Notas de la llamada",
+    "notesHint": "Se guardan con esta llamada",
+    "notesPlaceholder": "Anota lo importante…",
+    "inProgress": "Llamada en curso",
+    "keepContext": "Tus notas y la reunión se conservan al terminar la llamada.",
+    "wrapUpHint": "El cierre comienza cuando termina la llamada",
+    "wrapUp": "Cierre de llamada",
+    "ended": "Llamada finalizada",
+    "outcomeHint": "Elige un resultado y guarda la llamada.",
+    "mute": "Silenciar",
+    "unmute": "Activar micrófono",
+    "hold": "En espera",
+    "resume": "Reanudar",
+    "keypad": "Teclado",
+    "record": "Grabar",
+    "recording": "Grabando",
+    "autoRecording": "Grabación activada por la configuración del espacio",
+    "transcript": "Transcripción",
+    "subtitles": "Subtítulos",
+    "endCall": "Colgar",
+    "freeTrial": "Prueba gratuita",
+    "meetingBooked": "Reunión agendada",
+    "contactPending": "Los datos del contacto aún no están disponibles.",
+    "noScript": "No hay un guion configurado",
+    "noCalendar": "La agenda no está disponible para este contacto.",
+    "skip": "Omitir",
+    "save": "Guardar y cerrar",
+    "saveFailed": "No se pudo guardar. Tus notas y el resultado siguen aquí. Inténtalo de nuevo.",
+    "saved": "Resultado guardado",
+    "selectOutcome": "¿Cómo fue la llamada?",
+    "sendVoicemail": "Enviar mensaje de voz",
+    "meeting_booked": "Reunión agendada",
+    "sale": "Venta",
+    "interested": "Interesado",
+    "follow_up": "Seguimiento",
+    "callback_scheduled": "Devolver llamada",
+    "not_interested": "No interesado",
+    "no_answer": "Sin respuesta",
+    "no_conversation": "Sin conversación",
+    "voicemail": "Buzón de voz",
+    "wrong_number": "Número incorrecto",
+    "gatekeeper": "Filtro de llamadas",
+    "connecting": "Conectando…",
+    "dtmfSend": "Enviar DTMF",
+    "dtmfLettersHint": "Las letras se envían como dígitos del teclado telefónico (ABC → 2).",
+    "dtmfNumbersHint": "A–D son tonos DTMF especiales. + solo se usa al marcar.",
+    "unknownContact": "Desconocido",
+    "meetingBookedDuringCall": "Reunión agendada durante la llamada",
+    "voicemailSent": "Mensaje de voz enviado",
+    "voicemailOnItsWay": "Mensaje de voz en camino",
+    "successfulOutcomes": "Resultados positivos",
+    "otherDispositions": "Otros resultados",
+    "bookMeeting": "Agendar una reunión",
+    "quickNotePlaceholder": "Añade una nota rápida…"
+  },
+  "contactContext": {
+    "notes": "Notas del contacto",
+    "history": "Historial del contacto",
+    "noNotes": "Este contacto aún no tiene notas.",
+    "noHistory": "No hay llamadas ni reuniones anteriores.",
+    "loadFailed": "No se pudo cargar el historial del contacto.",
+    "retry": "Intentar de nuevo",
+    "incomingCall": "Llamada entrante",
+    "outgoingCall": "Llamada saliente",
+    "meeting": "Reunión",
+    "minutes": "{count} min",
+    "call": "Llamada"
   }
 }

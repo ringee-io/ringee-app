@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { useScriptStore } from '@/features/settings/store/script.store';
 import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { cn } from '@ringee/frontend-shared/lib/utils';
@@ -10,14 +12,16 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 /**
- * The workspace's call script, read-only, one section at a time. Laid out by
+ * The workspace's read-only script. The call workspace shows every section;
+ * campaign panels retain their section picker. Laid out by
  * the room it is given rather than the screen: from a 28rem container the
  * sections are a list beside the text, below that a row of chips above it —
  * a 180px list would leave a narrow column no room for the words.
  */
-export function InCallScript() {
+export function InCallScript({ continuous = false }: { continuous?: boolean }) {
   const t = useTranslations('calls.inCallScript');
   const { sections, status } = useScriptSync({ readOnly: true });
+  const setStatus = useScriptStore((state) => state.setStatus);
   const [selectedId, setSelectedId] = useState<string | null>(
     sections[0]?.id ?? null
   );
@@ -38,6 +42,17 @@ export function InCallScript() {
   // The container is a wrapper of its own: an element cannot answer its own
   // container query, so the one that changes direction must sit inside it.
   if (status === 'idle' || status === 'loading') {
+    if (continuous)
+      return (
+        <div className='space-y-5 p-5' aria-busy='true'>
+          {[0, 1, 2].map((key) => (
+            <div key={key} className='space-y-3'>
+              <Skeleton className='h-5 w-32' />
+              <Skeleton className='h-20 w-full' />
+            </div>
+          ))}
+        </div>
+      );
     return (
       <div className='@container h-full w-full'>
         <div className='flex h-full flex-col @md:flex-row'>
@@ -55,6 +70,21 @@ export function InCallScript() {
     );
   }
 
+  if (status === 'error')
+    return (
+      <div role='alert' className='space-y-3 p-6 text-center text-sm'>
+        <p>{t('loadFailed')}</p>
+        <Button
+          type='button'
+          variant='outline'
+          onClick={() => setStatus('idle')}
+          className='h-11 cursor-pointer'
+        >
+          {t('retry')}
+        </Button>
+      </div>
+    );
+
   if (sections.length === 0) {
     return (
       <div className='flex h-full flex-col items-center justify-center gap-3 p-8 text-center'>
@@ -71,6 +101,33 @@ export function InCallScript() {
         >
           {t('configure')}
         </Link>
+      </div>
+    );
+  }
+
+  if (continuous) {
+    return (
+      <div className='space-y-7 p-5 xl:p-6'>
+        {sections.map((section, index) => (
+          <section key={section.id} className='relative pl-8'>
+            <span
+              aria-hidden
+              className='text-muted-foreground absolute top-0 left-0 flex size-[22px] items-center justify-center rounded border font-mono text-xs'
+            >
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <h4 className='mb-2 text-sm font-semibold'>
+              {section.title || t('untitled')}
+            </h4>
+            <p className='text-foreground/85 text-sm leading-[1.85] whitespace-pre-wrap'>
+              {section.body || (
+                <span className='text-muted-foreground italic'>
+                  {t('noContent')}
+                </span>
+              )}
+            </p>
+          </section>
+        ))}
       </div>
     );
   }

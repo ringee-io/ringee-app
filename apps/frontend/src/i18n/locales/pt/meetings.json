@@ -104,5 +104,46 @@
     "retry": "Tentar o evento externo de novo",
     "retrySucceeded": "Evento externo criado.",
     "retryFailed": "Não foi possível criar o evento externo."
+  },
+  "booking": {
+    "emailRequired": "Informe um e-mail para o contato",
+    "success": "Reunião agendada — {date} às {time}",
+    "failed": "Não foi possível agendar a reunião",
+    "availabilityFailed": "Não foi possível verificar a disponibilidade do Ringee. Tente novamente.",
+    "noSlots": "Nenhum horário disponível",
+    "duration": "Duração",
+    "contactEmail": "E-mail do contato",
+    "emailPlaceholder": "Necessário para o convite do calendário",
+    "selectCalendar": "Selecionar calendário",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "loadFailed": "Não foi possível carregar o contato ou os calendários. Tente novamente.",
+    "retry": "Tentar novamente",
+    "booked": "Reunião agendada",
+    "showTimesIn": "Mostrar horários no fuso",
+    "minutes": "{count} min",
+    "noCalendars": "Nenhum calendário disponível",
+    "connectCalendar": "Conectar Google Agenda ou Outlook",
+    "validation": {
+      "calendar": "Escolha um calendário disponível.",
+      "duration": "Escolha uma duração válida.",
+      "email": "Insira um endereço de e-mail válido.",
+      "maxLength": "Use no máximo {count} caracteres."
+    },
+    "previousMonth": "Mês anterior",
+    "nextMonth": "Próximo mês"
+  },
+  "page": {
+    "new": {
+      "book": "Agendar reunião",
+      "calendar": "Calendário",
+      "notes": "Notas",
+      "notesPlaceholder": "O que precisa ser preparado",
+      "onlyRingee": "Somente no Ringee",
+      "reason": "Motivo da reunião",
+      "reasonPlaceholder": "Apresentação dos preços",
+      "startTime": "Horário de início",
+      "taken": "Esse horário acabou de ser reservado. Escolha outro."
+    }
   }
 }

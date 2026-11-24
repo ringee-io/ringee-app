@@ -140,7 +140,9 @@
         "invalidTime": "Scegli un orario valido",
         "mustBeFuture": "Scegli un orario nel futuro",
         "saveFailed": "Impossibile pianificare il richiamo"
-      }
+      },
+      "previousWeek": "Settimana precedente",
+      "nextWeek": "Settimana successiva"
     }
   },
   "dnc": {
@@ -372,7 +374,9 @@
     "emptyDescription": "Crea il tuo script in Impostazioni → Panoramica → Script per vederlo qui durante la chiamata.",
     "configure": "Configura script",
     "untitled": "Senza titolo",
-    "noContent": "(Nessun contenuto)"
+    "noContent": "(Nessun contenuto)",
+    "loadFailed": "Impossibile caricare lo script della chiamata.",
+    "retry": "Riprova"
   },
   "inCallContact": {
     "loadFailed": "Impossibile caricare il contatto",
@@ -429,7 +433,8 @@
     "companyType": "Tipo di azienda",
     "address": "Indirizzo",
     "annualRevenue": "Fatturato annuo",
-    "fundingTotal": "Finanziamento totale"
+    "fundingTotal": "Finanziamento totale",
+    "retry": "Riprova"
   },
   "numberSelector": {
     "callFrom": "Chiama da:",
@@ -628,5 +633,89 @@
       "clear": "Cancella la ricerca",
       "hint": "Non si attivano mentre scrivi, durante una chiamata o con una finestra di dialogo aperta."
     }
+  },
+  "workspace": {
+    "title": "Spazio chiamata",
+    "controls": "Controlli chiamata",
+    "manualCall": "Chiamata manuale",
+    "contact": "Contatto",
+    "history": "Attività recente",
+    "script": "Script della chiamata",
+    "schedule": "Pianifica una riunione",
+    "callNotes": "Note della chiamata",
+    "notesHint": "Conservate con questa chiamata",
+    "notesPlaceholder": "Annota ciò che conta…",
+    "inProgress": "Chiamata in corso",
+    "keepContext": "Le note e la riunione restano qui quando termina la chiamata.",
+    "wrapUpHint": "Il riepilogo inizia al termine della chiamata",
+    "wrapUp": "Riepilogo della chiamata",
+    "ended": "Chiamata terminata",
+    "outcomeHint": "Scegli un esito e salva la chiamata.",
+    "mute": "Disattiva microfono",
+    "unmute": "Attiva microfono",
+    "hold": "Metti in attesa",
+    "resume": "Riprendi",
+    "keypad": "Tastierino",
+    "record": "Registra",
+    "recording": "Registrazione in corso",
+    "autoRecording": "Registrazione attivata dalle impostazioni dello spazio di lavoro",
+    "transcript": "Trascrizione",
+    "subtitles": "Sottotitoli",
+    "endCall": "Riaggancia",
+    "freeTrial": "Prova gratuita",
+    "meetingBooked": "Riunione pianificata",
+    "contactPending": "I dati del contatto non sono ancora disponibili.",
+    "noScript": "Nessuno script configurato",
+    "noCalendar": "La pianificazione non è disponibile per questo contatto.",
+    "skip": "Salta",
+    "save": "Salva e chiudi",
+    "saveFailed": "Impossibile salvare. Le note e l’esito sono ancora qui. Riprova.",
+    "saved": "Esito della chiamata salvato",
+    "selectOutcome": "Com’è andata la chiamata?",
+    "sendVoicemail": "Invia un messaggio vocale",
+    "meeting_booked": "Riunione pianificata",
+    "sale": "Vendita",
+    "interested": "Interessato",
+    "follow_up": "Ricontattare",
+    "callback_scheduled": "Richiamata",
+    "not_interested": "Non interessato",
+    "no_answer": "Nessuna risposta",
+    "no_conversation": "Nessuna conversazione",
+    "voicemail": "Segreteria telefonica",
+    "wrong_number": "Numero errato",
+    "gatekeeper": "Filtro al centralino",
+    "connecting": "Connessione…",
+    "dtmfSend": "Invia DTMF",
+    "dtmfLettersHint": "Le lettere vengono inviate come cifre del tastierino telefonico (ABC → 2).",
+    "dtmfNumbersHint": "A–D sono toni DTMF speciali. + si usa solo per comporre un numero.",
+    "unknownContact": "Sconosciuto",
+    "meetingBookedDuringCall": "Riunione pianificata durante la chiamata",
+    "voicemailSent": "Messaggio vocale inviato",
+    "voicemailOnItsWay": "Messaggio vocale in invio",
+    "successfulOutcomes": "Esiti positivi",
+    "otherDispositions": "Altri esiti",
+    "bookMeeting": "Pianifica una riunione",
+    "quickNotePlaceholder": "Aggiungi una nota rapida…"
+  },
+  "contactContext": {
+    "notes": "Note del contatto",
+    "history": "Cronologia del contatto",
+    "noNotes": "Nessuna nota per questo contatto.",
+    "noHistory": "Nessuna chiamata o riunione precedente.",
+    "loadFailed": "Impossibile caricare la cronologia del contatto.",
+    "retry": "Riprova",
+    "incomingCall": "Chiamata in entrata",
+    "outgoingCall": "Chiamata in uscita",
+    "meeting": "Riunione",
+    "minutes": "{count} min",
+    "call": "Chiamata"
+  },
+  "automaticFollowUp": {
+    "preparing": "Salvataggio dell’esito e preparazione del ricontatto…",
+    "accepted": "L’IA si occuperà del ricontatto",
+    "blocked": "Ricontatto bloccato",
+    "stopped": "Il ricontatto è in pausa o concluso",
+    "policyTime": "Chiamata pianificata secondo le regole",
+    "agreedTime": "Richiamata concordata"
   }
 }

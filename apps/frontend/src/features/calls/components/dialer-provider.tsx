@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   DialerProvider,
@@ -9,7 +9,10 @@ import {
   type DialerSlots
 } from '@ringee/dialer-ui';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { ContactActivities } from './contact-activities';
+import {
+  DEFAULT_WORKSPACE_LABELS,
+  type DialerWorkspaceLabels
+} from '@ringee/dialer-ui/data/types';
 import { InCallScript } from './in-call-script';
 import { InCallContactInfo } from './in-call-contact-info';
 import { BookMeetingForm } from './book-meeting.form';
@@ -54,22 +57,43 @@ const DISPOSITIONS_TTL_MS = 5 * 60_000;
  * provider — the modal component itself is identical and shared.
  */
 export function FrontendDialerProvider({ children }: { children: ReactNode }) {
+  const locale = useLocale();
   const api = useApi();
   const { settings: recordingSettings } = useRecordingSettings();
   const t = useTranslations('calls.callbacks');
   const tFollow = useTranslations('calls.automaticFollowUp');
+  const tWorkspace = useTranslations('calls.workspace');
 
   const slots = useMemo<DialerSlots>(
     () => ({
-      renderContactActivities: ({ contactId }) => (
-        <ContactActivities contactId={contactId} />
+      renderContactInfo: ({
+        contactId,
+        profileActionsContainer,
+        refreshKey
+      }) => (
+        <InCallContactInfo
+          key={contactId}
+          contactId={contactId}
+          profileActionsContainer={profileActionsContainer}
+          refreshKey={refreshKey}
+          showActivities
+        />
       ),
-      renderContactInfo: ({ contactId }) => (
-        <InCallContactInfo key={contactId} contactId={contactId} />
-      ),
-      renderScript: () => <InCallScript />,
-      renderBookMeeting: ({ contactId, callId, onBooked, onCancel }) => (
+      renderScript: () => <InCallScript continuous />,
+      renderBookMeeting: ({
+        contactId,
+        callId,
+        onBooked,
+        onCancel,
+        layout,
+        disabled,
+        onPendingChange
+      }) => (
         <BookMeetingForm
+          key={contactId}
+          layout={layout}
+          disabled={disabled}
+          onPendingChange={onPendingChange}
           contactId={contactId}
           callId={callId}
           onBooked={onBooked}
@@ -125,7 +149,7 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
             mode='active'
             size='sm'
             autoTranscribeEnabled={recordingSettings.transcribeRealtime}
-            className='h-12 rounded px-3 text-xs md:h-14 md:px-4 md:text-sm'
+            className='h-12 min-w-11 cursor-pointer flex-col gap-1 border-0 bg-transparent px-2 text-xs font-normal shadow-none xl:px-3'
             onView={onView}
           />
         ) : (
@@ -219,6 +243,7 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
 
   return (
     <DialerProvider
+      locale={locale}
       data={data}
       recordingSettings={{
         recordAllCalls: recordingSettings.recordAllCalls,
@@ -226,6 +251,12 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
       }}
       slots={slots}
       labels={{
+        workspace: Object.fromEntries(
+          Object.keys(DEFAULT_WORKSPACE_LABELS).map((key) => [
+            key,
+            tWorkspace(key)
+          ])
+        ) as DialerWorkspaceLabels,
         followUpPreparing: tFollow('preparing'),
         followUpAccepted: tFollow('accepted'),
         followUpBlocked: tFollow('blocked'),
