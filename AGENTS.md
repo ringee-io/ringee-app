@@ -130,8 +130,10 @@ Shared contracts have consumers inside this repo. Before changing one, check all
 of them: the web app, the Chrome extension (`apps/browser-extension`), the Dialer
 SDK (`packages/dialer-sdk`, published), the CLI (`apps/agent-cli`), the Attio app
 (`apps/attio`), the ChatGPT app, the MCP tool surface (`packages/agent`,
-`apps/backend/src/mcp`), and outbound Custom Integration webhooks
-(`packages/platform/src/custom-integrations/event-spec.ts`).
+`apps/backend/src/mcp`), the public `/api/v1` REST routes and outbound Custom
+Integration webhooks (`packages/platform/src/custom-integrations/event-spec.ts`),
+which the n8n community node (`ringee-io/n8n-nodes-ringee`, a separate
+repository) consumes.
 
 Prisma enums, REST response shapes, MCP tool schemas, SDK exports and webhook
 event payloads are all public contracts. Additive changes are safe; renames and

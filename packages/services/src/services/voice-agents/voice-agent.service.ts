@@ -575,6 +575,16 @@ export class VoiceAgentService {
     return agent;
   }
 
+  /** One agent with the call count `list` gives each of its rows. */
+  async getWithCallCount(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<AiVoiceAgentWithSources & { callCount: number }> {
+    const agent = await this.require(ctx, id);
+    const counts = await this.agents.countCallsByAgent([agent.id]);
+    return { ...agent, callCount: counts.get(agent.id) ?? 0 };
+  }
+
   /**
    * The editable detail surface needs concrete values, including for agents
    * created before conversation overrides existed. Null in the database means

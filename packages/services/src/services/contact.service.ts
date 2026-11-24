@@ -108,7 +108,16 @@ export class ContactService {
 
     const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
 
-    return this.repo.create(ctx, {
+    return this.repo.create(ctx, this.contactCreateInput(ctx, dto, tagIds));
+  }
+
+  /** The columns, first note and tags a new contact is written with. */
+  private contactCreateInput(
+    ctx: OwnershipContext,
+    dto: CreateContactDto,
+    tagIds: string[],
+  ) {
+    return {
       name: dto.name,
       firstName: dto.firstName,
       lastName: dto.lastName,
@@ -137,7 +146,7 @@ export class ContactService {
               })),
             }
           : undefined,
-    });
+    };
   }
 
   /** The contact with its history, when it belongs to the workspace. */
@@ -187,7 +196,7 @@ export class ContactService {
   async updateContact(
     ctx: OwnershipContext,
     id: string,
-    dto: UpdateContactDto,
+    dto: Partial<UpdateContactDto>,
   ): Promise<Contact> {
     const contact = await this.ensureOwned(ctx, id);
 
@@ -218,6 +227,75 @@ export class ContactService {
       companySize: dto.companySize,
       source: dto.source,
     });
+  }
+
+  /**
+   * Creates the contact for a phone number, or updates the one that already has
+   * it (HOOK-009). The number is the key, so a request is safe to send twice —
+   * a workflow that reads the same sheet row again, a CRM that re-fires.
+   *
+   * Only what the caller actually supplied is written: a blank value never
+   * erases what is stored, and `note` is recorded when the contact is created
+   * and never again, so a retry does not stack the same note.
+   */
+  async upsertContact(
+    ctx: OwnershipContext,
+    dto: CreateContactDto,
+  ): Promise<{ contact: Contact; created: boolean }> {
+    // Validated before the write takes its lock, so a bad tag never holds one.
+    const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
+    // Find-or-create in one step: two requests for a new number settle on one
+    // contact (the repository serialises them).
+    const { contact, created } = await this.repo.createUnlessPhoneTaken(
+      ctx,
+      dto.phoneNumber,
+      this.contactCreateInput(ctx, dto, tagIds),
+    );
+    if (created) return { contact, created: true };
+    return {
+      contact: await this.updateSuppliedFields(ctx, contact, dto),
+      created: false,
+    };
+  }
+
+  private updateSuppliedFields(
+    ctx: OwnershipContext,
+    existing: Contact,
+    dto: CreateContactDto,
+  ): Promise<Contact> {
+    const supplied = Object.fromEntries(
+      Object.entries(dto).filter(
+        ([key, value]) =>
+          key !== "note" &&
+          key !== "tagIds" &&
+          (typeof value !== "string" || value.trim() !== ""),
+      ),
+    ) as Partial<CreateContactDto>;
+    return this.updateContact(ctx, existing.id, {
+      ...supplied,
+      // The key never changes here, so the duplicate-number check is skipped.
+      phoneNumber: existing.phoneNumber,
+      tagIds: dto.tagIds,
+    });
+  }
+
+  /**
+   * Deletes a contact once the caller has sent its phone number back
+   * (HOOK-009) — the REST twin of the MCP's double confirmation. A client that
+   * has not just read the contact cannot delete it by guessing an id.
+   */
+  async deleteConfirmed(
+    ctx: OwnershipContext,
+    contactId: string,
+    confirmPhoneNumber: string | undefined,
+  ): Promise<Contact> {
+    const contact = await this.ensureOwned(ctx, contactId);
+    if (!confirmPhoneNumber || confirmPhoneNumber !== contact.phoneNumber) {
+      throw new BadRequestException(
+        "confirm_phone_number must be the contact's phone number. Read the contact first and send its phoneNumber to delete it.",
+      );
+    }
+    return this.repo.deleteContact(contact.id);
   }
 
   async addNoteToContact(userId: string, contactId: string, dto: AddNoteDto) {

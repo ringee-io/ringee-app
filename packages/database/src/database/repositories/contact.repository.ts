@@ -116,6 +116,46 @@ export class ContactRepository {
     });
   }
 
+  /**
+   * Creates the contact for a number unless the workspace already has a live
+   * one, and says which happened.
+   *
+   * The check and the write are one step because nothing else makes them one:
+   * `Contact` has no unique index over a live number (its
+   * `@@unique([userId, phoneNumber, deletedAt])` includes a nullable column,
+   * and PostgreSQL treats every NULL as distinct), so "find, then create" lets
+   * simultaneous callers each create the contact. A transaction-scoped
+   * advisory lock on the workspace and number serialises them instead, and
+   * releases with the transaction even if the process dies. It orders only the
+   * callers that come through here.
+   */
+  async createUnlessPhoneTaken(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+    data: Omit<Prisma.ContactCreateInput, "user" | "organization">,
+  ): Promise<{ contact: Contact; created: boolean }> {
+    const workspace = ctx.organizationId
+      ? `org:${ctx.organizationId}`
+      : `user:${ctx.userId}`;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`contact-phone:${workspace}:${phoneNumber}`}, 0))`;
+      const existing = await tx.contact.findFirst({
+        where: { ...buildOwnershipFilter(ctx), phoneNumber, deletedAt: null },
+      });
+      if (existing) return { contact: existing, created: false };
+      const contact = await tx.contact.create({
+        data: {
+          ...data,
+          user: { connect: { id: ctx.userId } },
+          organization: ctx.organizationId
+            ? { connect: { id: ctx.organizationId } }
+            : undefined,
+        },
+      });
+      return { contact, created: true };
+    });
+  }
+
   async findById(id: string): Promise<Contact | null> {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null },

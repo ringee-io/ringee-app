@@ -3,12 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgent,
@@ -81,6 +83,51 @@ export type VoiceAgentPlacementGuard = (call: {
 export interface StartVoiceAgentCallResult {
   id: string;
   status: AiVoiceAgentCallStatus;
+}
+
+/** What an external client may choose about a call (never its idempotency key). */
+export type StartVoiceAgentCallForClientInput = Pick<
+  StartVoiceAgentCallInput,
+  "to" | "fromNumberId" | "variables" | "metadata"
+>;
+
+export interface StartVoiceAgentCallForClientResult
+  extends StartVoiceAgentCallResult {
+  /** True when the client's key had already started this call: nothing was placed now. */
+  replayed: boolean;
+}
+
+/**
+ * The stored form of a client's idempotency key (HOOK-008).
+ *
+ * It is namespaced by the integration that sent it and hashed. Two integrations
+ * can therefore use the same key without meeting; a client can never collide
+ * with the keys Ringee's own workers persist (`meeting:…`), which share the
+ * column; and the stored value discloses nothing the client sent.
+ */
+export function clientIdempotencyKey(scope: string, key: string): string {
+  const digest = createHash("sha256").update(key).digest("hex");
+  return `client:${scope}:${digest}`;
+}
+
+/**
+ * Whether an agent call failed before the provider accepted any leg, so nothing
+ * was ever dialed for it. `closeUnplacedCall` is the only writer of `failed`
+ * without a control id: a leg that may be live is never marked failed, and a
+ * status callback writes the control id with the status.
+ */
+export function failedBeforePlacement(
+  call: Pick<AiVoiceAgentCall, "status" | "providerCallControlId">,
+): boolean {
+  return (
+    call.status === AiVoiceAgentCallStatus.failed && !call.providerCallControlId
+  );
+}
+
+/** The first attempt's reason, short enough for a response, or nothing. */
+function reasonSuffix(lastError: string | null | undefined): string {
+  const reason = lastError?.replace(/\s+/g, " ").trim().slice(0, 300);
+  return reason ? ` (${reason})` : "";
 }
 
 export enum VoiceAgentCallStartOutcome {
@@ -208,6 +255,97 @@ export class VoiceAgentCallService {
         error,
       );
     }
+  }
+
+  /**
+   * Starts a call for an external client that retries — a workflow engine, a
+   * script, a queue (HOOK-008).
+   *
+   * Without a key this is `startCall`. With one, the first request places the
+   * call and every later request under the same key — a retried workflow, a
+   * timed-out HTTP request sent again — returns that call and places nothing.
+   * The key is checked before the gates that `startCall` runs, so a replay still
+   * answers after the balance dropped or the number joined the DNC list since
+   * the original request; it is the same call, not a new dial.
+   *
+   * The key is the client's, but the row that stores it is shared with Ringee's
+   * own durable callers, so it is stored namespaced by `scope`
+   * (`clientIdempotencyKey`), which the caller derives from its authentication,
+   * never from the request. A key reused for another agent or destination is a
+   * client mistake and is refused rather than answered with the wrong call.
+   */
+  async startCallForClient(
+    ctx: OwnershipContext,
+    agentId: string,
+    input: StartVoiceAgentCallForClientInput,
+    client: { scope: string; idempotencyKey?: string },
+  ): Promise<StartVoiceAgentCallForClientResult> {
+    const clientKey = client.idempotencyKey?.trim();
+    if (!clientKey) {
+      const started = await this.startCall(ctx, agentId, input);
+      return { ...started, replayed: false };
+    }
+
+    const idempotencyKey = clientIdempotencyKey(client.scope, clientKey);
+    const earlier = await this.agentCalls.findByIdempotencyKey(idempotencyKey);
+    if (earlier) return this.replayClientStart(ctx, agentId, input, earlier);
+
+    try {
+      const started = await this.startCall(ctx, agentId, {
+        ...input,
+        idempotencyKey,
+      });
+      return { ...started, replayed: false };
+    } catch (error) {
+      // Two requests raced under one key and the other one placed the call.
+      if (
+        error instanceof VoiceAgentCallStartError &&
+        error.getStatus() === HttpStatus.CONFLICT &&
+        error.agentCallId
+      ) {
+        const winner =
+          await this.agentCalls.findByIdempotencyKey(idempotencyKey);
+        if (winner) return this.replayClientStart(ctx, agentId, input, winner);
+      }
+      throw error;
+    }
+  }
+
+  private replayClientStart(
+    ctx: OwnershipContext,
+    agentId: string,
+    input: StartVoiceAgentCallForClientInput,
+    earlier: AiVoiceAgentCall,
+  ): StartVoiceAgentCallForClientResult {
+    // The key carries the integration, which belongs to one workspace, so a row
+    // from another one cannot match. This keeps that true if a key is ever
+    // stored without its scope, and answers without saying whose call it was.
+    if (!isInWorkspace(ctx, earlier)) {
+      throw new ConflictException("This idempotency key cannot be used.");
+    }
+    if (
+      earlier.agentId !== agentId ||
+      earlier.toNumber !== this.requireDialableNumber(input.to)
+    ) {
+      throw new UnprocessableEntityException(
+        "This idempotency key was already used for a different call. Send a new key to place a new call.",
+      );
+    }
+    // A retry carries the key of the attempt it repeats, so answering it with
+    // that attempt's `failed` row would read as a successful start to a client
+    // that retries on error — and no call would ever have been dialed. Nothing
+    // was placed, so the honest answer is the failure itself (the way a
+    // replayed error stays an error): the client sends a new key to try again.
+    // A call that WAS dialed and then ended badly is still answered below.
+    if (failedBeforePlacement(earlier)) {
+      throw new ConflictException({
+        statusCode: HttpStatus.CONFLICT,
+        error: "Conflict",
+        code: "idempotency_key_failed",
+        message: `The first attempt under this Idempotency-Key failed before the call was placed${reasonSuffix(earlier.lastError)}. Nothing was dialed. Send a new Idempotency-Key to try again.`,
+      });
+    }
+    return { id: earlier.id, status: earlier.status, replayed: true };
   }
 
   private async startCallInternal(
@@ -495,11 +633,8 @@ export class VoiceAgentCallService {
    * else may have a live, billable leg and is only reconciled, never redialed.
    */
   private alreadyStarted(earlier: AiVoiceAgentCall): VoiceAgentCallStartError {
-    const unplaced =
-      earlier.status === AiVoiceAgentCallStatus.failed &&
-      !earlier.providerCallControlId;
     return new VoiceAgentCallStartError(
-      unplaced
+      failedBeforePlacement(earlier)
         ? VoiceAgentCallStartOutcome.retryable_before_placement
         : VoiceAgentCallStartOutcome.placed_pending_reconciliation,
       new ConflictException("This call was already started."),
