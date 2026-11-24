@@ -31,7 +31,7 @@ Referencia: [gitroomhq/postiz-aws](https://github.com/gitroomhq/postiz-aws), una
 - [ ] **AWS-06** SSE del dialer por Redis. _Implementado en `feat/aws-migration-prep`; falta el arranque de DI con Redis local y desplegarlo en Railway._
 - [ ] **AWS-07** Apagado ordenado de la API. _Implementado en `feat/aws-migration-prep`._
 - [ ] **AWS-08** `TRUST_PROXY_HOPS` para el ALB. _Documentado en `.env.example`; el valor `1` se pone en la tarea de ECS (AWS-19)._
-- [ ] **AWS-09** Migraciones en git y `migrate deploy` en el pipeline.
+- [ ] **AWS-09** Migraciones en git, aplicación manual fuera de GitHub Actions y verificación de solo lectura antes del rollout.
 - [ ] **AWS-10** Imagen de `chatgpt-mcp` reproducible y ARM64.
 - [ ] **AWS-11** Comando y puerto explícitos para ECS. _Resuelto en el Terraform: la tarea `api` fija su `command` y `PORT=3000`._
 - [ ] **AWS-33** Listener de errores en el cliente de Redis. _Implementado en `feat/aws-migration-prep`._
@@ -53,7 +53,7 @@ _4 nov: escrito en `ringee-infra` (local, sin commit ni repo en GitHub todavía)
 
 ### Fase 3 — Pipeline
 
-- [ ] **AWS-21** `deploy-aws.yml`: build ARM64, push a ECR, `migrate`, rolling deploy y smoke test. _4 nov: escrito en `feat/aws-migration-prep`, sin commit. `staging` despliega en la cuenta de staging y `main` en prod, con aprobación. Nada despliega hasta definir `AWS_DEPLOY_ENVIRONMENTS`._
+- [ ] **AWS-21** `deploy-aws.yml`: build ARM64, push a ECR, verificación de esquema de solo lectura, rolling deploy y smoke test. _4 nov: escrito en `feat/aws-migration-prep`, sin commit. `staging` despliega en la cuenta de staging y `main` en prod, con aprobación. Nada despliega hasta definir `AWS_DEPLOY_ENVIRONMENTS`._
 - [ ] **AWS-22** Entorno `production` de GitHub con revisores; ninguna clave de AWS en GitHub. _Los dos repos son públicos y cada uno tiene sus entornos `staging` (solo su branch) y `production` (solo `main`, con revisor). `ringee-infra` aplica desde el CI cuando `TF_APPLY_ENVIRONMENTS` lo permite; el primer apply de cada entorno se hace desde una estación con SSO._
 
 ### Fase 4 — Ensayo
@@ -308,9 +308,9 @@ Arreglo: emitir y suscribirse a través de `RealtimeBusService` (`packages/platf
 
 `apps/backend/src/api/client-ip.ts:14` solo lee `x-real-ip` cuando existe `RAILWAY_ENVIRONMENT_ID`. En AWS cae a `req.ip`, que necesita `TRUST_PROXY_HOPS=1`. Sin ese valor todos los clientes comparten la IP del ALB, y el límite anti card-testing de Stripe (60 intentos por IP cada 10 minutos) y los límites del WebSocket saltarían para todo el mundo a la vez. Si algún día pones CloudFront o el proxy de Cloudflare delante de la API, el valor pasa a 2.
 
-### AWS-09 — Migraciones en git y en el pipeline
+### AWS-09 — Migraciones en git y aplicación manual
 
-`.gitignore:14` sigue excluyendo la carpeta entera, así que ninguna migración está en git y Railway nunca ha ejecutado una: hoy se aplican a mano. Hay que corregir la exclusión, versionar el historial con los mismos nombres que tiene `_prisma_migrations` en producción y comprobarlo con `prisma migrate status` contra un snapshot. Después, el pipeline corre `prisma migrate deploy` como tarea puntual antes del rollout. Los scripts `CONCURRENTLY` de índices sobre `Call` siguen siendo manuales. Las migraciones deben ser aditivas (expand/contract) para que la imagen anterior siga funcionando si hay rollback.
+`.gitignore:14` sigue excluyendo la carpeta entera, así que ninguna migración está en git y Railway nunca ha ejecutado una: hoy se aplican a mano. Hay que corregir la exclusión, versionar el historial con los mismos nombres que tiene `_prisma_migrations` en producción y comprobarlo con `prisma migrate status` contra un snapshot. Las migraciones se aplican manualmente fuera de GitHub Actions antes del rollout. El pipeline solo verifica que las migraciones, columnas e índices requeridos ya existan; si falta alguno, bloquea el despliegue sin modificar la base. Los scripts `CONCURRENTLY` de índices sobre `Call` siguen siendo manuales. Las migraciones deben ser aditivas (expand/contract) para que la imagen anterior siga funcionando si hay rollback.
 
 ### AWS-10 — Imagen de `chatgpt-mcp`
 
@@ -318,7 +318,7 @@ Arreglo: emitir y suscribirse a través de `RealtimeBusService` (`packages/platf
 
 ### AWS-11 — Comando y puerto
 
-En ECS el comando es `node apps/backend/dist/apps/backend/src/main` con `PORT=3000` (Railway inyectaba 8080). No hay que usar el `CMD` del Dockerfile, que corre `migrate deploy` al arrancar: con N tareas migrarían N a la vez.
+En ECS el comando es `node apps/backend/dist/apps/backend/src/main` con `PORT=3000` (Railway inyectaba 8080). El `CMD` del Dockerfile también inicia Node directamente. Ningún arranque de la API aplica migraciones; se ejecutan manualmente fuera de GitHub Actions antes del despliegue.
 
 ### AWS-33 — Un corte de Redis tumba la API y el orchestrator
 
@@ -340,7 +340,7 @@ node-redis encola los comandos mientras reconecta, sin límite de tiempo. Durant
 - `deploy-aws.yml` en este repo, por branch (decidido el 4 de noviembre de 2026): un push a `staging` despliega en la cuenta de staging y uno al branch de producción (`main` o un `prod` nuevo, por confirmar) en la de prod. Cada entorno de GitHub solo acepta su branch, y producción además pide tu aprobación. Usa los mismos filtros de rutas que los Watch Paths de Railway:
   1. build de las imágenes que cambiaron para `linux/arm64`, en un runner ARM (sin emular con QEMU);
   2. push a ECR con el SHA como tag;
-  3. tarea `migrate` (`prisma migrate deploy`), esperando a que termine bien;
+  3. verificación de esquema de solo lectura con `verify-required-migrations.mjs`, esperando a que termine bien; las migraciones se aplican manualmente fuera de GitHub Actions;
   4. nueva revisión de cada servicio con circuit breaker y rollback automático, esperando a que estén estables;
   5. smoke test de `/api/health`.
 - Autenticación por OIDC: un rol de solo lectura para los planes, uno de apply para `ringee-infra` y uno de deploy para `ringee-app`. Los dos últimos solo aceptan su entorno de GitHub (`staging` o `production`, este con revisor). Ninguna clave de AWS en GitHub.

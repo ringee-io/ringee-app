@@ -15,6 +15,8 @@ name: Deploy to AWS
 #
 # Infrastructure (cluster, task families, roles) comes from the ringee-infra
 # repository. This workflow only builds images and rolls them out.
+# Database migrations must be applied manually, outside GitHub Actions.
+# The database readiness gate below only reads the existing schema and ledger.
 
 on:
   push:
@@ -166,7 +168,7 @@ jobs:
                     .containerDefinitions[0].workingDirectory = "/app"
                     | .containerDefinitions[0].entryPoint = ["/bin/sh", "-ec"]
                     | .containerDefinitions[0].command = [
-                        "node packages/database/node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma && node packages/database/prisma/verify-required-migrations.mjs"]
+                        "node packages/database/prisma/verify-required-migrations.mjs"]
                   else . end
                 | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
                       .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)' > task-definition.json
@@ -177,12 +179,13 @@ jobs:
             echo "api=$(register api ringee/api)"
             echo "orchestrator=$(register orchestrator ringee/orchestrator)"
             echo "chatgpt=$(register chatgpt-mcp ringee/chatgpt-mcp)"
-            echo "migrate=$(register migrate ringee/api)"
+            # Reuse the existing task family with a read-only command override.
+            echo "database_check=$(register migrate ringee/api)"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Migrate the database
+      - name: Verify database readiness (read-only)
         env:
-          TASK_DEFINITION: ${{ steps.revisions.outputs.migrate }}
+          TASK_DEFINITION: ${{ steps.revisions.outputs.database_check }}
         run: |
           subnets=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=ringee-$STACK-public-*" \
             --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
@@ -197,7 +200,7 @@ jobs:
           aws logs get-log-events --log-group-name "/ecs/ringee-$STACK-migrate" --log-stream-name "migrate/migrate/${task##*/}" \
             --query 'events[].message' --output text | tr '\t' '\n' || true
           if [[ $code != 0 ]]; then
-            echo "::error::migrate exited with $code; the services were not updated"
+            echo "::error::database readiness check exited with $code; apply required migrations manually outside GitHub Actions before deploying"
             exit 1
           fi
 

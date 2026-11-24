@@ -49,20 +49,6 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ringee_followup_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d ringee_followup_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,16 +118,10 @@ jobs:
       - name: Typecheck
         run: pnpm -r run typecheck
 
-      # See docs/engineering/FOLLOW_UP.md. Applies the actual follow-up SQL,
-      # including lifecycle checks and the SQL-only DNC uniqueness prerequisites.
-      - name: Prepare disposable follow-up database
-        env:
-          FOLLOWUP_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ringee_followup_test
-        run: node packages/services/test/prepare-follow-up-database.mjs
-
+      # Migrations never run in GitHub Actions, including disposable test setup.
+      # SQL suites opt in locally with RINGEE_FOLLOWUP_TEST_DATABASE_URL or
+      # RINGEE_DIALER_TEST_PG_SOCKET; leave both unset here.
       - name: Test
-        env:
-          RINGEE_FOLLOWUP_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ringee_followup_test
         run: pnpm test
 
       - name: Build
