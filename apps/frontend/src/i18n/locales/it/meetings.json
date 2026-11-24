@@ -104,5 +104,46 @@
     "retry": "Riprova l'evento esterno",
     "retrySucceeded": "Evento esterno creato.",
     "retryFailed": "Impossibile creare l'evento esterno."
+  },
+  "booking": {
+    "emailRequired": "Inserisci un indirizzo email per il contatto",
+    "success": "Riunione pianificata — {date} alle {time}",
+    "failed": "Impossibile pianificare la riunione",
+    "availabilityFailed": "Impossibile verificare la disponibilità di Ringee. Riprova.",
+    "noSlots": "Nessun orario disponibile",
+    "duration": "Durata",
+    "contactEmail": "Email del contatto",
+    "emailPlaceholder": "Necessaria per l’invito nel calendario",
+    "selectCalendar": "Seleziona calendario",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "loadFailed": "Impossibile caricare il contatto o i calendari. Riprova.",
+    "retry": "Riprova",
+    "booked": "Riunione pianificata",
+    "showTimesIn": "Mostra gli orari nel fuso",
+    "minutes": "{count} min",
+    "noCalendars": "Nessun calendario disponibile",
+    "connectCalendar": "Collega Google Calendar o Outlook",
+    "validation": {
+      "calendar": "Scegli un calendario disponibile.",
+      "duration": "Scegli una durata valida.",
+      "email": "Inserisci un indirizzo email valido.",
+      "maxLength": "Usa al massimo {count} caratteri."
+    },
+    "previousMonth": "Mese precedente",
+    "nextMonth": "Mese successivo"
+  },
+  "page": {
+    "new": {
+      "book": "Pianifica riunione",
+      "calendar": "Calendario",
+      "notes": "Note",
+      "notesPlaceholder": "Cosa preparare",
+      "onlyRingee": "Solo in Ringee",
+      "reason": "Motivo della riunione",
+      "reasonPlaceholder": "Presentazione dei prezzi",
+      "startTime": "Ora di inizio",
+      "taken": "Questo orario è appena stato prenotato. Scegline un altro."
+    }
   }
 }

@@ -140,7 +140,9 @@
         "invalidTime": "Please pick a valid time",
         "mustBeFuture": "Pick a time in the future",
         "saveFailed": "Couldn't schedule callback"
-      }
+      },
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week"
     },
     "list": {
       "title": "Scheduled Callbacks",
@@ -926,7 +928,19 @@
     "no_conversation": "No conversation",
     "voicemail": "Voicemail",
     "wrong_number": "Wrong number",
-    "gatekeeper": "Gatekeeper"
+    "gatekeeper": "Gatekeeper",
+    "connecting": "Connecting...",
+    "dtmfSend": "Send DTMF",
+    "dtmfLettersHint": "Letters are sent as phone keypad digits (ABC → 2).",
+    "dtmfNumbersHint": "A–D are special DTMF tones. + is only used when dialing.",
+    "unknownContact": "Unknown",
+    "meetingBookedDuringCall": "Meeting booked during call",
+    "voicemailSent": "Voicemail sent",
+    "voicemailOnItsWay": "Voicemail on its way",
+    "successfulOutcomes": "Successful Outcomes",
+    "otherDispositions": "Other Dispositions",
+    "bookMeeting": "Book a meeting",
+    "quickNotePlaceholder": "Add a quick note..."
   },
   "contactContext": {
     "notes": "Contact notes",

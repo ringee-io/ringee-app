@@ -8,6 +8,7 @@ import {
   playDtmfTone,
 } from "@ringee/dialer-core/dtmf";
 import { cn } from "@ringee/frontend-shared/lib/utils";
+import { useDialer } from "../data/context";
 
 export type DtmfKeypadProps = {
   onSendDTMF: (digit: string) => void;
@@ -22,6 +23,8 @@ type EnteredKey = {
 };
 
 export function DtmfKeypad({ onSendDTMF, className }: DtmfKeypadProps) {
+  const { labels } = useDialer();
+  const copy = labels.workspace;
   const [mode, setMode] = useState<KeypadMode>("numbers");
   const [enteredKeys, setEnteredKeys] = useState<EnteredKey[]>([]);
 
@@ -75,8 +78,8 @@ export function DtmfKeypad({ onSendDTMF, className }: DtmfKeypadProps) {
               onClick={() => pressKey(label)}
               aria-label={
                 mode === "letters"
-                  ? `Send ${label} as DTMF ${digit}`
-                  : `Send DTMF ${label}`
+                  ? `${copy.dtmfSend}: ${label} → ${digit}`
+                  : `${copy.dtmfSend}: ${label}`
               }
               title={mode === "letters" ? `${label} → ${digit}` : undefined}
               className={cn(
@@ -92,12 +95,12 @@ export function DtmfKeypad({ onSendDTMF, className }: DtmfKeypadProps) {
 
       {mode === "letters" && (
         <p className="text-muted-foreground mt-2 text-center text-[10px] leading-tight">
-          Letters are sent as phone keypad digits (ABC → 2).
+          {copy.dtmfLettersHint}
         </p>
       )}
       {mode === "numbers" && (
         <p className="text-muted-foreground mt-2 text-center text-[10px] leading-tight">
-          A–D are special DTMF tones. + is only used when dialing.
+          {copy.dtmfNumbersHint}
         </p>
       )}
 

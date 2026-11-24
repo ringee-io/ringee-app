@@ -108,7 +108,7 @@ export function ActiveCallModal({
   open,
   number,
   contactName,
-  statusText = "Connecting...",
+  statusText,
   isConnected: isConnectedProp,
   isMuted = false,
   isOnHold = false,
@@ -131,6 +131,7 @@ export function ActiveCallModal({
 }: ActiveCallModalProps) {
   const { data, slots, labels, recordingSettings } = useDialer();
   const copy = labels.workspace;
+  const displayedStatus = statusText ?? copy.connecting;
   const [elapsed, setElapsed] = useState(0);
   const [showSubtitles, setShowSubtitles] = useState(true);
   const pendingOperation = useRef<"booking" | "saving" | null>(null);
@@ -453,7 +454,7 @@ export function ActiveCallModal({
           {copy.title} — {contactName || number}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          {isPostCall ? copy.wrapUp : statusText}
+          {isPostCall ? copy.wrapUp : displayedStatus}
         </DialogDescription>
         {/* This element survives layout and timer updates. Never reload an unchanged stream. */}
         {!isPostCall && isConnected && remoteStream && (
@@ -521,7 +522,11 @@ export function ActiveCallModal({
                   )}
                 >
                   <span className="size-1.5 rounded-full bg-current" />
-                  {isPostCall ? copy.ended : isOnHold ? copy.hold : statusText}
+                  {isPostCall
+                    ? copy.ended
+                    : isOnHold
+                      ? copy.hold
+                      : displayedStatus}
                 </p>
                 <p className="font-mono text-xl leading-tight tabular-nums">
                   {elapsedLabel}

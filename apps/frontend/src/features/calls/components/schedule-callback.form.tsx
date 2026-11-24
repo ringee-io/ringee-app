@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
@@ -45,6 +45,7 @@ export function ScheduleCallbackForm({
   onScheduled,
   onCancel
 }: ScheduleCallbackFormProps) {
+  const locale = useLocale();
   const t = useTranslations('calls.callbacks.form');
   const api = useApi();
 
@@ -84,8 +85,15 @@ export function ScheduleCallbackForm({
       });
       toast.success(
         t('success', {
-          date: format(scheduledAt, 'EEE, MMM d'),
-          time: format(scheduledAt, 'h:mm a')
+          date: new Intl.DateTimeFormat(locale, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+          }).format(scheduledAt),
+          time: new Intl.DateTimeFormat(locale, {
+            hour: 'numeric',
+            minute: '2-digit'
+          }).format(scheduledAt)
         })
       );
       onScheduled();
@@ -105,6 +113,7 @@ export function ScheduleCallbackForm({
       <div className='flex items-center gap-1'>
         <button
           onClick={prevWeek}
+          aria-label={t('previousWeek')}
           className='text-muted-foreground hover:text-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors'
           disabled={isSameDay(weekStart, startOfToday())}
           type='button'
@@ -130,7 +139,11 @@ export function ScheduleCallbackForm({
                     : 'hover:bg-muted/60'
                 )}
               >
-                <span className='uppercase'>{format(day, 'EEE')}</span>
+                <span className='uppercase'>
+                  {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
+                    day
+                  )}
+                </span>
                 <span className='text-xs font-semibold'>
                   {format(day, 'd')}
                 </span>
@@ -141,6 +154,7 @@ export function ScheduleCallbackForm({
 
         <button
           onClick={nextWeek}
+          aria-label={t('nextWeek')}
           className='text-muted-foreground hover:text-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors'
           type='button'
         >

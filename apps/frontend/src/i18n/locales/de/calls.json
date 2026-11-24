@@ -140,7 +140,9 @@
         "invalidTime": "Wählen Sie eine gültige Uhrzeit",
         "mustBeFuture": "Wählen Sie eine Uhrzeit in der Zukunft",
         "saveFailed": "Rückruf konnte nicht geplant werden"
-      }
+      },
+      "previousWeek": "Vorherige Woche",
+      "nextWeek": "Nächste Woche"
     }
   },
   "dnc": {
@@ -379,7 +381,9 @@
     "emptyDescription": "Erstelle dein Skript unter Einstellungen → Übersicht → Skript, damit es hier während des Anrufs erscheint.",
     "configure": "Skript einrichten",
     "untitled": "Ohne Titel",
-    "noContent": "(Kein Inhalt)"
+    "noContent": "(Kein Inhalt)",
+    "loadFailed": "Das Anrufskript konnte nicht geladen werden.",
+    "retry": "Erneut versuchen"
   },
   "inCallContact": {
     "loadFailed": "Kontakt konnte nicht geladen werden",
@@ -436,7 +440,8 @@
     "companyType": "Unternehmenstyp",
     "address": "Adresse",
     "annualRevenue": "Jahresumsatz",
-    "fundingTotal": "Gesamtfinanzierung"
+    "fundingTotal": "Gesamtfinanzierung",
+    "retry": "Erneut versuchen"
   },
   "numberSelector": {
     "callFrom": "Anrufen von:",
@@ -635,5 +640,89 @@
       "clear": "Suche löschen",
       "hint": "Sie sind beim Tippen, während eines Anrufs oder bei geöffnetem Dialog deaktiviert."
     }
+  },
+  "workspace": {
+    "title": "Anrufbereich",
+    "controls": "Anrufsteuerung",
+    "manualCall": "Manueller Anruf",
+    "contact": "Kontakt",
+    "history": "Letzte Aktivitäten",
+    "script": "Anrufskript",
+    "schedule": "Termin vereinbaren",
+    "callNotes": "Anrufnotizen",
+    "notesHint": "Werden mit diesem Anruf gespeichert",
+    "notesPlaceholder": "Halte das Wichtigste fest…",
+    "inProgress": "Anruf läuft",
+    "keepContext": "Deine Notizen und dein Termin bleiben nach dem Anruf hier erhalten.",
+    "wrapUpHint": "Die Nachbereitung beginnt nach dem Anruf",
+    "wrapUp": "Anrufnachbereitung",
+    "ended": "Anruf beendet",
+    "outcomeHint": "Wähle ein Ergebnis und speichere deinen Anruf.",
+    "mute": "Stummschalten",
+    "unmute": "Mikrofon aktivieren",
+    "hold": "Halten",
+    "resume": "Fortsetzen",
+    "keypad": "Wähltastatur",
+    "record": "Aufzeichnen",
+    "recording": "Aufnahme läuft",
+    "autoRecording": "Aufzeichnung durch die Arbeitsbereichseinstellungen aktiviert",
+    "transcript": "Transkript",
+    "subtitles": "Untertitel",
+    "endCall": "Auflegen",
+    "freeTrial": "Kostenlose Testphase",
+    "meetingBooked": "Termin vereinbart",
+    "contactPending": "Die Kontaktdaten sind noch nicht verfügbar.",
+    "noScript": "Kein Anrufskript eingerichtet",
+    "noCalendar": "Für diesen Kontakt können keine Termine vereinbart werden.",
+    "skip": "Überspringen",
+    "save": "Speichern und schließen",
+    "saveFailed": "Speichern fehlgeschlagen. Deine Notizen und dein Ergebnis sind noch hier. Versuche es erneut.",
+    "saved": "Anrufergebnis gespeichert",
+    "selectOutcome": "Wie ist der Anruf gelaufen?",
+    "sendVoicemail": "Sprachnachricht senden",
+    "meeting_booked": "Termin vereinbart",
+    "sale": "Verkauf",
+    "interested": "Interessiert",
+    "follow_up": "Nachfassen",
+    "callback_scheduled": "Rückruf",
+    "not_interested": "Nicht interessiert",
+    "no_answer": "Keine Antwort",
+    "no_conversation": "Kein Gespräch",
+    "voicemail": "Mailbox",
+    "wrong_number": "Falsche Nummer",
+    "gatekeeper": "Vorzimmer",
+    "connecting": "Verbinde…",
+    "dtmfSend": "DTMF senden",
+    "dtmfLettersHint": "Buchstaben werden als Ziffern der Telefontastatur gesendet (ABC → 2).",
+    "dtmfNumbersHint": "A–D sind spezielle DTMF-Töne. + wird nur beim Wählen verwendet.",
+    "unknownContact": "Unbekannt",
+    "meetingBookedDuringCall": "Termin während des Anrufs vereinbart",
+    "voicemailSent": "Sprachnachricht gesendet",
+    "voicemailOnItsWay": "Sprachnachricht ist unterwegs",
+    "successfulOutcomes": "Erfolgreiche Ergebnisse",
+    "otherDispositions": "Weitere Ergebnisse",
+    "bookMeeting": "Termin vereinbaren",
+    "quickNotePlaceholder": "Füge eine kurze Notiz hinzu…"
+  },
+  "contactContext": {
+    "notes": "Kontaktnotizen",
+    "history": "Kontaktverlauf",
+    "noNotes": "Noch keine Kontaktnotizen.",
+    "noHistory": "Keine früheren Anrufe oder Termine.",
+    "loadFailed": "Der Kontaktverlauf konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "incomingCall": "Eingehender Anruf",
+    "outgoingCall": "Ausgehender Anruf",
+    "meeting": "Termin",
+    "minutes": "{count} Min.",
+    "call": "Anruf"
+  },
+  "automaticFollowUp": {
+    "preparing": "Ergebnis wird gespeichert und Nachfassen vorbereitet…",
+    "accepted": "Die KI übernimmt das Nachfassen",
+    "blocked": "Nachfassen blockiert",
+    "stopped": "Das Nachfassen ist pausiert oder abgeschlossen",
+    "policyTime": "Nach Regeln geplanter Anruf",
+    "agreedTime": "Vereinbarter Rückruf"
   }
 }

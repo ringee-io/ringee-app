@@ -30,14 +30,12 @@ import type { DialerDisposition } from "../data/types";
 
 const OUTCOMES: {
   id: CallOutcome;
-  label: string;
   icon: React.ElementType;
   color: string;
   bgActive: string;
 }[] = [
   {
     id: "meeting_booked",
-    label: "Meeting Booked",
     icon: CalendarCheck,
     color: "text-emerald-500",
     bgActive:
@@ -45,7 +43,6 @@ const OUTCOMES: {
   },
   {
     id: "sale",
-    label: "Sale",
     icon: DollarSign,
     color: "text-green-500",
     bgActive:
@@ -53,7 +50,6 @@ const OUTCOMES: {
   },
   {
     id: "interested",
-    label: "Interested",
     icon: ThumbsUp,
     color: "text-blue-500",
     bgActive:
@@ -61,7 +57,6 @@ const OUTCOMES: {
   },
   {
     id: "follow_up",
-    label: "Follow Up",
     icon: Clock,
     color: "text-amber-500",
     bgActive:
@@ -69,7 +64,6 @@ const OUTCOMES: {
   },
   {
     id: "callback_scheduled",
-    label: "Schedule Callback",
     icon: PhoneCall,
     color: "text-amber-500",
     bgActive:
@@ -77,7 +71,6 @@ const OUTCOMES: {
   },
   {
     id: "not_interested",
-    label: "Not Interested",
     icon: ThumbsDown,
     color: "text-slate-400",
     bgActive:
@@ -85,7 +78,6 @@ const OUTCOMES: {
   },
   {
     id: "no_answer",
-    label: "No Answer",
     icon: PhoneMissed,
     color: "text-gray-400",
     bgActive:
@@ -93,7 +85,6 @@ const OUTCOMES: {
   },
   {
     id: "no_conversation",
-    label: "No conversation",
     icon: PhoneOff,
     color: "text-gray-400",
     bgActive:
@@ -101,7 +92,6 @@ const OUTCOMES: {
   },
   {
     id: "voicemail",
-    label: "Voicemail",
     icon: Voicemail,
     color: "text-purple-400",
     bgActive:
@@ -109,7 +99,6 @@ const OUTCOMES: {
   },
   {
     id: "wrong_number",
-    label: "Wrong Number",
     icon: PhoneOff,
     color: "text-red-400",
     bgActive:
@@ -117,7 +106,6 @@ const OUTCOMES: {
   },
   {
     id: "gatekeeper",
-    label: "Gatekeeper",
     icon: ShieldAlert,
     color: "text-orange-400",
     bgActive:
@@ -144,7 +132,7 @@ export function PostCallView({
   canClose,
   actionsContainer,
 }: PostCallViewProps) {
-  const { data, slots, labels, notify } = useDialer();
+  const { locale, data, slots, labels, notify } = useDialer();
   const copy = labels.workspace;
   const submitting = useRef(false);
   const [saveError, setSaveError] = useState(false);
@@ -237,13 +225,13 @@ export function PostCallView({
           "in_progress",
         ].includes(followUp.state);
         const next = followUp.nextActionAt
-          ? `${followUp.timingBasis === "agreed" ? labels.followUpAgreedTime : labels.followUpPolicyTime}: ${new Date(followUp.nextActionAt).toLocaleString()}`
+          ? `${followUp.timingBasis === "agreed" ? labels.followUpAgreedTime : labels.followUpPolicyTime}: ${new Date(followUp.nextActionAt).toLocaleString(locale)}`
           : (followUp.reason ?? "").replace(/_/g, " ");
         notify(
           blocked ? "error" : "success",
-          `Call outcome saved. ${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,
+          `${copy.saved}. ${blocked ? labels.followUpBlocked : active ? labels.followUpAccepted : labels.followUpStopped}. ${followUp.objective}. ${next}`,
         );
-      } else notify("success", "Call outcome saved");
+      } else notify("success", copy.saved);
       if (canClose?.() !== false) onClose();
     } catch {
       setSaveError(true);
@@ -293,7 +281,7 @@ export function PostCallView({
   const handleVoicemailSent = () => {
     setVoicemailSent(true);
     setShowVoicemail(false);
-    notify("success", "Voicemail on its way");
+    notify("success", copy.voicemailOnItsWay);
   };
 
   const handleDispositionClick = (disposition: DialerDisposition) => {
@@ -496,10 +484,10 @@ export function PostCallView({
           <Check className="h-5 w-5 text-emerald-500" />
         </div>
         <h3 className="text-base font-semibold tracking-tight">
-          How did it go?
+          {copy.selectOutcome}
         </h3>
         <p className="text-muted-foreground mt-0.5 text-sm">
-          {callContactName || "Unknown"} &middot; {durationLabel}
+          {callContactName || copy.unknownContact} &middot; {durationLabel}
         </p>
       </div>
 
@@ -508,7 +496,7 @@ export function PostCallView({
         <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
           <CalendarCheck className="h-4 w-4 text-emerald-500" />
           <span className="text-sm font-medium text-emerald-600">
-            Meeting booked during call
+            {copy.meetingBookedDuringCall}
           </span>
         </div>
       )}
@@ -528,7 +516,7 @@ export function PostCallView({
         <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2.5">
           <Voicemail className="h-4 w-4 text-purple-500" />
           <span className="text-sm font-medium text-purple-600">
-            Voicemail sent
+            {copy.voicemailSent}
           </span>
         </div>
       )}
@@ -593,7 +581,7 @@ export function PostCallView({
         /* Outcomes — the built-in buttons, for a host without dispositions */
         <div className="mb-2 flex flex-col gap-3">
           <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-            Successful Outcomes
+            {copy.successfulOutcomes}
           </p>
           <div className="grid grid-cols-2 gap-2.5">
             {OUTCOMES.filter((o) =>
@@ -622,14 +610,14 @@ export function PostCallView({
                       className={cn("h-5 w-5", isSelected ? "" : o.color)}
                     />
                   </div>
-                  <span>{o.label}</span>
+                  <span>{copy[o.id]}</span>
                 </button>
               );
             })}
           </div>
 
           <p className="text-muted-foreground mt-2 text-xs font-medium tracking-wider uppercase">
-            Other Dispositions
+            {copy.otherDispositions}
           </p>
           <div className="grid grid-cols-3 gap-2">
             {OUTCOMES.filter(
@@ -654,7 +642,7 @@ export function PostCallView({
                   <span className="text-center leading-tight">
                     {o.id === "callback_scheduled"
                       ? labels.callbackDisposition
-                      : o.label}
+                      : copy[o.id]}
                   </span>
                 </button>
               );
@@ -670,7 +658,7 @@ export function PostCallView({
           className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm font-medium text-emerald-600 transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/10"
         >
           <CalendarCheck className="h-4 w-4" />
-          Book a meeting
+          {copy.bookMeeting}
         </button>
       )}
 
@@ -706,7 +694,7 @@ export function PostCallView({
           className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-purple-500/30 bg-purple-500/5 px-3 py-2.5 text-sm font-medium text-purple-600 transition-colors hover:border-purple-500/50 hover:bg-purple-500/10"
         >
           <Voicemail className="h-4 w-4" />
-          Send a voicemail
+          {copy.sendVoicemail}
         </button>
       )}
 
@@ -730,7 +718,7 @@ export function PostCallView({
 
       {/* Note */}
       <Textarea
-        placeholder="Add a quick note..."
+        placeholder={copy.quickNotePlaceholder}
         value={outcomeNote}
         readOnly={isSaving}
         onChange={(e) => setOutcomeNote(e.target.value)}

@@ -140,7 +140,9 @@
         "invalidTime": "Kies een geldige tijd",
         "mustBeFuture": "Kies een tijd in de toekomst",
         "saveFailed": "Terugbelverzoek kon niet worden gepland"
-      }
+      },
+      "previousWeek": "Vorige week",
+      "nextWeek": "Volgende week"
     }
   },
   "dnc": {
@@ -379,7 +381,9 @@
     "emptyDescription": "Maak je script aan via Instellingen → Overzicht → Script, zodat het hier tijdens het gesprek verschijnt.",
     "configure": "Script instellen",
     "untitled": "Zonder titel",
-    "noContent": "(Geen inhoud)"
+    "noContent": "(Geen inhoud)",
+    "loadFailed": "Het gespreksscript kon niet worden geladen.",
+    "retry": "Opnieuw proberen"
   },
   "inCallContact": {
     "loadFailed": "Contact kon niet worden geladen",
@@ -436,7 +440,8 @@
     "companyType": "Bedrijfstype",
     "address": "Adres",
     "annualRevenue": "Jaaromzet",
-    "fundingTotal": "Totale financiering"
+    "fundingTotal": "Totale financiering",
+    "retry": "Opnieuw proberen"
   },
   "numberSelector": {
     "callFrom": "Bellen vanaf:",
@@ -635,5 +640,89 @@
       "clear": "Zoekopdracht wissen",
       "hint": "Ze werken niet terwijl je typt, tijdens een gesprek of als er een dialoogvenster openstaat."
     }
+  },
+  "workspace": {
+    "title": "Gesprekswerkruimte",
+    "controls": "Gespreksbediening",
+    "manualCall": "Handmatig gesprek",
+    "contact": "Contact",
+    "history": "Recente activiteit",
+    "script": "Gespreksscript",
+    "schedule": "Een afspraak plannen",
+    "callNotes": "Gespreksnotities",
+    "notesHint": "Bewaard bij dit gesprek",
+    "notesPlaceholder": "Noteer wat belangrijk is…",
+    "inProgress": "Gesprek bezig",
+    "keepContext": "Je notities en afspraak blijven hier staan wanneer het gesprek eindigt.",
+    "wrapUpHint": "De afronding begint zodra het gesprek eindigt",
+    "wrapUp": "Gesprek afronden",
+    "ended": "Gesprek beëindigd",
+    "outcomeHint": "Kies een resultaat en sla je gesprek op.",
+    "mute": "Dempen",
+    "unmute": "Microfoon inschakelen",
+    "hold": "In de wacht",
+    "resume": "Hervatten",
+    "keypad": "Toetsenblok",
+    "record": "Opnemen",
+    "recording": "Opname bezig",
+    "autoRecording": "Opname ingeschakeld via de werkruimte-instellingen",
+    "transcript": "Transcript",
+    "subtitles": "Ondertitels",
+    "endCall": "Ophangen",
+    "freeTrial": "Gratis proefperiode",
+    "meetingBooked": "Afspraak gepland",
+    "contactPending": "De contactgegevens zijn nog niet beschikbaar.",
+    "noScript": "Geen gespreksscript ingesteld",
+    "noCalendar": "Afspraken plannen is niet beschikbaar voor dit contact.",
+    "skip": "Overslaan",
+    "save": "Opslaan en sluiten",
+    "saveFailed": "Opslaan mislukt. Je notities en resultaat staan hier nog. Probeer het opnieuw.",
+    "saved": "Gespreksresultaat opgeslagen",
+    "selectOutcome": "Hoe ging het gesprek?",
+    "sendVoicemail": "Een voicemail sturen",
+    "meeting_booked": "Afspraak gepland",
+    "sale": "Verkoop",
+    "interested": "Geïnteresseerd",
+    "follow_up": "Opvolgen",
+    "callback_scheduled": "Terugbellen",
+    "not_interested": "Niet geïnteresseerd",
+    "no_answer": "Geen antwoord",
+    "no_conversation": "Geen gesprek",
+    "voicemail": "Voicemail",
+    "wrong_number": "Verkeerd nummer",
+    "gatekeeper": "Poortwachter",
+    "connecting": "Verbinden…",
+    "dtmfSend": "DTMF verzenden",
+    "dtmfLettersHint": "Letters worden verzonden als cijfers op het telefoontoetsenblok (ABC → 2).",
+    "dtmfNumbersHint": "A–D zijn speciale DTMF-tonen. + wordt alleen gebruikt bij het kiezen van een nummer.",
+    "unknownContact": "Onbekend",
+    "meetingBookedDuringCall": "Afspraak gepland tijdens het gesprek",
+    "voicemailSent": "Voicemail verzonden",
+    "voicemailOnItsWay": "Voicemail is onderweg",
+    "successfulOutcomes": "Positieve resultaten",
+    "otherDispositions": "Andere resultaten",
+    "bookMeeting": "Een afspraak plannen",
+    "quickNotePlaceholder": "Voeg een korte notitie toe…"
+  },
+  "contactContext": {
+    "notes": "Contactnotities",
+    "history": "Contactgeschiedenis",
+    "noNotes": "Nog geen notities voor dit contact.",
+    "noHistory": "Geen eerdere gesprekken of afspraken.",
+    "loadFailed": "De contactgeschiedenis kon niet worden geladen.",
+    "retry": "Opnieuw proberen",
+    "incomingCall": "Inkomend gesprek",
+    "outgoingCall": "Uitgaand gesprek",
+    "meeting": "Afspraak",
+    "minutes": "{count} min",
+    "call": "Gesprek"
+  },
+  "automaticFollowUp": {
+    "preparing": "Resultaat opslaan en opvolging voorbereiden…",
+    "accepted": "AI verzorgt de opvolging",
+    "blocked": "Opvolging geblokkeerd",
+    "stopped": "De opvolging is gepauzeerd of afgesloten",
+    "policyTime": "Volgens de regels gepland gesprek",
+    "agreedTime": "Afgesproken terugbelmoment"
   }
 }

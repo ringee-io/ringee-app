@@ -9,8 +9,14 @@ import { FormInput } from '@ringee/frontend-shared/components/forms/form-input';
 import { FormSelect } from '@ringee/frontend-shared/components/forms/form-select';
 import { FormTextarea } from '@ringee/frontend-shared/components/forms/form-textarea';
 import { useLocale, useTranslations } from 'next-intl';
+import { de } from 'date-fns/locale/de';
+import { enGB } from 'date-fns/locale/en-GB';
 import { es } from 'date-fns/locale/es';
-import { startOfToday } from 'date-fns';
+import { fr } from 'date-fns/locale/fr';
+import { it } from 'date-fns/locale/it';
+import { nl } from 'date-fns/locale/nl';
+import { pt } from 'date-fns/locale/pt';
+import { startOfToday, type Locale } from 'date-fns';
 import { CalendarCheck, CalendarPlus, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Calendar } from '@ringee/frontend-shared/components/ui/calendar';
@@ -30,6 +36,16 @@ import {
 import { useOpenSlots } from '@/features/meetings/components/calendar/use-meetings-data';
 import type { RingeeCalendar } from '@/features/meetings/components/calendar/types';
 import { offerMeetingInvitation } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
+
+const CALENDAR_LOCALES: Record<string, Locale> = {
+  'en-GB': enGB,
+  es,
+  fr,
+  pt,
+  de,
+  it,
+  nl
+};
 
 interface BookMeetingFormProps {
   contactId: string;
@@ -444,7 +460,13 @@ export function BookMeetingForm({
           disabled={blocked ? true : { before: startOfToday() }}
           fromMonth={startOfToday()}
           weekStartsOn={1}
-          locale={locale.startsWith('es') ? es : undefined}
+          locale={
+            CALENDAR_LOCALES[locale] ?? CALENDAR_LOCALES[locale.split('-')[0]]
+          }
+          labels={{
+            labelPrevious: () => t('previousMonth'),
+            labelNext: () => t('nextMonth')
+          }}
           className='w-full p-3'
           classNames={{
             month: 'flex w-full flex-col gap-3',

@@ -179,7 +179,9 @@
       "duration": "Choose a valid duration.",
       "email": "Enter a valid email address.",
       "maxLength": "Use {count} characters or fewer."
-    }
+    },
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "toasts": {
     "failedToLoad": "Failed to load meetings",

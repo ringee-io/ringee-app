@@ -144,12 +144,16 @@ export const DEFAULT_WORKSPACE_LABELS = {
   wrapUpHint: "Wrap-up begins when the call ends",
   wrapUp: "Post-call wrap-up",
   ended: "Call ended",
+  connecting: "Connecting...",
   outcomeHint: "Choose a result, then save your call.",
   mute: "Mute",
   unmute: "Unmute",
   hold: "Hold",
   resume: "Resume",
   keypad: "Dial pad",
+  dtmfSend: "Send DTMF",
+  dtmfLettersHint: "Letters are sent as phone keypad digits (ABC → 2).",
+  dtmfNumbersHint: "A–D are special DTMF tones. + is only used when dialing.",
   record: "Record",
   recording: "Recording",
   autoRecording: "Recording enabled by workspace policy",
@@ -168,6 +172,14 @@ export const DEFAULT_WORKSPACE_LABELS = {
   saved: "Call outcome saved",
   selectOutcome: "How did it go?",
   sendVoicemail: "Send a voicemail",
+  unknownContact: "Unknown",
+  meetingBookedDuringCall: "Meeting booked during call",
+  voicemailSent: "Voicemail sent",
+  voicemailOnItsWay: "Voicemail on its way",
+  successfulOutcomes: "Successful Outcomes",
+  otherDispositions: "Other Dispositions",
+  bookMeeting: "Book a meeting",
+  quickNotePlaceholder: "Add a quick note...",
   meeting_booked: "Meeting booked",
   sale: "Sale",
   interested: "Interested",
@@ -214,6 +226,7 @@ export const DEFAULT_DIALER_LABELS: DialerLabels = {
 export type DialerNotify = (kind: "success" | "error", message: string) => void;
 
 export interface DialerContextValue {
+  locale?: string;
   data: DialerDataClient;
   recordingSettings: DialerRecordingSettings;
   slots: DialerSlots;

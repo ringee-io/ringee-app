@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   DialerProvider,
@@ -57,6 +57,7 @@ const DISPOSITIONS_TTL_MS = 5 * 60_000;
  * provider — the modal component itself is identical and shared.
  */
 export function FrontendDialerProvider({ children }: { children: ReactNode }) {
+  const locale = useLocale();
   const api = useApi();
   const { settings: recordingSettings } = useRecordingSettings();
   const t = useTranslations('calls.callbacks');
@@ -242,6 +243,7 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
 
   return (
     <DialerProvider
+      locale={locale}
       data={data}
       recordingSettings={{
         recordAllCalls: recordingSettings.recordAllCalls,

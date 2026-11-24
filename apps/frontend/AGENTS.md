@@ -54,6 +54,11 @@ capability to the UI without the matching server guard.
 - Every list view needs all three states — loading, empty, error. Reuse the
   existing skeletons rather than inventing a spinner.
 - Copy goes through `next-intl` (`useTranslations`), not string literals.
+  Add new messages to every base locale (`en`, `es`, `fr`, `pt`, `de`, `it`,
+  `nl`); regional variants inherit their base. The shared call UI receives
+  translations through `DialerProvider`: keep `DEFAULT_WORKSPACE_LABELS` in
+  sync with `calls.workspace` instead of importing `next-intl` into
+  `@ringee/dialer-ui`.
 - `next-intl` runs with `timeZone: 'UTC'` (`i18n/request.ts`), so
   `useFormatter().dateTime` prints UTC. A time the user reads as theirs — a
   callback at 10:30 — is formatted with `Intl.DateTimeFormat` in the browser,

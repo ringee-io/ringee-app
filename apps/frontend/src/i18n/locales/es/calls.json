@@ -140,7 +140,9 @@
         "invalidTime": "Elige una hora válida",
         "mustBeFuture": "Elige una hora en el futuro",
         "saveFailed": "No se pudo agendar la devolución"
-      }
+      },
+      "previousWeek": "Semana anterior",
+      "nextWeek": "Semana siguiente"
     }
   },
   "dnc": {
@@ -717,7 +719,19 @@
     "no_conversation": "Sin conversación",
     "voicemail": "Buzón de voz",
     "wrong_number": "Número incorrecto",
-    "gatekeeper": "Filtro de llamadas"
+    "gatekeeper": "Filtro de llamadas",
+    "connecting": "Conectando…",
+    "dtmfSend": "Enviar DTMF",
+    "dtmfLettersHint": "Las letras se envían como dígitos del teclado telefónico (ABC → 2).",
+    "dtmfNumbersHint": "A–D son tonos DTMF especiales. + solo se usa al marcar.",
+    "unknownContact": "Desconocido",
+    "meetingBookedDuringCall": "Reunión agendada durante la llamada",
+    "voicemailSent": "Mensaje de voz enviado",
+    "voicemailOnItsWay": "Mensaje de voz en camino",
+    "successfulOutcomes": "Resultados positivos",
+    "otherDispositions": "Otros resultados",
+    "bookMeeting": "Agendar una reunión",
+    "quickNotePlaceholder": "Añade una nota rápida…"
   },
   "contactContext": {
     "notes": "Notas del contacto",

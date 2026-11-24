@@ -142,7 +142,9 @@
       "duration": "Elige una duración válida.",
       "email": "Introduce un correo electrónico válido.",
       "maxLength": "Usa un máximo de {count} caracteres."
-    }
+    },
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente"
   },
   "calendars": {
     "title": "Calendarios",
