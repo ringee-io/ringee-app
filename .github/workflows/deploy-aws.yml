@@ -181,6 +181,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Migrate the database
+        if: vars.RUN_MIGRATIONS == 'true'
         env:
           TASK_DEFINITION: ${{ steps.revisions.outputs.migrate }}
         run: |

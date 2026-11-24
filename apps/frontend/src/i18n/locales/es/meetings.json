@@ -119,7 +119,24 @@
     "failedToCancel": "Error al cancelar la reunión"
   },
   "booking": {
-    "availabilityFailed": "No se pudo consultar la disponibilidad de Ringee. Inténtalo de nuevo."
+    "availabilityFailed": "No se pudo consultar la disponibilidad. Inténtalo de nuevo.",
+    "loadFailed": "No se pudieron cargar el contacto o los calendarios.",
+    "retry": "Intentar de nuevo",
+    "booked": "Reunión agendada",
+    "showTimesIn": "Mostrar horas en",
+    "minutes": "{count} min",
+    "noCalendars": "No hay calendarios disponibles",
+    "connectCalendar": "Conectar Google Calendar u Outlook",
+    "emailRequired": "Añade el correo electrónico del contacto.",
+    "success": "Reunión agendada — {date} a las {time}",
+    "failed": "No se pudo agendar la reunión. Tus datos se conservan para intentarlo de nuevo.",
+    "noSlots": "No hay horas disponibles",
+    "duration": "Duración",
+    "contactEmail": "Correo del contacto",
+    "emailPlaceholder": "Para enviar la invitación",
+    "selectCalendar": "Calendario",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
   },
   "calendars": {
     "title": "Calendarios",

@@ -1,358 +1,516 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { es } from 'date-fns/locale/es';
+import { startOfToday } from 'date-fns';
+import { CalendarCheck, CalendarPlus, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
-import { cn } from '@ringee/frontend-shared/lib/utils';
-import { addDays, format, isSameDay, startOfToday } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2, CalendarPlus } from 'lucide-react';
-import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { toast } from 'sonner';
+import { Calendar } from '@ringee/frontend-shared/components/ui/calendar';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
-import { useTranslations } from 'next-intl';
-
+import { Label } from '@ringee/frontend-shared/components/ui/label';
+import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
+import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { ApiError } from '@ringee/frontend-shared/lib/api';
+import { cn } from '@ringee/frontend-shared/lib/utils';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import { settingsHash } from '@/features/settings/lib/settings-nav';
+import {
+  atTime,
+  browserTimeZone,
+  DURATIONS
+} from '@/features/meetings/components/calendar/calendar-utils';
+import { useOpenSlots } from '@/features/meetings/components/calendar/use-meetings-data';
+import type { RingeeCalendar } from '@/features/meetings/components/calendar/types';
 import { offerMeetingInvitation } from '@/features/ai-voice-agents/automations/follow-up/follow-up-invitation';
-interface AvailabilitySlot {
-  time: string;
-  available: boolean;
-  eventName?: string;
-  capacity?: number | null;
-  remainingCapacity?: number | null;
-}
-
-const DURATIONS = [
-  { value: 15, label: '15m' },
-  { value: 30, label: '30m' },
-  { value: 45, label: '45m' },
-  { value: 60, label: '1h' }
-];
 
 interface BookMeetingFormProps {
   contactId: string;
   callId?: string | null;
   onBooked: () => void;
   onCancel: () => void;
+  layout?: 'workspace';
+  onPendingChange?: (pending: boolean) => void;
 }
 
 export function BookMeetingForm({
   contactId,
   callId,
   onBooked,
-  onCancel
+  onCancel,
+  layout,
+  onPendingChange
 }: BookMeetingFormProps) {
   const api = useApi();
+  const locale = useLocale();
   const t = useTranslations('meetings.booking');
-  const [weekStart, setWeekStart] = useState(startOfToday());
-  const [selectedDate, setSelectedDate] = useState(startOfToday());
+  const tNew = useTranslations('meetings.page.new');
+  const id = useId();
+  const [selectedDate, setSelectedDate] = useState(startOfToday);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [duration, setDuration] = useState(30);
-  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // New state
+  const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [isEmailMissing, setIsEmailMissing] = useState(false);
-  const [integrations, setIntegrations] = useState<any[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
-  const [isInitializing, setIsInitializing] = useState(true);
-
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
-  useEffect(() => {
-    let mounted = true;
-    async function init() {
-      setIsInitializing(true);
-      try {
-        const [contact, calendarIntegrations] = await Promise.all([
-          api.get(`/contacts/${contactId}`),
-          api.get('/calendar/integrations')
-        ]);
-
-        if (!mounted) return;
-
-        if (contact.email) {
-          setContactEmail(contact.email);
-        } else {
-          setIsEmailMissing(true);
-        }
-
-        setIntegrations(calendarIntegrations);
-        if (calendarIntegrations.length > 0) {
-          setSelectedProvider(calendarIntegrations[0].provider);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (mounted) setIsInitializing(false);
-      }
-    }
-    init();
-    return () => {
-      mounted = false;
-    };
-  }, [contactId, api]);
-
-  const fetchAvailability = useCallback(
-    async (date: Date) => {
-      setIsLoadingSlots(true);
-      try {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const params = new URLSearchParams({
-          date: dateStr,
-          timeZone,
-          duration: String(duration)
-        });
-        const url = `/calendar/availability?${params.toString()}`;
-        const data = await api.get<AvailabilitySlot[]>(url);
-        setSlots(data);
-      } catch {
-        // Do not fabricate availability when the Ringee calendar cannot be
-        // checked; the same strict rule protects voice-agent bookings.
-        setSlots([]);
-        toast.error(t('availabilityFailed'));
-      } finally {
-        setIsLoadingSlots(false);
-      }
-    },
-    [api, duration, t]
+  const [calendars, setCalendars] = useState<RingeeCalendar[]>([]);
+  const [calendarId, setCalendarId] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadRevision, setLoadRevision] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [booked, setBooked] = useState<{ at: Date; calendar: string } | null>(
+    null
   );
+  const submitting = useRef(false);
+  const browserZone = browserTimeZone();
+  const [displayZone, setDisplayZone] = useState(browserZone);
+  const timeZones = useMemo(
+    () => [
+      ...new Set([
+        browserZone,
+        'UTC',
+        ...(Intl.supportedValuesOf?.('timeZone') ?? [])
+      ])
+    ],
+    [browserZone]
+  );
+  const calendar = calendars.find((item) => item.id === calendarId);
+  const { slots, allSlots, loading, failed, reload } = useOpenSlots({
+    calendarId,
+    date: selectedDate,
+    duration,
+    enabled: !initializing && !loadFailed && !!calendar && !booked
+  });
+  const formatAt = (at: Date, options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(locale, {
+      ...options,
+      timeZone: displayZone
+    }).format(at);
+  const dateLabel = (at: Date) =>
+    formatAt(at, { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeLabel = (at: Date) =>
+    formatAt(at, { hour: 'numeric', minute: '2-digit' });
 
   useEffect(() => {
-    if (!isInitializing) {
-      fetchAvailability(selectedDate);
-      setSelectedTime(null);
-    }
-  }, [selectedDate, selectedProvider, isInitializing, fetchAvailability]);
+    let active = true;
+    setInitializing(true);
+    setLoadFailed(false);
+    Promise.all([
+      api.get<{ email?: string | null }>(`/contacts/${contactId}`),
+      api.get<RingeeCalendar[]>('/calendar/calendars')
+    ])
+      .then(([contact, rows]) => {
+        if (!active) return;
+        const available = rows.filter((item) => !item.archivedAt);
+        setContactEmail(contact.email ?? '');
+        setCalendars(available);
+        setCalendarId(
+          (available.find((item) => item.isDefault) ?? available[0])?.id ?? null
+        );
+      })
+      .catch(() => {
+        if (active) setLoadFailed(true);
+      })
+      .finally(() => {
+        if (active) setInitializing(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, contactId, loadRevision]);
 
-  const handleSubmit = async () => {
-    if (!selectedTime) return;
-
-    if (selectedProvider && isEmailMissing && !contactEmail) {
-      toast.error(t('emailRequired'));
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (
+      submitting.current ||
+      !selectedTime ||
+      !calendar ||
+      loading ||
+      failed ||
+      !slots.includes(selectedTime)
+    )
+      return;
+    if (calendar.integration && !contactEmail.trim()) {
+      setSubmitError(t('emailRequired'));
       return;
     }
-
+    const scheduledAt = atTime(selectedDate, selectedTime);
+    if (scheduledAt <= new Date()) {
+      setSelectedTime(null);
+      void reload();
+      return;
+    }
+    submitting.current = true;
+    onPendingChange?.(true);
     setIsSubmitting(true);
-
+    setSubmitError(null);
     try {
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      const scheduledAt = new Date(selectedDate);
-      scheduledAt.setHours(hours, minutes, 0, 0);
-
-      const meeting = await api.post<{ id?: string } | null>('/meetings', {
+      const meeting = await api.post<{ id: string }>('/meetings', {
         contactId,
         callId: callId || undefined,
+        calendarId: calendar.id,
         scheduledAt: scheduledAt.toISOString(),
         duration,
-        attendeeEmail: contactEmail || undefined,
-        provider: selectedProvider || undefined,
+        title: title.trim() || undefined,
+        notes: notes.trim() || undefined,
+        attendeeEmail: contactEmail.trim() || undefined,
         requireAvailableSlot: true,
-        bookingTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        bookingTimeZone: browserZone
       });
-
+      setBooked({ at: scheduledAt, calendar: calendar.name });
+      offerMeetingInvitation({ meetingId: meeting.id, callId });
       toast.success(
         t('success', {
-          date: format(scheduledAt, 'EEE, MMM d'),
-          time: format(scheduledAt, 'h:mm a')
+          date: dateLabel(scheduledAt),
+          time: timeLabel(scheduledAt)
         })
       );
-      // Only a meeting that came back with its id is a booking to build on.
-      offerMeetingInvitation({ meetingId: meeting?.id, callId });
       onBooked();
-    } catch {
-      toast.error(t('failed'));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setSubmitError(tNew('taken'));
+        setSelectedTime(null);
+        void reload();
+      } else setSubmitError(t('failed'));
     } finally {
+      submitting.current = false;
+      onPendingChange?.(false);
       setIsSubmitting(false);
     }
   };
 
-  const formatSlotTime = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    return format(d, 'h:mm a');
-  };
-
-  const prevWeek = () => setWeekStart((d) => addDays(d, -7));
-  const nextWeek = () => setWeekStart((d) => addDays(d, 7));
+  if (initializing)
+    return (
+      <div className='space-y-4' aria-busy='true'>
+        <Skeleton className='h-11 w-full' />
+        <Skeleton className='h-11 w-full' />
+        <Skeleton className='h-64 w-full' />
+      </div>
+    );
+  if (loadFailed)
+    return (
+      <div role='alert' className='space-y-3 text-sm'>
+        <p>{t('loadFailed')}</p>
+        <Button
+          type='button'
+          variant='outline'
+          onClick={() => setLoadRevision((value) => value + 1)}
+          className='h-11 cursor-pointer'
+        >
+          <RefreshCw className='size-4' />
+          {t('retry')}
+        </Button>
+      </div>
+    );
+  if (booked)
+    return (
+      <div
+        role='status'
+        className='space-y-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5'
+      >
+        <CalendarCheck className='size-8 text-emerald-600 dark:text-emerald-400' />
+        <h4 className='text-base font-semibold'>{t('booked')}</h4>
+        <p className='text-sm'>
+          {t('success', {
+            date: dateLabel(booked.at),
+            time: timeLabel(booked.at)
+          })}
+        </p>
+        <dl className='space-y-3 text-sm'>
+          <div>
+            <dt className='text-muted-foreground text-xs'>
+              {tNew('calendar')}
+            </dt>
+            <dd>{booked.calendar}</dd>
+          </div>
+          {title && (
+            <div>
+              <dt className='text-muted-foreground text-xs'>
+                {tNew('reason')}
+              </dt>
+              <dd>{title}</dd>
+            </div>
+          )}
+          <div>
+            <dt className='text-muted-foreground text-xs'>
+              {t('showTimesIn')}
+            </dt>
+            <dd>{displayZone.replaceAll('_', ' ')}</dd>
+          </div>
+        </dl>
+      </div>
+    );
 
   return (
-    <div className='flex flex-col gap-3'>
-      {/* Day strip */}
-      <div className='flex items-center gap-1'>
-        <button
-          onClick={prevWeek}
-          className='text-muted-foreground hover:text-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors'
-          disabled={isSameDay(weekStart, startOfToday())}
+    <form onSubmit={handleSubmit} className='space-y-4'>
+      <div className='space-y-2'>
+        <Label htmlFor={`${id}-calendar`} className='text-xs'>
+          {t('selectCalendar')}
+        </Label>
+        <select
+          id={`${id}-calendar`}
+          value={calendarId ?? ''}
+          onChange={(event) => {
+            setCalendarId(event.target.value);
+            setSelectedTime(null);
+          }}
+          className={selectClass}
+          disabled={isSubmitting || !calendars.length}
         >
-          <ChevronLeft className='h-4 w-4' />
-        </button>
-
-        <div className='flex flex-1 gap-1'>
-          {days.map((day) => {
-            const isSelected = isSameDay(day, selectedDate);
-            const isPast = day < startOfToday();
-            return (
-              <button
-                key={day.toISOString()}
-                disabled={isPast}
-                onClick={() => setSelectedDate(day)}
-                className={cn(
-                  'flex flex-1 flex-col items-center rounded-lg py-1.5 text-[10px] font-medium transition-all',
-                  isPast && 'cursor-not-allowed opacity-30',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'hover:bg-muted/60'
-                )}
-              >
-                <span className='uppercase'>{format(day, 'EEE')}</span>
-                <span className='text-xs font-semibold'>
-                  {format(day, 'd')}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={nextWeek}
-          className='text-muted-foreground hover:text-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors'
-        >
-          <ChevronRight className='h-4 w-4' />
-        </button>
+          {!calendars.length && <option value=''>{t('noCalendars')}</option>}
+          {calendars.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+        <p className='text-muted-foreground text-xs'>
+          {calendar?.integration
+            ? `${calendar.integration.provider === 'google' ? 'Google Calendar' : 'Microsoft Outlook'}${calendar.integration.email ? ` · ${calendar.integration.email}` : ''}`
+            : tNew('onlyRingee')}
+        </p>
+        {calendar && !calendar.integration && (
+          <Link
+            href={settingsHash('calendar-providers')}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='inline-flex min-h-11 items-center text-xs underline underline-offset-4'
+          >
+            {t('connectCalendar')}
+          </Link>
+        )}
       </div>
-
-      {/* Time slots */}
-      <ScrollArea className='h-[180px]'>
-        {isLoadingSlots || isInitializing ? (
-          <div className='flex flex-col gap-1.5'>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className='bg-muted/40 h-9 animate-pulse rounded-md'
-              />
+      <div className='grid grid-cols-[minmax(0,1fr)_100px] gap-3'>
+        <div className='space-y-2'>
+          <Label htmlFor={`${id}-title`} className='text-xs'>
+            {tNew('reason')}
+          </Label>
+          <Input
+            id={`${id}-title`}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={200}
+            disabled={isSubmitting}
+            placeholder={tNew('reasonPlaceholder')}
+            className='h-11 text-sm'
+          />
+        </div>
+        <div className='space-y-2'>
+          <Label htmlFor={`${id}-duration`} className='text-xs'>
+            {t('duration')}
+          </Label>
+          <select
+            id={`${id}-duration`}
+            value={duration}
+            onChange={(event) => {
+              setDuration(Number(event.target.value));
+              setSelectedTime(null);
+            }}
+            disabled={isSubmitting}
+            className={selectClass}
+          >
+            {DURATIONS.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                {t('minutes', { count: minutes })}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className='space-y-2'>
+        <Label htmlFor={`${id}-zone`} className='text-xs'>
+          {t('showTimesIn')}
+        </Label>
+        <select
+          id={`${id}-zone`}
+          value={displayZone}
+          onChange={(event) => setDisplayZone(event.target.value)}
+          className={selectClass}
+        >
+          {timeZones.map((zone) => (
+            <option key={zone} value={zone}>
+              {zone.replaceAll('_', ' ')}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className='bg-background rounded-xl border'>
+        <Calendar
+          mode='single'
+          selected={selectedDate}
+          onSelect={(date) => {
+            if (date && !isSubmitting) {
+              setSelectedDate(date);
+              setSelectedTime(null);
+            }
+          }}
+          disabled={isSubmitting ? true : { before: startOfToday() }}
+          fromMonth={startOfToday()}
+          weekStartsOn={1}
+          locale={locale.startsWith('es') ? es : undefined}
+          className='w-full p-3'
+          classNames={{
+            month: 'flex w-full flex-col gap-3',
+            head_row: 'grid grid-cols-7',
+            head_cell: 'text-muted-foreground text-center text-xs font-normal',
+            row: 'mt-1 grid grid-cols-7',
+            cell: 'relative p-0 text-center text-sm',
+            day: 'flex h-10 w-full cursor-pointer items-center justify-center rounded-md p-0 text-xs font-mono hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
+            day_selected:
+              'border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+            day_disabled: 'text-muted-foreground cursor-not-allowed opacity-30',
+            day_today: 'border border-border',
+            nav_button:
+              'inline-flex size-11 cursor-pointer items-center justify-center rounded-md hover:bg-muted',
+            caption: 'relative flex h-11 w-full items-center justify-center',
+            caption_label: 'text-sm font-semibold'
+          }}
+        />
+      </div>
+      <div className='space-y-2' aria-live='polite' aria-busy={loading}>
+        <div className='flex flex-wrap items-center justify-between gap-2'>
+          <Label className='text-xs'>{tNew('startTime')}</Label>
+          <span className='text-muted-foreground text-xs'>
+            {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
+              selectedDate
+            )}
+          </span>
+        </div>
+        {loading ? (
+          <div className='grid grid-cols-3 gap-2'>
+            {[0, 1, 2, 3, 4, 5].map((key) => (
+              <Skeleton key={key} className='h-11 w-full' />
             ))}
           </div>
-        ) : slots.length === 0 ? (
-          <div className='text-muted-foreground flex h-[160px] items-center justify-center text-sm'>
-            {t('noSlots')}
+        ) : failed ? (
+          <div role='alert' className='space-y-2'>
+            <p className='text-destructive text-xs'>
+              {t('availabilityFailed')}
+            </p>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => {
+                setSelectedTime(null);
+                void reload();
+              }}
+              className='h-11 cursor-pointer'
+            >
+              {t('retry')}
+            </Button>
+          </div>
+        ) : allSlots.length ? (
+          <div className='grid grid-cols-3 gap-2'>
+            {allSlots.map((slot) => {
+              const at = atTime(selectedDate, slot.time);
+              const available = slot.available && at > new Date();
+              return (
+                <button
+                  type='button'
+                  key={slot.time}
+                  disabled={!available || isSubmitting}
+                  aria-pressed={selectedTime === slot.time}
+                  onClick={() => setSelectedTime(slot.time)}
+                  title={slot.eventName}
+                  className={cn(
+                    'focus-visible:ring-ring min-h-11 cursor-pointer rounded-md border px-1 py-2 font-mono text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40',
+                    !available
+                      ? 'border-dashed line-through'
+                      : selectedTime === slot.time
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                        : 'bg-background hover:bg-muted'
+                  )}
+                >
+                  {timeLabel(at)}
+                  {displayZone !== browserZone && (
+                    <span className='mt-0.5 block text-[10px]'>
+                      {dateLabel(at)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ) : (
-          <div className='grid grid-cols-3 gap-1.5'>
-            {slots.map((slot) => (
-              <button
-                key={slot.time}
-                disabled={!slot.available}
-                onClick={() => setSelectedTime(slot.time)}
-                className={cn(
-                  'rounded-md border px-2 py-2 text-xs font-medium transition-all',
-                  !slot.available &&
-                    'text-muted-foreground/50 bg-muted/20 cursor-not-allowed border-transparent line-through',
-                  slot.available &&
-                    selectedTime === slot.time &&
-                    'border-emerald-500 bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20',
-                  slot.available &&
-                    selectedTime !== slot.time &&
-                    'border-border/50 bg-card hover:border-emerald-500/30 hover:bg-emerald-500/5'
-                )}
-              >
-                {formatSlotTime(slot.time)}
-              </button>
-            ))}
-          </div>
+          <p className='text-muted-foreground py-4 text-center text-sm'>
+            {t('noSlots')}
+          </p>
         )}
-      </ScrollArea>
-
-      {/* Duration pills */}
-      <div className='flex items-center gap-1.5'>
-        <span className='text-muted-foreground text-[10px] font-medium tracking-wider uppercase'>
-          {t('duration')}
-        </span>
-        <div className='flex gap-1'>
-          {DURATIONS.map((d) => (
-            <button
-              key={d.value}
-              onClick={() => setDuration(d.value)}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-all',
-                duration === d.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted/40 hover:bg-muted'
-              )}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
       </div>
-
-      {/* Dynamic Inputs */}
-      {!isInitializing && (
-        <div className='flex flex-col gap-3'>
-          {selectedProvider && isEmailMissing && (
-            <div className='space-y-1.5'>
-              <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
-                {t('contactEmail')}
-              </label>
-              <Input
-                type='email'
-                placeholder={t('emailPlaceholder')}
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                className='placeholder:text-muted-foreground/50 border-border/80 h-8 text-xs'
-              />
-            </div>
-          )}
-
-          {integrations.length > 1 && (
-            <div className='space-y-1.5'>
-              <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
-                {t('selectCalendar')}
-              </label>
-              <div className='flex gap-2'>
-                {integrations.map((i) => (
-                  <button
-                    key={i.id}
-                    onClick={() => setSelectedProvider(i.provider)}
-                    className={cn(
-                      'flex h-8 flex-1 items-center justify-center gap-2 rounded-md border text-xs font-medium transition-all',
-                      selectedProvider === i.provider
-                        ? 'bg-primary text-primary-foreground border-transparent'
-                        : 'bg-card border-border hover:bg-muted/50 text-muted-foreground'
-                    )}
-                  >
-                    {i.provider === 'google' ? 'Google' : 'Microsoft'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      <div className='space-y-2 border-t pt-4'>
+        <Label htmlFor={`${id}-email`} className='text-xs'>
+          {t('contactEmail')}
+        </Label>
+        <Input
+          id={`${id}-email`}
+          type='email'
+          value={contactEmail}
+          onChange={(event) => setContactEmail(event.target.value)}
+          placeholder={t('emailPlaceholder')}
+          required={!!calendar?.integration}
+          maxLength={320}
+          disabled={isSubmitting}
+          className='h-11 text-sm'
+        />
+      </div>
+      <div className='space-y-2'>
+        <Label htmlFor={`${id}-notes`} className='text-xs'>
+          {tNew('notes')}
+        </Label>
+        <Textarea
+          id={`${id}-notes`}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder={tNew('notesPlaceholder')}
+          maxLength={2000}
+          disabled={isSubmitting}
+          rows={2}
+          className='text-sm'
+        />
+      </div>
+      {submitError && (
+        <p role='alert' className='text-destructive text-xs'>
+          {submitError}
+        </p>
       )}
-
-      {/* Confirm bar */}
-      <div className='mt-1 flex gap-2'>
-        <Button variant='ghost' size='sm' onClick={onCancel} className='flex-1'>
-          {t('cancel')}
-        </Button>
+      <div className='bg-card sticky -bottom-5 -mx-4 flex gap-2 border-t px-4 py-3 xl:-mx-5 xl:px-5'>
+        {layout !== 'workspace' && (
+          <Button
+            type='button'
+            variant='ghost'
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className='h-11'
+          >
+            {t('cancel')}
+          </Button>
+        )}
         <Button
-          size='sm'
-          onClick={handleSubmit}
-          disabled={!selectedTime || isSubmitting}
-          className='flex-1 bg-emerald-600 text-white hover:bg-emerald-700'
+          type='submit'
+          disabled={
+            !selectedTime ||
+            !calendar ||
+            isSubmitting ||
+            loading ||
+            failed ||
+            !slots.includes(selectedTime)
+          }
+          className='h-11 flex-1 cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700'
         >
           {isSubmitting ? (
-            <Loader2 className='h-3.5 w-3.5 animate-spin' />
+            <Loader2 className='size-4 animate-spin motion-reduce:animate-none' />
           ) : (
-            <>
-              <CalendarPlus className='mr-1.5 h-3.5 w-3.5' />
-              {t('confirm')}
-            </>
+            <CalendarPlus className='size-4' />
           )}
+          {tNew('book')}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
+
+const selectClass =
+  'border-input bg-background focus-visible:ring-ring h-11 w-full min-w-0 cursor-pointer rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50';

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,45 +15,39 @@ import {
   AvatarFallback,
 } from "@ringee/frontend-shared/components/ui/avatar";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ringee/frontend-shared/components/ui/tooltip";
-import { cn } from "@ringee/frontend-shared/lib/utils";
-import {
-  Mic,
-  MicOff,
-  Pause,
-  Play,
-  PhoneOff,
-  Radio,
-  CalendarPlus,
-  Circle,
-  Disc as RecordIcon,
-  Disc3 as RecordingPulse,
-  Loader2,
-  Clock,
-  X,
-  Captions,
-  CaptionsOff,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-// Subpath imports keep the Telnyx engine out of the side-panel / web bundles —
-// only the offscreen document ever pulls in @ringee/dialer-core/engine.
-import { useCallStore } from "@ringee/dialer-core/store";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@ringee/frontend-shared/components/ui/popover";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@ringee/frontend-shared/components/ui/tabs";
-import { IconKeyboard } from "@tabler/icons-react";
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@ringee/frontend-shared/components/ui/resizable";
+import { Textarea } from "@ringee/frontend-shared/components/ui/textarea";
+import { cn } from "@ringee/frontend-shared/lib/utils";
+import {
+  CalendarCheck,
+  CalendarDays,
+  Captions,
+  CaptionsOff,
+  Check,
+  Clock,
+  Disc,
+  FileText,
+  Headphones,
+  History,
+  Keyboard,
+  Loader2,
+  Mic,
+  MicOff,
+  Pause,
+  PhoneOff,
+  Play,
+  UserRound,
+} from "lucide-react";
+// Keep the provider engine out of the extension's side-panel bundle.
+import { useCallStore } from "@ringee/dialer-core/store";
 import { PostCallView } from "./post-call-view";
 import { DtmfKeypad } from "./dtmf-keypad";
 import { useDialer } from "../data/context";
@@ -101,8 +97,8 @@ export type ActiveCallModalProps = {
   callId?: string | null;
 
   /**
-   * Render the active-call view lean: no right-hand intelligence panel (history,
-   * contact info, in-call booking), so the modal stays single-column and small.
+   * Render the active-call view lean, without the three-panel workspace, so
+   * the modal stays single-column and small.
    * The browser extension's side panel uses this — the post-call view (outcome,
    * notes, callback/meeting forms) is unaffected and still shows.
    */
@@ -111,7 +107,6 @@ export type ActiveCallModalProps = {
 
 export function ActiveCallModal({
   open,
-  onClose,
   number,
   contactName,
   statusText = "Connecting...",
@@ -135,126 +130,279 @@ export function ActiveCallModal({
   callId,
   compact = false,
 }: ActiveCallModalProps) {
-  const { data, slots, recordingSettings } = useDialer();
+  const { data, slots, labels, recordingSettings } = useDialer();
+  const copy = labels.workspace;
   const [elapsed, setElapsed] = useState(0);
+  const [showSubtitles, setShowSubtitles] = useState(true);
+  const [bookingPending, setBookingPending] = useState(false);
+  const [transcriptDialogOpen, setTranscriptDialogOpen] = useState(false);
+  const [actionsContainer, setActionsContainer] =
+    useState<HTMLDivElement | null>(null);
+  const [profileActionsContainer, setProfileActionsContainer] =
+    useState<HTMLDivElement | null>(null);
   const {
-    bookingPanelOpen,
-    setBookingPanelOpen,
     meetingBooked,
     setMeetingBooked,
+    setOutcome,
+    outcomeNote,
+    setOutcomeNote,
+    callDuration,
   } = useCallStore();
-  const [showSubtitles, setShowSubtitles] = useState(true);
-  const [transcriptDialogOpen, setTranscriptDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "activities" | "booking" | "script" | "contact" | "transcript"
-  >("activities");
 
-  // The rich right-panel tabs only exist when the host provides their slots.
-  // This is what makes the same modal render full in the web app and compact
-  // in the extension — no second component.
-  const hasActivities = !!slots.renderContactActivities && !!contactId;
-  const hasContactInfo = !!slots.renderContactInfo && !!contactId;
-  const hasScript = !!slots.renderScript && !!contactId;
-  const hasTranscript = !!slots.renderLiveTranscriptPanel && !!contactId;
-  const hasBooking = !!slots.renderBookMeeting && !!contactId;
-  const hasContactPanel =
-    hasActivities || hasContactInfo || hasScript || hasTranscript || hasBooking;
-  // `compact` (extension side panel) keeps the active call single-column — the
-  // right-hand panel and in-call booking only belong to the full web modal.
-  const showRightPanel =
-    !compact && (hasContactPanel || (bookingPanelOpen && hasBooking));
-
-  useEffect(() => {
-    if (bookingPanelOpen && hasBooking) setActiveTab("booking");
-  }, [bookingPanelOpen, hasBooking]);
-
-  // Fetch the workspace's dispositions while the call is still up, so the
-  // post-call view opens with its buttons rather than a placeholder.
   useEffect(() => {
     if (!open || isPostCall) return;
     void data.listDispositions?.().catch(() => undefined);
   }, [open, isPostCall, data]);
 
   useEffect(() => {
-    if (!open) return;
-    setElapsed(0);
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, [open]);
+    if (!open) {
+      setElapsed(0);
+      return;
+    }
+    if (isPostCall) return;
+    const timer = setInterval(() => setElapsed((seconds) => seconds + 1), 1000);
+    return () => clearInterval(timer);
+  }, [open, isPostCall]);
 
   const elapsedLabel = useMemo(() => {
-    const m = Math.floor(elapsed / 60);
-    const s = elapsed % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }, [elapsed]);
-
-  const trialLabel = useMemo(() => {
-    const m = Math.floor(freeTrialRemainingSeconds / 60);
-    const s = freeTrialRemainingSeconds % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }, [freeTrialRemainingSeconds]);
-
+    const seconds = isPostCall ? callDuration : elapsed;
+    return `${Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+  }, [elapsed, isPostCall, callDuration]);
+  const trialLabel = `${Math.floor(freeTrialRemainingSeconds / 60)}:${(freeTrialRemainingSeconds % 60).toString().padStart(2, "0")}`;
   const trialProgress =
     freeTrialTotalSeconds > 0
-      ? ((freeTrialTotalSeconds - freeTrialRemainingSeconds) /
-          freeTrialTotalSeconds) *
-        100
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            (freeTrialRemainingSeconds / freeTrialTotalSeconds) * 100,
+          ),
+        )
       : 0;
 
-  // --- POST-CALL VIEW ---
-  if (isPostCall) {
-    return (
-      <Dialog modal={false} open={open} onOpenChange={() => {}}>
-        {/* Radix renders no overlay for a non-modal dialog, so dim the page
-            here with the same scrim as every other Ringee modal. */}
-        <DialogPortal>
-          <div
-            aria-hidden
-            data-state={open ? "open" : "closed"}
-            className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50"
-          />
-        </DialogPortal>
-        {/* No corner X: it did nothing here. Skip and Save are the way out. */}
-        <DialogContent
-          showCloseButton={false}
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          className={cn(
-            "w-[95vw] max-w-[480px]",
-            "flex flex-col rounded-2xl p-5",
-            "bg-background",
-            "border-border/60 overflow-hidden border shadow-xl",
-          )}
-        >
-          {/* Radix needs a labelled dialog; the visible heading lives in the
-              post-call view, so the announced pair is hidden here. */}
-          <DialogTitle className="sr-only">How did it go?</DialogTitle>
-          <DialogDescription className="sr-only">
-            {`Wrap up the call with ${contactName || number}.`}
-          </DialogDescription>
-          <PostCallView onClose={onPostCallClose} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // --- ACTIVE CALL VIEW ---
-  // Prefer the host's real call-state signal; the elapsed-time heuristic is a
-  // fallback only. This is what stops the remote early-media stream from being
-  // attached during ringing (which doubled the ring tone against ringbackFile).
+  // The host's answer signal gates playback: early media would double ringback.
   const isConnected =
     isConnectedProp ?? (statusText === "Connected" || elapsed > 0);
-  const wide = showRightPanel;
-  const statusLabel = meetingBooked
-    ? "MEETING BOOKED"
-    : isRecording
-      ? "RECORDING"
-      : statusText;
+  const initials = contactName
+    ? contactName
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+    : null;
+  const handleBooked = () => {
+    const chosen = useCallStore.getState().outcome;
+    setMeetingBooked(true);
+    // A booking suggests an outcome, but never replaces the agent's choice.
+    if (chosen) setOutcome(chosen);
+  };
+
+  const controls = (
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        compact && "flex-wrap justify-center",
+      )}
+      aria-label={copy.controls}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        aria-label={isMuted ? copy.unmute : copy.mute}
+        aria-pressed={isMuted}
+        onClick={onToggleMute}
+        className={cn(
+          controlClass,
+          isMuted && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        )}
+      >
+        {isMuted ? <MicOff /> : <Mic />}
+        <span className={compact ? "" : "hidden xl:inline"}>
+          {isMuted ? copy.unmute : copy.mute}
+        </span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        aria-label={isOnHold ? copy.resume : copy.hold}
+        aria-pressed={isOnHold}
+        onClick={onToggleHold}
+        className={cn(
+          controlClass,
+          isOnHold && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        )}
+      >
+        {isOnHold ? <Play /> : <Pause />}
+        <span className={compact ? "" : "hidden xl:inline"}>
+          {isOnHold ? copy.resume : copy.hold}
+        </span>
+      </Button>
+      {onSendDTMF && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              aria-label={copy.keypad}
+              className={controlClass}
+            >
+              <Keyboard />
+              <span className={compact ? "" : "hidden xl:inline"}>
+                {copy.keypad}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-auto p-4"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+          >
+            <DtmfKeypad onSendDTMF={onSendDTMF} />
+          </PopoverContent>
+        </Popover>
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        aria-label={
+          recordingSettings.recordAllCalls
+            ? copy.autoRecording
+            : isRecording
+              ? copy.recording
+              : copy.record
+        }
+        aria-pressed={isRecording}
+        disabled={isRecordingLoading || recordingSettings.recordAllCalls}
+        onClick={onToggleRecording}
+        className={cn(
+          controlClass,
+          isRecording && "text-emerald-600 dark:text-emerald-400",
+        )}
+      >
+        {isRecordingLoading ? (
+          <Loader2 className="animate-spin motion-reduce:animate-none" />
+        ) : (
+          <Disc />
+        )}
+        <span className={compact ? "" : "hidden xl:inline"}>
+          {isRecording ? copy.recording : copy.record}
+        </span>
+      </Button>
+      {slots.renderTranscribeButton?.({
+        callId,
+        mode: "active",
+        onView: () => setTranscriptDialogOpen(true),
+      })}
+      {slots.renderSubtitles && (
+        <Button
+          type="button"
+          variant="ghost"
+          aria-label={copy.subtitles}
+          aria-pressed={showSubtitles}
+          onClick={() => setShowSubtitles((show) => !show)}
+          className={cn(
+            controlClass,
+            !showSubtitles && "text-muted-foreground",
+          )}
+        >
+          {showSubtitles ? <Captions /> : <CaptionsOff />}
+          <span className={compact ? "" : "hidden xl:inline"}>
+            {copy.subtitles}
+          </span>
+        </Button>
+      )}
+    </div>
+  );
+
+  const contactPanel = (
+    <section
+      className="bg-card flex min-h-0 min-w-0 flex-1 flex-col max-md:w-full max-md:flex-none"
+      aria-label={copy.contact}
+    >
+      <PanelHeading icon={<UserRound />} title={copy.contact} />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:flex-none max-md:overflow-visible max-md:overscroll-auto">
+        {contactId && slots.renderContactInfo ? (
+          slots.renderContactInfo({ contactId, profileActionsContainer })
+        ) : (
+          <EmptyPanel icon={<UserRound />} text={copy.contactPending} />
+        )}
+        {contactId && slots.renderContactActivities && (
+          <div className="border-t p-4">
+            <h3 className="text-muted-foreground mb-4 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+              <History className="size-3.5" />
+              {copy.history}
+            </h3>
+            {slots.renderContactActivities({ contactId })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+  const scriptPanel = (
+    <section
+      className="bg-background flex min-h-0 min-w-0 flex-1 flex-col max-md:w-full max-md:flex-none"
+      aria-label={copy.script}
+    >
+      <PanelHeading icon={<FileText />} title={copy.script} />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:flex-none max-md:overflow-visible max-md:overscroll-auto">
+        {slots.renderScript ? (
+          slots.renderScript()
+        ) : (
+          <EmptyPanel icon={<FileText />} text={copy.noScript} />
+        )}
+      </div>
+      <div className="bg-card shrink-0 space-y-2 border-t px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
+          <label htmlFor="active-call-notes" className="font-medium">
+            {copy.callNotes}
+          </label>
+          <span className="text-muted-foreground">{copy.notesHint}</span>
+        </div>
+        <Textarea
+          id="active-call-notes"
+          value={outcomeNote}
+          onChange={(event) => setOutcomeNote(event.target.value)}
+          placeholder={copy.notesPlaceholder}
+          rows={3}
+          className="bg-background min-h-20 resize-none text-sm"
+        />
+      </div>
+    </section>
+  );
+  const bookingPanel = (
+    <section
+      className="bg-card/60 flex min-h-0 min-w-0 flex-1 flex-col max-md:w-full max-md:flex-none"
+      aria-label={copy.schedule}
+    >
+      <PanelHeading icon={<CalendarDays />} title={copy.schedule} />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 max-md:flex-none max-md:overflow-visible max-md:overscroll-auto xl:p-5">
+        {contactId && slots.renderBookMeeting ? (
+          slots.renderBookMeeting({
+            contactId,
+            callId,
+            layout: "workspace",
+            onPendingChange: setBookingPending,
+            onBooked: handleBooked,
+            onCancel: () => {},
+          })
+        ) : (
+          <EmptyPanel icon={<CalendarDays />} text={copy.noCalendar} />
+        )}
+      </div>
+    </section>
+  );
 
   return (
-    <Dialog modal={false} open={open} onOpenChange={onClose}>
+    <Dialog modal={false} open={open} onOpenChange={() => {}}>
+      <DialogPortal>
+        <div aria-hidden className="fixed inset-0 z-50 bg-black/75" />
+      </DialogPortal>
       {slots.renderTranscriptDialog?.({
-        open: transcriptDialogOpen,
+        open: open && transcriptDialogOpen,
         onOpenChange: setTranscriptDialogOpen,
         callId,
       })}
@@ -262,539 +410,239 @@ export function ActiveCallModal({
         callId,
         show: open && !isPostCall && showSubtitles,
       })}
-      {/* No corner X on a live call: `onClose` is the host's hang-up, and a
-          call ends by the hang-up button or the other party — nothing else. */}
       <DialogContent
         showCloseButton={false}
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
         className={cn(
-          "border-border/20 bg-background flex w-[95vw] flex-col overflow-hidden rounded-xl border p-0 shadow-2xl",
-          wide
-            ? "h-[90vh] min-h-[600px] !max-w-5xl md:h-[85vh]"
-            : "min-h-[500px] !max-w-md",
-          "transition-all duration-500 ease-in-out",
+          "flex flex-col gap-3 p-0",
+          compact
+            ? "bg-background max-h-[95dvh] w-[95vw] !max-w-md overflow-y-auto rounded-2xl border shadow-2xl"
+            : "h-[calc(100dvh-2rem)] w-[96vw] !max-w-none overflow-hidden border-0 bg-transparent shadow-none max-md:h-[calc(100dvh-1rem)] max-md:w-[calc(100vw-1rem)]",
         )}
       >
-        {/* Radix needs a labelled dialog; the caller ID heading below is
-            what sighted users read, so the announced pair is hidden here. */}
-        <DialogTitle className="sr-only">{contactName || number}</DialogTitle>
-        <DialogDescription className="sr-only">{statusLabel}</DialogDescription>
-        {/* Free trial banner */}
-        {isFreeTrialCall && (
-          <div className="relative shrink-0 overflow-hidden border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-[10px] font-bold tracking-wider text-amber-700 uppercase sm:text-xs">
-                  Free Trial &middot; 1 min limit
-                </span>
-              </div>
-              <span
-                className={cn(
-                  "font-mono text-[10px] font-bold tabular-nums sm:text-xs",
-                  freeTrialRemainingSeconds <= 10
-                    ? "animate-pulse text-red-600"
-                    : "text-amber-700",
-                )}
-              >
-                {trialLabel}
-              </span>
-            </div>
-            <div className="absolute bottom-0 left-0 h-[3px] w-full bg-amber-500/20">
-              <div
-                className={cn(
-                  "h-full transition-all duration-1000 ease-linear",
-                  freeTrialRemainingSeconds <= 10
-                    ? "bg-red-500"
-                    : "bg-amber-500",
-                )}
-                style={{ width: `${trialProgress}%` }}
-              />
-            </div>
-          </div>
+        <DialogTitle className="sr-only">
+          {copy.title} — {contactName || number}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          {isPostCall ? copy.wrapUp : statusText}
+        </DialogDescription>
+        {/* This element survives layout and timer updates. Never reload an unchanged stream. */}
+        {!isPostCall && isConnected && remoteStream && (
+          <audio
+            autoPlay
+            className="hidden"
+            ref={(element) => {
+              if (element && remoteStream && element.srcObject !== remoteStream)
+                element.srcObject = remoteStream;
+            }}
+          />
         )}
-
-        <div className="relative flex h-full w-full flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
-          {/* LEFT PANEL: The Call Engine */}
-          <div
-            className={cn(
-              "relative flex shrink-0 flex-col items-center justify-between pt-6 pb-6 transition-all duration-500 md:pt-10 md:pb-8",
-              wide
-                ? "border-border/20 bg-muted/5 min-h-[500px] w-full border-b md:min-h-0 md:w-[45%] md:border-r md:border-b-0"
-                : "min-h-[500px] w-full",
-            )}
-          >
-            {/* Background decorative glow */}
-            <div
+        {compact && isPostCall ? (
+          <div className="p-5">
+            <PostCallView onClose={onPostCallClose} />
+          </div>
+        ) : (
+          <>
+            <header
               className={cn(
-                "pointer-events-none absolute top-0 right-0 left-0 -z-10 h-48 bg-gradient-to-b to-transparent opacity-20 transition-colors duration-1000 md:h-64",
-                isConnected ? "from-emerald-500/40" : "from-primary/30",
+                "bg-card flex shrink-0 items-center gap-4 rounded-xl border px-4 py-2.5 shadow-lg max-lg:gap-2",
+                compact
+                  ? "flex-col border-0 py-6 shadow-none"
+                  : "min-h-[72px] max-md:flex-wrap max-md:px-3",
               )}
-            />
-
-            {/* Caller ID Section */}
-            <div className="z-10 flex w-full shrink-0 flex-col items-center px-6 md:px-8">
-              <div className="relative">
-                <Avatar
-                  className={cn(
-                    "border-background border-4 shadow-xl transition-all duration-700",
-                    wide
-                      ? "h-20 w-20 md:h-24 md:w-24"
-                      : "h-28 w-28 md:h-32 md:w-32",
-                    isConnected
-                      ? "ring-4 shadow-emerald-500/20 ring-emerald-500/20"
-                      : "ring-border/20 ring-4",
-                  )}
-                >
-                  <AvatarFallback className="from-primary/20 to-primary/5 text-primary bg-gradient-to-br text-3xl font-light md:text-4xl">
-                    {contactName?.charAt(0) ??
-                      number?.replace("+", "").charAt(0) ??
-                      "R"}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3 max-md:basis-1/2 max-md:flex-wrap">
+                <Avatar className="size-10 shrink-0">
+                  <AvatarFallback>
+                    {initials || <UserRound className="size-5" />}
                   </AvatarFallback>
                 </Avatar>
-                {/* Recording Indicator */}
-                {isRecording && (
-                  <div className="border-background absolute -right-1 -bottom-1 animate-pulse rounded-full border-2 bg-rose-500 px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white uppercase shadow-lg md:px-2 md:text-[9px]">
-                    REC
-                  </div>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold tracking-tight">
+                    {contactName || number}
+                  </p>
+                  <p className="text-muted-foreground truncate font-mono text-xs">
+                    {number}
+                  </p>
+                </div>
+                {!compact && (
+                  <div
+                    ref={setProfileActionsContainer}
+                    className="shrink-0 max-md:basis-full max-md:pl-[52px]"
+                  />
                 )}
               </div>
-
-              <h2
-                className={cn(
-                  "text-foreground line-clamp-1 text-center font-bold tracking-tight transition-all",
-                  wide
-                    ? "mt-3 text-lg md:mt-4 md:text-xl"
-                    : "mt-4 text-2xl md:mt-6 md:text-3xl",
-                )}
-              >
-                {contactName || number}
-              </h2>
-
-              <div className="mt-2 flex items-center justify-center gap-1.5 md:gap-2">
-                <span
+              <div className="shrink-0 space-y-0.5 border-r pr-5 max-md:border-0 max-md:pr-0">
+                <p
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full md:h-2 md:w-2",
-                    isRecording
-                      ? "animate-pulse bg-rose-500"
+                    "flex items-center gap-1.5 text-xs font-medium",
+                    isPostCall || isOnHold
+                      ? "text-amber-600 dark:text-amber-400"
                       : isConnected
-                        ? "animate-pulse bg-emerald-500"
-                        : "bg-primary/60",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-xs font-semibold tracking-wide uppercase md:text-sm",
-                    isRecording
-                      ? "text-rose-500"
-                      : isConnected
-                        ? "text-emerald-600"
+                        ? "text-emerald-600 dark:text-emerald-400"
                         : "text-muted-foreground",
                   )}
                 >
-                  {statusLabel}
-                </span>
+                  <span className="size-1.5 rounded-full bg-current" />
+                  {isPostCall ? copy.ended : isOnHold ? copy.hold : statusText}
+                </p>
+                <p className="font-mono text-xl leading-tight tabular-nums">
+                  {elapsedLabel}
+                </p>
               </div>
-
-              <div
-                className={cn(
-                  "font-mono font-light tracking-tighter tabular-nums opacity-80 transition-all",
-                  wide
-                    ? "mt-2 text-2xl md:mt-3 md:text-3xl"
-                    : "mt-3 text-4xl md:mt-5 md:text-5xl",
-                )}
-              >
-                {elapsedLabel}
-              </div>
-            </div>
-
-            {/* Visualizer / Center Space */}
-            <div className="relative z-10 flex min-h-[80px] w-full flex-1 items-center justify-center md:min-h-[100px]">
-              {isConnected ? (
-                <div className="relative flex h-12 w-24 items-center justify-center gap-1 md:h-16 md:w-32 md:gap-1.5">
-                  {remoteStream && (
-                    <audio
-                      autoPlay
-                      playsInline
-                      className="hidden"
-                      ref={(el) => {
-                        // The timer rerenders this ref every second. Reassigning
-                        // even the same stream reloads playback and cuts audio.
-                        if (el && remoteStream && el.srcObject !== remoteStream)
-                          el.srcObject = remoteStream;
-                      }}
-                    />
-                  )}
-                  {/* Fake waveform bars */}
-                  {[0.8, 0.4, 1, 0.6, 0.9, 0.5, 0.7].map((height, i) => (
-                    <div
-                      key={i}
-                      className="w-1 animate-pulse rounded-full bg-emerald-500/40 md:w-1.5"
-                      style={{
-                        height: `${height * 100}%`,
-                        animationDuration: `${0.5 + i * 0.1}s`,
-                      }}
-                    />
-                  ))}
+              {isPostCall ? (
+                <div className="flex items-center gap-2 px-3 text-sm font-medium text-amber-600 dark:text-amber-400">
+                  <Check className="size-4" />
+                  {copy.wrapUp}
                 </div>
               ) : (
-                <Radio className="text-primary/20 h-8 w-8 animate-pulse md:h-12 md:w-12" />
-              )}
-            </div>
-
-            {/* Controls Section */}
-            <div className="z-10 flex w-full shrink-0 flex-col items-center px-4 md:px-6">
-              <div className="bg-background/80 border-border/50 mb-4 flex items-center justify-center gap-1 rounded border p-1.5 shadow-sm backdrop-blur-xl md:mb-6 md:gap-1.5 md:p-2">
-                {/* Mute */}
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onToggleMute}
-                        className={cn(
-                          "h-12 w-12 rounded transition-all md:h-14 md:w-14",
-                          isMuted
-                            ? "bg-amber-500/15 text-amber-600 hover:bg-amber-500/25"
-                            : "hover:bg-muted/50",
-                        )}
-                      >
-                        {isMuted ? (
-                          <MicOff className="h-5 w-5 md:h-6 md:w-6" />
-                        ) : (
-                          <Mic className="h-5 w-5 md:h-6 md:w-6" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Mute</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                {/* Keypad */}
-                <Popover>
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="hover:bg-muted/50 h-12 w-12 rounded transition-all md:h-14 md:w-14"
-                          >
-                            <IconKeyboard className="text-foreground/80 h-5 w-5 md:h-6 md:w-6" />
-                          </Button>
-                        </PopoverTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>Keypad</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <PopoverContent
-                    side="top"
-                    align="center"
-                    className="w-auto rounded p-4 shadow-xl"
-                  >
-                    <DtmfKeypad onSendDTMF={(digit) => onSendDTMF?.(digit)} />
-                  </PopoverContent>
-                </Popover>
-
-                {/* Hold */}
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onToggleHold}
-                        className={cn(
-                          "h-12 w-12 rounded transition-all md:h-14 md:w-14",
-                          isOnHold
-                            ? "bg-amber-500/15 text-amber-600 hover:bg-amber-500/25"
-                            : "hover:bg-muted/50",
-                        )}
-                      >
-                        {isOnHold ? (
-                          <Play className="h-5 w-5 md:h-6 md:w-6" />
-                        ) : (
-                          <Pause className="text-foreground/80 h-5 w-5 md:h-6 md:w-6" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {isOnHold ? "Resume" : "Hold"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                {/* Record */}
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={onToggleRecording}
-                          disabled={recordingSettings.recordAllCalls}
-                          className={cn(
-                            "h-12 w-12 rounded transition-all md:h-14 md:w-14",
-                            isRecording
-                              ? "bg-rose-500/15 text-rose-600 hover:bg-rose-500/25"
-                              : "hover:bg-muted/50",
-                          )}
-                        >
-                          {isRecordingLoading ? (
-                            <Loader2 className="h-5 w-5 animate-spin md:h-6 md:w-6" />
-                          ) : isRecording ? (
-                            <RecordingPulse className="h-5 w-5 animate-pulse md:h-6 md:w-6" />
-                          ) : (
-                            <RecordIcon className="text-foreground/80 h-5 w-5 md:h-6 md:w-6" />
-                          )}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {recordingSettings.recordAllCalls
-                        ? "Auto-recording is on for all calls"
-                        : isRecording
-                          ? "Stop Recording"
-                          : "Record"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                {/* Transcribe (host-provided) */}
-                {slots.renderTranscribeButton?.({
-                  callId,
-                  mode: "active",
-                  onView: () => setTranscriptDialogOpen(true),
-                })}
-
-                {/* Subtitles toggle */}
-                {slots.renderSubtitles && (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setShowSubtitles((prev) => !prev)}
-                          className={cn(
-                            "h-12 w-12 rounded transition-all md:h-14 md:w-14",
-                            showSubtitles
-                              ? "bg-primary/10 text-primary hover:bg-primary/20"
-                              : "hover:bg-muted/50",
-                          )}
-                        >
-                          {showSubtitles ? (
-                            <Captions className="h-5 w-5 md:h-6 md:w-6" />
-                          ) : (
-                            <CaptionsOff className="text-foreground/80 h-5 w-5 md:h-6 md:w-6" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {showSubtitles ? "Hide subtitles" : "Show subtitles"}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-
-                {/* Book Meeting (If no right panel and booking is supported) */}
-                {!compact && !showRightPanel && hasBooking && (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setBookingPanelOpen(true)}
-                          className="h-12 w-12 rounded text-emerald-600 transition-all hover:bg-emerald-500/10 md:h-14 md:w-14"
-                        >
-                          <CalendarPlus className="h-5 w-5 md:h-6 md:w-6" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Book Meeting</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-
-              {/* Secure via */}
-              <div className="text-muted-foreground mb-3 flex items-center justify-center gap-1.5 text-[9px] font-medium tracking-widest uppercase opacity-60 md:mb-4 md:text-[10px]">
-                <Circle
+                <div
                   className={cn(
-                    "h-1.5 w-1.5",
-                    isRecording ? "text-rose-500" : "text-emerald-500",
+                    compact
+                      ? "flex w-full flex-col items-center gap-4"
+                      : "flex items-center gap-3",
+                    !compact &&
+                      "max-md:order-3 max-md:w-full max-md:justify-between",
                   )}
-                />
-                Secure via{" "}
-                <span className="text-emerald-500">Ringee Voice</span>
-              </div>
-
-              <Button
-                size="sm"
-                onClick={onHangup}
-                className="h-14 w-full max-w-[280px] gap-2 rounded-xl bg-rose-500 text-base font-bold text-white shadow-xl shadow-rose-500/20 transition-all hover:scale-[1.02] hover:bg-rose-600 active:scale-95 md:h-16 md:max-w-[320px] md:gap-3 md:text-lg"
-              >
-                <PhoneOff className="h-5 w-5 md:h-6 md:w-6" />
-                END CALL
-              </Button>
-            </div>
-          </div>
-
-          {/* RIGHT PANEL: Intelligence (host-provided panels) */}
-          {showRightPanel && (
-            <div className="bg-background border-border/10 z-20 flex h-[500px] w-full shrink-0 flex-col border-l md:h-full md:w-[55%]">
-              {/* Header area */}
-              <div className="border-border/10 flex shrink-0 items-center justify-between border-b px-4 py-3 md:px-6 md:py-4">
-                {hasContactPanel ? (
-                  <Tabs
-                    value={activeTab}
-                    onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-                    className="w-full"
-                  >
-                    <TabsList className="flex h-auto flex-wrap items-center justify-start gap-1.5 border-none bg-transparent p-0">
-                      {hasActivities && (
-                        <TabsTrigger
-                          value="activities"
-                          className="data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 text-muted-foreground data-[state=active]:text-foreground rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-xs font-normal shadow-none transition-all md:text-sm"
-                        >
-                          History
-                        </TabsTrigger>
-                      )}
-                      {hasContactInfo && (
-                        <TabsTrigger
-                          value="contact"
-                          className="data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 text-muted-foreground data-[state=active]:text-foreground rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-xs font-normal shadow-none transition-all md:text-sm"
-                        >
-                          Contact Info
-                        </TabsTrigger>
-                      )}
-                      {hasScript && (
-                        <TabsTrigger
-                          value="script"
-                          className="data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 text-muted-foreground data-[state=active]:text-foreground rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-xs font-normal shadow-none transition-all md:text-sm"
-                        >
-                          Guion
-                        </TabsTrigger>
-                      )}
-                      {hasTranscript && (
-                        <TabsTrigger
-                          value="transcript"
-                          className="data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 text-muted-foreground data-[state=active]:text-foreground rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-xs font-normal shadow-none transition-all md:text-sm"
-                        >
-                          Transcript
-                        </TabsTrigger>
-                      )}
-                      {hasBooking && (
-                        <TabsTrigger
-                          value="booking"
-                          className="data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 text-muted-foreground data-[state=active]:text-foreground rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-xs font-normal shadow-none transition-all md:text-sm"
-                        >
-                          Book Meeting
-                        </TabsTrigger>
-                      )}
-                    </TabsList>
-                  </Tabs>
-                ) : (
-                  <h3 className="text-foreground text-base font-bold md:text-lg">
-                    Book Meeting
-                  </h3>
-                )}
-
-                {bookingPanelOpen && !hasContactPanel && (
+                >
+                  {controls}
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setBookingPanelOpen(false)}
-                    className="hover:bg-foreground/5 hover:border-border/20 text-muted-foreground hover:text-foreground h-8 w-8 rounded-xl border border-transparent bg-transparent md:h-10 md:w-10"
+                    type="button"
+                    onClick={onHangup}
+                    variant="outline"
+                    className="h-11 shrink-0 cursor-pointer border-red-500/25 bg-red-500/10 px-4 text-red-600 hover:bg-red-500/20 hover:text-red-600 dark:text-red-300 dark:hover:text-red-300"
                   >
-                    <X className="h-4 w-4 md:h-5 md:w-5" />
+                    <PhoneOff className="size-4" />
+                    <span>{copy.endCall}</span>
                   </Button>
-                )}
+                </div>
+              )}
+            </header>
+            {isFreeTrialCall && !isPostCall && (
+              <div className="relative shrink-0 overflow-hidden rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-700 dark:text-amber-300">
+                <div className="relative z-10 flex justify-between">
+                  <span className="flex items-center gap-2">
+                    <Clock className="size-3.5" />
+                    {copy.freeTrial}
+                  </span>
+                  <span className="font-mono tabular-nums">{trialLabel}</span>
+                </div>
+                <div
+                  className="absolute inset-y-0 left-0 bg-amber-500/10"
+                  style={{ width: `${trialProgress}%` }}
+                />
               </div>
-
-              {/* Content area */}
-              <div className="w-full flex-1 overflow-hidden">
-                {hasContactPanel && contactId ? (
-                  <Tabs
-                    value={activeTab}
-                    className="flex h-full w-full flex-col"
-                  >
-                    {hasActivities && (
-                      <TabsContent
-                        value="activities"
-                        className="m-0 h-full flex-1 overflow-y-auto p-4 focus:outline-none data-[state=inactive]:hidden md:p-6"
-                      >
-                        {slots.renderContactActivities?.({ contactId })}
-                      </TabsContent>
+            )}
+            {!compact && (
+              <div className="bg-background flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-2xl">
+                <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-5">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <Headphones className="text-muted-foreground size-4" />
+                    {copy.title}
+                  </h2>
+                  <span className="text-muted-foreground text-xs max-sm:hidden">
+                    {meetingBooked ? (
+                      <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                        <CalendarCheck className="size-3.5" />
+                        {copy.meetingBooked}
+                      </span>
+                    ) : (
+                      copy.manualCall
                     )}
-                    {hasContactInfo && (
-                      <TabsContent
-                        value="contact"
-                        className="m-0 h-full flex-1 focus:outline-none data-[state=inactive]:hidden"
-                      >
-                        {slots.renderContactInfo?.({ contactId })}
-                      </TabsContent>
-                    )}
-                    {hasScript && (
-                      <TabsContent
-                        value="script"
-                        className="m-0 h-full flex-1 focus:outline-none data-[state=inactive]:hidden"
-                      >
-                        {slots.renderScript?.()}
-                      </TabsContent>
-                    )}
-                    {hasTranscript && (
-                      <TabsContent
-                        value="transcript"
-                        className="m-0 h-full flex-1 overflow-y-auto p-4 focus:outline-none data-[state=inactive]:hidden md:p-6"
-                      >
-                        {slots.renderLiveTranscriptPanel?.({ callId })}
-                      </TabsContent>
-                    )}
-                    {hasBooking && (
-                      <TabsContent
-                        value="booking"
-                        className="m-0 h-full flex-1 overflow-y-auto p-4 focus:outline-none data-[state=inactive]:hidden md:p-6"
-                      >
-                        {slots.renderBookMeeting?.({
-                          contactId,
-                          callId,
-                          onBooked: () => {
-                            setMeetingBooked(true);
-                            setActiveTab("activities");
-                            setBookingPanelOpen(false);
-                          },
-                          onCancel: () => {
-                            setActiveTab("activities");
-                            setBookingPanelOpen(false);
-                          },
-                        })}
-                      </TabsContent>
-                    )}
-                  </Tabs>
-                ) : (
-                  <div className="bg-muted/10 flex h-full flex-col items-center justify-center p-6 text-center md:p-8">
-                    <div className="bg-background border-border/50 mb-3 rounded-xl border p-3 shadow-sm md:mb-4 md:p-4">
-                      <CalendarPlus className="h-6 w-6 text-emerald-500/80 md:h-8 md:w-8" />
-                    </div>
-                    <h4 className="mb-1 text-base font-bold md:mb-2 md:text-lg">
-                      No contact linked
-                    </h4>
-                    <p className="text-muted-foreground max-w-[250px] text-xs md:text-sm">
-                      Save the contact first to book meetings or view dial
-                      history.
-                    </p>
+                  </span>
+                </div>
+                {isPostCall && (
+                  <div className="bg-card max-h-[35vh] shrink-0 overflow-y-auto border-b p-4">
+                    <PostCallView
+                      onClose={onPostCallClose}
+                      layout="workspace"
+                      pending={bookingPending}
+                      actionsContainer={actionsContainer}
+                    />
                   </div>
                 )}
+                {/* The same panel tree stays mounted across hang-up, preserving every draft. */}
+                <ResizablePanelGroup
+                  direction="horizontal"
+                  className="min-h-0 flex-1 max-md:!flex-col max-md:!overflow-y-auto"
+                >
+                  <ResizablePanel
+                    defaultSize={25}
+                    minSize={20}
+                    className="flex min-w-0 max-md:!flex-none max-md:!overflow-visible"
+                  >
+                    {contactPanel}
+                  </ResizablePanel>
+                  <ResizableHandle
+                    withHandle
+                    className="w-1.5 border-x bg-transparent max-md:hidden [&>div]:w-1 [&>div]:border-0 [&_svg]:hidden"
+                  />
+                  <ResizablePanel
+                    defaultSize={40}
+                    minSize={25}
+                    className="flex min-w-0 max-md:!min-h-[32rem] max-md:!flex-none max-md:!overflow-visible"
+                  >
+                    {scriptPanel}
+                  </ResizablePanel>
+                  <ResizableHandle
+                    withHandle
+                    className="w-1.5 border-x bg-transparent max-md:hidden [&>div]:w-1 [&>div]:border-0 [&_svg]:hidden"
+                  />
+                  <ResizablePanel
+                    defaultSize={35}
+                    minSize={25}
+                    className="flex min-w-0 max-md:!flex-none max-md:!overflow-visible"
+                  >
+                    {bookingPanel}
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+                <footer className="bg-card flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {isPostCall ? copy.wrapUp : copy.inProgress}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      {isPostCall ? copy.outcomeHint : copy.keepContext}
+                    </p>
+                  </div>
+                  <div
+                    ref={setActionsContainer}
+                    className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:justify-end"
+                  >
+                    {!isPostCall && (
+                      <span className="text-muted-foreground text-xs max-md:hidden">
+                        {copy.wrapUpHint}
+                      </span>
+                    )}
+                  </div>
+                </footer>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+const controlClass =
+  "h-12 min-w-11 cursor-pointer flex-col gap-1 px-2 text-xs font-normal [&_svg]:size-[17px] xl:px-3";
+
+function PanelHeading({ icon, title }: { icon: ReactNode; title: string }) {
+  return (
+    <div className="flex h-[52px] shrink-0 items-center gap-2 border-b px-4 text-sm font-semibold [&_svg]:text-muted-foreground [&_svg]:size-4">
+      <span className="md:hidden">{icon}</span>
+      <h3>{title}</h3>
+    </div>
+  );
+}
+
+function EmptyPanel({ icon, text }: { icon: ReactNode; text: string }) {
+  return (
+    <div className="text-muted-foreground flex min-h-44 flex-col items-center justify-center gap-3 p-6 text-center text-sm [&_svg]:size-7">
+      {icon}
+      <p className="max-w-60">{text}</p>
+    </div>
   );
 }

@@ -1,292 +1,259 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
-import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { cn } from '@ringee/frontend-shared/lib/utils';
-import { format } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
 import {
-  Phone,
-  FileText,
-  Tag,
+  CalendarDays,
   Clock,
+  History,
   PhoneIncoming,
   PhoneOutgoing,
-  CalendarDays
+  StickyNote
 } from 'lucide-react';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useEnumLabels } from '@/features/call-detail/lib/labels';
 
-interface ContactActivity {
+interface ContactCall {
   id: string;
-  type: 'call' | 'note' | 'tag' | 'meeting';
-  date: string;
-  data: Record<string, any>;
+  direction?: string | null;
+  durationSeconds?: number | null;
+  outcome?: string | null;
+  outcomeNote?: string | null;
+  dispositionName?: string | null;
+  createdAt: string;
 }
 
-interface ContactData {
+interface ContactMeeting {
   id: string;
-  name?: string;
-  phoneNumber: string;
-  company?: string;
-  email?: string;
-  calls?: {
-    id: string;
-    direction?: string;
-    durationSeconds?: number;
-    status: string;
-    outcome?: string;
-    /** The workspace disposition picked, when one was ("Demo booked"). */
-    dispositionName?: string | null;
-    hangupCause?: string;
-    createdAt: string;
-  }[];
-  notes?: {
-    id: string;
-    content: string;
-    createdAt: string;
-  }[];
-  tags?: {
-    tag: {
-      id: string;
-      name: string;
-      color?: string;
-    };
-  }[];
-  meetings?: {
-    id: string;
-    title?: string;
-    scheduledAt: string;
-    duration: number;
-    status: string;
-    createdAt: string;
-  }[];
+  title?: string | null;
+  scheduledAt: string;
+  duration: number;
+  status: string;
 }
 
-interface ContactActivitiesProps {
+/** The history already included in the authorized contact-detail response. */
+export interface ContactActivityData {
+  calls?: (ContactCall | null | undefined)[] | null;
+  notes?:
+    | (
+        | {
+            id?: string | null;
+            content?: string | null;
+            createdAt?: string | null;
+          }
+        | null
+        | undefined
+      )[]
+    | null;
+  meetings?: (ContactMeeting | null | undefined)[] | null;
+}
+
+type Activity =
+  | { type: 'call'; date: string; call: ContactCall }
+  | { type: 'meeting'; date: string; meeting: ContactMeeting };
+
+export function ContactActivities({
+  contactId,
+  contact: suppliedContact
+}: {
   contactId: string;
-}
-
-export function ContactActivities({ contactId }: ContactActivitiesProps) {
+  contact?: ContactActivityData | null;
+}) {
   const api = useApi();
-  const [contact, setContact] = useState<ContactData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const locale = useLocale();
+  const t = useTranslations('calls.contactContext');
+  const labels = useEnumLabels();
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<{
+    contactId: string;
+    data: ContactActivityData | null;
+    loading: boolean;
+  }>({ contactId, data: null, loading: true });
 
   useEffect(() => {
-    if (!contactId) return;
-    setIsLoading(true);
+    // The call workspace supplies its fetched contact: notes, history and links
+    // share that response and never require a second contact lookup.
+    if (suppliedContact !== undefined) return;
+    let current = true;
+    setResult({ contactId, data: null, loading: true });
     api
-      .get<ContactData>(`/contacts/${contactId}/activities`)
-      .then(setContact)
-      .catch(() => setContact(null))
-      .finally(() => setIsLoading(false));
-  }, [contactId, api]);
+      .get<ContactActivityData>(`/contacts/${contactId}/activities`)
+      .then((data) => {
+        if (current) setResult({ contactId, data, loading: false });
+      })
+      .catch(() => {
+        if (current) setResult({ contactId, data: null, loading: false });
+      });
+    return () => {
+      current = false;
+    };
+  }, [api, contactId, revision, suppliedContact]);
 
-  if (isLoading) {
+  const loading =
+    suppliedContact === undefined &&
+    (result.contactId !== contactId || result.loading);
+  const contact =
+    suppliedContact !== undefined
+      ? suppliedContact
+      : result.contactId === contactId
+        ? result.data
+        : null;
+  const formatDate = (value: string) => {
+    const at = new Date(value);
+    return Number.isNaN(at.getTime())
+      ? ''
+      : new Intl.DateTimeFormat(locale, {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        }).format(at);
+  };
+  const formatDuration = (seconds: number | null | undefined) =>
+    seconds == null
+      ? '—'
+      : `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
+
+  if (loading)
     return (
-      <div className='space-y-2 p-3'>
-        <Skeleton className='h-4 w-24' />
-        <Skeleton className='h-10 w-full' />
-        <Skeleton className='h-10 w-full' />
-        <Skeleton className='h-10 w-full' />
+      <div aria-busy='true' className='space-y-3 border-t pt-4'>
+        <Skeleton className='h-4 w-32' />
+        <Skeleton className='h-20 w-full' />
+        <Skeleton className='h-4 w-32' />
+        <Skeleton className='h-20 w-full' />
       </div>
     );
-  }
-
-  if (!contact) {
+  if (!contact)
     return (
-      <div className='text-muted-foreground flex items-center justify-center p-6 text-sm'>
-        No activity data
+      <div role='alert' className='space-y-2 border-t pt-4 text-sm'>
+        <p>{t('loadFailed')}</p>
+        {suppliedContact === undefined && (
+          <Button
+            type='button'
+            variant='outline'
+            className='h-11 cursor-pointer'
+            onClick={() => setRevision((value) => value + 1)}
+          >
+            {t('retry')}
+          </Button>
+        )}
       </div>
     );
-  }
 
-  // Merge calls and notes into a timeline
-  const activities: ContactActivity[] = [];
-
-  contact.calls?.forEach((call) => {
-    activities.push({
-      id: call.id,
-      type: 'call',
-      date: call.createdAt,
-      data: call
-    });
-  });
-
-  contact.notes?.forEach((note) => {
-    activities.push({
-      id: note.id,
-      type: 'note',
-      date: note.createdAt,
-      data: note
-    });
-  });
-
-  contact.meetings?.forEach((meeting) => {
-    activities.push({
-      id: meeting.id,
-      type: 'meeting',
-      date: meeting.scheduledAt,
-      data: meeting
-    });
-  });
-
-  // Sort by date descending
+  const notes = (contact.notes ?? []).filter((note) => note?.content?.trim());
+  const activities: Activity[] = [];
+  for (const call of contact.calls ?? [])
+    if (call) activities.push({ type: 'call', date: call.createdAt, call });
+  for (const meeting of contact.meetings ?? [])
+    if (meeting)
+      activities.push({ type: 'meeting', date: meeting.scheduledAt, meeting });
   activities.sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const recentActivities = activities.slice(0, 10);
-
   return (
-    <div className='flex flex-col gap-2'>
-      {/* Tags */}
-      {contact.tags && contact.tags.length > 0 && (
-        <div className='flex flex-wrap gap-1 px-1'>
-          {contact.tags.map((t) => (
-            <span
-              key={t.tag.id}
-              className='bg-muted/60 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium'
+    <div className='space-y-5'>
+      <section aria-label={t('notes')} className='space-y-3 border-t pt-4'>
+        <h4 className='text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase'>
+          <StickyNote className='size-3.5' aria-hidden />
+          {t('notes')}
+        </h4>
+        {notes.length ? (
+          notes.map((note, index) => (
+            <article
+              key={note?.id ?? index}
+              className='bg-background space-y-2 rounded-lg border p-3'
             >
-              <span
-                className='h-1.5 w-1.5 rounded-full'
-                style={{ backgroundColor: t.tag.color || '#888' }}
-              />
-              {t.tag.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Timeline */}
-      <ScrollArea className='h-[200px]'>
-        {recentActivities.length === 0 ? (
-          <div className='text-muted-foreground flex items-center justify-center py-8 text-xs'>
-            No recent activity
+              <p className='text-sm leading-relaxed break-words whitespace-pre-wrap'>
+                {note?.content}
+              </p>
+              {note?.createdAt && (
+                <time
+                  dateTime={note.createdAt}
+                  className='text-muted-foreground block text-xs'
+                >
+                  {formatDate(note.createdAt)}
+                </time>
+              )}
+            </article>
+          ))
+        ) : (
+          <p className='text-muted-foreground text-xs'>{t('noNotes')}</p>
+        )}
+      </section>
+      <section aria-label={t('history')} className='space-y-3 border-t pt-4'>
+        <h4 className='text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase'>
+          <History className='size-3.5' aria-hidden />
+          {t('history')}
+        </h4>
+        {activities.length ? (
+          <div className='space-y-4'>
+            {activities.slice(0, 20).map((activity) => {
+              const call = activity.type === 'call' ? activity.call : null;
+              const meeting =
+                activity.type === 'meeting' ? activity.meeting : null;
+              const Icon = call
+                ? call.direction === 'inbound'
+                  ? PhoneIncoming
+                  : PhoneOutgoing
+                : CalendarDays;
+              return (
+                <article
+                  key={`${activity.type}-${call?.id ?? meeting?.id}`}
+                  className='min-w-0 space-y-2 border-l-2 pl-3'
+                >
+                  <div className='flex flex-wrap items-center justify-between gap-1 text-xs'>
+                    <span className='flex items-center gap-1.5 font-medium'>
+                      <Icon
+                        className='text-muted-foreground size-3.5'
+                        aria-hidden
+                      />
+                      {call
+                        ? t(
+                            call.direction === 'inbound'
+                              ? 'incomingCall'
+                              : 'outgoingCall'
+                          )
+                        : t('meeting')}
+                    </span>
+                    <span className='text-muted-foreground flex items-center gap-1 font-mono'>
+                      <Clock className='size-3' aria-hidden />
+                      {call
+                        ? formatDuration(call.durationSeconds)
+                        : t('minutes', { count: meeting!.duration })}
+                    </span>
+                  </div>
+                  <time
+                    dateTime={activity.date}
+                    className='text-muted-foreground block text-xs'
+                  >
+                    {formatDate(activity.date)}
+                  </time>
+                  {call?.outcome && (
+                    <p className='text-xs font-medium'>
+                      {call.dispositionName || labels.outcome(call.outcome)}
+                    </p>
+                  )}
+                  {call?.outcomeNote && (
+                    <p className='text-muted-foreground text-xs leading-relaxed break-words whitespace-pre-wrap'>
+                      {call.outcomeNote}
+                    </p>
+                  )}
+                  {meeting?.title && (
+                    <p className='text-xs leading-relaxed break-words'>
+                      {meeting.title}
+                    </p>
+                  )}
+                </article>
+              );
+            })}
           </div>
         ) : (
-          <div className='space-y-1 px-1'>
-            {recentActivities.map((activity) => (
-              <ActivityRow key={activity.id} activity={activity} />
-            ))}
-          </div>
+          <p className='text-muted-foreground text-xs'>{t('noHistory')}</p>
         )}
-      </ScrollArea>
+      </section>
     </div>
   );
-}
-
-function ActivityRow({ activity }: { activity: ContactActivity }) {
-  if (activity.type === 'call') {
-    const call = activity.data;
-    const durationLabel = call.durationSeconds
-      ? `${Math.floor(call.durationSeconds / 60)}:${(call.durationSeconds % 60).toString().padStart(2, '0')}`
-      : '--:--';
-
-    return (
-      <div className='hover:bg-muted/30 flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs'>
-        <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10'>
-          {call.direction === 'inbound' ? (
-            <PhoneIncoming className='h-3 w-3 text-blue-500' />
-          ) : (
-            <PhoneOutgoing className='h-3 w-3 text-blue-500' />
-          )}
-        </div>
-        <div className='min-w-0 flex-1'>
-          <span className='font-medium capitalize'>
-            {call.direction || 'outbound'} call
-          </span>
-          {call.outcome && (
-            <span
-              className='text-muted-foreground ml-1.5'
-              title={
-                call.outcome === 'no_answer' && call.hangupCause
-                  ? `Carrier reason: ${call.hangupCause.replace(/_/g, ' ')}`
-                  : undefined
-              }
-            >
-              &middot; {call.dispositionName ?? call.outcome.replace(/_/g, ' ')}
-              {call.outcome === 'no_answer' &&
-                call.hangupCause &&
-                ` (${call.hangupCause.replace(/_/g, ' ')})`}
-            </span>
-          )}
-        </div>
-        <div className='text-muted-foreground flex shrink-0 items-center gap-1'>
-          <Clock className='h-3 w-3' />
-          {durationLabel}
-        </div>
-        <span className='text-muted-foreground shrink-0'>
-          {format(new Date(activity.date), 'MMM d')}
-        </span>
-      </div>
-    );
-  }
-
-  if (activity.type === 'note') {
-    return (
-      <div className='hover:bg-muted/30 flex items-start gap-2.5 rounded-md px-2 py-1.5 text-xs'>
-        <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/10'>
-          <FileText className='h-3 w-3 text-amber-500' />
-        </div>
-        <div className='min-w-0 flex-1'>
-          <p className='line-clamp-2 text-xs'>{activity.data.content}</p>
-        </div>
-        <span className='text-muted-foreground shrink-0'>
-          {format(new Date(activity.date), 'MMM d')}
-        </span>
-      </div>
-    );
-  }
-
-  if (activity.type === 'meeting') {
-    const meeting = activity.data;
-    return (
-      <div className='hover:bg-muted/30 flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs'>
-        <div
-          className={cn(
-            'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
-            meeting.status === 'scheduled'
-              ? 'bg-emerald-500/10'
-              : meeting.status === 'completed'
-                ? 'bg-blue-500/10'
-                : meeting.status === 'cancelled'
-                  ? 'bg-red-500/10'
-                  : 'bg-amber-500/10'
-          )}
-        >
-          <CalendarDays
-            className={cn(
-              'h-3 w-3',
-              meeting.status === 'scheduled'
-                ? 'text-emerald-500'
-                : meeting.status === 'completed'
-                  ? 'text-blue-500'
-                  : meeting.status === 'cancelled'
-                    ? 'text-red-500'
-                    : 'text-amber-500'
-            )}
-          />
-        </div>
-        <div className='min-w-0 flex-1'>
-          <span className='font-medium capitalize'>
-            Meeting {meeting.status}
-          </span>
-          {meeting.title && (
-            <span className='text-muted-foreground ml-1.5 truncate'>
-              &middot; {meeting.title}
-            </span>
-          )}
-        </div>
-        <div className='text-muted-foreground flex shrink-0 items-center gap-1'>
-          <Clock className='h-3 w-3' />
-          {meeting.duration}m
-        </div>
-        <span className='text-muted-foreground w-12 shrink-0 text-right'>
-          {format(new Date(activity.date), 'MMM d')}
-        </span>
-      </div>
-    );
-  }
-
-  return null;
 }

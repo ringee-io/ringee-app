@@ -166,7 +166,14 @@
     "emailPlaceholder": "Required for calendar invite",
     "selectCalendar": "Select Calendar",
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "loadFailed": "Could not load the contact or calendars. Try again.",
+    "retry": "Try again",
+    "booked": "Meeting booked",
+    "showTimesIn": "Show times in",
+    "minutes": "{count} min",
+    "noCalendars": "No calendar available",
+    "connectCalendar": "Connect Google Calendar or Outlook"
   },
   "toasts": {
     "failedToLoad": "Failed to load meetings",

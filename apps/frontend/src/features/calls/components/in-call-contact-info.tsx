@@ -1,11 +1,19 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  ContactActivities,
+  type ContactActivityData
+} from './contact-activities';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
+import {
+  Avatar,
+  AvatarFallback
+} from '@ringee/frontend-shared/components/ui/avatar';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { toast } from 'sonner';
@@ -147,6 +155,8 @@ type ContactPayload = {
   > | null;
   revenue?: string | null;
   companySize?: string | null;
+  calls?: ContactActivityData['calls'];
+  meetings?: ContactActivityData['meetings'];
 };
 
 type FormState = {
@@ -194,7 +204,15 @@ function toForm(c: ContactPayload | null | undefined): FormState {
   };
 }
 
-export function InCallContactInfo({ contactId }: { contactId: string }) {
+export function InCallContactInfo({
+  contactId,
+  profileActionsContainer,
+  showActivities = false
+}: {
+  contactId: string;
+  profileActionsContainer?: HTMLElement | null;
+  showActivities?: boolean;
+}) {
   const api = useApi();
   const format = useFormatter();
   const t = useTranslations('calls.inCallContact');
@@ -326,17 +344,52 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
     website: tContactActions('website')
   };
 
+  const profileButtons = (
+    <ExternalProfileButtons
+      urls={{
+        linkedinUrl: contact.linkedinUrl,
+        companyLinkedinUrl: primaryCompany?.linkedinUrl,
+        websiteUrl:
+          primaryCompany?.website ||
+          primaryCompany?.domain ||
+          contact.websiteUrl
+      }}
+      labels={externalLinkLabels}
+      iconOnly={!!profileActionsContainer}
+    />
+  );
+
   return (
-    <ScrollArea className='h-full'>
+    <div className='@container'>
       <div className='flex flex-col gap-4 p-4 md:p-6'>
-        <div className='flex flex-wrap items-start justify-between gap-3'>
+        <div className='flex flex-wrap items-start gap-3'>
+          <Avatar className='size-11'>
+            <AvatarFallback>
+              {displayName
+                .trim()
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join('')
+                .toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div className='min-w-0 flex-1'>
             <h3 className='text-base font-bold break-words md:text-lg'>
               {displayName}
             </h3>
             <p className='text-muted-foreground text-xs break-words'>
-              {contact.phoneNumber}
+              {contact.jobTitle || contact.phoneNumber}
             </p>
+            {(contact.organization ||
+              contact.company ||
+              primaryCompany?.name) && (
+              <p className='text-muted-foreground mt-2 text-sm'>
+                {contact.organization ||
+                  contact.company ||
+                  primaryCompany?.name}
+              </p>
+            )}
           </div>
           {editing ? (
             <div className='flex gap-1'>
@@ -366,18 +419,17 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
           )}
         </div>
 
-        <ExternalProfileButtons
-          urls={{
-            linkedinUrl: contact.linkedinUrl,
-            companyLinkedinUrl: primaryCompany?.linkedinUrl,
-            websiteUrl: contact.websiteUrl
-          }}
-          labels={externalLinkLabels}
-        />
+        {profileActionsContainer
+          ? createPortal(profileButtons, profileActionsContainer)
+          : profileButtons}
+
+        {showActivities && (
+          <ContactActivities contactId={contactId} contact={contact} />
+        )}
 
         {editing ? (
           <>
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('firstName')}
                 value={form.firstName}
@@ -415,7 +467,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
               disabled={!editing}
             />
 
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('company')}
                 value={form.organization}
@@ -430,7 +482,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
               />
             </div>
 
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('state')}
                 value={form.state}
@@ -445,7 +497,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
               />
             </div>
 
-            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            <div className='grid grid-cols-1 gap-3 @sm:grid-cols-2'>
               <Field
                 label={t('revenue')}
                 value={form.revenue}
@@ -614,15 +666,17 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
             [t('phoneVerified'), contact.phoneVerified]
           ]}
         />
-        <ContactDetails
-          title={tDetail('notes')}
-          rows={
-            contact.notes?.map((note) => [tDetail('notes'), note?.content]) ??
-            []
-          }
-        />
+        {!showActivities && (
+          <ContactDetails
+            title={tDetail('notes')}
+            rows={
+              contact.notes?.map((note) => [tDetail('notes'), note?.content]) ??
+              []
+            }
+          />
+        )}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 
@@ -723,15 +777,17 @@ function ContactDetails({
   if (populated.length === 0) return null;
   return (
     <section className='min-w-0 space-y-3 border-t pt-4'>
-      <h4 className='text-sm font-semibold break-words'>{title}</h4>
-      <dl className='grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2'>
+      <h4 className='text-muted-foreground text-xs font-semibold tracking-wide break-words uppercase'>
+        {title}
+      </h4>
+      <dl className='grid min-w-0 grid-cols-1 gap-3 @sm:grid-cols-2'>
         {populated.map(([label, value], index) => (
           <div
             key={`${label}-${index}`}
             className={
               typeof value === 'object' ||
               (typeof value === 'string' && value.length > 120)
-                ? 'min-w-0 sm:col-span-2'
+                ? 'min-w-0 @sm:col-span-2'
                 : 'min-w-0'
             }
           >

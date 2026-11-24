@@ -118,12 +118,17 @@ function fixture({ get, put, contactId = 'ana', deferStateUpdates = false }) {
       }
     },
     '@ringee/frontend-shared/hooks/use.api': { useApi: () => api },
+    './contact-activities': { ContactActivities: () => null },
     '@ringee/frontend-shared/lib/api': { ApiError: class extends Error {} },
     '@ringee/frontend-shared/components/ui/button': { Button: 'button' },
     '@ringee/frontend-shared/components/ui/input': { Input: 'input' },
     '@ringee/frontend-shared/components/ui/label': { Label: 'label' },
     '@ringee/frontend-shared/components/ui/skeleton': { Skeleton: 'div' },
     '@ringee/frontend-shared/components/ui/scroll-area': { ScrollArea: 'div' },
+    '@ringee/frontend-shared/components/ui/avatar': {
+      Avatar: 'div',
+      AvatarFallback: 'span'
+    },
     '@ringee/frontend-shared/components/external-profile-links': {
       ExternalProfileButtons: ({ urls }) => {
         profileUrls = urls;
@@ -698,4 +703,14 @@ test('null or undefined saves preserve the contact and unsaved form so the user 
     );
     assert.equal(f.requests.filter(({ method }) => method === 'PUT').length, 2);
   }
+});
+
+test('the company website action prefers the primary company over the contact website', async () => {
+  const lead = importedLead();
+  lead.websiteUrl = 'https://ana.example';
+  lead.affiliations[0].company.website = 'https://acme.example';
+  const f = fixture({ get: async () => lead });
+  await f.settle();
+  f.html();
+  assert.equal(f.externalUrls().websiteUrl, 'https://acme.example');
 });

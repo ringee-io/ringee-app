@@ -4,7 +4,13 @@ import { Button } from "@ringee/frontend-shared/components/ui/button";
 import { Textarea } from "@ringee/frontend-shared/components/ui/textarea";
 import { cn } from "@ringee/frontend-shared/lib/utils";
 import { useCallStore, type CallOutcome } from "@ringee/dialer-core/store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@ringee/frontend-shared/components/ui/popover";
 import {
   CalendarCheck,
   ThumbsUp,
@@ -86,6 +92,14 @@ const OUTCOMES: {
       "bg-gray-500/10 border-gray-400 text-gray-500 ring-1 ring-gray-400/20",
   },
   {
+    id: "no_conversation",
+    label: "No conversation",
+    icon: PhoneOff,
+    color: "text-gray-400",
+    bgActive:
+      "bg-gray-500/10 border-gray-400 text-gray-500 ring-1 ring-gray-400/20",
+  },
+  {
     id: "voicemail",
     label: "Voicemail",
     icon: Voicemail,
@@ -113,10 +127,21 @@ const OUTCOMES: {
 
 interface PostCallViewProps {
   onClose: () => void;
+  layout?: "workspace";
+  pending?: boolean;
+  actionsContainer?: HTMLElement | null;
 }
 
-export function PostCallView({ onClose }: PostCallViewProps) {
+export function PostCallView({
+  onClose,
+  layout,
+  pending = false,
+  actionsContainer,
+}: PostCallViewProps) {
   const { data, slots, labels, notify } = useDialer();
+  const copy = labels.workspace;
+  const submitting = useRef(false);
+  const [saveError, setSaveError] = useState(false);
   const {
     outcome,
     outcomeNote,
@@ -179,8 +204,10 @@ export function PostCallView({ onClose }: PostCallViewProps) {
   const durationLabel = `${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, "0")}`;
 
   const handleSave = async () => {
-    if (!outcome) return;
+    if (!outcome || submitting.current || pending) return;
+    submitting.current = true;
     setIsSaving(true);
+    setSaveError(false);
     try {
       let acceptance: Awaited<ReturnType<typeof data.saveCallOutcome>> =
         undefined;
@@ -212,8 +239,10 @@ export function PostCallView({ onClose }: PostCallViewProps) {
       } else notify("success", "Call outcome saved");
       onClose();
     } catch {
-      notify("error", "Failed to save outcome");
+      setSaveError(true);
+      notify("error", copy.saveFailed);
     } finally {
+      submitting.current = false;
       setIsSaving(false);
     }
   };
@@ -228,19 +257,27 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     setShowCallback(false);
   };
 
-  const handleSkip = () => {
-    // Closed without an outcome: same request as saving (minus the outcome) so
-    // the CRM note still fires immediately with whatever the call carries.
-    // Best-effort — closing the post-call view must never depend on it.
-    if (callId || callSessionId) {
-      void data
-        .saveCallOutcome({
+  const handleSkip = async () => {
+    if (submitting.current || pending) return;
+    submitting.current = true;
+    setIsSaving(true);
+    setSaveError(false);
+    try {
+      if (callId || callSessionId) {
+        await data.saveCallOutcome({
           callId: callId || undefined,
           callSessionId: callSessionId || undefined,
-        })
-        .catch(() => undefined);
+          outcomeNote: outcomeNote || undefined,
+        });
+      }
+      onClose();
+    } catch {
+      setSaveError(true);
+      notify("error", copy.saveFailed);
+    } finally {
+      submitting.current = false;
+      setIsSaving(false);
     }
-    onClose();
   };
 
   const handleVoicemailSent = () => {
@@ -272,7 +309,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
   // after "no answer".
   const showVoicemailPrompt =
     !voicemailSent &&
-    !showVoicemail &&
+    (layout === "workspace" || !showVoicemail) &&
     !!slots.renderVoicemailDrop &&
     !!callPhoneNumber;
 
@@ -281,6 +318,165 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     !showBooking &&
     !!slots.renderBookMeeting &&
     (outcome === "interested" || outcome === "follow_up" || outcome === "sale");
+
+  const actions = (
+    <>
+      {saveError && (
+        <p role="alert" className="text-destructive max-w-80 text-xs">
+          {copy.saveFailed}
+        </p>
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={handleSkip}
+        disabled={isSaving || pending}
+        className="h-11 cursor-pointer"
+      >
+        {copy.skip}
+      </Button>
+      <Button
+        type="button"
+        onClick={handleSave}
+        disabled={
+          !outcome ||
+          isSaving ||
+          pending ||
+          (outcome === "callback_scheduled" &&
+            canScheduleCallback &&
+            !callbackScheduled)
+        }
+        className="h-11 cursor-pointer bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+      >
+        {isSaving && (
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+        )}
+        {isSaving ? labels.followUpPreparing : copy.save}
+      </Button>
+    </>
+  );
+
+  if (layout === "workspace") {
+    const choices = hasDispositions
+      ? dispositions!.map((item) => ({
+          id: item.id,
+          label: item.label,
+          outcome: item.canonicalOutcome,
+        }))
+      : OUTCOMES.map((item) => ({
+          id: item.id,
+          label: copy[item.id],
+          outcome: item.id,
+        }));
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">{copy.selectOutcome}</h3>
+          <div className="flex items-center gap-3 text-xs">
+            {meetingBooked && (
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <CalendarCheck className="size-3.5" />
+                {copy.meetingBooked}
+              </span>
+            )}
+            {callbackScheduled && (
+              <span className="text-amber-600 dark:text-amber-400">
+                {labels.callbackBadge}
+              </span>
+            )}
+            {callId &&
+              slots.renderTranscribeButton?.({ callId, mode: "history" })}
+            {showVoicemailPrompt && (
+              <Popover open={showVoicemail} onOpenChange={setShowVoicemail}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11 cursor-pointer text-xs"
+                  >
+                    <Voicemail className="size-4" />
+                    {copy.sendVoicemail}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="max-h-[70dvh] w-80 overflow-y-auto"
+                >
+                  {callPhoneNumber &&
+                    slots.renderVoicemailDrop?.({
+                      phoneNumber: callPhoneNumber,
+                      contactId: callContactId,
+                      callId,
+                      onSent: handleVoicemailSent,
+                      onCancel: () => setShowVoicemail(false),
+                    })}
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </div>
+        <div
+          className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-6"
+          aria-busy={dispositions === null}
+        >
+          {dispositions === null
+            ? [0, 1, 2, 3, 4, 5].map((key) => (
+                <div
+                  key={key}
+                  className="bg-muted h-11 animate-pulse rounded-md motion-reduce:animate-none"
+                />
+              ))
+            : choices.map((choice) => {
+                const selected = hasDispositions
+                  ? dispositionId === choice.id
+                  : outcome === choice.outcome;
+                const Icon = OUTCOMES.find(
+                  (item) => item.id === choice.outcome,
+                )?.icon;
+                return (
+                  <button
+                    key={choice.id}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={isSaving || pending}
+                    onClick={() => {
+                      if (hasDispositions) setDispositionId(choice.id);
+                      handleOutcomeClick(choice.outcome);
+                    }}
+                    className={cn(
+                      "flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+                      selected
+                        ? "border-emerald-600 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500 dark:text-emerald-400"
+                        : "bg-background hover:bg-muted",
+                    )}
+                  >
+                    {Icon && (
+                      <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="min-w-0 flex-1">{choice.label}</span>
+                    {selected && <Check className="size-3.5 shrink-0" />}
+                  </button>
+                );
+              })}
+        </div>
+        {showCallback && callContactId && (
+          <div className="max-w-2xl rounded-lg border p-3">
+            {slots.renderScheduleCallback?.({
+              contactId: callContactId,
+              callId,
+              onScheduled: handleCallbackScheduled,
+              onCancel: () => setShowCallback(false),
+            })}
+          </div>
+        )}
+        {actionsContainer ? (
+          createPortal(actions, actionsContainer)
+        ) : (
+          <div className="flex justify-end gap-2">{actions}</div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -526,35 +722,8 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         rows={2}
       />
 
-      {/* Actions */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSkip}
-          className="text-muted-foreground hover:text-foreground flex-shrink-0 text-xs transition-colors"
-        >
-          Skip
-        </button>
-        <Button
-          onClick={handleSave}
-          disabled={
-            !outcome ||
-            isSaving ||
-            (outcome === "callback_scheduled" &&
-              canScheduleCallback &&
-              !callbackScheduled)
-          }
-          className="flex-1"
-          size="sm"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              {labels.followUpPreparing}
-            </>
-          ) : (
-            "Save & Close"
-          )}
-        </Button>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {actions}
       </div>
     </div>
   );

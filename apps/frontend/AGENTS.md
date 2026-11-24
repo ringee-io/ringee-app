@@ -115,6 +115,12 @@ first (`confirmPublicNumberCall`, which the user can silence per browser). The
 campaign dialer never uses the public number: its caller ID is resolved
 server-side.
 
+The full active-call modal keeps contact, script and booking panels mounted
+through wrap-up. Call notes use the shared store's `outcomeNote` during both
+phases; do not create a second notes draft or replace the workspace on hang-up.
+The extension uses the same modal in `compact` mode. Availability and bookings
+use the selected Ringee calendar; an external calendar is an optional copy.
+
 **A live call is ended by the hang-up button or by the person on the other end,
 and by nothing else.** That includes a dialog's corner close: the active-call
 modal's `onClose` is the host's hang-up, so its dialogs render

@@ -37,6 +37,7 @@ function fixture() {
         return {
           useDialer: () => ({
             data: {},
+            labels: { workspace: {} },
             slots: {},
             recordingSettings: { recordAllCalls: false }
           })

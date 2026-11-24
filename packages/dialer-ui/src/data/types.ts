@@ -76,11 +76,17 @@ export interface DialerRecordingSettings {
  */
 export interface DialerSlots {
   renderContactActivities?: (args: { contactId: string }) => ReactNode;
-  renderContactInfo?: (args: { contactId: string }) => ReactNode;
+  renderContactInfo?: (args: {
+    contactId: string;
+    /** The call toolbar's host for the contact's external-profile buttons. */
+    profileActionsContainer?: HTMLElement | null;
+  }) => ReactNode;
   renderScript?: () => ReactNode;
   renderBookMeeting?: (args: {
     contactId: string;
     callId?: string | null;
+    layout?: "workspace";
+    onPendingChange?: (pending: boolean) => void;
     onBooked: () => void;
     onCancel: () => void;
   }) => ReactNode;
@@ -119,8 +125,66 @@ export interface DialerSlots {
   }) => ReactNode;
 }
 
-/** A few strings the web app localizes; English defaults keep the modal usable. */
+export const DEFAULT_WORKSPACE_LABELS = {
+  title: "Call workspace",
+  controls: "Call controls",
+  manualCall: "Manual call",
+  contact: "Contact",
+  history: "Recent activity",
+  script: "Call script",
+  schedule: "Schedule a meeting",
+  callNotes: "Call notes",
+  notesHint: "Kept with this call",
+  notesPlaceholder: "Capture what matters…",
+  inProgress: "Call in progress",
+  keepContext: "Your notes and meeting stay here when the call ends.",
+  wrapUpHint: "Wrap-up begins when the call ends",
+  wrapUp: "Post-call wrap-up",
+  ended: "Call ended",
+  outcomeHint: "Choose a result, then save your call.",
+  mute: "Mute",
+  unmute: "Unmute",
+  hold: "Hold",
+  resume: "Resume",
+  keypad: "Dial pad",
+  record: "Record",
+  recording: "Recording",
+  autoRecording: "Recording enabled by workspace policy",
+  transcript: "Transcript",
+  subtitles: "Subtitles",
+  endCall: "End call",
+  freeTrial: "Free trial",
+  meetingBooked: "Meeting booked",
+  contactPending: "Contact details are not available yet.",
+  noScript: "No call script configured",
+  noCalendar: "Scheduling is not available for this contact.",
+  skip: "Skip",
+  save: "Save & close",
+  saveFailed:
+    "Could not save. Your notes and result are still here. Try again.",
+  saved: "Call outcome saved",
+  selectOutcome: "How did it go?",
+  sendVoicemail: "Send a voicemail",
+  meeting_booked: "Meeting booked",
+  sale: "Sale",
+  interested: "Interested",
+  follow_up: "Follow up",
+  callback_scheduled: "Callback",
+  not_interested: "Not interested",
+  no_answer: "No answer",
+  no_conversation: "No conversation",
+  voicemail: "Voicemail",
+  wrong_number: "Wrong number",
+  gatekeeper: "Gatekeeper",
+};
+
+export type DialerWorkspaceLabels = {
+  [Key in keyof typeof DEFAULT_WORKSPACE_LABELS]: string;
+};
+
+/** English defaults keep hosts without a translation provider usable. */
 export interface DialerLabels {
+  workspace: DialerWorkspaceLabels;
   followUpPreparing: string;
   followUpAccepted: string;
   followUpBlocked: string;
@@ -132,6 +196,7 @@ export interface DialerLabels {
 }
 
 export const DEFAULT_DIALER_LABELS: DialerLabels = {
+  workspace: DEFAULT_WORKSPACE_LABELS,
   followUpPreparing: "Saving outcome and preparing follow-up…",
   followUpAccepted: "AI will handle the follow-up",
   followUpBlocked: "Follow-up blocked",
