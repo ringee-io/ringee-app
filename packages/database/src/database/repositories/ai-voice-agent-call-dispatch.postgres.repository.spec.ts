@@ -16,11 +16,43 @@ import { ProviderDispatchSettingRepository } from "./provider-dispatch-setting.r
  * Explicit opt-in, as the other database suites: never the application's
  * DATABASE_URL. Needs the 20261124150000_provider_dispatch tables, which
  * `prisma db push` of the current schema also creates.
+ *
+ * The queue is global on purpose — admission counts every queued call, the
+ * candidates span workspaces — so this suite needs the queue of its database
+ * to itself: it takes the lock every suite sharing a disposable database
+ * serializes on, and refuses to start on a queue that already holds rows it
+ * did not create, rather than reading them as its own.
  */
 const url = process.env.RINGEE_AUTOMATION_TEST_DATABASE_URL;
 
+/** The advisory lock the suites sharing one disposable database take in turn. */
+async function holdSharedDatabase(prisma: PrismaClient) {
+  let release!: () => void;
+  let acquired!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    acquired = resolve;
+  });
+  const transaction = prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(521143, 2)`;
+      acquired();
+      await hold;
+    },
+    { maxWait: 30_000, timeout: 20 * 60_000 },
+  );
+  await Promise.race([ready, transaction]);
+  return async () => {
+    release();
+    await transaction;
+  };
+}
+
 describe("agent call dispatch queue on PostgreSQL", { skip: !url }, () => {
   const prisma = new PrismaClient({ datasourceUrl: url });
+  let releaseDatabase: (() => Promise<void>) | undefined;
   const repo = new AiVoiceAgentCallDispatchRepository(prisma as never);
   const hours = new ProviderDispatchHourRepository(prisma as never);
   const settings = new ProviderDispatchSettingRepository(prisma as never);
@@ -43,6 +75,13 @@ describe("agent call dispatch queue on PostgreSQL", { skip: !url }, () => {
   const limits = { perWorkspace: 1_000, total: 10_000 };
 
   before(async () => {
+    assert.ok(["127.0.0.1", "localhost"].includes(new URL(url!).hostname));
+    releaseDatabase = await holdSharedDatabase(prisma);
+    assert.equal(
+      await prisma.aiVoiceAgentCallDispatch.count(),
+      0,
+      "This suite reads the whole dispatch queue: point RINGEE_AUTOMATION_TEST_DATABASE_URL at a disposable database whose queue is empty (or clear AiVoiceAgentCallDispatch there).",
+    );
     await prisma.user.createMany({
       data: [{ id: userId }, { id: otherUserId }],
     });
@@ -83,19 +122,26 @@ describe("agent call dispatch queue on PostgreSQL", { skip: !url }, () => {
   });
 
   after(async () => {
-    await prisma.organization.deleteMany({
-      where: { id: { in: [organizationId, otherOrganizationId] } },
-    });
-    await prisma.user.deleteMany({
-      where: { id: { in: [userId, otherUserId] } },
-    });
-    await prisma.providerDispatchHour.deleteMany({
-      where: { providerAccountKey: account },
-    });
-    await prisma.providerDispatchSetting.deleteMany({
-      where: { providerAccountKey: account },
-    });
-    await prisma.$disconnect();
+    try {
+      await prisma.aiVoiceAgentCall.deleteMany({
+        where: { agentId: { in: [agentId, otherAgentId] } },
+      });
+      await prisma.organization.deleteMany({
+        where: { id: { in: [organizationId, otherOrganizationId] } },
+      });
+      await prisma.user.deleteMany({
+        where: { id: { in: [userId, otherUserId] } },
+      });
+      await prisma.providerDispatchHour.deleteMany({
+        where: { providerAccountKey: account },
+      });
+      await prisma.providerDispatchSetting.deleteMany({
+        where: { providerAccountKey: account },
+      });
+    } finally {
+      await releaseDatabase?.();
+      await prisma.$disconnect();
+    }
   });
 
   /** A queued call in a workspace, with the least ceremony. */
@@ -364,6 +410,31 @@ describe("agent call dispatch queue on PostgreSQL", { skip: !url }, () => {
         10,
       );
       assert.ok(after.some((c) => c.agentCallId === claimed.call.id));
+    });
+
+    it("leaves out the workspaces it is told to, so a page of them hides nothing", async () => {
+      await reset();
+      const busy = await enqueue("a", { queuedAt: t0 });
+      const free = await enqueue("b", { queuedAt: later(10) });
+      // A page of one is taken by the workspace that must wait...
+      const page = await repo.peekCandidates(later(1_000), LEASE, 1);
+      assert.deepEqual(
+        page.map((c) => c.agentCallId),
+        [busy.call.id],
+      );
+      // ...and setting it aside reaches the one behind it.
+      const next = await repo.peekCandidates(later(1_000), LEASE, 1, 60_000, [
+        ws,
+      ]);
+      assert.deepEqual(
+        next.map((c) => c.agentCallId),
+        [free.call.id],
+      );
+      // Nothing set aside reads as before.
+      assert.equal(
+        (await repo.peekCandidates(later(1_000), LEASE, 10, 60_000, [])).length,
+        2,
+      );
     });
   });
 
@@ -956,6 +1027,50 @@ describe("agent call dispatch queue on PostgreSQL", { skip: !url }, () => {
       });
       // Another account never sees them.
       assert.deepEqual(await settings.listForAccount("someone-else"), {});
+    });
+
+    it("decides each change on what is stored, one change at a time", async () => {
+      await settings.deleteKeys(account, ["ceilingCps"]);
+      // Ten changes at once, each reading the stored value and writing the
+      // next one: interleaved, some would read the same value and lose a step.
+      await Promise.all(
+        Array.from({ length: 10 }, () =>
+          settings.change(
+            account,
+            (stored) => ({
+              upsert: { ceilingCps: Number(stored.ceilingCps ?? 0) + 1 },
+            }),
+            { userId: null, reason: null },
+          ),
+        ),
+      );
+      assert.equal((await settings.listForAccount(account)).ceilingCps, 10);
+
+      // A change that refuses writes nothing, removals included.
+      await assert.rejects(
+        settings.change(
+          account,
+          () => {
+            throw new Error("refused");
+          },
+          { userId: null, reason: null },
+        ),
+        /refused/,
+      );
+      assert.equal(
+        (
+          await settings.change(
+            account,
+            () => ({ remove: ["ceilingCps", "absent"] }),
+            { userId: null, reason: null },
+          )
+        ).removed,
+        1,
+      );
+      assert.equal(
+        (await settings.listForAccount(account)).ceilingCps,
+        undefined,
+      );
     });
   });
 });

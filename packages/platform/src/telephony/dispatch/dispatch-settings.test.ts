@@ -4,6 +4,7 @@ import {
   applySettingsOverrides,
   baselineSettings,
   deriveLimits,
+  derivedLimitsProblem,
   validateSettingsPatch,
   type DispatchEnvironment,
 } from "./dispatch-settings";
@@ -175,5 +176,38 @@ describe("stored overrides", () => {
     expect(merged.ceilingCps).toBe(5);
     expect(merged.safetyMargin).toBe(0.2);
     expect(merged.pausedClasses).toEqual([]);
+  });
+
+  it("keep the environment's shares when stored ones leave a level no capacity", () => {
+    // Each value validates alone; together they round a level's CPS to zero.
+    const stored = {
+      ceilingCps: 1,
+      safetyMargin: 0.9,
+      classCapFractions: [1, 0.5, 0.25, 0.000001],
+    };
+    expect(validateSettingsPatch(stored).errors).toEqual([]);
+    const merged = applySettingsOverrides(baselineSettings(env), stored);
+    expect(merged.ceilingCps).toBe(1);
+    expect(merged.safetyMargin).toBe(0.9);
+    expect(merged.classCapFractions).toEqual(
+      baselineSettings(env).classCapFractions,
+    );
+    expect(derivedLimitsProblem(merged)).toBeNull();
+    const limits = deriveLimits(merged);
+    for (const cap of limits.levelCapsCps) expect(cap).toBeGreaterThan(0);
+    for (const spacing of limits.levelIntervalsMicros)
+      expect(Number.isFinite(spacing) && spacing > 0).toBe(true);
+  });
+
+  it("names a combination that cannot pace", () => {
+    expect(
+      derivedLimitsProblem({
+        ...baselineSettings(env),
+        ceilingCps: 1,
+        safetyMargin: 0.9,
+        classCapFractions: [1, 0.5, 0.25, 0.000001],
+      }),
+    ).toMatch(/without capacity/);
+    expect(derivedLimitsProblem(baselineSettings(env))).toBeNull();
   });
 });

@@ -18,6 +18,7 @@ import {
   assertCampaignAttemptAssignment,
   type CampaignAttemptAssignment,
 } from "./call-attempt.repository";
+import { VOICEMAIL_DROP_STATE_PREFIX } from "./answered-call.sql";
 
 /**
  * The relations the call-detail screen reads.
@@ -784,6 +785,77 @@ export class CallRepository {
         ],
       },
     });
+  }
+
+  /**
+   * Writes a server-sent voicemail drop's pending row, unless the workspace
+   * already has a drop to the number that is not over: still `pending` (its
+   * dial may have gone out without an answer saying so) or ringing / playing.
+   * Check and write are one step under a lock on the workspace and number, so
+   * two sends racing for one number cannot both get a row — and both dial.
+   *
+   * Only drops younger than `since` stand in the way, so one whose end never
+   * arrived cannot block the number for good. Returns the row written, or the
+   * drop that is still unfinished.
+   */
+  async createVoicemailDropUnlessUnfinished(
+    ctx: OwnershipContext,
+    data: Omit<Prisma.CallCreateInput, "user" | "organization">,
+    since: Date,
+  ): Promise<
+    | { created: Call; unfinished?: undefined }
+    | { created?: undefined; unfinished: Pick<Call, "id" | "status"> }
+  > {
+    const workspace = ctx.organizationId
+      ? `org:${ctx.organizationId}`
+      : `user:${ctx.userId}`;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`voicemail-drop:${workspace}:${data.toNumber}`}, 0))`;
+      const unfinished = await tx.call.findFirst({
+        where: {
+          ...buildOwnershipFilter(ctx),
+          direction: "outbound",
+          toNumber: data.toNumber,
+          endedAt: null,
+          status: {
+            in: [
+              CallStatus.pending,
+              CallStatus.ringing,
+              CallStatus.answered,
+              CallStatus.recording,
+            ],
+          },
+          clientState: { startsWith: VOICEMAIL_DROP_STATE_PREFIX },
+          createdAt: { gte: since },
+        },
+        select: { id: true, status: true },
+        orderBy: { createdAt: "desc" },
+      });
+      if (unfinished) return { unfinished };
+      const created = await tx.call.create({
+        data: {
+          ...data,
+          user: { connect: { id: ctx.userId } },
+          organization: ctx.organizationId
+            ? { connect: { id: ctx.organizationId } }
+            : undefined,
+        },
+      });
+      return { created };
+    });
+  }
+
+  /**
+   * Closes a pre-created row whose dial was refused, or never sent, as
+   * `failed` — only while it is still `pending` with no leg bound, so a
+   * webhook that bound it in between is never overwritten.
+   */
+  async failPendingCall(id: string, errorMessage: string): Promise<boolean> {
+    const { count } = await this.prisma.call.updateMany({
+      where: { id, status: CallStatus.pending, callControlId: null },
+      data: { status: CallStatus.failed, endedAt: new Date(), errorMessage },
+    });
+    return count === 1;
   }
 
   /**

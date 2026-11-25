@@ -9,9 +9,12 @@ import {
   DispatchRuntime,
   ProviderDispatchService,
   accountSlot,
+  applySettingsOverrides,
   calculateCpsSurcharge,
+  derivedLimitsProblem,
   isDispatchSettingKey,
   validateSettingsPatch,
+  type DispatchSettings,
 } from "@ringee/platform";
 
 /** The CPS Telnyx bills nothing for. Everything above it costs money. */
@@ -64,6 +67,11 @@ export class DispatchSettingsService implements OnModuleInit {
    * Changes settings. Anything that raises the ceiling above the free 5 CPS is
    * a spending decision, so it is refused until it is confirmed and explained,
    * and the refusal says what it can cost.
+   *
+   * "Raises" is judged against the ceiling that is stored, read under the
+   * account's lock together with the write — never this replica's cached copy,
+   * which can be two seconds old, and never a value another change is
+   * replacing at the same moment.
    */
   async update(input: unknown, change: SettingsChange) {
     const { patch, errors } = validateSettingsPatch(input);
@@ -77,32 +85,34 @@ export class DispatchSettingsService implements OnModuleInit {
       throw new BadRequestException("There is nothing to change.");
     }
 
-    const current = (await this.dispatch.getSettings()).settings;
-    const raisesCeiling =
-      patch.ceilingCps !== undefined &&
-      patch.ceilingCps > FREE_CPS &&
-      patch.ceilingCps > current.ceilingCps;
-    if (raisesCeiling) {
-      const exposure = calculateCpsSurcharge(patch.ceilingCps!);
-      const reason = change.reason?.trim() ?? "";
-      if (!change.confirmCeilingIncrease || reason.length < 10) {
-        throw new BadRequestException({
-          message:
-            `Raising the ceiling to ${patch.ceilingCps} CPS is a spending decision. ` +
-            `Telnyx bills every CPS above ${FREE_CPS} each month: if the account's ` +
-            `monthly 95th-percentile peak reached it, the surcharge at that peak would be ` +
-            `$${exposure.totalUsd.toLocaleString("en-US")}. Send confirmCeilingIncrease: true ` +
-            `and a reason of at least 10 characters to proceed.`,
-          code: "ceiling_increase_needs_confirmation",
-          exposureUsdPerMonth: exposure.totalUsd,
-        });
-      }
-    }
-
-    await this.repository.upsertMany(this.accountKey(), patch, {
-      userId: change.userId,
-      reason: change.reason?.trim() || null,
-    });
+    const defaults = this.dispatch.getDefaultSettings();
+    await this.repository.change(
+      this.accountKey(),
+      (stored) => {
+        const current = applySettingsOverrides(defaults, stored);
+        // Each value can be valid alone and the combination still pace
+        // nothing (a share that rounds a level's capacity to zero).
+        const problem = derivedLimitsProblem({
+          ...current,
+          ...patch,
+        } as DispatchSettings);
+        if (problem) {
+          throw new BadRequestException({
+            message: "These settings were not changed.",
+            errors: [problem],
+          });
+        }
+        if (
+          patch.ceilingCps !== undefined &&
+          patch.ceilingCps > FREE_CPS &&
+          patch.ceilingCps > current.ceilingCps
+        ) {
+          this.assertCeilingIncreaseConfirmed(patch.ceilingCps, change);
+        }
+        return { upsert: patch };
+      },
+      { userId: change.userId, reason: change.reason?.trim() || null },
+    );
     this.dispatch.invalidateSettings();
     this.logger.warn(
       `[cps-settings] changed by ${change.userId ?? "unknown"}: ${JSON.stringify(patch)}${
@@ -112,28 +122,36 @@ export class DispatchSettingsService implements OnModuleInit {
     return this.getState();
   }
 
-  /** Removes overrides: those settings fall back to the environment. */
+  /**
+   * Removes overrides: those settings fall back to the environment. Judged
+   * against the stored ceiling under the account's lock, as `update` is.
+   */
   async reset(keys: string[], change: SettingsChange) {
     const known = keys.filter(isDispatchSettingKey);
     if (known.length === 0 || known.length !== keys.length) {
       throw new BadRequestException("Name the settings to reset.");
     }
-    const current = (await this.dispatch.getSettings()).settings;
     const defaults = this.dispatch.getDefaultSettings();
-    if (
-      known.includes("ceilingCps") &&
-      defaults.ceilingCps > FREE_CPS &&
-      defaults.ceilingCps > current.ceilingCps &&
-      (!change.confirmCeilingIncrease ||
-        (change.reason?.trim().length ?? 0) < 10)
-    ) {
-      throw new BadRequestException({
-        code: "ceiling_increase_needs_confirmation",
-        message:
-          "Resetting to this environment's ceiling increases provider spending. Confirm the ceiling increase and give a reason of at least 10 characters.",
-      });
-    }
-    const removed = await this.repository.deleteKeys(this.accountKey(), known);
+    const { removed } = await this.repository.change(
+      this.accountKey(),
+      (stored) => {
+        const current = applySettingsOverrides(defaults, stored);
+        if (
+          known.includes("ceilingCps") &&
+          defaults.ceilingCps > FREE_CPS &&
+          defaults.ceilingCps > current.ceilingCps &&
+          !isConfirmed(change)
+        ) {
+          throw new BadRequestException({
+            code: "ceiling_increase_needs_confirmation",
+            message:
+              "Resetting to this environment's ceiling increases provider spending. Confirm the ceiling increase and give a reason of at least 10 characters.",
+          });
+        }
+        return { remove: known };
+      },
+      { userId: change.userId, reason: change.reason?.trim() || null },
+    );
     this.dispatch.invalidateSettings();
     this.logger.warn(
       `[cps-settings] reset by ${change.userId ?? "unknown"}: ${known.join(", ")} (${removed} removed)${
@@ -142,4 +160,31 @@ export class DispatchSettingsService implements OnModuleInit {
     );
     return this.getState();
   }
+
+  /** Refuses a ceiling above the free CPS unless it is confirmed and explained. */
+  private assertCeilingIncreaseConfirmed(
+    ceilingCps: number,
+    change: SettingsChange,
+  ): void {
+    if (isConfirmed(change)) return;
+    const exposure = calculateCpsSurcharge(ceilingCps);
+    throw new BadRequestException({
+      message:
+        `Raising the ceiling to ${ceilingCps} CPS is a spending decision. ` +
+        `Telnyx bills every CPS above ${FREE_CPS} each month: if the account's ` +
+        `monthly 95th-percentile peak reached it, the surcharge at that peak would be ` +
+        `$${exposure.totalUsd.toLocaleString("en-US")}. Send confirmCeilingIncrease: true ` +
+        `and a reason of at least 10 characters to proceed.`,
+      code: "ceiling_increase_needs_confirmation",
+      exposureUsdPerMonth: exposure.totalUsd,
+    });
+  }
+}
+
+/** A ceiling increase confirmed and explained in at least ten characters. */
+function isConfirmed(change: SettingsChange): boolean {
+  return (
+    change.confirmCeilingIncrease === true &&
+    (change.reason?.trim().length ?? 0) >= 10
+  );
 }

@@ -258,11 +258,37 @@ export function applySettingsOverrides(
 ): DispatchSettings {
   const { patch } = validateSettingsPatch(overrides);
   const merged = { ...base, ...patch } as DispatchSettings;
-  // The cap shares and the margin only make sense together.
-  return validateSettingsPatch({ classCapFractions: merged.classCapFractions })
-    .errors.length
-    ? { ...merged, classCapFractions: base.classCapFractions }
-    : merged;
+  // The cap shares and the margin only make sense together: shares that give
+  // a level no capacity (or no finite spacing) at this ceiling are not applied.
+  if (
+    !validateSettingsPatch({ classCapFractions: merged.classCapFractions })
+      .errors.length &&
+    !derivedLimitsProblem(merged)
+  )
+    return merged;
+  const fallback = { ...merged, classCapFractions: base.classCapFractions };
+  return derivedLimitsProblem(fallback) ? { ...base } : fallback;
+}
+
+/**
+ * Why these settings cannot pace anything, or `null` when they can: every
+ * level needs a positive capacity and a finite, positive spacing between its
+ * grants. Each key can be valid on its own and the combination still not —
+ * a share small enough rounds a level's capacity to zero.
+ */
+export function derivedLimitsProblem(
+  settings: DispatchSettings,
+): string | null {
+  const limits = deriveLimits(settings);
+  const positive = (value: number) => Number.isFinite(value) && value > 0;
+  if (!limits.levelCapsCps.every(positive))
+    return "classCapFractions leaves a traffic level without capacity at this ceiling.";
+  if (
+    !limits.levelIntervalsMicros.every(positive) ||
+    !positive(limits.orgIntervalMicros)
+  )
+    return "These settings leave a clock without a finite spacing between grants.";
+  return null;
 }
 
 export interface DerivedLimits {

@@ -180,13 +180,16 @@ export class AiVoiceAgentCallDispatchRepository {
    * One candidate per workspace, the most urgent first, and within a level the
    * workspace served longest ago first: a workspace with a thousand queued
    * calls cannot keep another's one waiting, because only its best row competes.
-   * Rows still under another dispatcher's claim are left out.
+   * Rows still under another dispatcher's claim are left out, and so are the
+   * workspaces in `excludeWorkspaceKeys` — ones the caller already found unable
+   * to start a call now — so a full page of them cannot hide the next.
    */
   async peekCandidates(
     now: Date,
     leaseMs: number,
     limit: number,
     agingMs = 60_000,
+    excludeWorkspaceKeys: string[] = [],
   ): Promise<DispatchCandidate[]> {
     const leaseCut = new Date(now.getTime() - leaseMs);
     const servedSince = new Date(now.getTime() - 60 * 60_000);
@@ -208,6 +211,7 @@ export class AiVoiceAgentCallDispatchRepository {
            AND d."expiresAt" > ${now}::timestamptz AT TIME ZONE 'UTC'
            AND (d."claimedAt" IS NULL
                 OR d."claimedAt" <= ${leaseCut}::timestamptz AT TIME ZONE 'UTC')
+           AND NOT (d."workspaceKey" = ANY(${excludeWorkspaceKeys}::text[]))
          ORDER BY d."workspaceKey",
                   GREATEST(1, d."trafficLevel" - FLOOR(EXTRACT(EPOCH FROM (${now}::timestamptz AT TIME ZONE 'UTC' - d."queuedAt")) * 1000 / ${agingMs})),
                   d."queuedAt"
@@ -441,13 +445,16 @@ export class AiVoiceAgentCallDispatchRepository {
     });
   }
 
-  /** Requeue only on explicit proof from the egress guard that nothing was sent.
-   * Ambiguous provider responses must never call this transition. */
+  /** Requeue only on proof that nothing was sent: the egress guard's deferral,
+   * or a failure raised before the provider request could leave. Ambiguous
+   * provider responses must never call this transition. A deferral gives its
+   * attempt back; an error keeps it, so the error limit still ends the call. */
   async requeueUnsent(
     agentCallId: string,
     claimToken: string,
     notBefore: Date,
     reason: string,
+    options: { refundAttempt?: boolean } = {},
   ): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<
@@ -476,7 +483,9 @@ export class AiVoiceAgentCallDispatchRepository {
           claimedAt: null,
           notBefore,
           reason,
-          attempts: { decrement: 1 },
+          ...((options.refundAttempt ?? true)
+            ? { attempts: { decrement: 1 } }
+            : {}),
         },
       });
       if (!moved.count) return false;

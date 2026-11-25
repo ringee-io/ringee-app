@@ -1,10 +1,12 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import { BadRequestException } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import {
   ProviderDispatchDeferredError,
   accountSlot,
+  baselineSettings,
   providerAccount,
   type DispatchAlert,
 } from "@ringee/platform";
@@ -48,7 +50,19 @@ function fakeDispatch(
   const reads: number[] = [];
   const service = {
     getAccount: () => ACCOUNT,
-    getDefaultSettings: () => settings(),
+    getDefaultSettings: () =>
+      baselineSettings({
+        mode: "enforce",
+        ceilingCps: 5,
+        safetyMargin: 0.2,
+        orgAutomationCps: 2,
+        queueEnabled: true,
+        orgConcurrency: 25,
+        queueMaxPerWorkspace: 1000,
+        queueMaxTotal: 100,
+        queueMaxWaitMinutes: 120,
+        surchargeBudgetUsd: 0,
+      }),
     invalidated: 0,
     invalidateSettings() {
       this.invalidated++;
@@ -125,7 +139,7 @@ describe("DialPacingService", () => {
     await new DialPacingService().paceInteractive("web_dial", { userId: "u" });
   });
 
-  it("paces a person's dial at admission without counting a provider attempt", async () => {
+  it("paces a person's dial as a direct start, without counting a provider attempt", async () => {
     const asked: unknown[] = [];
     const pacing = new DialPacingService({
       admit: async (request: unknown) => {
@@ -142,6 +156,9 @@ describe("DialPacingService", () => {
         source: "extension_dial",
         workspace: { userId: "u", organizationId: "o" },
         countAttempt: false,
+        // The browser dials right after: the grant comes from the same start
+        // budget a server-sent leg spends.
+        directStart: true,
       },
     ]);
   });
@@ -166,29 +183,51 @@ describe("DialPacingService", () => {
 });
 
 describe("DispatchSettingsService", () => {
-  function build(effective: Record<string, unknown> = {}) {
+  /**
+   * `persisted` is what the database holds. The replica's cached settings are
+   * deliberately something else (`cached`): every decision must be made on
+   * what is stored, never on a copy that may be two seconds old.
+   */
+  function build(
+    persisted: Record<string, unknown> = {},
+    cached: Record<string, unknown> = {},
+  ) {
+    const rows: Record<string, unknown> = { ...persisted };
     const stored: Array<{ values: Record<string, unknown>; by: unknown }> = [];
     const removed: string[][] = [];
-    const { service: dispatch } = fakeDispatch({ settings: effective });
+    const { service: dispatch } = fakeDispatch({ settings: cached });
     const service = new DispatchSettingsService(
       dispatch as never,
       { setSettingsSource() {} } as never,
       {
-        upsertMany: async (
+        change: async (
           _key: string,
-          values: Record<string, unknown>,
+          decide: (stored: Record<string, unknown>) => {
+            upsert?: Record<string, unknown>;
+            remove?: string[];
+          },
           by: unknown,
         ) => {
-          stored.push({ values, by });
+          const plan = decide({ ...rows });
+          if (plan.upsert) {
+            stored.push({ values: plan.upsert, by });
+            Object.assign(rows, plan.upsert);
+          }
+          let count = 0;
+          if (plan.remove) {
+            removed.push(plan.remove);
+            for (const key of plan.remove)
+              if (key in rows) {
+                delete rows[key];
+                count++;
+              }
+          }
+          return { removed: count };
         },
-        deleteKeys: async (_key: string, keys: string[]) => {
-          removed.push(keys);
-          return keys.length;
-        },
-        listForAccount: async () => ({}),
+        listForAccount: async () => ({ ...rows }),
       } as never,
     );
-    return { service, stored, removed, dispatch };
+    return { service, stored, removed, dispatch, rows };
   }
 
   it("registers the stored overrides as the pacing layer's settings source", async () => {
@@ -286,6 +325,40 @@ describe("DispatchSettingsService", () => {
     await service.update({ ceilingCps: 5 }, { userId: "s" });
     await service.update({ ceilingCps: 3 }, { userId: "s" });
     assert.equal(stored.length, 2);
+  });
+
+  it("asks for nothing when the stored ceiling does not change", async () => {
+    const { service, stored } = build({ ceilingCps: 8 });
+    await service.update({ ceilingCps: 8 }, { userId: "s" });
+    assert.equal(stored.length, 1);
+  });
+
+  it("judges a raise against the stored ceiling, not a stale cached one", async () => {
+    // Another replica lowered the ceiling to 5 a moment ago; this replica's
+    // cache still says 10. Sending 10 again is a raise from 5.
+    const { service, stored } = build({ ceilingCps: 5 }, { ceilingCps: 10 });
+    await assert.rejects(
+      service.update({ ceilingCps: 10 }, { userId: "s" }),
+      (error: unknown) =>
+        error instanceof BadRequestException &&
+        (error.getResponse() as { code?: string }).code ===
+          "ceiling_increase_needs_confirmation",
+    );
+    assert.deepEqual(stored, []);
+  });
+
+  it("refuses shares that would leave a level no capacity at the stored ceiling", async () => {
+    const { service, stored } = build({ ceilingCps: 1, safetyMargin: 0.9 });
+    await assert.rejects(
+      service.update(
+        { classCapFractions: [1, 0.5, 0.25, 0.000001] },
+        { userId: "s" },
+      ),
+      (error: unknown) =>
+        error instanceof BadRequestException &&
+        JSON.stringify(error.getResponse()).includes("without capacity"),
+    );
+    assert.deepEqual(stored, []);
   });
 
   it("resets overrides back to the environment, only for settings that exist", async () => {
@@ -665,48 +738,141 @@ describe("DispatchAlertService", () => {
       title: "Outbound reached 6 CPS",
       detail: { maxPerSecondLast5Min: 6, note: "<script>x</script>" },
     };
+    const config = apiConfiguration as unknown as Record<string, unknown>;
+    const team = config.RINGEE_TEAM_EMAIL;
+    before(() => {
+      config.RINGEE_TEAM_EMAIL = "team@example.invalid";
+    });
+    after(() => {
+      config.RINGEE_TEAM_EMAIL = team;
+    });
+
+    /** A Redis that keeps claims the way `SET NX` and the CAS do. */
+    const claims = () => {
+      const held = new Map<string, string>();
+      return {
+        held,
+        setIfAbsent: async (key: string, value: string) => {
+          if (held.has(key)) return false;
+          held.set(key, value);
+          return true;
+        },
+        compareAndSwap: async (
+          key: string,
+          expected: string,
+          next: string | null,
+        ) => {
+          if (held.get(key) !== expected) return false;
+          if (next === null) held.delete(key);
+          else held.set(key, next);
+          return true;
+        },
+      };
+    };
     const make = (
-      redis: { setIfAbsent: (...a: unknown[]) => Promise<boolean> },
+      redis: Record<string, unknown>,
+      results: Array<{ accepted: boolean; retryable?: boolean }>,
       sent: unknown[],
-    ) =>
-      new DispatchAlertService(
+    ) => {
+      const alerts = new DispatchAlertService(
         fakeDispatch().service as never,
         { setAlertSink() {} } as never,
         {} as never,
         {} as never,
         redis as never,
         {
-          sendEmail: async (to: unknown, subject: string, html: string) => {
-            sent.push({ to, subject, html });
-            return { sent: true };
+          send: async (message: { subject: string; html: string }) => {
+            sent.push(message);
+            const next = results.shift() ?? { accepted: true };
+            return next.accepted
+              ? { accepted: true, providerEmailId: "e-1" }
+              : {
+                  accepted: false,
+                  error: "provider down",
+                  retryable: next.retryable ?? true,
+                };
           },
         } as never,
       );
+      const slept: number[] = [];
+      alerts.sleep = async (ms) => {
+        slept.push(ms);
+      };
+      return { alerts, slept };
+    };
 
     it("emails the team once per cooldown, across every process", async () => {
-      const sent: Array<{ subject: string; html: string }> = [];
-      let fresh = true;
-      const alerts = make({ setIfAbsent: async () => fresh }, sent);
-      process.env.__ALERT_TEAM = "team@example.invalid";
-      // The team address comes from configuration; without one nothing is sent.
+      const sent: unknown[] = [];
+      const redis = claims();
+      const { alerts } = make(redis, [], sent);
       await alerts.deliver(alert);
-      fresh = false;
       await alerts.deliver(alert);
-      assert.ok(sent.length <= 1);
-      delete process.env.__ALERT_TEAM;
+      assert.equal(sent.length, 1);
+      // The escaping still holds: the detail is data, not markup.
+      assert.doesNotMatch((sent[0] as { html: string }).html, /<script>/);
+    });
+
+    it("retries a send the provider failed under its claim, then keeps the hour", async () => {
+      const sent: unknown[] = [];
+      const redis = claims();
+      const { alerts, slept } = make(redis, [{ accepted: false }], sent);
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 2, "a failure and the retry that went out");
+      assert.equal(slept.length, 1);
+      // Delivered: the claim stays, so the next raise in the hour sends nothing.
+      assert.equal(redis.held.size, 1);
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 2);
+    });
+
+    it("hands the claim back when every try fails, so the next raise sends it", async () => {
+      const sent: unknown[] = [];
+      const redis = claims();
+      const failing = Array.from({ length: 3 }, () => ({ accepted: false }));
+      const { alerts, slept } = make(redis, failing, sent);
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 3, "bounded: the first try and two retries");
+      assert.ok(slept.every((ms) => ms > 0));
+      assert.equal(redis.held.size, 0, "the failed send used no cooldown");
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 4);
+      assert.equal(redis.held.size, 1);
+    });
+
+    it("keeps the claim when trying again cannot help", async () => {
+      const sent: unknown[] = [];
+      const redis = claims();
+      const { alerts, slept } = make(
+        redis,
+        [{ accepted: false, retryable: false }],
+        sent,
+      );
+      await alerts.deliver(alert);
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 1);
+      assert.deepEqual(slept, []);
     });
 
     it("does not stay silent about Redis being down because Redis is down", async () => {
       const sent: unknown[] = [];
-      const alerts = make(
-        {
-          setIfAbsent: async () => {
-            throw new Error("redis down");
-          },
+      const down = {
+        setIfAbsent: async () => {
+          throw new Error("redis down");
         },
-        sent,
-      );
+        compareAndSwap: async () => {
+          throw new Error("redis down");
+        },
+      };
+      const failing = Array.from({ length: 3 }, () => ({ accepted: false }));
+      const { alerts } = make(down, failing, sent);
       await assert.doesNotReject(alerts.deliver(alert));
+      assert.equal(sent.length, 3);
+      // The process's own throttle was handed back too: the next raise tries.
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 4);
+      // ...and once a send went out, it holds the hour in this process.
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 4);
     });
   });
 });
@@ -906,6 +1072,81 @@ describe("DispatchQueueService pass", () => {
     });
     await run();
     assert.deepEqual(dispatched, []);
+    assert.ok(clock.now - 1_000_000 <= 5_000 + 2_100);
+  });
+
+  it("looks past a full page of workspaces that must wait, to one that can go now", async () => {
+    // Twenty-six workspaces, one call each. The first twenty-five are on their
+    // own automated clocks for longer than the pass; the last one is free.
+    const all = Array.from({ length: 26 }, (_, i) =>
+      candidate(`c${i}`, `o${i}`),
+    );
+    const waiting = new Set(all.map((c) => c.agentCallId));
+    const dispatched: string[] = [];
+    const claimedBusy: string[] = [];
+    const reads: string[][] = [];
+    const clock = { now: 1_000_000 };
+    const service = new DispatchQueueService(
+      {
+        getSettings: async () => ({ settings: settings() }),
+        peek: async (request: { workspace: { organizationId: string } }) =>
+          request.workspace.organizationId === "o25"
+            ? { free: true, retryAfterMs: 0 }
+            : { free: false, retryAfterMs: 60_000, reason: "workspace_busy" },
+      } as never,
+      {
+        expireDue: async () => [],
+        // As the query does: one row per workspace, at most `limit`, none of
+        // the workspaces the caller left out.
+        peekCandidates: async (
+          _now: Date,
+          _leaseMs: number,
+          limit: number,
+          _agingMs: number,
+          exclude: string[] = [],
+        ) => {
+          const page = all
+            .filter(
+              (c) =>
+                waiting.has(c.agentCallId) && !exclude.includes(c.workspaceKey),
+            )
+            .slice(0, limit);
+          reads.push(page.map((c) => c.agentCallId));
+          return page;
+        },
+        depth: async () => [
+          { level: 3, queued: waiting.size, oldestQueuedAt: null },
+        ],
+        earliestDueAt: async () => null,
+      } as never,
+      {
+        dispatchQueued: async (id: string) => {
+          if (id !== "c25") claimedBusy.push(id);
+          dispatched.push(id);
+          waiting.delete(id);
+          return { outcome: "placed", status: "initiating" };
+        },
+      } as never,
+      {} as never,
+    );
+
+    const summary = await service.runPass({
+      budgetMs: 5_000,
+      nowMs: () => clock.now,
+      sleep: async (ms) => {
+        clock.now += ms;
+      },
+    });
+
+    assert.equal(reads[0].length, 25);
+    assert.ok(
+      !reads[0].includes("c25"),
+      "the free one was past the first page",
+    );
+    assert.deepEqual(dispatched, ["c25"]);
+    assert.equal(summary.placed, 1);
+    assert.deepEqual(claimedBusy, [], "no busy workspace was claimed");
+    // It went out in this pass, long before any busy workspace's clock freed.
     assert.ok(clock.now - 1_000_000 <= 5_000 + 2_100);
   });
 });

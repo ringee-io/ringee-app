@@ -19,16 +19,33 @@ function setup(initial: Row[] = []) {
   const updated: Array<{ id: string; data: Row }> = [];
   const deleted: string[] = [];
   const tagSets: Array<{ id: string; tagIds: string[] }> = [];
+  /**
+   * A contact another request is creating at this moment. Only the locked
+   * find-or-create can see it; the plain look-up before it cannot, exactly as
+   * when the other request commits between the two.
+   */
   let racing: Row | null = null;
+  /** Runs once, between a look-up by id and the write that follows it. */
+  let afterLookup: (() => void) | null = null;
+  const byId = (id: string) =>
+    rows.get(id) ?? (racing?.id === id ? racing : undefined);
+  const live = (row: Row | undefined) =>
+    row && !row.deletedAt ? row : undefined;
 
   const service = Object.assign(Object.create(ContactService.prototype), {
     repo: {
       findByPhone: async (_ctx: unknown, phone: string) =>
-        [...rows.values()].find((row) => row.phoneNumber === phone) ??
-        racing ??
-        null,
-      findByIdForOwner: async (_ctx: unknown, id: string) =>
-        rows.get(id) ?? null,
+        [...rows.values()].find(
+          (row) => row.phoneNumber === phone && !row.deletedAt,
+        ) ?? null,
+      findByIdForOwner: async (_ctx: unknown, id: string) => {
+        const found = live(byId(id));
+        const snapshot = found ? { ...found } : null;
+        const hook = afterLookup;
+        afterLookup = null;
+        hook?.();
+        return snapshot;
+      },
       create: async (_ctx: unknown, data: Row) => {
         if (racing) throw new Error("Unique constraint failed");
         const row = { id: `contact-${created.length + 1}`, ...data };
@@ -36,17 +53,25 @@ function setup(initial: Row[] = []) {
         rows.set(row.id, row);
         return row;
       },
-      // The atomic find-or-create `upsertContact` writes through: the
-      // repository serialises callers per workspace and number, so a caller
-      // that loses a race simply finds the winner's contact.
+      // The atomic find-or-create both `createContact` and `upsertContact`
+      // write through: the repository serialises callers per workspace and
+      // number, so a caller that loses a race finds the winner's contact.
       createUnlessPhoneTaken: async (
         _ctx: unknown,
         phone: string,
         data: Row,
       ) => {
         const existing =
-          [...rows.values()].find((row) => row.phoneNumber === phone) ?? racing;
-        if (existing) return { contact: existing, created: false };
+          [...rows.values()].find(
+            (row) => row.phoneNumber === phone && !row.deletedAt,
+          ) ?? (racing?.phoneNumber === phone ? racing : null);
+        if (existing) {
+          const snapshot = { ...existing };
+          const hook = afterLookup;
+          afterLookup = null;
+          hook?.();
+          return { contact: snapshot, created: false };
+        }
         const row = { id: `contact-${created.length + 1}`, ...data };
         created.push(data);
         rows.set(row.id, row);
@@ -54,13 +79,32 @@ function setup(initial: Row[] = []) {
       },
       update: async (id: string, data: Row) => {
         updated.push({ id, data });
-        const merged = { ...rows.get(id), ...stripUndefined(data) };
+        const merged = { ...byId(id), ...stripUndefined(data) };
         rows.set(id, merged);
         return merged;
       },
-      deleteContact: async (id: string) => {
+      // The write is conditional on the number it was found by, as the
+      // repository's single UPDATE … WHERE is.
+      updateIfPhoneUnchanged: async (
+        _ctx: unknown,
+        id: string,
+        phone: string,
+        data: Row,
+      ) => {
+        const row = live(byId(id));
+        if (!row || row.phoneNumber !== phone) return null;
+        updated.push({ id, data });
+        const merged = { ...row, ...stripUndefined(data) };
+        rows.set(id, merged);
+        return merged;
+      },
+      softDeleteIfPhone: async (_ctx: unknown, id: string, phone: string) => {
+        const row = live(byId(id));
+        if (!row || row.phoneNumber !== phone) return null;
         deleted.push(id);
-        return rows.get(id);
+        const gone = { ...row, deletedAt: new Date() };
+        rows.set(id, gone);
+        return gone;
       },
     },
     tagRepo: {
@@ -79,10 +123,13 @@ function setup(initial: Row[] = []) {
     updated,
     deleted,
     tagSets,
-    /** Another request created the contact first: the lookup finds it. */
+    /** Another request is creating the contact: only the locked write sees it. */
     raceWith(winner: Row) {
       racing = winner;
-      rows.set(winner.id, winner);
+    },
+    /** Something changes the store right after the next look-up. */
+    afterNextLookup(change: () => void) {
+      afterLookup = change;
     },
   };
 }
@@ -191,6 +238,86 @@ describe("ContactService.upsertContact (HOOK-009)", () => {
     assert.equal(contact.id, "contact-ada");
     assert.equal(updated.length, 1);
   });
+
+  it("never writes a null or an absent value over what is stored", async () => {
+    const { service, rows } = setup([ADA]);
+
+    await service.upsertContact(CTX, {
+      phoneNumber: "+14155550100",
+      email: null as never,
+      name: undefined,
+      jobTitle: "Founder",
+    });
+
+    const stored = rows.get("contact-ada")!;
+    assert.equal(stored.email, "ada@example.com");
+    assert.equal(stored.name, "Ada Lovelace");
+    assert.equal(stored.jobTitle, "Founder");
+  });
+
+  it("does not undo a number edited after the look-up: it resolves the number again", async () => {
+    const { service, rows, created, afterNextLookup } = setup([ADA]);
+    // Someone moves Ada to a new number between the find and the update.
+    afterNextLookup(() => {
+      rows.set("contact-ada", { ...ADA, phoneNumber: "+14155550199" });
+    });
+
+    const { contact, created: wasCreated } = await service.upsertContact(CTX, {
+      phoneNumber: "+14155550100",
+      jobTitle: "Founder",
+    });
+
+    // Ada keeps the number she was moved to, untouched by this request...
+    assert.equal(rows.get("contact-ada")!.phoneNumber, "+14155550199");
+    assert.equal(rows.get("contact-ada")!.jobTitle, undefined);
+    // ...and the number, now free, gets a contact of its own.
+    assert.equal(wasCreated, true);
+    assert.equal(created.length, 1);
+    assert.equal(contact.phoneNumber, "+14155550100");
+  });
+
+  it("gives a created contact the default source and leaves an existing one's alone", async () => {
+    const fresh = setup();
+    await fresh.service.upsertContact(
+      CTX,
+      { phoneNumber: "+14155550100" },
+      { defaultSource: "api" },
+    );
+    assert.equal(fresh.created[0]!.source, "api");
+
+    const existing = setup([{ ...ADA, source: "csv_import" }]);
+    await existing.service.upsertContact(
+      CTX,
+      { phoneNumber: "+14155550100", jobTitle: "Founder" },
+      { defaultSource: "api" },
+    );
+    assert.equal(existing.updated[0]!.data.source, undefined);
+    assert.equal(existing.rows.get("contact-ada")!.source, "csv_import");
+  });
+});
+
+describe("ContactService.createContact", () => {
+  it("refuses a number another request is creating, through the same locked write", async () => {
+    const { service, raceWith, created } = setup();
+    // The other request has not committed when this one looks the number up.
+    raceWith(ADA);
+
+    await assert.rejects(
+      service.createContact(CTX, { phoneNumber: "+14155550100" }),
+      BadRequestException,
+    );
+    assert.deepEqual(created, [], "no second live contact for the number");
+  });
+
+  it("creates the contact when the number is free", async () => {
+    const { service, created } = setup();
+    const contact = await service.createContact(CTX, {
+      phoneNumber: "+14155550100",
+      name: "Ada Lovelace",
+    });
+    assert.equal(contact.phoneNumber, "+14155550100");
+    assert.equal(created.length, 1);
+  });
 });
 
 describe("ContactService.deleteConfirmed (HOOK-009)", () => {
@@ -232,5 +359,19 @@ describe("ContactService.deleteConfirmed (HOOK-009)", () => {
       NotFoundException,
     );
     assert.deepEqual(deleted, []);
+  });
+
+  it("deletes nothing when the number changed after it was read and confirmed", async () => {
+    const { service, rows, deleted, afterNextLookup } = setup([ADA]);
+    afterNextLookup(() => {
+      rows.set("contact-ada", { ...ADA, phoneNumber: "+14155550199" });
+    });
+
+    await assert.rejects(
+      service.deleteConfirmed(CTX, "contact-ada", "+14155550100"),
+      BadRequestException,
+    );
+    assert.deepEqual(deleted, []);
+    assert.equal(rows.get("contact-ada")!.deletedAt, undefined);
   });
 });

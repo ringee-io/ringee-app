@@ -120,6 +120,20 @@ describe("public API: contacts (HOOK-009)", () => {
     );
   });
 
+  it("refuses a page whose offset the database could not take, as a 400", async () => {
+    const { controller, calls } = build();
+    // Valid alone, but together they skip more rows than can be asked for.
+    for (const page of ["99999999999", "1e20"])
+      await assert.rejects(
+        controller.list(request, undefined, page, "100"),
+        BadRequestException,
+      );
+    assert.equal(calls.length, 0);
+    // A large page that still fits is answered as before.
+    await controller.list(request, undefined, "21474836", "100");
+    assert.deepEqual(calls[0]!.args.slice(3), [21474836, 100]);
+  });
+
   it("reads and writes through the integration's workspace, never a client's", async () => {
     const { controller, calls } = build();
 
@@ -150,6 +164,23 @@ describe("public API: contacts (HOOK-009)", () => {
 
     assert.equal((calls[0]!.args[1] as { source: string }).source, "api");
     assert.equal((calls[1]!.args[1] as { source: string }).source, "n8n");
+  });
+
+  it("leaves an upserted contact's source to the service: the API is only the default for a new one", async () => {
+    const { controller, calls } = build();
+    await controller.upsert(
+      request,
+      { phoneNumber: "+14155550100" },
+      response() as never,
+    );
+    const [, dto, options] = calls[0]!.args as [
+      unknown,
+      { source?: string },
+      { defaultSource?: string },
+    ];
+    // An existing contact keeps the source it has when PUT names none.
+    assert.equal(dto.source, undefined);
+    assert.deepEqual(options, { defaultSource: "api" });
   });
 
   it("answers an upsert 201 when it created and 200 when it found", async () => {

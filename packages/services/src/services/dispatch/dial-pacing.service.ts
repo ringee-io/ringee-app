@@ -13,8 +13,11 @@ import {
  * the server only authorizes it. The pre-flight is the one moment the server
  * can still decide WHEN, so it holds the answer until the shared clock has a
  * slot — and the browser dials right after, within the jitter the safety margin
- * is sized for. The leg itself is counted later, when its webhook arrives
- * (`ProviderDispatchService.observeExternalAttempt`), so nothing is counted twice.
+ * is sized for. That slot is a direct start: it comes from the same start
+ * budget every server-sent leg spends, so a browser's dial and a server's cannot
+ * both take one moment of capacity. The leg itself is counted later, when its
+ * webhook arrives (`ProviderDispatchService.observeExternalAttempt`), so nothing
+ * is counted twice.
  *
  * Interactive capacity is reserved and the wait is bounded. If the account
  * remains busy, or coordination is unavailable, return an explicit deferral.
@@ -39,6 +42,7 @@ export class DialPacingService {
       source,
       workspace: ctx,
       countAttempt: false,
+      directStart: true,
     });
     if (!decision.granted) {
       throw new ProviderDispatchDeferredError(

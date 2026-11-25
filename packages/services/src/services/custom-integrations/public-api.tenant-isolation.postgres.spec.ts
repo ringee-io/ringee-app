@@ -81,6 +81,15 @@ describe(
       agentId: string;
       agentCallId: string;
       tagId: string;
+      /** The same person's personal workspace, with records of its own. */
+      personal: {
+        ctx: OwnershipContext;
+        phone: string;
+        contactId: string;
+        callId: string;
+        agentId: string;
+        agentCallId: string;
+      };
     }
     const a = {} as Side;
     const b = {} as Side;
@@ -165,11 +174,79 @@ describe(
       ).id;
     }
 
+    /** A contact, a call, an agent and an agent call in the person's own workspace. */
+    async function seedPersonal(side: Side, name: string) {
+      const ctx: OwnershipContext = {
+        userId: side.userId,
+        organizationId: null,
+      };
+      const personalPhone = phone();
+      const contactId = (
+        await prisma.contact.create({
+          data: {
+            ...ctx,
+            name: `${name} personal`,
+            phoneNumber: personalPhone,
+          },
+        })
+      ).id;
+      const callId = (
+        await prisma.call.create({
+          data: {
+            ...ctx,
+            contactId,
+            source: "ai_voice_agent",
+            fromNumber: "+12025550100",
+            toNumber: personalPhone,
+            direction: "outbound",
+            status: "completed",
+            answeredAt: new Date(),
+            endedAt: new Date(),
+          },
+        })
+      ).id;
+      const agentId = (
+        await prisma.aiVoiceAgent.create({
+          data: {
+            ...ctx,
+            name: `${name} personal agent`,
+            type: "reminders_notifications",
+            status: "active",
+            providerAssistantId: `fixture-${randomUUID()}`,
+            providerTexmlAppId: `app-${randomUUID()}`,
+            toolSecretHash: "fixture",
+          },
+        })
+      ).id;
+      const agentCallId = (
+        await prisma.aiVoiceAgentCall.create({
+          data: {
+            ...ctx,
+            agentId,
+            callId,
+            toNumber: personalPhone,
+            fromNumber: "+12025550100",
+            status: "completed",
+          },
+        })
+      ).id;
+      side.personal = {
+        ctx,
+        phone: personalPhone,
+        contactId,
+        callId,
+        agentId,
+        agentCallId,
+      };
+    }
+
     before(async () => {
       assert.ok(["127.0.0.1", "localhost"].includes(new URL(url!).hostname));
       releaseFixture = await isolateFollowUpWorkerFixtures(prisma);
       await seed(a, "Alpha");
       await seed(b, "Beta");
+      await seedPersonal(a, "Alpha");
+      await seedPersonal(b, "Beta");
     });
 
     after(async () => {
@@ -328,6 +405,107 @@ describe(
       assert.equal(await outbound.getCallDetail(personal, a.callId), null);
       assert.equal(
         await agentsRepo.findByIdForOwner(personal, a.agentId),
+        null,
+      );
+    });
+
+    it("keeps one person's personal workspace from another person's", async () => {
+      const mine = a.personal;
+      const theirs = b.personal;
+      await assert.rejects(
+        contacts.getContactById(mine.ctx, theirs.contactId),
+        NotFoundException,
+      );
+      await assert.rejects(
+        contacts.updateContact(mine.ctx, theirs.contactId, {
+          firstName: "Mallory",
+        }),
+        NotFoundException,
+      );
+      await assert.rejects(
+        contacts.deleteConfirmed(mine.ctx, theirs.contactId, theirs.phone),
+        NotFoundException,
+      );
+      assert.equal(await outbound.getCallDetail(mine.ctx, theirs.callId), null);
+      assert.equal(
+        await outbound.getCallDetail(mine.ctx, theirs.agentCallId),
+        null,
+      );
+      assert.equal(await outbound.resolveCallId(mine.ctx, theirs.callId), null);
+      assert.equal(
+        await agentsRepo.findByIdForOwner(mine.ctx, theirs.agentId),
+        null,
+      );
+      assert.equal(
+        await agentCalls.findByIdForOwner(mine.ctx, theirs.agentCallId),
+        null,
+      );
+      assert.equal(
+        await callsRepo.findByIdForOwner(mine.ctx, theirs.callId),
+        null,
+      );
+      const listed = await contacts.listContacts(
+        mine.ctx,
+        undefined,
+        undefined,
+        1,
+        100,
+      );
+      assert.ok(listed.data.every((c) => c.id !== theirs.contactId));
+
+      // Positive control: each reads its own personal records.
+      assert.equal(
+        (await contacts.getContactById(mine.ctx, mine.contactId)).id,
+        mine.contactId,
+      );
+      assert.equal(
+        await outbound.resolveCallId(mine.ctx, mine.agentCallId),
+        mine.callId,
+      );
+      assert.ok(await agentsRepo.findByIdForOwner(mine.ctx, mine.agentId));
+
+      // The other side's rows are untouched.
+      const untouched = await prisma.contact.findUniqueOrThrow({
+        where: { id: theirs.contactId },
+      });
+      assert.equal(untouched.deletedAt, null);
+      assert.equal(untouched.firstName, null);
+    });
+
+    it("keeps an organization from its own members' personal workspaces", async () => {
+      // Same person, other workspace: the organization context reaches none of
+      // what the person keeps in their personal one.
+      const own = a.personal;
+      await assert.rejects(
+        contacts.getContactById(a.ctx, own.contactId),
+        NotFoundException,
+      );
+      await assert.rejects(
+        contacts.deleteConfirmed(a.ctx, own.contactId, own.phone),
+        NotFoundException,
+      );
+      assert.equal(await outbound.getCallDetail(a.ctx, own.callId), null);
+      assert.equal(await outbound.getCallDetail(a.ctx, own.agentCallId), null);
+      assert.equal(await outbound.resolveCallId(a.ctx, own.callId), null);
+      assert.equal(await agentsRepo.findByIdForOwner(a.ctx, own.agentId), null);
+      assert.equal(
+        await agentCalls.findByIdForOwner(a.ctx, own.agentCallId),
+        null,
+      );
+      const listed = await contacts.listContacts(
+        a.ctx,
+        undefined,
+        undefined,
+        1,
+        100,
+      );
+      assert.ok(listed.data.every((c) => c.id !== own.contactId));
+      assert.equal(
+        (
+          await prisma.contact.findUniqueOrThrow({
+            where: { id: own.contactId },
+          })
+        ).deletedAt,
         null,
       );
     });

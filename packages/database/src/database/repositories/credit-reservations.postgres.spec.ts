@@ -96,6 +96,38 @@ describe("credit admission reservations on PostgreSQL", { skip: !url }, () => {
     );
   });
 
+  it("holds a released key again at the amount asked now, when the funds cover it", async () => {
+    await reset();
+    const hold = part(randomUUID(), 0.1);
+    assert.equal(await repo.reserveOnce(ctx, [hold], expires()), true);
+    // The call went back to wait in the queue; the estimate changed meanwhile.
+    await repo.releaseReservations(ctx, [hold.idempotencyKey]);
+    assert.equal(
+      await repo.reserveOnce(ctx, [{ ...hold, amount: 0.25 }], expires()),
+      true,
+    );
+    const restored = await prisma.creditReservation.findUniqueOrThrow({
+      where: { idempotencyKey: hold.idempotencyKey },
+    });
+    assert.equal(restored.state, "held");
+    assert.ok(Math.abs(restored.amount - 0.25) < 1e-9);
+
+    // Only when the funds cover what is asked now.
+    await repo.releaseReservations(ctx, [hold.idempotencyKey]);
+    assert.equal(
+      await repo.reserveOnce(ctx, [{ ...hold, amount: 5 }], expires()),
+      false,
+    );
+    assert.equal(
+      (
+        await prisma.creditReservation.findUniqueOrThrow({
+          where: { idempotencyKey: hold.idempotencyKey },
+        })
+      ).state,
+      "released",
+    );
+  });
+
   it("reserves both billing parts together or neither", async () => {
     await reset();
     const parts = [part(randomUUID(), 0.6), part(randomUUID(), 0.6)];

@@ -10,7 +10,10 @@ import axios, { AxiosInstance } from "axios";
 import { uacErrorDiagnostics } from "./telnyx.uac";
 import { describeTelnyxError, sanitizeMediaStreamError } from "./telnyx.error";
 import { ProviderDispatchService } from "../dispatch/provider-dispatch.service";
-import { ProviderDispatchDeferredError } from "../dispatch/dispatch.types";
+import {
+  CallOriginationUncertainError,
+  ProviderDispatchDeferredError,
+} from "../dispatch/dispatch.types";
 import { isCallOriginatingRequest } from "../dispatch/egress-paths";
 
 const TELNYX_ORIGIN = "https://api.telnyx.com";
@@ -56,6 +59,18 @@ function invalidPath(): HttpException {
     "Invalid telephony provider path",
     HttpStatus.BAD_REQUEST,
   );
+}
+
+/**
+ * Whether a failed request carries Telnyx's own refusal, which proves no call
+ * was created: a 4xx answer, or a request refused here before it was sent.
+ * Anything else — no response, a 5xx — says nothing either way.
+ */
+function providerAnswered(error: unknown): boolean {
+  if (error instanceof HttpException) return true;
+  const status = (error as { response?: { status?: unknown } } | null)?.response
+    ?.status;
+  return typeof status === "number" && status >= 400 && status < 500;
 }
 
 @Injectable()
@@ -128,6 +143,32 @@ export class TelnyxClient {
     );
   }
 
+  /**
+   * `handleError`, and one thing more for a request that starts a call: when
+   * Telnyx did not answer with a refusal — no response at all (a timeout, a
+   * dropped connection) or a 5xx — the call may exist, so it is rethrown as
+   * `CallOriginationUncertainError` rather than as a dial that failed. Status
+   * and body stay what they were.
+   */
+  private rethrow(
+    error: unknown,
+    method: string,
+    path: string,
+    body?: unknown,
+  ): never {
+    try {
+      this.handleError(error, method, path, body);
+    } catch (mapped) {
+      if (
+        mapped instanceof HttpException &&
+        isCallOriginatingRequest(method, path, body) &&
+        !providerAnswered(error)
+      )
+        throw new CallOriginationUncertainError(mapped);
+      throw mapped;
+    }
+  }
+
   private uacOptions(path: string) {
     return path.startsWith("/uac_connections") ||
       path.startsWith("/sip_registration_status")
@@ -163,7 +204,7 @@ export class TelnyxClient {
       return data;
     } catch (error) {
       egress?.failed(error);
-      this.handleError(error, "POST", path, body);
+      this.rethrow(error, "POST", path, body);
     }
   }
 
@@ -245,7 +286,7 @@ export class TelnyxClient {
       };
     } catch (error) {
       egress?.failed(error);
-      this.handleError(error, "POST", path);
+      this.rethrow(error, "POST", path, body);
     }
   }
 
@@ -299,7 +340,7 @@ export class TelnyxClient {
       });
     } catch (error) {
       egress?.failed(error);
-      this.handleError(error, "POST", path);
+      this.rethrow(error, "POST", path, fields);
     }
 
     const text = await res.text();
@@ -312,7 +353,14 @@ export class TelnyxClient {
 
     if (!res.ok) {
       egress?.failed({ status: res.status });
-      throw new HttpException(json, res.status || HttpStatus.BAD_GATEWAY);
+      const refused = new HttpException(
+        json,
+        res.status || HttpStatus.BAD_GATEWAY,
+      );
+      throw isCallOriginatingRequest("POST", path, fields) &&
+        !providerAnswered({ response: { status: res.status } })
+        ? new CallOriginationUncertainError(refused)
+        : refused;
     }
 
     egress?.accepted();

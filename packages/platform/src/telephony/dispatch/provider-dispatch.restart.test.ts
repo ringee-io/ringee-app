@@ -24,6 +24,18 @@ suite("provider dispatch across an actual Redis restart", () => {
   it("fails closed during outage and warms a lost budget before new sends", async () => {
     expect(container).toMatch(/^ringee-cps-failover-[a-z0-9-]+$/);
     expect(["127.0.0.1", "localhost"]).toContain(new URL(url!).hostname);
+    // The URL must reach the container this test stops, not another Redis on
+    // this machine: its port has to be the one that container publishes.
+    const published = spawnSync("docker", ["port", container!, "6379/tcp"], {
+      encoding: "utf8",
+      timeout: 15_000,
+    });
+    expect(published.status, published.stderr).toBe(0);
+    const ports = published.stdout
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((binding) => binding.slice(binding.lastIndexOf(":") + 1));
+    expect(ports).toContain(new URL(url!).port || "6379");
     const docker = (...args: string[]) => {
       const result = spawnSync("docker", [...args, container!], {
         encoding: "utf8",

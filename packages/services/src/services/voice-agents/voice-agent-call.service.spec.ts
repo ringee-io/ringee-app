@@ -805,9 +805,9 @@ describe("VoiceAgentCallService.startCallForClient (HOOK-008)", () => {
         assert.equal(body.code, "idempotency_key_failed");
         assert.match(String(body.message), /nothing was dialed/i);
         assert.match(String(body.message), /new idempotency-key/i);
-        // The reason the first attempt gave is kept, so a retry that only ever
-        // sees this answer can still tell what went wrong.
-        assert.match(String(body.message), /could not be reached/);
+        // The stored reason is internal (a database or provider message can
+        // be in it) and stays out of the answer: the message is fixed.
+        assert.doesNotMatch(String(body.message), /could not be reached/);
         return true;
       },
     );

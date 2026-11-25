@@ -1,7 +1,10 @@
 import { HttpException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeDispatchRedis } from "../dispatch/dispatch-test-support";
-import { ProviderDispatchDeferredError } from "../dispatch/dispatch.types";
+import {
+  CallOriginationUncertainError,
+  ProviderDispatchDeferredError,
+} from "../dispatch/dispatch.types";
 import { baselineSettings } from "../dispatch/dispatch-settings";
 import { RingeeManagedAccountResolver } from "../dispatch/provider-account";
 import {
@@ -262,5 +265,55 @@ describe("TelnyxClient and the shared pacing", () => {
     ).rejects.toBeInstanceOf(ProviderDispatchDeferredError);
     await client.post("/calls/existing/actions/answer", {});
     expect(sent).toHaveLength(1);
+  });
+});
+
+describe("a call-starting request without an answer", () => {
+  const scope = { source: "voicemail_drop" as const };
+
+  it("is uncertain, not a failed dial, when it times out or Telnyx answers 5xx", async () => {
+    const { service, client } = build();
+    respond.mockRejectedValueOnce(
+      Object.assign(new Error("timeout of 30000ms exceeded"), {
+        code: "ECONNABORTED",
+      }),
+    );
+    const timedOut = await service
+      .runInScope(scope, () => client.post("/calls", {}))
+      .catch((e: unknown) => e);
+    expect(timedOut).toBeInstanceOf(CallOriginationUncertainError);
+    // Whatever read the status before still reads it.
+    expect((timedOut as HttpException).getStatus()).toBe(502);
+
+    respond.mockRejectedValueOnce({
+      response: { status: 503, data: { errors: [{ code: "x" }] } },
+    });
+    const unavailable = await service
+      .runInScope(scope, () => client.post("/calls", {}))
+      .catch((e: unknown) => e);
+    expect(unavailable).toBeInstanceOf(CallOriginationUncertainError);
+    expect((unavailable as HttpException).getStatus()).toBe(503);
+  });
+
+  it("is a plain refusal when Telnyx answered 4xx: no call exists", async () => {
+    const { service, client } = build();
+    respond.mockRejectedValueOnce({
+      response: { status: 422, data: { errors: [{ code: "10015" }] } },
+    });
+    const refused = await service
+      .runInScope(scope, () => client.post("/calls", {}))
+      .catch((e: unknown) => e);
+    expect(refused).toBeInstanceOf(HttpException);
+    expect(refused).not.toBeInstanceOf(CallOriginationUncertainError);
+  });
+
+  it("leaves a request that starts no call exactly as it was", async () => {
+    const { client } = build();
+    respond.mockRejectedValueOnce(new Error("socket hang up"));
+    const error = await client
+      .post("/calls/v3:abc/actions/hangup", {})
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(HttpException);
+    expect(error).not.toBeInstanceOf(CallOriginationUncertainError);
   });
 });

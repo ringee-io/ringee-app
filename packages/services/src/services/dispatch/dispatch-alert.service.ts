@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { AiVoiceAgentCallDispatchRepository } from "@ringee/database";
@@ -11,6 +11,7 @@ import {
   TRAFFIC_LABEL,
   type DispatchAlert,
   type EmailInterface,
+  type EmailSendResult,
 } from "@ringee/platform";
 import { DispatchStatsService } from "./dispatch-stats.service";
 
@@ -21,6 +22,15 @@ const WAIT_ALERT_SECONDS: Record<number, number> = { 1: 120, 2: 300, 3: 900 };
 const QUEUE_SATURATION_RATIO = 0.8;
 /** An alert's email is sent once an hour however often it is raised. */
 const EMAIL_COOLDOWN_SECONDS = 3600;
+/**
+ * A send the email provider refuses is tried again this often (ms) while the
+ * claim is held; when every try fails the claim is handed back, so the next
+ * time the alert is raised it is sent instead of waiting out the hour.
+ */
+const EMAIL_RETRY_DELAYS_MS = [1_000, 4_000];
+
+const sleepFor = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const escapeHtml = (value: string) =>
   value
@@ -45,6 +55,8 @@ const escapeHtml = (value: string) =>
 export class DispatchAlertService implements OnModuleInit {
   private readonly logger = new Logger(DispatchAlertService.name);
   private readonly emailed = new Map<string, number>();
+  /** A seam for tests: how long to wait before trying a send again. */
+  sleep: (ms: number) => Promise<void> = sleepFor;
 
   constructor(
     private readonly dispatch: ProviderDispatchService,
@@ -60,7 +72,14 @@ export class DispatchAlertService implements OnModuleInit {
     this.runtime.setAlertSink((alert) => this.deliver(alert));
   }
 
-  /** Emails an alert to the team, once per cooldown across every process. */
+  /**
+   * Emails an alert to the team, once per cooldown across every process.
+   *
+   * The cooldown starts with a claim and is only kept by a send that went out:
+   * a provider failure is retried a couple of times under the claim, and if
+   * none gets through the claim is handed back, so a failed send never uses up
+   * the alert's hour.
+   */
   async deliver(alert: DispatchAlert): Promise<void> {
     const to = apiConfiguration.RINGEE_TEAM_EMAIL;
     if (!to) return;
@@ -68,17 +87,22 @@ export class DispatchAlertService implements OnModuleInit {
       .update(alert.key)
       .digest("hex")
       .slice(0, 24);
+    const claimKey = `ringee:dispatch:alert:${key}`;
+    const claim = randomUUID();
     let fresh = true;
+    let claimedInRedis = false;
+    let previousLocal: number | undefined;
     try {
       fresh = await this.redis.setIfAbsent(
-        `ringee:dispatch:alert:${key}`,
-        "1",
+        claimKey,
+        claim,
         EMAIL_COOLDOWN_SECONDS,
       );
+      claimedInRedis = fresh;
     } catch {
       // Redis may be the very thing that is down: do not stay silent about it.
-      const last = this.emailed.get(alert.key) ?? 0;
-      fresh = Date.now() - last > EMAIL_COOLDOWN_SECONDS * 1000;
+      previousLocal = this.emailed.get(alert.key);
+      fresh = Date.now() - (previousLocal ?? 0) > EMAIL_COOLDOWN_SECONDS * 1000;
       if (fresh) this.emailed.set(alert.key, Date.now());
     }
     if (!fresh) return;
@@ -97,19 +121,51 @@ export class DispatchAlertService implements OnModuleInit {
       <table style="font-size:14px">${rows}</table>
       <p style="margin-top:16px;color:#777;font-size:13px">Telnyx outbound CPS protection. See docs/telnyx-cps-cost-protection.md and the backoffice dispatch controls.</p>
     </div>`;
-    await this.email
-      .sendEmail(
-        to,
-        `[Ringee] CPS ${alert.severity}: ${alert.title}`,
-        html,
-        "Ringee Notifications",
-        apiConfiguration.EMAIL_FROM_ADDRESS,
-      )
-      .catch((error: Error) =>
+    for (let attempt = 0; ; attempt++) {
+      const result = await this.email
+        .send({
+          to: [to],
+          subject: `[Ringee] CPS ${alert.severity}: ${alert.title}`,
+          html,
+          fromName: "Ringee Notifications",
+          fromAddress: apiConfiguration.EMAIL_FROM_ADDRESS,
+        })
+        .catch(
+          (): EmailSendResult => ({
+            accepted: false,
+            error: "the email provider threw",
+            retryable: true,
+          }),
+        );
+      if (result.accepted) return;
+      if (!result.retryable) {
+        // Trying again cannot help (no provider, a bad address): the claim is
+        // kept, so this is not retried every time the alert is raised.
         this.logger.warn(
-          `Could not email the alert ${alert.key}: ${error.message}`,
-        ),
-      );
+          `Could not email the alert ${alert.key}: the email provider refused it`,
+        );
+        return;
+      }
+      if (attempt >= EMAIL_RETRY_DELAYS_MS.length) {
+        this.logger.warn(
+          `Could not email the alert ${alert.key} after ${attempt + 1} tries; it is sent the next time it is raised`,
+        );
+        break;
+      }
+      await this.sleep(EMAIL_RETRY_DELAYS_MS[attempt]);
+    }
+
+    // Nothing went out: hand the claim back. Only this claim — a newer one
+    // taken meanwhile is someone else's send.
+    if (claimedInRedis) {
+      await this.redis
+        .compareAndSwap(claimKey, claim, null)
+        .catch(() => undefined);
+    } else if (previousLocal === undefined) {
+      this.emailed.delete(alert.key);
+    } else {
+      this.emailed.set(alert.key, previousLocal);
+    }
   }
 
   /**

@@ -50,6 +50,7 @@ import {
 import { ContactService } from "../contact.service";
 import { DispatchKickService } from "../dispatch/dispatch-kick.service";
 import { CreditService } from "../credit.service";
+import { errorKind } from "../error-kind.util";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { ComplianceService } from "../outbound/compliance.service";
 import { UserService } from "../user.service";
@@ -76,6 +77,16 @@ export const DISPATCH_CLAIM_LEASE_MS = 30_000;
 const LIVE_CALL_WINDOW_MS = 20 * 60_000;
 /** Attempts that fail for a reason other than capacity before the queue gives up. */
 const MAX_DISPATCH_ERRORS = 8;
+/**
+ * How long a queued call waits after a dispatch attempt broke on something
+ * unexpected (the database, the cache) rather than a rule or capacity.
+ */
+const DISPATCH_ERROR_RETRY_MS = 5_000;
+
+/** The pause before a queued call is prepared again: 2 s, doubling, a minute at most. */
+function retryBackoffMs(attempts: number): number {
+  return Math.min(60_000, 2_000 * 2 ** Math.max(0, attempts - 1));
+}
 
 /** What one dispatch attempt of a queued call came to. */
 export type DispatchOutcome =
@@ -179,12 +190,6 @@ export function failedBeforePlacement(
   return (
     call.status === AiVoiceAgentCallStatus.failed && !call.providerCallControlId
   );
-}
-
-/** The first attempt's reason, short enough for a response, or nothing. */
-function reasonSuffix(lastError: string | null | undefined): string {
-  const reason = lastError?.replace(/\s+/g, " ").trim().slice(0, 300);
-  return reason ? ` (${reason})` : "";
 }
 
 export enum VoiceAgentCallStartOutcome {
@@ -416,12 +421,16 @@ export class VoiceAgentCallService {
     // was placed, so the honest answer is the failure itself (the way a
     // replayed error stays an error): the client sends a new key to try again.
     // A call that WAS dialed and then ended badly is still answered below.
+    // The message is fixed: the stored reason can carry internal detail (a
+    // database or provider message) that is not the client's to read, and the
+    // first answer already told the client why.
     if (failedBeforePlacement(earlier)) {
       throw new ConflictException({
         statusCode: HttpStatus.CONFLICT,
         error: "Conflict",
         code: "idempotency_key_failed",
-        message: `The first attempt under this Idempotency-Key failed before the call was placed${reasonSuffix(earlier.lastError)}. Nothing was dialed. Send a new Idempotency-Key to try again.`,
+        message:
+          "The first attempt under this Idempotency-Key failed before the call was placed. Nothing was dialed. Send a new Idempotency-Key to try again.",
       });
     }
     // Cancelled or expired in the queue: nothing was dialed either, and the
@@ -565,8 +574,17 @@ export class VoiceAgentCallService {
                 ),
               })
             : await this.agentCalls.create(data);
-        if (!agentCall)
+        if (!agentCall) {
+          // The cap may be full because a start under this very key took the
+          // last slot a moment ago: that is this request's call, not a refusal.
+          if (input.idempotencyKey) {
+            const winner = await this.agentCalls.findByIdempotencyKey(
+              input.idempotencyKey,
+            );
+            if (winner) throw this.alreadyStarted(winner);
+          }
           throw new ProviderDispatchDeferredError("workspace_busy", 5_000);
+        }
       } catch (error) {
         // Two starts raced under one key: the other one owns the call.
         if (
@@ -635,8 +653,6 @@ export class VoiceAgentCallService {
         permit,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
       if (
         error instanceof VoiceAgentCallStartError &&
         error.outcome ===
@@ -646,7 +662,7 @@ export class VoiceAgentCallService {
         // can repair whichever local write failed, so neither row is marked
         // failed and a durable caller must not initiate a second leg.
         this.logger.error(
-          `Agent call ${agentCall.id} may have a live leg and is left to reconcile: ${message}`,
+          `Agent call ${agentCall.id} may have a live leg and is left to reconcile: ${errorKind(error.cause ?? error)}`,
         );
         throw error;
       }
@@ -666,7 +682,7 @@ export class VoiceAgentCallService {
           input.idempotencyKey,
         );
       this.logger.error(
-        `Agent call ${agentCall.id} failed to start: ${message}`,
+        `Agent call ${agentCall.id} failed to start: ${errorKind(error)}`,
       );
       throw new VoiceAgentCallStartError(
         this.isTerminalPolicyRejection(error)
@@ -968,6 +984,15 @@ export class VoiceAgentCallService {
     }
 
     if (!enqueued.queued) {
+      // The queue may be full because a start under this very key took the
+      // last place a moment ago: that is this request's call, answered (and
+      // checked) as a replay, not refused.
+      if (args.input.idempotencyKey) {
+        const winner = await this.agentCalls.findByIdempotencyKey(
+          args.input.idempotencyKey,
+        );
+        if (winner) throw this.alreadyStarted(winner);
+      }
       // Backpressure: say so, with a time to come back, rather than let the
       // queue grow without bound.
       throw new VoiceAgentCallStartError(
@@ -1032,9 +1057,17 @@ export class VoiceAgentCallService {
           ? { outcome: "in_doubt" }
           : { outcome: "failed", reason: error.message };
       }
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Dispatching call ${agentCallId} failed: ${message}`);
-      return { outcome: "failed", reason: message };
+      // Anything else broke before the commit: the call is still waiting and
+      // nothing was dialed. It is "failed" only once it is over; here it is
+      // put off, and its claim was handed back with the same pause.
+      this.logger.error(
+        `Dispatching call ${agentCallId} failed before the commit, retrying in ${DISPATCH_ERROR_RETRY_MS / 1000}s: ${errorKind(error)}`,
+      );
+      return {
+        outcome: "deferred",
+        reason: `retry:${errorKind(error)}`,
+        retryAfterMs: DISPATCH_ERROR_RETRY_MS,
+      };
     }
   }
 
@@ -1075,38 +1108,39 @@ export class VoiceAgentCallService {
       return { kind: "skipped", reason: "not_claimed" };
 
     const ctx = workspaceOf(row);
-    const queued = await dispatches.findByAgentCallId(agentCallId);
-    if (!queued) return { kind: "skipped", reason: "not_claimed" };
-    const source: DispatchSource = isDispatchSource(queued?.source)
-      ? queued.source
-      : "agent_api";
-    const { settings } = await dispatch.getSettings();
-    const liveSince = new Date(
-      claimedAt.getTime() -
-        Math.max(
-          LIVE_CALL_WINDOW_MS,
-          (apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS + 120) * 1000,
-        ),
-    );
-    const concurrency =
-      settings.orgConcurrencyOverrides[workspaceKeyOf(ctx)] ??
-      settings.orgConcurrency;
-
-    const defer = async (
-      reason: string,
-      retryAfterMs: number,
-      refund = true,
-    ): Promise<DispatchAttempt> => {
-      await dispatches.release(agentCallId, claimToken, {
-        notBefore: new Date(Date.now() + retryAfterMs),
-        reason,
-        refundAttempt: refund,
-      });
-      return { kind: "deferred", reason, retryAfterMs };
-    };
-
     let committed = false;
+    let failure: unknown = null;
     try {
+      const queued = await dispatches.findByAgentCallId(agentCallId);
+      if (!queued) return { kind: "skipped", reason: "not_claimed" };
+      const source: DispatchSource = isDispatchSource(queued?.source)
+        ? queued.source
+        : "agent_api";
+      const { settings } = await dispatch.getSettings();
+      const liveSince = new Date(
+        claimedAt.getTime() -
+          Math.max(
+            LIVE_CALL_WINDOW_MS,
+            (apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS + 120) * 1000,
+          ),
+      );
+      const concurrency =
+        settings.orgConcurrencyOverrides[workspaceKeyOf(ctx)] ??
+        settings.orgConcurrency;
+
+      const defer = async (
+        reason: string,
+        retryAfterMs: number,
+        refund = true,
+      ): Promise<DispatchAttempt> => {
+        await dispatches.release(agentCallId, claimToken, {
+          notBefore: new Date(Date.now() + retryAfterMs),
+          reason,
+          refundAttempt: refund,
+        });
+        return { kind: "deferred", reason, retryAfterMs };
+      };
+
       // Everything the request checked, checked again: the world moves while a
       // call waits (a number removed, the person added to the DNC list).
       let agent: AiVoiceAgent;
@@ -1225,6 +1259,9 @@ export class VoiceAgentCallService {
       // From here on this is the ordinary flow: the row exists as `created`, and
       // whatever the provider answers is read the way an inline start reads it.
       let callId: string | null = null;
+      // Set the moment the provider request may leave. Until then nothing has
+      // been sent, whatever fails.
+      let sending = false;
       try {
         const call = await this.callRepository.createCall(ctx, {
           contact: row.contactId
@@ -1240,6 +1277,10 @@ export class VoiceAgentCallService {
         callId = call.id;
         await this.agentCalls.update(agentCallId, { callId: call.id });
         await this.reservePlacement(ctx, agentCallId, callId);
+        // The last word before the request: the person may have joined the DNC
+        // list, or the money run out, while the call was being prepared.
+        await this.assertCallingAllowed(ctx, row.toNumber);
+        sending = true;
         const placed = await this.placeLeg({
           ctx,
           agent,
@@ -1254,29 +1295,46 @@ export class VoiceAgentCallService {
         });
         return { kind: "placed", result: placed };
       } catch (error) {
-        if (error instanceof ProviderDispatchDeferredError) {
-          // The egress guard proves no request was sent. Only this explicit
-          // outcome may move a committed operation back to the durable queue.
-          await this.credits.releaseReservations(ctx, [
-            `ai-voice-agent-cost:${agentCallId}`,
-            ...(callId ? [`call-cost:${callId}`] : []),
-          ]);
-          if (callId)
-            await this.callRepository.markForciblyEnded(
-              callId,
-              "Deferred before provider dispatch",
-            );
-          await dispatches.requeueUnsent(
+        // Back to the queue only on proof that nothing was sent: the egress
+        // guard's deferral, or a failure that is not a refusal raised before
+        // the request could leave. An ambiguous provider answer never gets here
+        // — it is `placed_pending_reconciliation` below.
+        const deferred = error instanceof ProviderDispatchDeferredError;
+        const unsentRetry =
+          !deferred &&
+          !sending &&
+          !this.isTerminalPolicyRejection(error) &&
+          !(error instanceof VoiceAgentCallStartError) &&
+          queued.attempts < MAX_DISPATCH_ERRORS;
+        if (deferred || unsentRetry) {
+          const reason = deferred ? error.reason : `retry:${errorKind(error)}`;
+          const retryAfterMs = deferred
+            ? error.retryAfterMs
+            : retryBackoffMs(queued.attempts);
+          // What this placement prepared is undone first; a cleanup that
+          // fails cannot keep the call out of the queue (see below).
+          await this.releaseUnsentPlacement(ctx, agentCallId, callId);
+          const requeued = await dispatches
+            .requeueUnsent(
+              agentCallId,
+              claimToken,
+              new Date(Date.now() + retryAfterMs),
+              reason,
+              // Waiting for capacity is not a failed attempt; an error is.
+              { refundAttempt: deferred },
+            )
+            .catch((requeueError: unknown) => {
+              this.logger.error(
+                `Queued call ${agentCallId} was not sent but could not go back to the queue (${errorKind(requeueError)}); it is left committed, never redialed`,
+              );
+              return false;
+            });
+          if (requeued) return { kind: "deferred", reason, retryAfterMs };
+          throw new VoiceAgentCallStartError(
+            VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+            error,
             agentCallId,
-            claimToken,
-            new Date(Date.now() + error.retryAfterMs),
-            error.reason,
           );
-          return {
-            kind: "deferred",
-            reason: error.reason,
-            retryAfterMs: error.retryAfterMs,
-          };
         }
         if (
           error instanceof VoiceAgentCallStartError &&
@@ -1284,7 +1342,7 @@ export class VoiceAgentCallService {
             VoiceAgentCallStartOutcome.placed_pending_reconciliation
         ) {
           this.logger.error(
-            `Queued call ${agentCallId} may have a live leg and is left to reconcile: ${error.message}`,
+            `Queued call ${agentCallId} may have a live leg and is left to reconcile: ${errorKind(error.cause ?? error)}`,
           );
           throw error;
         }
@@ -1297,12 +1355,28 @@ export class VoiceAgentCallService {
           agentCallId,
         );
       }
+    } catch (error) {
+      failure = error;
+      throw error;
     } finally {
       // A claim that never reached the commit must not sit on the call until
-      // its lease runs out.
+      // its lease runs out. One given up on an unexpected error (the database
+      // blinked) is tried again after a pause, so the pump does not take the
+      // same row straight back.
       if (!committed) {
+        const unexpected =
+          failure !== null && !(failure instanceof VoiceAgentCallStartError);
         await dispatches
-          .release(agentCallId, claimToken, {})
+          .release(
+            agentCallId,
+            claimToken,
+            unexpected
+              ? {
+                  notBefore: new Date(Date.now() + DISPATCH_ERROR_RETRY_MS),
+                  reason: `retry:${errorKind(failure)}`,
+                }
+              : {},
+          )
           .catch(() => undefined);
       }
     }
@@ -1328,13 +1402,13 @@ export class VoiceAgentCallService {
       claim.attempts >= MAX_DISPATCH_ERRORS;
     if (!terminal) {
       this.logger.warn(
-        `Queued call ${claim.agentCallId} could not be prepared (attempt ${claim.attempts}), retrying: ${message}`,
+        `Queued call ${claim.agentCallId} could not be prepared (attempt ${claim.attempts}), retrying: ${errorKind(error)}`,
       );
       // Backs off from 2s to a minute; an error is a real attempt, so it is
       // not refunded.
       return defer(
         `retry:${message.slice(0, 120)}`,
-        Math.min(60_000, 2_000 * 2 ** Math.max(0, claim.attempts - 1)),
+        retryBackoffMs(claim.attempts),
         false,
       );
     }
@@ -1384,6 +1458,12 @@ export class VoiceAgentCallService {
     return { id, status: AiVoiceAgentCallStatus.cancelled };
   }
 
+  /**
+   * Ends a call the provider never got (a rule refused it, or the provider said
+   * no). The holds are released on the side: a failure there must not leave the
+   * telephony row and the agent call looking alive, nor replace the refusal the
+   * caller reports — a hold that is not released lapses at its own expiry.
+   */
   private async closeUnplacedCall(
     callId: string | null,
     agentCallId: string | null,
@@ -1391,12 +1471,18 @@ export class VoiceAgentCallService {
   ): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     if (this.dispatch && agentCallId) {
-      const owned = await this.agentCalls.findById(agentCallId);
-      if (owned)
-        await this.credits.releaseReservations(workspaceOf(owned), [
-          `ai-voice-agent-cost:${agentCallId}`,
-          ...(callId ? [`call-cost:${callId}`] : []),
-        ]);
+      try {
+        const owned = await this.agentCalls.findById(agentCallId);
+        if (owned)
+          await this.credits.releaseReservations(workspaceOf(owned), [
+            `ai-voice-agent-cost:${agentCallId}`,
+            ...(callId ? [`call-cost:${callId}`] : []),
+          ]);
+      } catch (releaseError) {
+        this.logger.warn(
+          `Could not release the admission holds of agent call ${agentCallId}${callId ? ` (call ${callId})` : ""} (${errorKind(releaseError)}); they lapse at their expiry`,
+        );
+      }
     }
 
     // Nothing was dialed, so the row reserved for the leg is closed here: the
@@ -1406,11 +1492,7 @@ export class VoiceAgentCallService {
         .markForciblyEnded(callId, message)
         .catch((closeError: unknown) => {
           this.logger.error(
-            `Could not close call ${callId} for agent call ${agentCallId ?? "unknown"}: ${
-              closeError instanceof Error
-                ? closeError.message
-                : String(closeError)
-            }`,
+            `Could not close call ${callId} for agent call ${agentCallId ?? "unknown"}: ${errorKind(closeError)}`,
           );
         });
     }
@@ -1422,14 +1504,43 @@ export class VoiceAgentCallService {
         })
         .catch((updateError: unknown) => {
           this.logger.error(
-            `Could not mark agent call ${agentCallId} failed: ${
-              updateError instanceof Error
-                ? updateError.message
-                : String(updateError)
-            }`,
+            `Could not mark agent call ${agentCallId} failed: ${errorKind(updateError)}`,
           );
         });
     }
+  }
+
+  /**
+   * Undoes what a placement prepared for a queued call that was never sent —
+   * its holds and its telephony row — before the call goes back to the queue.
+   * It never throws: a hold left behind lapses at its expiry, and whatever
+   * could not be undone is logged with the ids it takes to finish by hand,
+   * because the queue's next attempt gets a new call row.
+   */
+  private async releaseUnsentPlacement(
+    ctx: OwnershipContext,
+    agentCallId: string,
+    callId: string | null,
+  ): Promise<void> {
+    const holds = [
+      `ai-voice-agent-cost:${agentCallId}`,
+      ...(callId ? [`call-cost:${callId}`] : []),
+    ];
+    await this.credits
+      .releaseReservations(ctx, holds)
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `Could not release holds ${holds.join(", ")} of queued call ${agentCallId}, which was not sent (${errorKind(error)}); they lapse at their expiry`,
+        ),
+      );
+    if (callId)
+      await this.callRepository
+        .markForciblyEnded(callId, "Deferred before provider dispatch")
+        .catch((error: unknown) =>
+          this.logger.error(
+            `Could not close call ${callId}, which queued call ${agentCallId} never sent (${errorKind(error)}); it stays pending until closed by hand`,
+          ),
+        );
   }
 
   /**
@@ -1477,8 +1588,7 @@ export class VoiceAgentCallService {
     const onDnc = await this.compliance
       .findOnDNC(ctx, to)
       .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(`DNC lookup failed for ${to}: ${message}`);
+        this.logger.error(`DNC lookup failed for ${to}: ${errorKind(error)}`);
         throw new ServiceUnavailableException(
           "The Do-Not-Call list could not be checked, so the call was not placed.",
         );
@@ -1492,7 +1602,19 @@ export class VoiceAgentCallService {
     }
 
     if (!user?.freeCallTrial) {
-      const balance = await this.credits.getBalance(ctx).catch(() => 0);
+      // A balance that could not be read is not an empty one: the call is not
+      // placed now (fail closed) but it is not refused for good either — a
+      // durable caller and the queue try it again. Only a real zero refuses.
+      const balance = await this.credits
+        .getBalance(ctx)
+        .catch((error: unknown) => {
+          this.logger.error(
+            `Balance lookup failed for a call to ${to}: ${errorKind(error)}`,
+          );
+          throw new ServiceUnavailableException(
+            "The balance could not be checked, so the call was not placed.",
+          );
+        });
       if (balance <= 0) {
         throw new ForbiddenException("Insufficient credits");
       }

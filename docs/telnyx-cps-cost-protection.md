@@ -60,7 +60,7 @@ accepted-attempt second or the billing treatment of an internal SIP leg.
 
 | Path                                                      | Owner / originator                                                                       | Attempts or legs created by one logical action                                                  | Coverage                                                                                  |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Manual web dialer                                         | Frontend `newCall`, rotation preflight                                                   | One client dial; any client/SIP retries add units                                               | Shared admission preflight only; signaling bypasses HTTP gate                             |
+| Manual web dialer                                         | Frontend `newCall`, rotation preflight                                                   | One client dial; any client/SIP retries add units                                               | Start-budget preflight only; signaling bypasses HTTP gate                                 |
 | Preview campaign                                          | Dialer orchestration → SSE → browser                                                     | One client dial per assignment                                                                  | Shared preflight; same signaling gap                                                      |
 | Progressive campaign                                      | API pollers → assignment → browser                                                       | One client dial per claimed lead; each permitted retry is another dial                          | Automated workspace and account preflight; signaling gap                                  |
 | Extension, published SDK, call-session links              | SDK/core or browser `newCall` after server gates                                         | One dial after the person acts; creating a link/session alone dials zero                        | Existing canonical services pace preflights; direct signaling remains                     |
@@ -104,6 +104,15 @@ database work cannot all send together. Each additional HTTP attempt needs a
 fresh egress grant, including repeats under the same provider command reference.
 A replay that only returns an existing durable operation sends nothing and takes
 no egress grant. There are no automatic HTTP retries on originating requests.
+
+The egress clocks are the account's **one budget of call starts**. A leg a
+client dials itself (browser, extension, SDK, session link, campaign
+assignment) never passes the Telnyx client, so its pre-flight is admitted as a
+_direct start_ (`admit({ directStart: true })`) on those same egress clocks; a
+server-sent leg spends them at the Telnyx client. A browser's dial and a
+server's dial therefore cannot both use one moment of capacity. The admission
+clocks only schedule server work ahead of its egress, and a queued call is
+offered only while both are free.
 
 | Initial setting               | Value                                                                 |
 | ----------------------------- | --------------------------------------------------------------------- |
@@ -179,9 +188,14 @@ financial-protection release gate described in [financial-protection.md](financi
 It does not change customer prices or charge customers a CPS fee.
 
 Before HTTP initiation the egress clock is checked, including the operation's
-deadline. A definite egress deferral proves nothing was sent and is the only
-post-commit outcome allowed back into the queue. Provider timeouts, lost replies
-and 5xx responses remain in doubt and are not blindly dialed again. A crash after
+deadline. Only proof that nothing was sent lets a committed operation back into
+the queue: a definite egress deferral, or a failure that is not a refusal raised
+before the provider request could leave (a database blip while its call row or
+hold is written, a DNC or balance read that failed in the last check). A rule's
+refusal there ends the call. Provider timeouts, lost replies and 5xx responses
+remain in doubt and are not blindly dialed again; the Telnyx client reports a
+call-starting request without a readable answer as
+`CallOriginationUncertainError`, never as a failed dial. A crash after
 commit can leave a starting operation that requires reconciliation; it is counted
 and alerted, not silently replaced. Pending operations are inspectable by staff.
 
@@ -285,7 +299,9 @@ outbound work for every class; automated requests stay durable where eligible.
 Existing conversations, inbound answers, bridging existing legs and hangups are
 not CPS-gated. New outbound legs created by an inbound call still need capacity.
 An initially empty egress clock waits one rolling second, preventing an immediate
-state-loss reset burst. Use dedicated Redis persistence and no eviction; failover
+state-loss reset burst. Those clocks are kept for a day after their last grant,
+so a quiet minute is not mistaken for lost state and a person's first dial after
+a pause is not held. Use dedicated Redis persistence and no eviction; failover
 and external SIP behavior still require an operational rehearsal.
 
 Deployment, for a separately authorized release:

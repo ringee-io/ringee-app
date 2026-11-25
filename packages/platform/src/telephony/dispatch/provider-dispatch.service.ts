@@ -120,6 +120,13 @@ const sleepFor = (ms: number) =>
  * (`beginEgress`): even a previously admitted request takes a fresh shared
  * egress grant, so a delayed database write cannot bunch old permits together.
  *
+ * The egress clocks are the account's one budget of call starts. A leg a client
+ * dials itself (a browser after its pre-flight) never reaches the Telnyx
+ * client, so its grant — `admit({ directStart: true })` — is taken from those
+ * same clocks; the admission clocks only schedule server work ahead of its
+ * egress. Neither kind of start can therefore spend capacity the other has
+ * already used.
+ *
  * Failure policy, deliberately not symmetrical:
  *
  * - Redis unreachable or slow, automated classes: DEFER. Never fail open — an
@@ -237,6 +244,10 @@ export class ProviderDispatchService {
    * exhausting that wait never overrides the provider-account ceiling.
    */
   async admit(request: DispatchRequest): Promise<DispatchDecision> {
+    // A start a client places itself spends the account's start budget now:
+    // nothing of it will pass the egress gate later.
+    if (request.directStart)
+      return this.admitForPhase({ ...request, countAttempt: false }, "egress");
     return this.admitForPhase(request, "admission");
   }
 
@@ -347,6 +358,11 @@ export class ProviderDispatchService {
    * Would a request of this kind be granted right now? Moves no clock, so it
    * can run every tick without spending capacity. In `observe` and `off` mode
    * nothing is ever deferred.
+   *
+   * A direct start is free when the start clocks are. A server start is
+   * admitted on the admission clocks and then spends the start clocks at
+   * egress, so it is free only when both are: work is not committed for a
+   * start the account's budget cannot send.
    */
   async peek(
     request: DispatchRequest,
@@ -369,17 +385,28 @@ export class ProviderDispatchService {
         ? workspaceKeyOf(request.workspace)
         : null;
     const account = this.resolver.resolve({ workspaceKey });
-    const attempt = await this.acquireOnce(
-      { request, cls, level, workspaceKey, account, resolved },
-      "peek",
-    );
-    return attempt.granted
-      ? { free: true, retryAfterMs: 0 }
-      : {
+    const phases: Array<"admission" | "egress"> = request.directStart
+      ? ["egress"]
+      : ["admission", "egress"];
+    let blocked: AcquireOnce | null = null;
+    for (const phase of phases) {
+      const attempt = await this.acquireOnce(
+        { request, cls, level, workspaceKey, account, resolved, phase },
+        "peek",
+      );
+      if (
+        !attempt.granted &&
+        (!blocked || attempt.retryAfterMs > blocked.retryAfterMs)
+      )
+        blocked = attempt;
+    }
+    return blocked
+      ? {
           free: false,
-          retryAfterMs: Math.max(1, Math.ceil(attempt.retryAfterMs)),
-          reason: attempt.reason,
-        };
+          retryAfterMs: Math.max(1, Math.ceil(blocked.retryAfterMs)),
+          reason: blocked.reason,
+        }
+      : { free: true, retryAfterMs: 0 };
   }
 
   private permit(
@@ -598,6 +625,7 @@ export class ProviderDispatchService {
       {
         ...request,
         idempotencyRef: undefined,
+        directStart: undefined,
         countAttempt: true,
         maxWaitMs: Math.max(
           permit ? 2_000 : 0,

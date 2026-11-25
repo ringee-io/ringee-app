@@ -21,6 +21,16 @@ export interface DispatchRequest {
   cls?: TrafficClass;
   /** Deduplicates preliminary admission only; actual egress always needs capacity. */
   idempotencyRef?: string;
+  /**
+   * The grant is the start itself: a client (the browser, the extension, the
+   * SDK, a campaign assignment) dials the leg right after it, and nothing of
+   * that leg passes the Telnyx client. It is taken from the egress clocks, the
+   * ones every server-originated start spends at the Telnyx client, so a
+   * client's dial and a server's dial draw on one account budget. It is never
+   * counted here: the leg is counted when its webhook arrives
+   * (`observeExternalAttempt`).
+   */
+  directStart?: boolean;
   /** Server-owned queue deadline; never dispatch an operation after it. */
   expiresAtMs?: number;
   /**
@@ -93,6 +103,22 @@ export class ProviderDispatchDeferredError extends HttpException {
       HttpStatus.TOO_MANY_REQUESTS,
     );
     this.name = ProviderDispatchDeferredError.name;
+  }
+}
+
+/**
+ * A provider request that starts a call got no answer saying whether it did: a
+ * timeout, a dropped connection, a 5xx. A leg may exist, so it is not a failed
+ * dial: the caller must not start another leg for the same purpose until this
+ * one is reconciled, through the webhooks that find the row written before the
+ * request. The provider's status and body are kept, so code that reads them
+ * sees what it always saw.
+ */
+export class CallOriginationUncertainError extends HttpException {
+  constructor(cause: HttpException) {
+    super(cause.getResponse(), cause.getStatus(), { cause });
+    this.message = cause.message;
+    this.name = CallOriginationUncertainError.name;
   }
 }
 

@@ -1032,8 +1032,13 @@ describe(
             where: { id: finished.id },
             data: { status: "completed" },
           });
+          // Only this test's calls: a row of anyone else's in the database
+          // must not be made due by it.
           await prisma.aiVoiceAgentCallDispatch.updateMany({
-            where: { state: "queued" },
+            where: {
+              state: "queued",
+              agentCallId: { in: started.map((call) => call.id) },
+            },
             data: { notBefore: new Date(Date.now() - 1) },
           });
           await drain(queue, 6);

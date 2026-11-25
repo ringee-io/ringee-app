@@ -27,7 +27,7 @@ import {
   type CustomIntegrationApiRequest,
 } from "../guards/custom-integration-api-key.guard";
 import { PublicApiRateLimitGuard } from "../guards/public-api-rate-limit.guard";
-import { parsePositiveInteger } from "./public-api.query";
+import { parsePagination } from "./public-api.query";
 
 /**
  * The server-to-server call history API (HOOK-010).
@@ -59,11 +59,12 @@ export class PublicCallsController {
     @Query("date_from") dateFrom?: string,
     @Query("date_to") dateTo?: string,
   ) {
-    const pageSize = parsePositiveInteger(limit, "limit", 100) ?? 20;
+    const paging = parsePagination(page, limit, { maxLimit: 100 });
+    const pageSize = paging.limit ?? 20;
     const result = await this.calls.listByOwnerPaginated(
       request.customIntegrationAuth.ctx,
       {
-        page: parsePositiveInteger(page, "page"),
+        page: paging.page,
         limit: pageSize,
         contactId: parseUuid(contactId, "contact_id"),
         outcome: parseEnum(outcome, CallOutcome, "outcome"),

@@ -238,6 +238,63 @@ describe("admission by traffic class", () => {
   });
 });
 
+describe("one start budget for the whole account", () => {
+  it("makes a server-sent leg wait behind a browser's start, and the next browser behind it", async () => {
+    const { service, redis } = build();
+    // A person's pre-flight: the browser dials Telnyx itself right after it.
+    const browser = await service.admit({
+      source: "web_dial",
+      directStart: true,
+    });
+    expect(browser.granted).toBe(true);
+
+    // A transfer this server sends in the same instant draws on that budget.
+    const sentAt = redis.nowMs;
+    await service.runInScope({ source: "call_transfer" }, () =>
+      service.beginEgress("POST", "/calls/leg-1/actions/transfer"),
+    );
+    expect(redis.nowMs - sentAt).toBeGreaterThanOrEqual(250);
+
+    // ...and a browser right after the transfer waits behind it in turn.
+    const next = await service.admit({
+      source: "extension_dial",
+      directStart: true,
+    });
+    expect(next.granted && next.waitedMs).toBeGreaterThanOrEqual(250);
+  });
+
+  it("does not count a direct start at its grant: its webhook counts it", async () => {
+    const { service, redis } = build();
+    const decision = await service.admit({
+      source: "web_dial",
+      directStart: true,
+      countAttempt: true,
+    });
+    expect(decision.granted && decision.permit.counted).toBe(false);
+    expect(redis.hourCounters().attempts ?? 0).toBe(0);
+  });
+
+  it("looks at the start budget when it peeks, for a direct start and a server start alike", async () => {
+    const { service } = build();
+    await service.runInScope({ source: "call_transfer" }, () =>
+      service.beginEgress("POST", "/calls/leg-1/actions/transfer"),
+    );
+    // Nothing was admitted, but the start clocks are taken.
+    expect(
+      (
+        await service.peek({
+          source: "progressive_dial",
+          workspace,
+          directStart: true,
+        })
+      ).free,
+    ).toBe(false);
+    expect((await service.peek({ source: "agent_api", workspace })).free).toBe(
+      false,
+    );
+  });
+});
+
 describe("modes", () => {
   it("`off` is the kill switch: no Redis, no counting, a grant for everyone", async () => {
     const { service, redis } = build({ mode: "off" });

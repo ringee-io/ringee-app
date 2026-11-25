@@ -492,6 +492,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           userId: agent.userId,
           organizationId: campaign.organizationId,
         },
+        // The browser dials the lead itself: its grant is the start.
+        directStart: true,
       });
       if (!capacity.free) return;
     }
@@ -848,6 +850,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
           organizationId: campaign.organizationId,
         },
         countAttempt: false,
+        // Nothing of the leg passes the server: this grant is its start.
+        directStart: true,
         ...(progressive ? { maxWaitMs: 0 } : {}),
       });
       if (decision.granted) return null;

@@ -19,8 +19,8 @@ import type { TrafficLevel } from "./traffic-class";
  * Opt in with a disposable server:
  *   RINGEE_CPS_TEST_REDIS_URL=redis://127.0.0.1:<port>
  * Without it the suite is skipped, as the PostgreSQL suites are. It only ever
- * uses keys of a per-test account, and never FLUSHes anything but the database
- * it was pointed at.
+ * uses, and deletes, keys of its own per-test accounts: nothing else on the
+ * server it was pointed at is touched.
  */
 const url = process.env.RINGEE_CPS_TEST_REDIS_URL;
 const suite = url ? describe : describe.skip;
@@ -598,11 +598,16 @@ suite("outbound pacing on a real Redis", () => {
           if (result.granted) granted.push(result.nowMicros);
           else await sleep(Math.max(1, result.retryAfterMicros / 1000));
           if (!flushed && Date.now() > stopAt - 1_200) {
-            // The failure: every clock is lost, as after a restart without
-            // persistence. Only this test's database is touched.
-            await (
-              client as unknown as { flushDb: () => Promise<string> }
-            ).flushDb();
+            // The failure: every clock of the account is lost, as after a
+            // restart without persistence. Only this account's keys are
+            // deleted; whatever else the server holds is left alone.
+            const raw = client as unknown as {
+              keys: (pattern: string) => Promise<string[]>;
+              del: (keys: string[]) => Promise<number>;
+            };
+            const tag = RedisCpsLimiter.keys(acct).level(0).replace(/:l0$/, "");
+            const lost = await raw.keys(`${tag}:*`);
+            if (lost.length) await raw.del(lost);
             flushed = true;
           }
         }

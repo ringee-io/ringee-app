@@ -46,6 +46,7 @@ import { ConcurrentCallGuardService } from "../security";
 import { VoicemailDropService } from "../outbound/voicemail-drop.service";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { ContactService } from "../contact.service";
+import { errorKind } from "../error-kind.util";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -1285,11 +1286,4 @@ function sourceToActor(source: CallSessionSource): CallSessionActorSource {
     default:
       return CallSessionActorSource.api;
   }
-}
-
-/** What failed, without the message: Prisma errors echo their arguments. */
-function errorKind(err: unknown): string {
-  const code = (err as { code?: unknown } | null)?.code;
-  if (typeof code === "string") return code;
-  return err instanceof Error ? err.name : "unknown error";
 }

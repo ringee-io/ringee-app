@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -44,6 +45,13 @@ const CRM_LOOKUP_TIMEOUT_MS = 4000;
 
 /** `Contact.email` is a `VarChar(100)`; a longer address would fail the insert. */
 const EMAIL_MAX = 100;
+
+/**
+ * How many times an upsert resolves its number again when the contact it found
+ * had its number changed before the update. Two edits racing each other settle
+ * well within this; a contact that keeps moving is answered with a conflict.
+ */
+const UPSERT_RESOLVE_ATTEMPTS = 3;
 
 /**
  * What a calling surface already knows about the person it is about to dial.
@@ -108,7 +116,17 @@ export class ContactService {
 
     const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
 
-    return this.repo.create(ctx, this.contactCreateInput(ctx, dto, tagIds));
+    // The look-up above is only the fast answer. The write is the same locked
+    // find-or-create the upsert uses, so a create racing another create or an
+    // upsert for the number cannot leave the workspace two live contacts:
+    // finding one there is the same refusal.
+    const { contact, created } = await this.repo.createUnlessPhoneTaken(
+      ctx,
+      dto.phoneNumber,
+      this.contactCreateInput(ctx, dto, tagIds),
+    );
+    if (!created) throw new BadRequestException("Contact already exists");
+    return contact;
   }
 
   /** The columns, first note and tags a new contact is written with. */
@@ -213,7 +231,12 @@ export class ContactService {
       await this.tagRepo.setContactTags(id, tagIds);
     }
 
-    return this.repo.update(id, {
+    return this.repo.update(id, this.contactUpdateData(dto));
+  }
+
+  /** The contact columns a change writes; a key left out is left alone. */
+  private contactUpdateData(dto: Partial<UpdateContactDto>) {
+    return {
       name: dto.name,
       firstName: dto.firstName,
       lastName: dto.lastName,
@@ -226,7 +249,7 @@ export class ContactService {
       revenue: dto.revenue,
       companySize: dto.companySize,
       source: dto.source,
-    });
+    };
   }
 
   /**
@@ -234,49 +257,79 @@ export class ContactService {
    * it (HOOK-009). The number is the key, so a request is safe to send twice —
    * a workflow that reads the same sheet row again, a CRM that re-fires.
    *
-   * Only what the caller actually supplied is written: a blank value never
-   * erases what is stored, and `note` is recorded when the contact is created
-   * and never again, so a retry does not stack the same note.
+   * Only what the caller actually supplied is written: a blank, `null` or
+   * absent value never erases what is stored, and `note` is recorded when the
+   * contact is created and never again, so a retry does not stack the same
+   * note. `defaultSource` is the attribution of a contact this creates; an
+   * existing contact keeps its own unless the caller names another.
    */
   async upsertContact(
     ctx: OwnershipContext,
     dto: CreateContactDto,
+    options: { defaultSource?: string } = {},
   ): Promise<{ contact: Contact; created: boolean }> {
     // Validated before the write takes its lock, so a bad tag never holds one.
     const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
-    // Find-or-create in one step: two requests for a new number settle on one
-    // contact (the repository serialises them).
-    const { contact, created } = await this.repo.createUnlessPhoneTaken(
+    const createInput = this.contactCreateInput(
       ctx,
-      dto.phoneNumber,
-      this.contactCreateInput(ctx, dto, tagIds),
+      { ...dto, source: dto.source ?? options.defaultSource },
+      tagIds,
     );
-    if (created) return { contact, created: true };
-    return {
-      contact: await this.updateSuppliedFields(ctx, contact, dto),
-      created: false,
-    };
+    // The number is the key. The contact found for it is updated only while
+    // it still has that number: one whose number was changed in between is no
+    // longer this request's contact, so the number is resolved again.
+    for (let attempt = 0; attempt < UPSERT_RESOLVE_ATTEMPTS; attempt++) {
+      // Find-or-create in one step: two requests for a new number settle on
+      // one contact (the repository serialises them).
+      const { contact, created } = await this.repo.createUnlessPhoneTaken(
+        ctx,
+        dto.phoneNumber,
+        createInput,
+      );
+      if (created) return { contact, created: true };
+      const updated = await this.updateSuppliedFields(
+        ctx,
+        contact,
+        dto,
+        tagIds,
+      );
+      if (updated) return { contact: updated, created: false };
+    }
+    throw new ConflictException(
+      "The contact for this number kept changing while it was being saved. Send the request again.",
+    );
   }
 
-  private updateSuppliedFields(
+  /**
+   * Writes what the caller supplied onto the contact found for the number,
+   * only while it still has that number. `null` when it no longer does.
+   */
+  private async updateSuppliedFields(
     ctx: OwnershipContext,
     existing: Contact,
     dto: CreateContactDto,
-  ): Promise<Contact> {
+    tagIds: string[],
+  ): Promise<Contact | null> {
     const supplied = Object.fromEntries(
       Object.entries(dto).filter(
         ([key, value]) =>
           key !== "note" &&
           key !== "tagIds" &&
+          value !== null &&
+          value !== undefined &&
           (typeof value !== "string" || value.trim() !== ""),
       ),
     ) as Partial<CreateContactDto>;
-    return this.updateContact(ctx, existing.id, {
-      ...supplied,
-      // The key never changes here, so the duplicate-number check is skipped.
-      phoneNumber: existing.phoneNumber,
-      tagIds: dto.tagIds,
-    });
+    const updated = await this.repo.updateIfPhoneUnchanged(
+      ctx,
+      existing.id,
+      existing.phoneNumber,
+      // The number is the key: it is matched, never written here.
+      { ...this.contactUpdateData(supplied), phoneNumber: undefined },
+    );
+    if (!updated) return null;
+    if (dto.tagIds) await this.tagRepo.setContactTags(updated.id, tagIds);
+    return updated;
   }
 
   /**
@@ -295,7 +348,19 @@ export class ContactService {
         "confirm_phone_number must be the contact's phone number. Read the contact first and send its phoneNumber to delete it.",
       );
     }
-    return this.repo.deleteContact(contact.id);
+    // The delete itself is conditional on what was confirmed: a contact whose
+    // number changed, or that was deleted, since it was read is left alone.
+    const deleted = await this.repo.softDeleteIfPhone(
+      ctx,
+      contact.id,
+      confirmPhoneNumber,
+    );
+    if (!deleted) {
+      throw new BadRequestException(
+        "The contact changed since it was read, so it was not deleted. Read it again and send its current phoneNumber as confirm_phone_number.",
+      );
+    }
+    return deleted;
   }
 
   async addNoteToContact(userId: string, contactId: string, dto: AddNoteDto) {

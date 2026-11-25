@@ -11,7 +11,14 @@ export type LimiterRedis = Pick<RedisService, "runScript" | "hashGetAll">;
 export type AcquireMode = "acquire" | "peek" | "force" | "observe";
 
 export interface AcquireInput {
-  /** A second shared gate at HTTP egress prevents delayed permits bunching up. */
+  /**
+   * Which family of clocks decides. `egress` is the account's one budget of
+   * call starts: every start spends it, whether this server sends it through
+   * the Telnyx client or a client dials it right after its grant
+   * (`directStart`), so neither can use capacity the other already took. The
+   * `admission` clocks only schedule server work ahead of its egress; a second
+   * gate at egress also keeps delayed permits from bunching up.
+   */
   phase?: "admission" | "egress";
   account: ProviderAccountRef;
   level: TrafficLevel;

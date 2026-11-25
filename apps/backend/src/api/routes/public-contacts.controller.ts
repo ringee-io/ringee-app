@@ -28,7 +28,7 @@ import {
   type CustomIntegrationApiRequest,
 } from "../guards/custom-integration-api-key.guard";
 import { PublicApiRateLimitGuard } from "../guards/public-api-rate-limit.guard";
-import { parsePositiveInteger } from "./public-api.query";
+import { parsePagination } from "./public-api.query";
 
 /** Where a contact written through the public API says it came from. */
 const PUBLIC_API_SOURCE = "api";
@@ -56,12 +56,13 @@ export class PublicContactsController {
     @Query("limit") limit?: string,
   ) {
     const trimmed = query?.trim();
+    const paging = parsePagination(page, limit, { maxLimit: 100 });
     const { data, meta } = await this.contacts.listContacts(
       request.customIntegrationAuth.ctx,
       trimmed && trimmed !== "*" ? trimmed : undefined,
       undefined,
-      parsePositiveInteger(page, "page") ?? 1,
-      parsePositiveInteger(limit, "limit", 100) ?? 20,
+      paging.page ?? 1,
+      paging.limit ?? 20,
     );
     return {
       data: data.map(toPublicContact),
@@ -100,7 +101,8 @@ export class PublicContactsController {
   /**
    * Creates the contact for the number, or updates the one that has it. The
    * number is the key, so a retry is safe: `201` when it created one, `200`
-   * when it found one.
+   * when it found one. A contact this creates says it came from the API; one
+   * that already exists keeps its own source unless the request names one.
    */
   @Put()
   async upsert(
@@ -109,10 +111,9 @@ export class PublicContactsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const { ctx, integration } = request.customIntegrationAuth;
-    const { contact, created } = await this.contacts.upsertContact(
-      ctx,
-      withSource(dto),
-    );
+    const { contact, created } = await this.contacts.upsertContact(ctx, dto, {
+      defaultSource: PUBLIC_API_SOURCE,
+    });
     response.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     this.logger.log(
       `contact.${created ? "created" : "updated"} integration=${integration.id}`,

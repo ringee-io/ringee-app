@@ -25,7 +25,7 @@ import {
   CustomIntegrationApiKeyGuard,
   type CustomIntegrationApiRequest,
 } from "../guards/custom-integration-api-key.guard";
-import { parsePositiveInteger } from "./public-api.query";
+import { parsePagination } from "./public-api.query";
 
 /** A client's idempotency key: printable, no spaces, short enough to log. */
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:@/+=~-]{1,255}$/;
@@ -67,8 +67,7 @@ export class PublicAiVoiceAgentController {
     const ctx = request.customIntegrationAuth.ctx;
     const [result, callerNumbers] = await Promise.all([
       this.agents.list(ctx, {
-        page: parsePositiveInteger(page, "page"),
-        limit: parsePositiveInteger(limit, "limit", 100),
+        ...parsePagination(page, limit, { maxLimit: 100 }),
         type: parseAgentType(type),
       }),
       this.agents.listCallerNumbers(ctx),
@@ -212,10 +211,7 @@ export class PublicAiVoiceAgentController {
     const result = await this.calls.listCalls(
       request.customIntegrationAuth.ctx,
       agentId,
-      {
-        page: parsePositiveInteger(page, "page"),
-        limit: parsePositiveInteger(limit, "limit", 100),
-      },
+      parsePagination(page, limit, { maxLimit: 100 }),
     );
     return {
       ...result,

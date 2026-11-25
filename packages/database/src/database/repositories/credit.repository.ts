@@ -61,7 +61,7 @@ export class CreditRepository {
       const earlier = await tx.creditReservation.findMany({
         where: { idempotencyKey: { in: parts.map((p) => p.idempotencyKey) } },
       });
-      // Reusing a released/expired key must not authorize another provider dial.
+      // A settled or expired key must not authorize another provider dial.
       if (
         earlier.some(
           (r) =>
@@ -77,11 +77,16 @@ export class CreditRepository {
             (r) => r.idempotencyKey === p.idempotencyKey && r.state === "held",
           ),
       );
+      // A hold that is still active is the same reservation only at the same
+      // amount. A released one (a queued call that went back to wait) is held
+      // again for what is asked now — the estimate may have changed since —
+      // and that amount is what the funds check below counts.
       if (
         earlier.some(
           (r) =>
+            r.state === "held" &&
             parts.find((p) => p.idempotencyKey === r.idempotencyKey)?.amount !==
-            r.amount,
+              r.amount,
         )
       )
         return false;
@@ -99,7 +104,7 @@ export class CreditRepository {
         await tx.creditReservation.upsert({
           where: { idempotencyKey: part.idempotencyKey },
           create: { ...part, creditId: owned.id, expiresAt },
-          update: { state: "held", expiresAt },
+          update: { state: "held", expiresAt, amount: part.amount },
         });
       return true;
     });

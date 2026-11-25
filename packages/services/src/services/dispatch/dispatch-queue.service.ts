@@ -89,16 +89,38 @@ export class DispatchQueueService {
 
     const { settings } = await this.dispatch.getSettings();
     if (settings.queueEnabled && settings.mode !== "off") {
+      // Workspaces that cannot start a call before a moment of their own (their
+      // automated clock, their live-call cap), until that moment. They are left
+      // out of the next reads, so the pass looks past a full page of them to
+      // workspaces that can go now.
+      const waitingUntil = new Map<string, number>();
+      const setAside = (workspaceKey: string, retryAfterMs: number) =>
+        waitingUntil.set(workspaceKey, now() + Math.max(1, retryAfterMs));
       while (now() < deadline) {
+        for (const [workspaceKey, until] of waitingUntil)
+          if (until <= now()) waitingUntil.delete(workspaceKey);
         const candidates = await this.dispatches.peekCandidates(
           new Date(now()),
           DISPATCH_CLAIM_LEASE_MS,
           25,
           settings.queueAgingMs,
+          [...waitingUntil.keys()],
         );
-        if (candidates.length === 0) break;
+        if (candidates.length === 0) {
+          // Nothing else is due: wait for the first workspace set aside, if any.
+          if (waitingUntil.size === 0) break;
+          const wait = Math.min(
+            Math.min(...waitingUntil.values()) - now(),
+            2_000,
+            deadline - now(),
+          );
+          if (wait <= 0) continue;
+          await sleep(wait + Math.floor(Math.random() * 15));
+          continue;
+        }
 
         let progressed = false;
+        let setAsideNow = false;
         let soonest = Number.POSITIVE_INFINITY;
         for (const candidate of candidates) {
           if (now() >= deadline) break;
@@ -118,7 +140,12 @@ export class DispatchQueueService {
           );
           const capacity = await this.dispatch.peek({ source, workspace, cls });
           if (!capacity.free) {
-            soonest = Math.min(soonest, capacity.retryAfterMs);
+            if (capacity.reason === "workspace_busy") {
+              setAside(candidate.workspaceKey, capacity.retryAfterMs);
+              setAsideNow = true;
+            } else {
+              soonest = Math.min(soonest, capacity.retryAfterMs);
+            }
             continue;
           }
 
@@ -134,7 +161,13 @@ export class DispatchQueueService {
               break;
             case "deferred":
               summary.deferred++;
-              soonest = Math.min(soonest, outcome.retryAfterMs);
+              if (isWorkspaceWait(outcome.reason)) {
+                // The workspace's next call would wait the same way.
+                setAside(candidate.workspaceKey, outcome.retryAfterMs);
+                setAsideNow = true;
+              } else {
+                soonest = Math.min(soonest, outcome.retryAfterMs);
+              }
               break;
             case "failed":
               summary.failed++;
@@ -153,7 +186,9 @@ export class DispatchQueueService {
           if (outcome.outcome === "placed") break;
         }
 
-        if (!progressed) {
+        // A workspace set aside may have been all that stood in front of others
+        // that can go now: read again at once, past it.
+        if (!progressed && !setAsideNow) {
           const wait = Math.min(
             Number.isFinite(soonest) ? soonest : 1_000,
             2_000,
@@ -226,6 +261,19 @@ export class DispatchQueueService {
     if (!row) throw new NotFoundException("AI voice agent call not found");
     return this.calls.cancelQueued(workspaceOf(row), agentCallId);
   }
+}
+
+/**
+ * A deferral that belongs to the workspace, not to the account: its automated
+ * clock (`workspace_busy`) or its live-call cap. Another workspace's call can
+ * still go when this one cannot.
+ */
+function isWorkspaceWait(reason: string): boolean {
+  return (
+    reason === "org_concurrency" ||
+    reason === "workspace_busy" ||
+    reason === "deferred:workspace_busy"
+  );
 }
 
 /** `+12025550123` → `••••0123`. */

@@ -24,7 +24,10 @@ import {
 import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
-import { ProviderDispatchDeferredError } from "../dispatch/dispatch.types";
+import {
+  CallOriginationUncertainError,
+  ProviderDispatchDeferredError,
+} from "../dispatch/dispatch.types";
 import {
   describeTelnyxError,
   isTelnyxCallEndedError,
@@ -1748,6 +1751,14 @@ export class TelnyxService implements TelephonyService {
       // Capacity was short and nothing was sent: not a provider failure, and
       // not one to disguise as a 500 (CPS-002).
       if (error instanceof ProviderDispatchDeferredError) throw error;
+      // No answer says whether the leg exists. It may be ringing: the caller
+      // reconciles it, it is never reported as a dial that failed.
+      if (error instanceof CallOriginationUncertainError) {
+        this.logger.warn(
+          `Telnyx did not confirm an outbound dial (status ${error.getStatus()}): it may still connect`,
+        );
+        throw error;
+      }
       const telnyxError = error?.response?.data?.errors?.[0];
       // 10015 is almost always a misconfiguration rather than a runtime fault,
       // so name the variable to fix instead of surfacing a bare provider code.

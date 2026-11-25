@@ -28,7 +28,15 @@
  * counter key prefix · ARGV[12] per-hour hash key prefix · ARGV[13] per-second
  * counter TTL · ARGV[14] per-hour hash TTL · ARGV[15] the guard time automated
  * levels leave the shared level-0 clock free, microseconds · ARGV[16] the
- * furthest an overage may push a clock past now, microseconds (0: no bound)
+ * furthest an overage may push a clock past now, microseconds (0: no bound) ·
+ * ARGV[17] the recovery wait of the start (egress) clocks, microseconds (0: none)
+ *
+ * Recovery. A start clock that does not exist has lost its state (a Redis
+ * restart without persistence, a fresh account): the first `acquire` waits
+ * ARGV[17] so the grants made just before cannot share a second with new ones.
+ * Those clocks are kept for a day after their last grant, so an account that
+ * was merely quiet for a minute is not made to wait — a person's first dial
+ * after a pause goes out at once.
  *
  * Modes. `acquire` grants only when every clock allows it. `peek` reports
  * without moving anything. `force` grants regardless and counts an overage when
@@ -50,6 +58,8 @@ local guard = 0
 if level >= 1 then guard = tonumber(ARGV[15]) end
 local horizon = tonumber(ARGV[16])
 local recovery = tonumber(ARGV[17] or '0')
+local keep = 60000
+if recovery > 0 then keep = 86400000 end
 if recovery > 0 and mode == 'acquire' and redis.call('EXISTS', KEYS[1]) == 0 then
   redis.call('SET', KEYS[1], string.format('%.0f', now + recovery), 'PX', 61000)
   return {0, recovery, now, 0, 0, 0, 0}
@@ -100,7 +110,7 @@ if wouldDefer == 0 then
     if tat < now then tat = now end
     tat = tat + tonumber(ARGV[3 + i])
     if overage == 1 and horizon > 0 and (tat - now) > horizon then tat = now + horizon end
-    redis.call('SET', key, string.format('%.0f', tat), 'PX', math.ceil((tat - now) / 1000) + 60000)
+    redis.call('SET', key, string.format('%.0f', tat), 'PX', math.ceil((tat - now) / 1000) + keep)
   end
   if wsInterval > 0 then
     local tat = tonumber(redis.call('GET', KEYS[5]) or '0') or 0

@@ -471,6 +471,54 @@ export class ContactRepository {
   }
 
   /**
+   * Updates a live contact of the workspace only while it still has
+   * `phoneNumber`, in one statement, and returns it — or `null` when it no
+   * longer matches: its number was changed, or it was deleted, after it was
+   * found. Lets a write keyed by the number never land on a contact that has
+   * moved to another one.
+   */
+  async updateIfPhoneUnchanged(
+    ctx: OwnershipContext,
+    id: string,
+    phoneNumber: string,
+    data: Prisma.ContactUpdateManyMutationInput,
+  ): Promise<Contact | null> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    const { count } = await this.prisma.contact.updateMany({
+      where: { id, phoneNumber, deletedAt: null, ...ownershipFilter },
+      // Stamped explicitly, as `update` does through `@updatedAt`: given
+      // nothing else to write, `updateMany` sends no UPDATE and counts 0, which
+      // would read as "the contact no longer matches".
+      data: { ...data, updatedAt: new Date() },
+    });
+    if (count === 0) return null;
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null, ...ownershipFilter },
+    });
+  }
+
+  /**
+   * Soft-deletes a live contact of the workspace only while its number is
+   * still `phoneNumber` — the number its deleter confirmed. `null` when
+   * nothing matched: the number changed, or the contact was already deleted.
+   */
+  async softDeleteIfPhone(
+    ctx: OwnershipContext,
+    id: string,
+    phoneNumber: string,
+  ): Promise<Contact | null> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    const { count } = await this.prisma.contact.updateMany({
+      where: { id, phoneNumber, deletedAt: null, ...ownershipFilter },
+      data: { deletedAt: new Date() },
+    });
+    if (count === 0) return null;
+    return this.prisma.contact.findFirst({
+      where: { id, ...ownershipFilter },
+    });
+  }
+
+  /**
    * Whether this author already left this exact note on the contact since
    * `since`. A note deleted afterwards still counts: it was added.
    */
