@@ -24,6 +24,7 @@ import {
 import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
+import { ProviderDispatchDeferredError } from "../dispatch/dispatch.types";
 import {
   describeTelnyxError,
   isTelnyxCallEndedError,
@@ -132,6 +133,7 @@ export class TelnyxService implements TelephonyService {
     try {
       return await request();
     } catch (error) {
+      if (error instanceof ProviderDispatchDeferredError) throw error;
       // `TelnyxClient` has already logged what the provider said, redacted.
       const status = error instanceof HttpException ? error.getStatus() : 502;
       throw new CarrierConnectionError(
@@ -1743,6 +1745,9 @@ export class TelnyxService implements TelephonyService {
         callLegId: data?.call_leg_id ?? null,
       };
     } catch (error: any) {
+      // Capacity was short and nothing was sent: not a provider failure, and
+      // not one to disguise as a 500 (CPS-002).
+      if (error instanceof ProviderDispatchDeferredError) throw error;
       const telnyxError = error?.response?.data?.errors?.[0];
       // 10015 is almost always a misconfiguration rather than a runtime fault,
       // so name the variable to fix instead of surfacing a bare provider code.

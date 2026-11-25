@@ -79,6 +79,7 @@ import { ExtensionController } from "./extension.controller";
 import { BackofficeController } from "./backoffice.controller";
 import { BackofficeAccessController } from "./backoffice-access.controller";
 import { BackofficeCampaignsController } from "./backoffice-campaigns.controller";
+import { BackofficeDispatchController } from "./backoffice-dispatch.controller";
 import { BackofficeOffersController } from "./backoffice-offers.controller";
 import { OfferController } from "./offer.controller";
 import { CallerIdRotationController } from "./caller-id-rotation.controller";
@@ -163,6 +164,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     BackofficeController,
     BackofficeAccessController,
     BackofficeCampaignsController,
+    BackofficeDispatchController,
     BackofficeOffersController,
     OfferController,
     CallerIdRotationController,

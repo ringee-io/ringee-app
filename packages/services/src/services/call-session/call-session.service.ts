@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   CallOutcome,
@@ -28,6 +29,7 @@ import {
   TelephonyService,
   normalizePhoneE164,
 } from "@ringee/platform";
+import { DialPacingService } from "../dispatch/dial-pacing.service";
 import { CreditService } from "../credit.service";
 import { CallbackService } from "../outbound/callback.service";
 import { MeetingService } from "../meeting.service";
@@ -123,6 +125,7 @@ export class CallSessionService {
     private readonly voicemailDropService: VoicemailDropService,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly contactService: ContactService,
+    @Optional() private readonly pacing?: DialPacingService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -716,6 +719,11 @@ export class CallSessionService {
               : "No eligible caller ID is available for this destination.",
         });
       }
+
+      // Last gate before anything is reserved: the slot is for a dial that
+      // will happen, and a deferral costs the owner none of their allowance
+      // (CPS-002).
+      await this.pacing?.paceInteractive("session_dial", ctx);
 
       // The owner's call allowance (`maxCalls`) is reserved here, atomically
       // with the item leaving `pending`, so concurrent dials cannot both slip

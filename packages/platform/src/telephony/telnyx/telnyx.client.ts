@@ -1,8 +1,17 @@
-import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Logger,
+  Optional,
+} from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import axios, { AxiosInstance } from "axios";
 import { uacErrorDiagnostics } from "./telnyx.uac";
 import { describeTelnyxError, sanitizeMediaStreamError } from "./telnyx.error";
+import { ProviderDispatchService } from "../dispatch/provider-dispatch.service";
+import { ProviderDispatchDeferredError } from "../dispatch/dispatch.types";
+import { isCallOriginatingRequest } from "../dispatch/egress-paths";
 
 const TELNYX_ORIGIN = "https://api.telnyx.com";
 const TELNYX_BASE_PATH = "/v2";
@@ -53,7 +62,11 @@ function invalidPath(): HttpException {
 export class TelnyxClient {
   private readonly client: AxiosInstance;
 
-  constructor() {
+  /**
+   * `dispatch` is optional only so a script or a test can build a client alone;
+   * every Nest application gets the service from `DispatchModule`.
+   */
+  constructor(@Optional() private readonly dispatch?: ProviderDispatchService) {
     this.client = axios.create({
       headers: {
         Accept: "application/json",
@@ -122,15 +135,34 @@ export class TelnyxClient {
       : {};
   }
 
-  async post<T = any>(path: string, body?: any): Promise<T> {
-    try {
-      const { data } = await this.client.post<T>(
-        apiUrl(path),
-        body,
-        this.uacOptions(path),
+  private beginEgress(path: string, body?: unknown) {
+    if (!this.dispatch && isCallOriginatingRequest("POST", path, body)) {
+      throw new ProviderDispatchDeferredError(
+        "coordination_unavailable",
+        1_000,
       );
+    }
+    return this.dispatch?.beginEgress("POST", path, body);
+  }
+
+  async post<T = any>(path: string, body?: any): Promise<T> {
+    // A request that starts a call spends outbound capacity (CPS-001). This is
+    // the one egress every call-creating request passes through, so no caller
+    // can skip the shared pacing. It throws, before anything is sent, when an
+    // automated request finds none; the 429 is the caller's to handle and is
+    // not a provider error, so it stays outside `handleError`.
+    const url = apiUrl(path);
+    const egress = await this.beginEgress(path, body);
+    try {
+      const { data } = await this.client.post<T>(url, body, {
+        timeout: 30_000,
+        maxRedirects: 0,
+        ...this.uacOptions(path),
+      });
+      egress?.accepted();
       return data;
     } catch (error) {
+      egress?.failed(error);
       this.handleError(error, "POST", path, body);
     }
   }
@@ -195,11 +227,16 @@ export class TelnyxClient {
     path: string,
     body?: any,
   ): Promise<{ data: Buffer; contentType: string }> {
+    const url = apiUrl(path);
+    const egress = await this.beginEgress(path, body);
     try {
-      const response = await this.client.post(apiUrl(path), body, {
+      const response = await this.client.post(url, body, {
         responseType: "arraybuffer",
         headers: { Accept: "*/*" },
+        timeout: 30_000,
+        maxRedirects: 0,
       });
+      egress?.accepted();
       return {
         data: Buffer.from(response.data as ArrayBuffer),
         contentType:
@@ -207,6 +244,7 @@ export class TelnyxClient {
           "application/octet-stream",
       };
     } catch (error) {
+      egress?.failed(error);
       this.handleError(error, "POST", path);
     }
   }
@@ -234,6 +272,7 @@ export class TelnyxClient {
     fields: Record<string, string> = {},
     options: { fieldName?: string; timeoutMs?: number } = {},
   ): Promise<T> {
+    const url = apiUrl(path);
     const form = new FormData();
     for (const [key, value] of Object.entries(fields)) {
       form.append(key, value);
@@ -244,10 +283,12 @@ export class TelnyxClient {
       file.filename,
     );
 
+    const egress = await this.beginEgress(path, fields);
     let res: Response;
     try {
-      res = await fetch(apiUrl(path), {
+      res = await fetch(url, {
         method: "POST",
+        redirect: "error",
         headers: {
           Authorization: `Bearer ${apiConfiguration.TELNYX_API_KEY}`,
         },
@@ -257,6 +298,7 @@ export class TelnyxClient {
           : {}),
       });
     } catch (error) {
+      egress?.failed(error);
       this.handleError(error, "POST", path);
     }
 
@@ -269,8 +311,11 @@ export class TelnyxClient {
     }
 
     if (!res.ok) {
+      egress?.failed({ status: res.status });
       throw new HttpException(json, res.status || HttpStatus.BAD_GATEWAY);
     }
+
+    egress?.accepted();
 
     return json;
   }

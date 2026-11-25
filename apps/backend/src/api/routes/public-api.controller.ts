@@ -13,7 +13,7 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { AiVoiceAgentType } from "@ringee/database";
+import { AiVoiceAgentCallStatus, AiVoiceAgentType } from "@ringee/database";
 import { Public, StartVoiceAgentCallDto } from "@ringee/platform";
 import {
   VoiceAgentCallService,
@@ -158,19 +158,48 @@ export class PublicAiVoiceAgentController {
         metadata: dto.metadata,
       },
       // The scope is the authenticated integration, never a client value.
-      { scope: integration.id, idempotencyKey },
+      { scope: integration.id, integrationId: integration.id, idempotencyKey },
     );
 
-    if (!idempotencyKey) return { id: started.id, status: started.status };
+    // A call that had to wait for provider capacity (CPS-006) is ACCEPTED, not
+    // started: nothing has been dialed, and the body says so with `queued`.
+    // Queue-disabled servers retain 201 `initiating`; enabled queues always return promptly.
+    const queue = started.queue
+      ? {
+          queued_at: started.queue.queuedAt.toISOString(),
+          expires_at: started.queue.expiresAt.toISOString(),
+        }
+      : {};
+    const waiting = started.status === AiVoiceAgentCallStatus.queued;
+    if (!idempotencyKey) {
+      if (waiting) response.status(HttpStatus.ACCEPTED);
+      return { id: started.id, status: started.status, ...queue };
+    }
     if (started.replayed) {
       response.status(HttpStatus.OK);
       response.setHeader("Idempotent-Replayed", "true");
+    } else if (waiting) {
+      response.status(HttpStatus.ACCEPTED);
     }
     return {
       id: started.id,
       status: started.status,
       idempotent_replayed: started.replayed,
+      ...queue,
     };
+  }
+
+  /**
+   * Withdraws a call that is still waiting for capacity. A call already dialing
+   * cannot be cancelled this way (`409 call_not_cancellable`), and a call of
+   * another workspace is not found.
+   */
+  @Post("calls/:callId/cancel")
+  async cancelCall(
+    @Req() request: CustomIntegrationApiRequest,
+    @Param("callId", ParseUUIDPipe) callId: string,
+  ) {
+    return this.calls.cancelQueued(request.customIntegrationAuth.ctx, callId);
   }
 
   @Get(":agentId/calls")

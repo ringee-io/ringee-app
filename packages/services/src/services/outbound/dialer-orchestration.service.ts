@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
   OnModuleDestroy,
+  Optional,
 } from "@nestjs/common";
 import {
   AgentSessionStatus,
@@ -14,7 +15,11 @@ import {
   CampaignRepository,
   NumberPurchasedRepository,
 } from "@ringee/database";
-import { TelephonyService, type OwnershipContext } from "@ringee/platform";
+import {
+  ProviderDispatchService,
+  TelephonyService,
+  type OwnershipContext,
+} from "@ringee/platform";
 import { LeadQueueService } from "./lead-queue.service";
 import {
   AgentSessionService,
@@ -96,7 +101,8 @@ type RefusalReason =
   | "NO_ELIGIBLE_CALLER_IDS"
   | "CALLER_ID_UNAVAILABLE"
   | "CARRIER_UNAVAILABLE"
-  | "INVALID_DESTINATION";
+  | "INVALID_DESTINATION"
+  | "DISPATCH_PACED";
 
 interface DialRefusal {
   reason: RefusalReason;
@@ -105,6 +111,13 @@ interface DialRefusal {
   to: UndialedOutcome;
   /** The lead itself is what cannot be dialed — push it back in the queue. */
   deferLead?: boolean;
+  /**
+   * Nothing is wrong with the dial, it only has to wait its turn on the shared
+   * outbound clock (CPS-002): no blocked-call record and nothing for the agent
+   * to read, just the hand-back and a cooldown that matches the retry hint.
+   */
+  quiet?: boolean;
+  cooldownMs?: number;
 }
 
 /**
@@ -285,6 +298,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     private readonly userService: UserService,
     private readonly creditService: CreditService,
     private readonly callService: CallService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   /**
@@ -464,6 +478,22 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         );
         return;
       }
+    }
+
+    // The shared outbound clock (CPS-002), looked at BEFORE anything is locked
+    // or created and without spending any of it: when it is busy this agent
+    // simply waits for the next tick. The authoritative grant is the last
+    // dial gate, so a tick that races another instance for it still hands the
+    // assignment back cleanly.
+    if (progressive && this.dispatch) {
+      const capacity = await this.dispatch.peek({
+        source: "progressive_dial",
+        workspace: {
+          userId: agent.userId,
+          organizationId: campaign.organizationId,
+        },
+      });
+      if (!capacity.free) return;
     }
 
     // Select and lock next lead
@@ -804,10 +834,39 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       });
     }
 
+    // The last rule before the browser is told to dial: the shared outbound
+    // clock (CPS-002). A person's click (preview) waits a moment and is never
+    // refused; a progressive dial that finds the clock busy hands the agent
+    // straight back, quietly, and is tried again a moment later.
+    const pace = async (): Promise<DialGate | null> => {
+      if (!this.dispatch) return null;
+      const progressive = campaign.dialerMode === "progressive";
+      const decision = await this.dispatch.admit({
+        source: progressive ? "progressive_dial" : "preview_dial",
+        workspace: {
+          userId: agent.userId,
+          organizationId: campaign.organizationId,
+        },
+        countAttempt: false,
+        ...(progressive ? { maxWaitMs: 0 } : {}),
+      });
+      if (decision.granted) return null;
+      await this.releaseLease(agent);
+      return refuse({
+        reason: "DISPATCH_PACED",
+        message: "The line is busy placing other calls; trying again shortly.",
+        to: AgentSessionStatus.ready,
+        quiet: true,
+        cooldownMs: decision.retryAfterMs,
+      });
+    };
+
     // A campaign on the workspace's own carrier goes out with the caller ID its
     // PBX presents: Ringee caller IDs and rotation do not apply. The route
     // itself is checked when the dial is prepared (`prepareCarrierDial`).
     if (campaign.externalNumberId) {
+      const paced = await pace();
+      if (paced) return paced;
       return {
         allowed: true,
         from: { externalNumberId: campaign.externalNumberId },
@@ -844,6 +903,8 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       return refuse(callerIdRefusal(selection.reason));
     }
 
+    const paced = await pace();
+    if (paced) return paced;
     return { allowed: true, from: { callerIdNumber: selection.phoneNumber } };
   }
 
@@ -859,9 +920,15 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     refusal: DialRefusal,
     attemptId: string | null,
   ): Promise<void> {
-    this.logger.warn(
-      `Not dialing lead ${lead.id} for agent ${agent.id}: ${refusal.reason} — ${refusal.message}`,
-    );
+    if (refusal.quiet) {
+      this.logger.debug(
+        `Lead ${lead.id} for agent ${agent.id} waits its turn on the outbound clock (${refusal.cooldownMs ?? 0} ms)`,
+      );
+    } else {
+      this.logger.warn(
+        `Not dialing lead ${lead.id} for agent ${agent.id}: ${refusal.reason} — ${refusal.message}`,
+      );
+    }
     await this.callAttemptService.releaseUndialed({
       agentSessionId: agent.id,
       agentUserId: agent.userId,
@@ -875,14 +942,16 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       deferLeadUntil: refusal.deferLead
         ? new Date(Date.now() + UNDIALABLE_LEAD_DEFER_MS)
         : undefined,
-      blocked: { reason: refusal.reason, message: refusal.message },
+      blocked: refusal.quiet
+        ? undefined
+        : { reason: refusal.reason, message: refusal.message },
       offlineReason:
         refusal.to === AgentSessionStatus.offline
           ? "account_disabled"
           : undefined,
     });
     if (refusal.to === AgentSessionStatus.ready) {
-      this.startCooldown(agent.id);
+      this.startCooldown(agent.id, refusal.cooldownMs);
     }
   }
 
@@ -1372,10 +1441,15 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       );
   }
 
-  private startCooldown(agentSessionId: string): void {
+  private startCooldown(agentSessionId: string, ms?: number): void {
     this.cooldownUntil.set(
       agentSessionId,
-      Date.now() + REFUSED_DIAL_COOLDOWN_MS,
+      // A refused dial waits the standard cooldown; a dial that only has to
+      // wait its turn comes back when the clock does.
+      Date.now() +
+        (ms
+          ? Math.min(ms + 50, REFUSED_DIAL_COOLDOWN_MS)
+          : REFUSED_DIAL_COOLDOWN_MS),
     );
   }
 

@@ -46,6 +46,8 @@ const state = {
   redisCount: 1,
   redisDown: false,
   replay: false,
+  startStatus: "initiating" as string,
+  cancelled: [] as string[],
   upsertCreated: true,
   recording: Buffer.from("ID3-recording") as Buffer | null,
   contactDeletedWith: undefined as string | undefined,
@@ -145,9 +147,21 @@ const contactRow = {
           state.started.push({ input, client });
           return {
             id: "agent-call-1",
-            status: "initiating",
+            status: state.startStatus,
             replayed: state.replay,
+            ...(state.startStatus === "queued"
+              ? {
+                  queue: {
+                    queuedAt: new Date("2026-12-01T14:00:00.000Z"),
+                    expiresAt: new Date("2026-12-01T16:00:00.000Z"),
+                  },
+                }
+              : {}),
           };
+        },
+        cancelQueued: async (_ctx: unknown, id: string) => {
+          state.cancelled.push(id);
+          return { id, status: "cancelled" };
         },
         requireCall: async () => ({}),
         listCalls: async () => ({ data: [], total: 0, page: 1, limit: 20 }),
@@ -303,8 +317,65 @@ describe("public API over HTTP: capabilities (HOOK-011)", () => {
         contacts: true,
         calls: true,
         idempotentCalls: true,
+        queuedCalls: true,
       },
     });
+  });
+});
+
+describe("public API over HTTP: calls that wait for capacity (CPS-006)", () => {
+  const body = JSON.stringify({ to: "+14155550123" });
+
+  it("answers 202 with the queue times, and never mistakes it for a started call", async () => {
+    state.startStatus = "queued";
+    try {
+      const response = await call(`/v1/ai-voice-agents/${AGENT}/calls`, {
+        method: "POST",
+        body,
+        headers: { "Idempotency-Key": "lead-9" },
+      });
+      assert.equal(response.status, 202);
+      assert.deepEqual(await response.json(), {
+        id: "agent-call-1",
+        status: "queued",
+        idempotent_replayed: false,
+        queued_at: "2026-12-01T14:00:00.000Z",
+        expires_at: "2026-12-01T16:00:00.000Z",
+      });
+    } finally {
+      state.startStatus = "initiating";
+    }
+  });
+
+  it("cancels a waiting call, only for a caller with a valid key", async () => {
+    const path = "/v1/ai-voice-agents/calls";
+    assert.equal(
+      (await call(`${path}/${CALL}/cancel`, { method: "POST", key: null }))
+        .status,
+      401,
+    );
+    assert.equal(
+      (await call(`${path}/not-a-uuid/cancel`, { method: "POST" })).status,
+      400,
+    );
+    const response = await call(`${path}/${CALL}/cancel`, { method: "POST" });
+    assert.equal(response.status, 201);
+    assert.deepEqual(await response.json(), { id: CALL, status: "cancelled" });
+    assert.deepEqual(state.cancelled, [CALL]);
+  });
+
+  it("does not let the cancel route swallow, or be swallowed by, the start route", async () => {
+    // `calls/:id` reads; `:agentId/calls` starts; `calls/:id/cancel` cancels.
+    assert.equal(
+      (
+        await call(`/v1/ai-voice-agents/${AGENT}/calls`, {
+          method: "POST",
+          body,
+        })
+      ).status,
+      201,
+    );
+    assert.equal((await call(`/v1/ai-voice-agents/calls/${CALL}`)).status, 200);
   });
 });
 
@@ -376,6 +447,7 @@ describe("public API over HTTP: AI voice agents", () => {
     };
     assert.deepEqual(sent.client, {
       scope: "integration-1",
+      integrationId: "integration-1",
       idempotencyKey: "reminder-1",
     });
   });

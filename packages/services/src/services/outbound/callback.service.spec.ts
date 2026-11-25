@@ -107,6 +107,9 @@ describe("CallbackService AI voice-agent callbacks", () => {
           to: "+13055550123",
           variables: { first_name: "Ada" },
           metadata: { external_id: "crm-123", campaign: "fall" },
+          // Declared by the caller, never by a client: someone is expecting
+          // this call, so it is paced as scheduled work (CPS-003).
+          dispatch: { source: "agent_callback" },
         },
       },
     ]);

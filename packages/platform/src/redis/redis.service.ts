@@ -184,6 +184,27 @@ export class RedisService {
   }
 
   /**
+   * Runs a Lua script atomically. Declare every key the script reads or writes
+   * in `keys` (and give related keys one `{hash tag}`), so the script keeps
+   * working if the deployment is ever clustered.
+   *
+   * The caller owns the failure policy: this rethrows, because what to do when
+   * Redis is unreachable is a decision of the feature, not of the transport
+   * (the outbound pacing layer fails closed for automation and degrades for
+   * interactive calls; the public rate limiter fails open).
+   */
+  async runScript(
+    script: string,
+    keys: string[],
+    args: Array<string | number>,
+  ): Promise<unknown> {
+    return this.client.eval(script, {
+      keys,
+      arguments: args.map((arg) => String(arg)),
+    });
+  }
+
+  /**
    * Stores a short-lived marker exactly once. Used to make webhook-driven
    * counters idempotent when a provider retries the same event.
    */

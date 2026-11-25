@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   OnModuleDestroy,
+  Optional,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
@@ -27,6 +28,8 @@ import {
   OwnershipContext,
   RedisService,
   TelephonyService,
+  ProviderDispatchService,
+  inDispatchScope,
   carrierInboundLegCorrelation,
   signDialAuthorization,
   verifyDialAuthorization,
@@ -175,6 +178,7 @@ export class CallService implements OnModuleDestroy {
     private readonly inboundRoutes: InboundRouteResolverService,
     private readonly inboundRouter: InboundCallRouterService,
     private readonly inboundRing: InboundRingService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   /**
@@ -508,6 +512,13 @@ export class CallService implements OnModuleDestroy {
       event.direction === "inbound" &&
       isCarrierCallKey(sipUser(event.to))
     ) {
+      // The browser's own leg of an outbound call through a customer's carrier
+      // reaches the application as an incoming call; the carrier leg Ringee
+      // dials next is the second attempt of the same logical call.
+      void this.dispatch?.observeExternalAttempt({
+        source: "carrier_bridge",
+        callControlId: event.callControlId,
+      });
       await this.bridgeExternalOutbound(event);
       return true;
     }
@@ -634,14 +645,24 @@ export class CallService implements OnModuleDestroy {
       })`,
     );
     try {
-      await this.telephonyService.connectOutboundToCarrier(entry, {
-        destinationUri: destination.uri,
-        from: destination.from,
-        correlation: signCallCorrelation(call.id),
-        commandId: `carrier-outbound-${call.id}`,
-        timeoutSecs: EXTERNAL_CARRIER_RING_SECS,
-        markEntry: relay,
-      });
+      // The second outbound leg of one logical call (the browser's is the
+      // first): both spend the Ringee-managed account's budget (CPS-002).
+      await inDispatchScope(
+        this.dispatch,
+        {
+          source: "carrier_bridge",
+          idempotencyRef: `carrier-outbound-${call.id}`,
+        },
+        () =>
+          this.telephonyService.connectOutboundToCarrier(entry, {
+            destinationUri: destination.uri,
+            from: destination.from,
+            correlation: signCallCorrelation(call.id),
+            commandId: `carrier-outbound-${call.id}`,
+            timeoutSecs: EXTERNAL_CARRIER_RING_SECS,
+            markEntry: relay,
+          }),
+      );
     } catch (error) {
       const reason = `the carrier leg could not be started (${error instanceof Error ? error.name : "error"})`;
       if (relay) return refuse(reason);
@@ -1963,6 +1984,18 @@ export class CallService implements OnModuleDestroy {
 
     switch (eventType) {
       case "call.initiated":
+        // Every leg this server places itself — an agent call, a voicemail
+        // drop, a ring or carrier leg — was handled above. An outbound leg that
+        // gets this far is one a client dialed straight to the provider, so
+        // this webhook is the first Ringee hears of it: counted once, in the
+        // second it arrived, because the provider bills attempts however they
+        // were placed (CPS-009). Never awaited: it must not slow the webhook.
+        if (event.direction === "outbound") {
+          void this.dispatch?.observeExternalAttempt({
+            source: "web_dial",
+            callControlId,
+          });
+        }
         // A leg sent to an external carrier reaches a customer's PBX, which
         // terminates it on their own carrier. It is either the pre-dial this
         // server issued or it is hung up — never attributed from headers.

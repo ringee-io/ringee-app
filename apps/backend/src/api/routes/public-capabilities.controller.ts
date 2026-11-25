@@ -30,6 +30,13 @@ export const PUBLIC_API_CAPABILITIES = {
    * (HOOK-008).
    */
   idempotentCalls: true,
+  /**
+   * Start Call may answer `202` with status `queued` when the call has to wait
+   * for provider capacity, and `POST /v1/ai-voice-agents/calls/:id/cancel`
+   * withdraws such a call. The statuses `queued`, `cancelled` and `expired`
+   * exist; none of them has dialed anything (CPS-006).
+   */
+  queuedCalls: true,
 } as const;
 
 /**

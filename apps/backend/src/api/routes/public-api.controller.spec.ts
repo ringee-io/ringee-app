@@ -31,9 +31,15 @@ const agentRow = {
 
 function build(
   overrides: {
-    startResult?: { id: string; status: string; replayed: boolean };
+    startResult?: {
+      id: string;
+      status: string;
+      replayed: boolean;
+      queue?: { queuedAt: Date; expiresAt: Date };
+    };
   } = {},
 ) {
+  const cancelled: Array<{ ctx: unknown; id: string }> = [];
   const started: Array<{
     ctx: unknown;
     agentId: string;
@@ -70,6 +76,10 @@ function build(
           }
         );
       },
+      cancelQueued: async (ctx: unknown, id: string) => {
+        cancelled.push({ ctx, id });
+        return { id, status: "cancelled" };
+      },
     } as never,
     {} as never,
   );
@@ -85,7 +95,7 @@ function build(
       return this;
     },
   };
-  return { controller, started, response };
+  return { controller, started, response, cancelled };
 }
 
 const dto = {
@@ -129,6 +139,102 @@ describe("public API: get agent", () => {
   });
 });
 
+const QUEUED_AT = new Date("2026-12-01T14:00:00.000Z");
+const EXPIRES_AT = new Date("2026-12-01T16:00:00.000Z");
+const queuedResult = (replayed = false) => ({
+  id: "agent-call-1",
+  status: "queued",
+  replayed,
+  queue: { queuedAt: QUEUED_AT, expiresAt: EXPIRES_AT },
+});
+
+describe("public API: calls that wait for capacity (CPS-006)", () => {
+  it("answers 202 and says it was accepted, not dialed, when no key was sent", async () => {
+    const { controller, response } = build({ startResult: queuedResult() });
+
+    const result = await controller.startCall(
+      request,
+      AGENT_ID,
+      dto as never,
+      undefined,
+      response as never,
+    );
+
+    assert.deepEqual(result, {
+      id: "agent-call-1",
+      status: "queued",
+      queued_at: "2026-12-01T14:00:00.000Z",
+      expires_at: "2026-12-01T16:00:00.000Z",
+    });
+    assert.equal(response.statusCode, 202);
+  });
+
+  it("answers 202 with the replay flag for a first request under a key", async () => {
+    const { controller, response } = build({ startResult: queuedResult() });
+
+    const result = await controller.startCall(
+      request,
+      AGENT_ID,
+      dto as never,
+      "crm-lead-43",
+      response as never,
+    );
+
+    assert.deepEqual(result, {
+      id: "agent-call-1",
+      status: "queued",
+      idempotent_replayed: false,
+      queued_at: "2026-12-01T14:00:00.000Z",
+      expires_at: "2026-12-01T16:00:00.000Z",
+    });
+    assert.equal(response.statusCode, 202);
+  });
+
+  it("answers a repeat of a queued request 200, as for any replay", async () => {
+    const { controller, response } = build({
+      startResult: { id: "agent-call-1", status: "queued", replayed: true },
+    });
+
+    const result = await controller.startCall(
+      request,
+      AGENT_ID,
+      dto as never,
+      "crm-lead-43",
+      response as never,
+    );
+
+    assert.deepEqual(result, {
+      id: "agent-call-1",
+      status: "queued",
+      idempotent_replayed: true,
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["Idempotent-Replayed"], "true");
+  });
+
+  it("an idle system still answers with no status code of its own (201)", async () => {
+    const { controller, response } = build();
+    await controller.startCall(
+      request,
+      AGENT_ID,
+      dto as never,
+      undefined,
+      response as never,
+    );
+    assert.equal(response.statusCode, undefined);
+  });
+
+  it("cancels in the authenticated workspace, never one the client names", async () => {
+    const { controller, cancelled } = build();
+
+    const result = await controller.cancelCall(request, AGENT_ID);
+
+    assert.deepEqual(result, { id: AGENT_ID, status: "cancelled" });
+    assert.equal(cancelled[0]!.ctx, CTX);
+    assert.equal(cancelled[0]!.id, AGENT_ID);
+  });
+});
+
 describe("public API: start call idempotency (HOOK-008)", () => {
   it("answers exactly as before when the client sends no key", async () => {
     const { controller, started, response } = build();
@@ -164,6 +270,7 @@ describe("public API: start call idempotency (HOOK-008)", () => {
     });
     assert.deepEqual(started[0]!.client, {
       scope: "integration-1",
+      integrationId: "integration-1",
       idempotencyKey: "crm-lead-42",
     });
     assert.equal(started[0]!.ctx, CTX);

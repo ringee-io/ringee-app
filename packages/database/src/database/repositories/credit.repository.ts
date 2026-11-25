@@ -40,6 +40,93 @@ type CreditDebitTransactionClient = {
 export class CreditRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Reserve an admission estimate without changing the customer's balance.
+   * All holds and debits serialize on the Credit row, in that order. */
+  async reserveOnce(
+    ctx: OwnershipContext,
+    parts: Array<{ idempotencyKey: string; amount: number }>,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const owned = await tx.credit.findFirst({
+        where: buildOwnershipFilter(ctx),
+      });
+      if (!owned) return false;
+      const [credit] = await tx.$queryRaw<Array<{ amount: number }>>`
+        SELECT "amount" FROM "Credit" WHERE "id" = ${owned.id}::uuid FOR UPDATE
+      `;
+      const [{ now }] = await tx.$queryRaw<
+        Array<{ now: Date }>
+      >`SELECT clock_timestamp() AT TIME ZONE 'UTC' AS now`;
+      const earlier = await tx.creditReservation.findMany({
+        where: { idempotencyKey: { in: parts.map((p) => p.idempotencyKey) } },
+      });
+      // Reusing a released/expired key must not authorize another provider dial.
+      if (
+        earlier.some(
+          (r) =>
+            r.creditId !== owned.id ||
+            r.state === "settled" ||
+            (r.state === "held" && r.expiresAt <= now),
+        )
+      )
+        return false;
+      const newParts = parts.filter(
+        (p) =>
+          !earlier.some(
+            (r) => r.idempotencyKey === p.idempotencyKey && r.state === "held",
+          ),
+      );
+      if (
+        earlier.some(
+          (r) =>
+            parts.find((p) => p.idempotencyKey === r.idempotencyKey)?.amount !==
+            r.amount,
+        )
+      )
+        return false;
+      const held = await tx.creditReservation.aggregate({
+        where: { creditId: owned.id, state: "held", expiresAt: { gt: now } },
+        _sum: { amount: true },
+      });
+      const requested = newParts.reduce((sum, p) => sum + p.amount, 0);
+      if (
+        expiresAt <= now ||
+        credit.amount - (held._sum.amount ?? 0) + 1e-9 < requested
+      )
+        return false;
+      for (const part of newParts)
+        await tx.creditReservation.upsert({
+          where: { idempotencyKey: part.idempotencyKey },
+          create: { ...part, creditId: owned.id, expiresAt },
+          update: { state: "held", expiresAt },
+        });
+      return true;
+    });
+  }
+
+  async releaseReservations(
+    ctx: OwnershipContext,
+    keys: string[],
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const credit = await tx.credit.findFirst({
+        where: buildOwnershipFilter(ctx),
+        select: { id: true },
+      });
+      if (!credit) return;
+      await tx.$queryRaw`SELECT "id" FROM "Credit" WHERE "id" = ${credit.id}::uuid FOR UPDATE`;
+      await tx.creditReservation.updateMany({
+        where: {
+          idempotencyKey: { in: keys },
+          state: "held",
+          creditId: credit.id,
+        },
+        data: { state: "released" },
+      });
+    });
+  }
+
   async getOrCreateCredit(ctx: OwnershipContext): Promise<Credit> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     let credit = await this.prisma.credit.findFirst({
@@ -134,6 +221,17 @@ export class CreditRepository {
             idempotencyKey: ref.idempotencyKey,
             source: ref.source,
           },
+        });
+
+        // A settlement and the hold it replaces commit together. A duplicate
+        // debit rolls both back; other parts of the same call keep their holds.
+        await tx.creditReservation?.updateMany({
+          where: {
+            creditId: existing.id,
+            idempotencyKey: ref.idempotencyKey,
+            state: "held",
+          },
+          data: { state: "settled" },
         });
 
         return creditAfterDebit;

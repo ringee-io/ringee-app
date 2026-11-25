@@ -149,7 +149,7 @@ node_modules/.bin/eslint <changed paths>   # or: pnpm lint (repo-wide)
 pnpm lint:fix                              # eslint --fix
 pnpm format:check                          # prettier, incl. Markdown/JSON/YAML
 pnpm format                                # prettier --write
-pnpm --filter <workspace> run test         # services, database, platform, dialer-core, dialer-sdk, agent, browser-extension
+pnpm --filter <workspace> run test         # services, database, platform, dialer-core, dialer-sdk, agent, browser-extension, backend, orchestrator
 pnpm --filter <workspace> run typecheck    # services, database, dialer-*, agent, agent-cli, browser-extension, chatgpt-app
 pnpm build:backend | build:frontend | build:database | build:orchestrator
 pnpm prisma:generate                       # after any schema.prisma change

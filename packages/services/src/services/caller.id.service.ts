@@ -5,9 +5,15 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Optional,
 } from "@nestjs/common";
 import { NumberPurchased, NumberPurchasedRepository } from "@ringee/database";
-import { TelephonyService, OwnershipContext } from "@ringee/platform";
+import {
+  TelephonyService,
+  OwnershipContext,
+  ProviderDispatchService,
+  inDispatchScope,
+} from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "./credit.service";
 
@@ -31,6 +37,7 @@ export class CallerIdService {
     private readonly repo: NumberPurchasedRepository,
     private readonly telephonyService: TelephonyService,
     private readonly creditService: CreditService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   /** The flat fee charged per verification sent (covers Telnyx base + channel). */
@@ -126,10 +133,15 @@ export class CallerIdService {
       source: "telnyx.caller-id.verification",
     });
     try {
-      await this.telephonyService.requestCallIdVerification(
-        phoneNumber,
-        method,
-        extension,
+      await inDispatchScope(
+        this.dispatch,
+        { source: "caller_id_verification", workspace: ctx },
+        () =>
+          this.telephonyService.requestCallIdVerification(
+            phoneNumber,
+            method,
+            extension,
+          ),
       );
     } catch (err) {
       // Ledgered refund keyed to the same attempt, so a retried failure path

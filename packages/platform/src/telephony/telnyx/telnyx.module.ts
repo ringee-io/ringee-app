@@ -3,9 +3,11 @@ import { TelnyxService } from "./telnyx.service";
 import { TelnyxClient } from "./telnyx.client";
 import { TelnyxWebhookVerifier } from "./telnyx.webhook.verifier";
 import { TelnyxEventNormalizer } from "./telnyx.event.normalizer";
+import { DispatchModule } from "../dispatch/dispatch.module";
 
 @Module({
-  imports: [],
+  // The client asks the dispatch service before any request that starts a call.
+  imports: [DispatchModule],
   providers: [
     TelnyxService,
     TelnyxClient,

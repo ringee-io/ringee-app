@@ -39,6 +39,14 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 ## Telephony
 
+Outbound HTTP pacing is owned by `ProviderDispatchService` in
+`platform/src/telephony/dispatch`; durable AI queue transitions are owned by
+`AiVoiceAgentCallDispatchRepository`, with orchestration in `DispatchQueueService`
+and `VoiceAgentCallService`. Credit holds extend `CreditService` /
+`CreditRepository`. Do not add a controller-specific limiter, integration queue
+or second balance mutation path. Coverage limits are documented in
+`docs/telnyx-cps-cost-protection.md`.
+
 | Responsibility                        | Owner                                                                                |
 | ------------------------------------- | ------------------------------------------------------------------------------------ |
 | Any provider command                  | `TelephonyService` — `platform/src/telephony/telephony.service.ts`                   |

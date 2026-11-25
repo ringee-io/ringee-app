@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
   CallRepository,
   CallStatus,
@@ -11,7 +11,9 @@ import {
 } from "@ringee/database";
 import {
   OwnershipContext,
+  ProviderDispatchService,
   TelnyxService,
+  inDispatchScope,
   carrierInboundHeaderCorrelation,
   verifyCallCorrelation,
 } from "@ringee/platform";
@@ -69,6 +71,7 @@ export class DeskPhoneCallService {
     private readonly telnyx: TelnyxService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly inboxTimeline: InboxTimelineService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   async handleEvent(event: {
@@ -371,13 +374,23 @@ export class DeskPhoneCallService {
     //    (Telnyx auto-ends the call); the real cost is still settled on
     //    call.cost. A device-level dailySpendLimit can override the default.
     const maxMinutes = apiConfiguration.DESK_PHONE_MAX_CALL_MINUTES;
-    await this.telnyx.connectParkedCall(callControlId, {
-      to: destination,
-      from: callerId,
-      clientState: { sipDeviceId: device.id, source: "sip_device" },
-      timeLimitSecs:
-        maxMinutes && maxMinutes > 0 ? Math.floor(maxMinutes * 60) : undefined,
-    });
+    await inDispatchScope(
+      this.dispatch,
+      {
+        source: "desk_phone_bridge",
+        idempotencyRef: `desk-bridge-${callControlId}`,
+      },
+      () =>
+        this.telnyx.connectParkedCall(callControlId, {
+          to: destination,
+          from: callerId,
+          clientState: { sipDeviceId: device.id, source: "sip_device" },
+          timeLimitSecs:
+            maxMinutes && maxMinutes > 0
+              ? Math.floor(maxMinutes * 60)
+              : undefined,
+        }),
+    );
 
     // 7) Record the call in history (source = Desk Phone).
     const contact = await this.contactService

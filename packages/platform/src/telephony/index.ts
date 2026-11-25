@@ -1,6 +1,8 @@
 export * from "./interfaces";
 export * from "./carrier-route-key";
 export * from "./dial-authorization";
+// Outbound pacing: the shared budget every call attempt asks for (CPS-001..).
+export * from "./dispatch";
 export * from "./telephony.service";
 export * from "./telephony.module";
 export * from "./telnyx/telnyx.webhook.types";

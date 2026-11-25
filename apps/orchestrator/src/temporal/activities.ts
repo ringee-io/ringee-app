@@ -7,6 +7,8 @@ import {
   CrmSyncService,
   CustomIntegrationDeliveryService,
   DemoRequestReviewService,
+  DispatchMaintenanceService,
+  DispatchQueueService,
   EnrichmentDrainService,
   McpUsageService,
   MeetingEmailService,
@@ -34,6 +36,8 @@ import type {
 
 const CRM_DRAIN_BATCH_SIZE = 25;
 const ENRICHMENT_DRAIN_BATCH_SIZE = 25;
+/** How long one pass of the dispatch pump may run (CPS-006); the activity allows 3 minutes. */
+const DISPATCH_PASS_BUDGET_MS = 55_000;
 const CUSTOM_INTEGRATIONS_DRAIN_BATCH_SIZE = 100;
 
 /**
@@ -70,6 +74,8 @@ export function createActivities(app: INestApplicationContext) {
   const mcpUsage = app.get(McpUsageService);
   const productAnalytics = app.get(ProductAnalyticsService);
   const demoRequestReview = app.get(DemoRequestReviewService);
+  const dispatchQueue = app.get(DispatchQueueService);
+  const dispatchMaintenance = app.get(DispatchMaintenanceService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -260,6 +266,33 @@ export function createActivities(app: INestApplicationContext) {
       if (projected || sent || retried || failed || skipped)
         logger.debug(
           `ProductAnalytics: projected ${projected}, sent ${sent}, retried ${retried}, failed ${failed}, skipped ${skipped}`,
+        );
+    },
+
+    /**
+     * One pass of the dispatch pump (CPS-006): places the agent calls waiting
+     * for capacity, fairly, as the shared clock allows. The workflow keeps
+     * calling it while there is something to do.
+     */
+    async runDispatchPass() {
+      const summary = await dispatchQueue.runPass({
+        budgetMs: DISPATCH_PASS_BUDGET_MS,
+      });
+      return {
+        remaining: summary.remaining,
+        progressed:
+          summary.placed + summary.failed + summary.inDoubt + summary.expired >
+          0,
+        nextDueInMs: summary.nextDueInMs,
+      };
+    },
+
+    /** The books of outbound pacing: hourly statistics, expiry, alerts. */
+    async runDispatchMaintenance() {
+      const summary = await dispatchMaintenance.run();
+      if (summary.expired || summary.alerts)
+        logger.debug(
+          `DispatchMaintenance: flushed ${summary.flushedHours} hours, expired ${summary.expired}, raised ${summary.alerts} alerts`,
         );
     },
 

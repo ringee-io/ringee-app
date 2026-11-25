@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   VoicemailDropAssetRepository,
@@ -13,8 +14,10 @@ import {
   VoicemailDropAsset,
 } from "@ringee/database";
 import {
+  ProviderDispatchService,
   TelephonyService,
   UploadFactory,
+  inDispatchScope,
   signCallCorrelation,
 } from "@ringee/platform";
 import { randomUUID } from "node:crypto";
@@ -93,6 +96,7 @@ export class VoicemailDropService {
     private readonly userService: UserService,
     private readonly contactService: ContactService,
     private readonly callerIdRotationService: CallerIdRotationService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -317,17 +321,23 @@ export class VoicemailDropService {
         : undefined,
     });
 
-    const leg = await this.telephonyService.dial({
-      to: destination,
-      from: callerId,
-      clientState,
-      // `greeting_end` is what makes this a voicemail drop rather than a cold
-      // call: Telnyx waits out the machine's greeting and tells us when to
-      // start playing.
-      answeringMachineDetection: "greeting_end",
-      timeoutSecs: VOICEMAIL_RING_TIMEOUT_SECS,
-      timeLimitSecs: VOICEMAIL_MAX_CALL_SECS,
-    });
+    // A person pressed "send voicemail": paced as interactive, never refused.
+    const leg = await inDispatchScope(
+      this.dispatch,
+      { source: "voicemail_drop" },
+      () =>
+        this.telephonyService.dial({
+          to: destination,
+          from: callerId,
+          clientState,
+          // `greeting_end` is what makes this a voicemail drop rather than a
+          // cold call: Telnyx waits out the machine's greeting and tells us
+          // when to start playing.
+          answeringMachineDetection: "greeting_end",
+          timeoutSecs: VOICEMAIL_RING_TIMEOUT_SECS,
+          timeLimitSecs: VOICEMAIL_MAX_CALL_SECS,
+        }),
+    );
 
     if (!leg.callControlId) {
       throw new BadRequestException("Provider did not return a call");

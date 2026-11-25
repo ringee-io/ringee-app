@@ -59,6 +59,10 @@ export const WORKFLOW_NAMES = {
   voiceAgentSweep: "voiceAgentSweepWorkflow",
   mcpUsagePrune: "mcpUsagePruneWorkflow",
   productAnalyticsDrain: "productAnalyticsDrainWorkflow",
+  // Outbound pacing (CPS-006): dispatches the agent calls waiting for capacity,
+  // and keeps the books (hourly statistics, expiry, alerts).
+  dispatchQueue: "dispatchQueueWorkflow",
+  dispatchMaintenance: "dispatchMaintenanceWorkflow",
 } as const;
 
 export type WorkflowName = (typeof WORKFLOW_NAMES)[keyof typeof WORKFLOW_NAMES];
