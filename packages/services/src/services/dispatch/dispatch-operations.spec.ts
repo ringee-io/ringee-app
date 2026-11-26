@@ -781,7 +781,11 @@ describe("DispatchAlertService", () => {
         {} as never,
         redis as never,
         {
-          send: async (message: { subject: string; html: string }) => {
+          send: async (message: {
+            subject: string;
+            html: string;
+            idempotencyKey?: string;
+          }) => {
             sent.push(message);
             const next = results.shift() ?? { accepted: true };
             return next.accepted
@@ -819,6 +823,11 @@ describe("DispatchAlertService", () => {
       await alerts.deliver(alert);
       assert.equal(sent.length, 2, "a failure and the retry that went out");
       assert.equal(slept.length, 1);
+      // Both tries carry the claim's one key, so a try the provider took
+      // without saying so is not emailed twice.
+      const [first, retry] = sent as Array<{ idempotencyKey?: string }>;
+      assert.ok(first.idempotencyKey);
+      assert.equal(retry.idempotencyKey, first.idempotencyKey);
       // Delivered: the claim stays, so the next raise in the hour sends nothing.
       assert.equal(redis.held.size, 1);
       await alerts.deliver(alert);
@@ -832,11 +841,78 @@ describe("DispatchAlertService", () => {
       const { alerts, slept } = make(redis, failing, sent);
       await alerts.deliver(alert);
       assert.equal(sent.length, 3, "bounded: the first try and two retries");
-      assert.ok(slept.every((ms) => ms > 0));
+      assert.deepEqual(slept, [1_000, 4_000]);
       assert.equal(redis.held.size, 0, "the failed send used no cooldown");
       await alerts.deliver(alert);
       assert.equal(sent.length, 4);
       assert.equal(redis.held.size, 1);
+    });
+
+    it("hands the claim back through a Redis blip, and gives up after a bounded few", async () => {
+      const failing = () =>
+        Array.from({ length: 3 }, () => ({ accepted: false }));
+
+      // One error, then Redis answers: the claim is handed back.
+      const blip = claims();
+      const swap = blip.compareAndSwap;
+      let errors = 1;
+      blip.compareAndSwap = async (key, expected, next) => {
+        if (errors-- > 0) throw new Error("redis blinked");
+        return swap(key, expected, next);
+      };
+      const once = make(blip, failing(), []);
+      await once.alerts.deliver(alert);
+      assert.equal(blip.held.size, 0, "the claim was handed back");
+      assert.deepEqual(once.slept, [1_000, 4_000, 250]);
+
+      // Redis stays down: a bounded few tries, then the claim is left to expire.
+      const down = claims();
+      let tries = 0;
+      down.compareAndSwap = async () => {
+        tries++;
+        throw new Error("redis down");
+      };
+      const stuck = make(down, failing(), []);
+      await assert.doesNotReject(stuck.alerts.deliver(alert));
+      assert.equal(tries, 3);
+      assert.equal(down.held.size, 1);
+    });
+
+    it("leaves a newer claim of this process alone when a slow failed send hands its own back", async () => {
+      const sent: unknown[] = [];
+      const down = {
+        setIfAbsent: async () => {
+          throw new Error("redis down");
+        },
+        compareAndSwap: async () => {
+          throw new Error("redis down");
+        },
+      };
+      // A's three tries fail; B, sent while A waits to retry, goes out.
+      const { alerts } = make(
+        down,
+        [
+          { accepted: false },
+          { accepted: true },
+          { accepted: false },
+          { accepted: false },
+        ],
+        sent,
+      );
+      let now = NOW;
+      alerts.now = () => now;
+      let waits = 0;
+      alerts.sleep = async () => {
+        if (waits++ > 0) return;
+        // A's retry waits past the cooldown, and B claims and sends meanwhile.
+        now += 3_600_001;
+        await alerts.deliver(alert);
+      };
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 4);
+      // A handed back only its own claim: B's still holds this hour.
+      await alerts.deliver(alert);
+      assert.equal(sent.length, 4);
     });
 
     it("keeps the claim when trying again cannot help", async () => {
@@ -1111,6 +1187,17 @@ describe("DispatchQueueService pass", () => {
                 waiting.has(c.agentCallId) && !exclude.includes(c.workspaceKey),
             )
             .slice(0, limit);
+          // A workspace set aside comes back only once its minute is over,
+          // long after this pass. A pass that read one again before then
+          // would read it forever, and the fake clock moves only when the
+          // pass sleeps: fail instead of hanging.
+          const repeated = page.find((c) =>
+            reads.some((read) => read.includes(c.agentCallId)),
+          );
+          if (repeated)
+            throw new Error(
+              `${repeated.workspaceKey} was read again while it was set aside`,
+            );
           reads.push(page.map((c) => c.agentCallId));
           return page;
         },

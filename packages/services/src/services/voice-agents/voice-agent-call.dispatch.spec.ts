@@ -170,6 +170,7 @@ function build(
         reason: string,
         requeueOptions: unknown,
       ) => {
+        log.push("requeue");
         requeued.push({ reason, options: requeueOptions });
         return true;
       },
@@ -235,7 +236,7 @@ describe("dispatching a queued call", () => {
   });
 
   it("puts a deferred egress back in the queue even when undoing the placement fails", async () => {
-    const { dispatch, requeued } = build({
+    const { dispatch, log, requeued } = build({
       dial: async () => {
         throw new ProviderDispatchDeferredError("busy", 900);
       },
@@ -252,6 +253,13 @@ describe("dispatching a queued call", () => {
       reason: "busy",
       retryAfterMs: 900,
     });
+    // Both undo steps were tried, though each failed, before it went back.
+    assert.deepEqual(
+      log.filter((entry) =>
+        ["release-holds", "close-call", "requeue"].includes(entry),
+      ),
+      ["release-holds", "close-call", "requeue"],
+    );
     // Waiting for capacity is not an attempt that failed.
     assert.deepEqual(requeued, [
       { reason: "busy", options: { refundAttempt: true } },

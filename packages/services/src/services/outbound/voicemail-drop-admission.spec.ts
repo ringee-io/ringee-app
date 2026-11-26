@@ -85,13 +85,26 @@ describe("server-originated voicemail admission", () => {
     assert.equal((row as Record<string, unknown> | null)?.status, "answered");
   });
 
-  /** A drop service whose provider dial does what `dial` says. */
+  /**
+   * A drop service over the drops to one number, kept the way the repository
+   * keeps them: a send writes its pending row unless an unfinished drop stands
+   * in the way, and only a pending row with no leg is closed or claimed. Its
+   * provider dial does what `dial` says, numbered from 1.
+   */
   function dropWith(options: {
     unfinished?: { id: string; status: string };
-    dial?: () => Promise<{ callControlId: string }>;
+    dial?: (attempt: number) => Promise<{ callControlId: string }>;
   }) {
     const dials: unknown[] = [];
     const failed: string[] = [];
+    const rows: Array<Record<string, unknown>> = options.unfinished
+      ? [{ ...options.unfinished, callControlId: null }]
+      : [];
+    const unbound = (id: string) =>
+      rows.find(
+        (row) =>
+          row.id === id && row.status === "pending" && !row.callControlId,
+      );
     const service: VoicemailDropService = Object.assign(
       Object.create(VoicemailDropService.prototype),
       {
@@ -100,15 +113,37 @@ describe("server-originated voicemail admission", () => {
           createVoicemailDropUnlessUnfinished: async (
             ctx: object,
             data: Record<string, unknown>,
-          ) =>
-            options.unfinished
-              ? { unfinished: options.unfinished }
-              : { created: { ...ctx, ...data, callControlId: null } },
+          ) => {
+            const unfinished = rows.find((row) =>
+              ["pending", "ringing", "answered", "recording"].includes(
+                String(row.status),
+              ),
+            );
+            if (unfinished) {
+              return {
+                unfinished: { id: unfinished.id, status: unfinished.status },
+              };
+            }
+            const created = { ...ctx, ...data, callControlId: null };
+            rows.push(created);
+            return { created };
+          },
           failPendingCall: async (id: string) => {
             failed.push(id);
+            const row = unbound(id);
+            if (!row) return false;
+            row.status = "failed";
             return true;
           },
-          claimPendingCall: async () => true,
+          claimPendingCall: async (
+            id: string,
+            data: Record<string, unknown>,
+          ) => {
+            const row = unbound(id);
+            if (!row) return false;
+            Object.assign(row, data, { status: "ringing" });
+            return true;
+          },
         },
         requireAsset: async () => ({ id: "asset-1", name: "Message" }),
         resolveCallerId: async () => "+12125550100",
@@ -122,7 +157,8 @@ describe("server-originated voicemail admission", () => {
           dial: async (request: unknown) => {
             dials.push(request);
             return (
-              options.dial?.() ?? Promise.resolve({ callControlId: "leg-1" })
+              options.dial?.(dials.length) ??
+              Promise.resolve({ callControlId: `leg-${dials.length}` })
             );
           },
         },
@@ -133,7 +169,7 @@ describe("server-originated voicemail admission", () => {
         { userId: "user-1", organizationId: "org-1" },
         { assetId: "asset-1", toNumber: "+18095551234" },
       );
-    return { send, dials, failed };
+    return { send, dials, failed, rows };
   }
 
   it("dials no second drop while an earlier one to the number is unsettled", async () => {
@@ -177,13 +213,25 @@ describe("server-originated voicemail admission", () => {
       new HttpException("Invalid destination", 422),
       new ProviderDispatchDeferredError("busy", 900),
     ]) {
-      const { send, failed } = dropWith({
-        dial: async () => {
-          throw refusal;
+      const { send, dials, rows } = dropWith({
+        // Refused the first time; the next send to the number goes out.
+        dial: async (attempt) => {
+          if (attempt === 1) throw refusal;
+          return { callControlId: "leg-2" };
         },
       });
       await assert.rejects(send(), (error: unknown) => error === refusal);
-      assert.equal(failed.length, 1);
+      assert.equal(rows.length, 1);
+      assert.equal(
+        rows[0].status,
+        "failed",
+        "the refused drop's row is closed",
+      );
+
+      const result = await send();
+      assert.equal(dials.length, 2, "the number was free for another drop");
+      assert.equal(result.callControlId, "leg-2");
+      assert.equal(rows[1].status, "ringing");
     }
   });
 

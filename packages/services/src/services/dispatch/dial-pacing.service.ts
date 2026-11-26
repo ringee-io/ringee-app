@@ -14,8 +14,10 @@ import {
  * can still decide WHEN, so it holds the answer until the shared clock has a
  * slot — and the browser dials right after, within the jitter the safety margin
  * is sized for. That slot is a direct start: it comes from the same start
- * budget every server-sent leg spends, so a browser's dial and a server's cannot
- * both take one moment of capacity. The leg itself is counted later, when its
+ * budget every server-sent leg spends, so a browser's grant and a server's
+ * cannot both take one moment of capacity. It spaces grants, not dials: a
+ * browser that dials late can still start beside a server leg granted after
+ * it. The leg itself is counted later, when its
  * webhook arrives (`ProviderDispatchService.observeExternalAttempt`), so nothing
  * is counted twice.
  *

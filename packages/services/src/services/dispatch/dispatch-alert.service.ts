@@ -28,6 +28,11 @@ const EMAIL_COOLDOWN_SECONDS = 3600;
  * time the alert is raised it is sent instead of waiting out the hour.
  */
 const EMAIL_RETRY_DELAYS_MS = [1_000, 4_000];
+/**
+ * A claim whose send did not go out is handed back; a Redis error doing so is
+ * tried again this often (ms) before the claim is left to expire.
+ */
+const CLAIM_RELEASE_RETRY_DELAYS_MS = [250, 1_000];
 
 const sleepFor = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -54,9 +59,15 @@ const escapeHtml = (value: string) =>
 @Injectable()
 export class DispatchAlertService implements OnModuleInit {
   private readonly logger = new Logger(DispatchAlertService.name);
-  private readonly emailed = new Map<string, number>();
+  /**
+   * This process's own cooldown, used while Redis cannot be reached: when the
+   * alert was last claimed here, and by which delivery.
+   */
+  private readonly emailed = new Map<string, { at: number; claim: string }>();
   /** A seam for tests: how long to wait before trying a send again. */
   sleep: (ms: number) => Promise<void> = sleepFor;
+  /** A seam for tests: the clock the in-process cooldown reads. */
+  now: () => number = Date.now;
 
   constructor(
     private readonly dispatch: ProviderDispatchService,
@@ -91,7 +102,7 @@ export class DispatchAlertService implements OnModuleInit {
     const claim = randomUUID();
     let fresh = true;
     let claimedInRedis = false;
-    let previousLocal: number | undefined;
+    let previousLocal: { at: number; claim: string } | undefined;
     try {
       fresh = await this.redis.setIfAbsent(
         claimKey,
@@ -102,8 +113,9 @@ export class DispatchAlertService implements OnModuleInit {
     } catch {
       // Redis may be the very thing that is down: do not stay silent about it.
       previousLocal = this.emailed.get(alert.key);
-      fresh = Date.now() - (previousLocal ?? 0) > EMAIL_COOLDOWN_SECONDS * 1000;
-      if (fresh) this.emailed.set(alert.key, Date.now());
+      fresh =
+        this.now() - (previousLocal?.at ?? 0) > EMAIL_COOLDOWN_SECONDS * 1000;
+      if (fresh) this.emailed.set(alert.key, { at: this.now(), claim });
     }
     if (!fresh) return;
 
@@ -129,6 +141,9 @@ export class DispatchAlertService implements OnModuleInit {
           html,
           fromName: "Ringee Notifications",
           fromAddress: apiConfiguration.EMAIL_FROM_ADDRESS,
+          // One key for every try under this claim: a try the provider took
+          // without confirming it is not emailed twice by the retry after it.
+          idempotencyKey: claim,
         })
         .catch(
           (): EmailSendResult => ({
@@ -158,13 +173,39 @@ export class DispatchAlertService implements OnModuleInit {
     // Nothing went out: hand the claim back. Only this claim — a newer one
     // taken meanwhile is someone else's send.
     if (claimedInRedis) {
-      await this.redis
-        .compareAndSwap(claimKey, claim, null)
-        .catch(() => undefined);
-    } else if (previousLocal === undefined) {
-      this.emailed.delete(alert.key);
-    } else {
-      this.emailed.set(alert.key, previousLocal);
+      await this.releaseClaim(claimKey, claim, alert.key);
+    } else if (this.emailed.get(alert.key)?.claim === claim) {
+      if (previousLocal === undefined) this.emailed.delete(alert.key);
+      else this.emailed.set(alert.key, previousLocal);
+    }
+  }
+
+  /**
+   * Hands back the Redis claim of an alert whose email did not go out, only
+   * while the claim is still this delivery's. A Redis error is tried again a
+   * bounded few times; while Redis stays unreachable the claim holds the
+   * alert's email until it expires, and that is logged.
+   */
+  private async releaseClaim(
+    claimKey: string,
+    claim: string,
+    alertKey: string,
+  ): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        // `false` means the claim is no longer this delivery's (it expired,
+        // or a newer send took it): there is nothing left to hand back.
+        await this.redis.compareAndSwap(claimKey, claim, null);
+        return;
+      } catch {
+        if (attempt >= CLAIM_RELEASE_RETRY_DELAYS_MS.length) {
+          this.logger.warn(
+            `Could not hand back the claim of the alert ${alertKey}, whose email did not go out: Redis is unreachable, so the alert may not be emailed again until the claim expires (up to ${EMAIL_COOLDOWN_SECONDS / 60} min)`,
+          );
+          return;
+        }
+        await this.sleep(CLAIM_RELEASE_RETRY_DELAYS_MS[attempt]);
+      }
     }
   }
 

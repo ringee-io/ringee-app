@@ -2,7 +2,25 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { Prisma, Contact, CallOutcome } from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import { replaceContactTags } from "./tag.repository";
 import { workspaceOwnershipSql } from "./workspace-scope";
+
+/**
+ * The lock every write that gives a workspace's contact a number takes on that
+ * number — a create, an upsert's find-or-create, a move to a new number — for
+ * the rest of its transaction. It releases with the transaction, even if the
+ * process dies.
+ */
+function lockContactPhone(
+  tx: Prisma.TransactionClient,
+  ctx: OwnershipContext,
+  phoneNumber: string,
+) {
+  const workspace = ctx.organizationId
+    ? `org:${ctx.organizationId}`
+    : `user:${ctx.userId}`;
+  return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`contact-phone:${workspace}:${phoneNumber}`}, 0))`;
+}
 
 /** A contact row with the multi-value email/phone relations needed for dedup. */
 export type ContactDedupMatch = Prisma.ContactGetPayload<{
@@ -134,11 +152,8 @@ export class ContactRepository {
     phoneNumber: string,
     data: Omit<Prisma.ContactCreateInput, "user" | "organization">,
   ): Promise<{ contact: Contact; created: boolean }> {
-    const workspace = ctx.organizationId
-      ? `org:${ctx.organizationId}`
-      : `user:${ctx.userId}`;
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`contact-phone:${workspace}:${phoneNumber}`}, 0))`;
+      await lockContactPhone(tx, ctx, phoneNumber);
       const existing = await tx.contact.findFirst({
         where: { ...buildOwnershipFilter(ctx), phoneNumber, deletedAt: null },
       });
@@ -476,24 +491,75 @@ export class ContactRepository {
    * longer matches: its number was changed, or it was deleted, after it was
    * found. Lets a write keyed by the number never land on a contact that has
    * moved to another one.
+   *
+   * `tagIds`, when given, replaces the tags of the contact the number matched,
+   * in the same transaction: the fields and the tags are written together or
+   * not at all, and never onto a contact that no longer matches.
    */
   async updateIfPhoneUnchanged(
     ctx: OwnershipContext,
     id: string,
     phoneNumber: string,
     data: Prisma.ContactUpdateManyMutationInput,
+    tagIds?: string[],
   ): Promise<Contact | null> {
     const ownershipFilter = buildOwnershipFilter(ctx);
-    const { count } = await this.prisma.contact.updateMany({
-      where: { id, phoneNumber, deletedAt: null, ...ownershipFilter },
-      // Stamped explicitly, as `update` does through `@updatedAt`: given
-      // nothing else to write, `updateMany` sends no UPDATE and counts 0, which
-      // would read as "the contact no longer matches".
-      data: { ...data, updatedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.contact.updateMany({
+        where: { id, phoneNumber, deletedAt: null, ...ownershipFilter },
+        // Stamped explicitly, as `update` does through `@updatedAt`: given
+        // nothing else to write, `updateMany` sends no UPDATE and counts 0,
+        // which would read as "the contact no longer matches".
+        data: { ...data, updatedAt: new Date() },
+      });
+      if (count === 0) return null;
+      if (tagIds) await replaceContactTags(tx, id, tagIds);
+      return tx.contact.findFirst({
+        where: { id, deletedAt: null, ...ownershipFilter },
+      });
     });
-    if (count === 0) return null;
-    return this.prisma.contact.findFirst({
-      where: { id, deletedAt: null, ...ownershipFilter },
+  }
+
+  /**
+   * Gives a live contact of the workspace a new number, with the rest of
+   * `data` and, when given, `tagIds` as its tags — unless another live contact
+   * of the workspace already has the number (`"taken"`). `null` when the
+   * contact itself is gone.
+   *
+   * The check and the write are one step under the lock
+   * `createUnlessPhoneTaken` takes on the number, so a move racing a create,
+   * an upsert or another move to the same number cannot leave the workspace
+   * two live contacts with it.
+   */
+  async updateUnlessPhoneTaken(
+    ctx: OwnershipContext,
+    id: string,
+    phoneNumber: string,
+    data: Prisma.ContactUpdateManyMutationInput,
+    tagIds?: string[],
+  ): Promise<Contact | "taken" | null> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    return this.prisma.$transaction(async (tx) => {
+      await lockContactPhone(tx, ctx, phoneNumber);
+      const holder = await tx.contact.findFirst({
+        where: {
+          ...ownershipFilter,
+          phoneNumber,
+          deletedAt: null,
+          id: { not: id },
+        },
+        select: { id: true },
+      });
+      if (holder) return "taken";
+      const { count } = await tx.contact.updateMany({
+        where: { id, deletedAt: null, ...ownershipFilter },
+        data: { ...data, phoneNumber, updatedAt: new Date() },
+      });
+      if (count === 0) return null;
+      if (tagIds) await replaceContactTags(tx, id, tagIds);
+      return tx.contact.findFirst({
+        where: { id, deletedAt: null, ...ownershipFilter },
+      });
     });
   }
 

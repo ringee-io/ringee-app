@@ -217,19 +217,29 @@ export class ContactService {
     dto: Partial<UpdateContactDto>,
   ): Promise<Contact> {
     const contact = await this.ensureOwned(ctx, id);
+    const tagIds = dto.tagIds
+      ? await this.validateOwnedTagIds(ctx, dto.tagIds)
+      : undefined;
 
     if (dto.phoneNumber && dto.phoneNumber !== contact.phoneNumber) {
-      const exists = await this.repo.findByPhone(ctx, dto.phoneNumber);
-
-      if (exists) {
+      // A new number is checked and written in one step, under the lock a
+      // create or an upsert takes on the number, so a move racing either — or
+      // another move — cannot leave two live contacts with it.
+      const moved = await this.repo.updateUnlessPhoneTaken(
+        ctx,
+        id,
+        dto.phoneNumber,
+        this.contactUpdateData(dto),
+        tagIds,
+      );
+      if (moved === "taken") {
         throw new BadRequestException("Contact already exists");
       }
+      if (!moved) throw new NotFoundException("Contact not found");
+      return moved;
     }
 
-    if (dto.tagIds) {
-      const tagIds = await this.validateOwnedTagIds(ctx, dto.tagIds);
-      await this.tagRepo.setContactTags(id, tagIds);
-    }
+    if (tagIds) await this.tagRepo.setContactTags(id, tagIds);
 
     return this.repo.update(id, this.contactUpdateData(dto));
   }
@@ -302,7 +312,8 @@ export class ContactService {
 
   /**
    * Writes what the caller supplied onto the contact found for the number,
-   * only while it still has that number. `null` when it no longer does.
+   * only while it still has that number. `null` when it no longer does. Tags
+   * the request names are replaced in the same transaction, on that contact.
    */
   private async updateSuppliedFields(
     ctx: OwnershipContext,
@@ -320,16 +331,14 @@ export class ContactService {
           (typeof value !== "string" || value.trim() !== ""),
       ),
     ) as Partial<CreateContactDto>;
-    const updated = await this.repo.updateIfPhoneUnchanged(
+    return this.repo.updateIfPhoneUnchanged(
       ctx,
       existing.id,
       existing.phoneNumber,
       // The number is the key: it is matched, never written here.
       { ...this.contactUpdateData(supplied), phoneNumber: undefined },
+      dto.tagIds ? tagIds : undefined,
     );
-    if (!updated) return null;
-    if (dto.tagIds) await this.tagRepo.setContactTags(updated.id, tagIds);
-    return updated;
   }
 
   /**

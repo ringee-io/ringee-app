@@ -84,17 +84,42 @@ function setup(initial: Row[] = []) {
         return merged;
       },
       // The write is conditional on the number it was found by, as the
-      // repository's single UPDATE … WHERE is.
+      // repository's single UPDATE … WHERE is, and the tags go with it.
       updateIfPhoneUnchanged: async (
         _ctx: unknown,
         id: string,
         phone: string,
         data: Row,
+        tagIds?: string[],
       ) => {
         const row = live(byId(id));
         if (!row || row.phoneNumber !== phone) return null;
         updated.push({ id, data });
+        if (tagIds) tagSets.push({ id, tagIds });
         const merged = { ...row, ...stripUndefined(data) };
+        rows.set(id, merged);
+        return merged;
+      },
+      // A move to a new number is checked and written in one step, under the
+      // lock a create takes on the number, so it sees a racing create too.
+      updateUnlessPhoneTaken: async (
+        _ctx: unknown,
+        id: string,
+        phone: string,
+        data: Row,
+        tagIds?: string[],
+      ) => {
+        const holder =
+          [...rows.values()].find(
+            (row) =>
+              row.phoneNumber === phone && !row.deletedAt && row.id !== id,
+          ) ?? (racing?.phoneNumber === phone ? racing : null);
+        if (holder) return "taken";
+        const row = live(byId(id));
+        if (!row) return null;
+        updated.push({ id, data: { ...data, phoneNumber: phone } });
+        if (tagIds) tagSets.push({ id, tagIds });
+        const merged = { ...row, ...stripUndefined(data), phoneNumber: phone };
         rows.set(id, merged);
         return merged;
       },
@@ -256,7 +281,7 @@ describe("ContactService.upsertContact (HOOK-009)", () => {
   });
 
   it("does not undo a number edited after the look-up: it resolves the number again", async () => {
-    const { service, rows, created, afterNextLookup } = setup([ADA]);
+    const { service, rows, created, tagSets, afterNextLookup } = setup([ADA]);
     // Someone moves Ada to a new number between the find and the update.
     afterNextLookup(() => {
       rows.set("contact-ada", { ...ADA, phoneNumber: "+14155550199" });
@@ -265,11 +290,14 @@ describe("ContactService.upsertContact (HOOK-009)", () => {
     const { contact, created: wasCreated } = await service.upsertContact(CTX, {
       phoneNumber: "+14155550100",
       jobTitle: "Founder",
+      tagIds: ["tag-1"],
     });
 
-    // Ada keeps the number she was moved to, untouched by this request...
+    // Ada keeps the number she was moved to, untouched by this request —
+    // her fields and her tags alike...
     assert.equal(rows.get("contact-ada")!.phoneNumber, "+14155550199");
     assert.equal(rows.get("contact-ada")!.jobTitle, undefined);
+    assert.deepEqual(tagSets, []);
     // ...and the number, now free, gets a contact of its own.
     assert.equal(wasCreated, true);
     assert.equal(created.length, 1);
@@ -317,6 +345,39 @@ describe("ContactService.createContact", () => {
     });
     assert.equal(contact.phoneNumber, "+14155550100");
     assert.equal(created.length, 1);
+  });
+});
+
+describe("ContactService.updateContact", () => {
+  it("refuses a new number another request is giving a contact, through the locked write", async () => {
+    const { service, rows, raceWith, updated, tagSets } = setup([ADA]);
+    // Another request is creating a contact for the number and has not
+    // committed when this one looks the number up.
+    raceWith({ id: "contact-grace", phoneNumber: "+14155550199" });
+
+    await assert.rejects(
+      service.updateContact(CTX, "contact-ada", {
+        phoneNumber: "+14155550199",
+        tagIds: ["tag-1"],
+      }),
+      BadRequestException,
+    );
+    assert.equal(rows.get("contact-ada")!.phoneNumber, "+14155550100");
+    assert.deepEqual(updated, [], "nothing of the refused change was written");
+    assert.deepEqual(tagSets, []);
+  });
+
+  it("moves the contact to a free number, its tags in the same write", async () => {
+    const { service, rows, tagSets } = setup([ADA]);
+
+    const moved = await service.updateContact(CTX, "contact-ada", {
+      phoneNumber: "+14155550199",
+      tagIds: ["tag-1"],
+    });
+
+    assert.equal(moved.phoneNumber, "+14155550199");
+    assert.equal(rows.get("contact-ada")!.phoneNumber, "+14155550199");
+    assert.deepEqual(tagSets, [{ id: "contact-ada", tagIds: ["tag-1"] }]);
   });
 });
 

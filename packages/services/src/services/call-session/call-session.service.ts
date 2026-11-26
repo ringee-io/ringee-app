@@ -728,12 +728,20 @@ export class CallSessionService {
 
       // The owner's call allowance (`maxCalls`) is reserved here, atomically
       // with the item leaving `pending`, so concurrent dials cannot both slip
-      // under it.
+      // under it. The session's state is checked again under the same lock:
+      // the pacing wait above is long enough for the owner to pause or revoke
+      // the session, and the check at the top read it before that.
       const admission = await this.repo.admitItem(
         session.id,
         item.id,
         session.maxCalls,
       );
+      if (admission === "paused") {
+        throw new BadRequestException("Session is paused");
+      }
+      if (admission === "closed") {
+        throw new BadRequestException("Session is closed");
+      }
       if (admission === "cap_reached") {
         await this.repo.update(session.id, {
           status: CallSessionStatus.completed,
@@ -747,13 +755,6 @@ export class CallSessionService {
         throw new BadRequestException(
           `Item is ${item.status} and cannot be redialed`,
         );
-      }
-
-      if (session.status === CallSessionStatus.ready) {
-        await this.repo.update(session.id, {
-          status: CallSessionStatus.active,
-          startedAt: session.startedAt ?? new Date(),
-        });
       }
 
       const customHeaders: Array<{ name: string; value: string }> = [

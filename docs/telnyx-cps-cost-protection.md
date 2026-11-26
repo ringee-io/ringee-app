@@ -109,10 +109,16 @@ The egress clocks are the account's **one budget of call starts**. A leg a
 client dials itself (browser, extension, SDK, session link, campaign
 assignment) never passes the Telnyx client, so its pre-flight is admitted as a
 _direct start_ (`admit({ directStart: true })`) on those same egress clocks; a
-server-sent leg spends them at the Telnyx client. A browser's dial and a
-server's dial therefore cannot both use one moment of capacity. The admission
-clocks only schedule server work ahead of its egress, and a queued call is
-offered only while both are free.
+server-sent leg spends them at the Telnyx client. What these clocks space are
+**grants**: a client's pre-flight grant and a server's egress grant cannot take
+one moment of capacity. They do not space the starts themselves. The server
+sends its leg at its grant, but a client dials when it gets to it: a browser
+that pauses after its grant (a slow network, a suspended tab) and resumes later
+can start in the same moment as a server leg granted after it. A grant carries
+no expiry that clients enforce, so the spacing of client-dialed starts rests on
+clients dialing promptly, within the jitter the safety margin is sized for. The
+admission clocks only schedule server work ahead of its egress, and a queued
+call is offered only while both are free.
 
 | Initial setting               | Value                                                                 |
 | ----------------------------- | --------------------------------------------------------------------- |

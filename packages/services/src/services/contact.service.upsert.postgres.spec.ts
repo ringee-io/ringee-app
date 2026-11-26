@@ -6,6 +6,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
+import { BadRequestException } from "@nestjs/common";
 import {
   ContactRepository,
   PrismaClient,
@@ -151,6 +152,63 @@ describe(
       assert.equal(stored.firstName, "Grace");
       assert.equal(stored.email, "grace@example.com");
       assert.equal(stored.jobTitle, "Admiral");
+    });
+
+    it("lets only one of simultaneous moves and an upsert give a contact the number", async () => {
+      const number = phone();
+      const movers = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          service.createContact(org, { phoneNumber: phone() }),
+        ),
+      );
+      const results = await Promise.allSettled([
+        ...movers.map((contact) =>
+          service.updateContact(org, contact.id, { phoneNumber: number }),
+        ),
+        service.upsertContact(org, {
+          phoneNumber: number,
+          jobTitle: "Admiral",
+        }),
+      ]);
+
+      assert.equal(await live(org, number), 1, "exactly one live contact");
+      // A move that lost was refused as a duplicate, never written.
+      for (const result of results.slice(0, movers.length)) {
+        if (result.status === "rejected") {
+          assert.ok(result.reason instanceof BadRequestException);
+        }
+      }
+      assert.equal(results[results.length - 1].status, "fulfilled");
+    });
+
+    it("writes the tags an upsert or a move names together with its fields", async () => {
+      const number = phone();
+      const tag = await prisma.tag.create({
+        data: { userId, organizationId, name: `tag-${randomUUID()}` },
+      });
+      const { contact } = await service.upsertContact(org, {
+        phoneNumber: number,
+      });
+      const tagsOf = async (contactId: string) =>
+        (await prisma.contactTag.findMany({ where: { contactId } })).map(
+          (row) => row.tagId,
+        );
+
+      const upserted = await service.upsertContact(org, {
+        phoneNumber: number,
+        jobTitle: "Admiral",
+        tagIds: [tag.id],
+      });
+      assert.equal(upserted.contact.id, contact.id);
+      assert.equal(upserted.contact.jobTitle, "Admiral");
+      assert.deepEqual(await tagsOf(contact.id), [tag.id]);
+
+      const moved = await service.updateContact(org, contact.id, {
+        phoneNumber: phone(),
+        tagIds: [],
+      });
+      assert.notEqual(moved.phoneNumber, number);
+      assert.deepEqual(await tagsOf(contact.id), []);
     });
   },
 );

@@ -270,7 +270,8 @@ describe("one start budget for the whole account", () => {
       directStart: true,
       countAttempt: true,
     });
-    expect(decision.granted && decision.permit.counted).toBe(false);
+    expect(decision.granted).toBe(true);
+    if (decision.granted) expect(decision.permit.counted).toBe(false);
     expect(redis.hourCounters().attempts ?? 0).toBe(0);
   });
 
