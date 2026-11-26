@@ -689,6 +689,16 @@ pool is a refusal: no dial surface may replace it with a fixed caller ID or
 reuse an excluded, cooling, flagged or disabled number. Fixed selections when
 rotation is off still require workspace, member and surface authorization.
 
+The web manual dialer (`POST /caller-id-rotation/resolve`, `publicLine`) is
+the one exception, since 2026-11-26: when the person has no number of the
+workspace for the destination — none chosen or authorized with rotation off;
+no pool, none eligible or none for the country with it on — the call goes out
+from the shared public line (`RINGEE_PUBLIC_CALLER_ID`, reason `public_line`)
+instead of being refused, and the dialer says so. Never another workspace
+number. A cap (`all_over_cap`), an unparseable destination or an unconfigured
+public line still refuse. Campaigns, call sessions, voicemail drops, the
+extension and the SDK do not take it.
+
 Usage and reputation are derived from persisted outbound `Call` rows in the
 number's workspace, dated by call start in UTC. Webhook deliveries are not
 usage events. `CallerIdDailyUsage` is legacy data; incrementing it on repeated

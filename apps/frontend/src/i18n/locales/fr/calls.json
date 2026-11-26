@@ -351,6 +351,7 @@
     "outboundDisabled": "Les appels sortants sont désactivés pour ce compte.",
     "enterNumber": "Saisissez un numéro",
     "callerIdUnavailable": "Aucun identifiant d’appelant disponible pour cette destination. Ajoutez ou activez un numéro de ce pays dans les paramètres de rotation des numéros.",
+    "publicLineFallback": "Appel depuis le numéro Ringee partagé : vous n’avez pas de numéro à vous pour cette destination.",
     "freeTrialEnded": "⏱ L’appel d’essai gratuit est terminé — la limite de 1 minute est atteinte",
     "externalCarrier": {
       "invalidDestination": "Saisissez un numéro international valide commençant par +.",

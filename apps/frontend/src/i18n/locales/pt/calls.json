@@ -351,6 +351,7 @@
     "outboundDisabled": "As chamadas de saída estão desativadas para esta conta.",
     "enterNumber": "Introduza um número",
     "callerIdUnavailable": "Não há um ID de chamada disponível para este destino. Adicione ou ative um número desse país nas definições de rotação de números.",
+    "publicLineFallback": "Ligando do número compartilhado da Ringee: você não tem um número próprio para este destino.",
     "freeTrialEnded": "⏱ A chamada de teste gratuita terminou — foi atingido o limite de 1 minuto",
     "externalCarrier": {
       "invalidDestination": "Introduza um número internacional válido que comece por +.",

@@ -27,6 +27,8 @@ export const RotationReason = {
   FALLBACK_DEFAULT_FOR_COUNTRY: "fallback_default_for_country",
   NO_CALLER_ID_FOR_COUNTRY: "no_caller_id_for_country",
   ALL_OVER_CAP: "all_over_cap",
+  /** No number of the workspace for this person and destination: the shared public line. */
+  PUBLIC_LINE: "public_line",
 } as const;
 
 export type RotationReasonValue =
@@ -140,6 +142,13 @@ export class CallerIdRotationService {
    * country/calling-plan matching, caps, local presence and health to the
    * workspace's eligible numbers. A refusal must never be replaced by a fixed
    * number by a caller.
+   *
+   * `publicLine` is the manual dialer's one exception (NUM-006): when this
+   * person has no number of the workspace for the destination — none chosen or
+   * authorized with rotation off; no pool, none eligible or none for the
+   * country with it on — the call goes out from the configured shared public
+   * line instead of being refused. Never another workspace number, never past
+   * a cap, never for an unparseable destination.
    */
   async selectForDial(
     ctx: OwnershipContext,
@@ -150,6 +159,7 @@ export class CallerIdRotationService {
       restrictToNumberIds?: string[];
       source?: OutboundSource;
       logContext?: { campaignId: string; sessionId: string };
+      publicLine?: boolean;
     } = {},
   ): Promise<SelectResult> {
     const [settings, allowed] = await Promise.all([
@@ -176,7 +186,19 @@ export class CallerIdRotationService {
       rotated: false,
       reason,
     });
-    if (!settings?.enabled) return fixedResult(RotationReason.DISABLED);
+    const publicLine = opts.publicLine
+      ? apiConfiguration.RINGEE_PUBLIC_CALLER_ID?.trim() || null
+      : null;
+    const publicLineResult = (): SelectResult => ({
+      phoneNumber: publicLine,
+      numberId: null,
+      rotated: false,
+      reason: RotationReason.PUBLIC_LINE,
+    });
+    if (!settings?.enabled) {
+      const result = fixedResult(RotationReason.DISABLED);
+      return !result.phoneNumber && publicLine ? publicLineResult() : result;
+    }
 
     const destinationRegion = resolveRegion(destination);
     const { country, callingCode, areaCode } = destinationRegion;
@@ -188,6 +210,8 @@ export class CallerIdRotationService {
       result: SelectResult,
       eligibleCount = 0,
       localMatchCount = 0,
+      /** What rotation would have refused with, when the public line stood in. */
+      refusedAs?: RotationReasonValue,
     ): SelectResult => {
       const details = {
         event: "caller_id.selection",
@@ -197,6 +221,7 @@ export class CallerIdRotationService {
         localMatchCount,
         randomFallback: result.reason === RotationReason.RANDOM_FALLBACK,
         reason: result.reason,
+        ...(refusedAs ? { refusedAs } : {}),
         selectedNumberId: result.numberId,
       };
       if (result.phoneNumber) this.logger.debug(details);
@@ -208,6 +233,10 @@ export class CallerIdRotationService {
         { phoneNumber: null, numberId: null, rotated: false, reason },
         eligibleCount,
       );
+    // The workspace has no number this person may present for the
+    // destination: the public line where the surface takes it, else a refusal.
+    const noNumber = (reason: RotationReasonValue) =>
+      publicLine ? report(publicLineResult(), 0, 0, reason) : refuse(reason);
     // Without a calling plan we cannot prove destination eligibility. In
     // particular, never escape the campaign subset/caps via its fixed number.
     if (!callingCode) return refuse(RotationReason.UNPARSEABLE);
@@ -216,7 +245,7 @@ export class CallerIdRotationService {
     const configuredIds = await this.ensurePool(ctx);
     configuredCount = restrict?.size ?? configuredIds.size;
     if (!configuredCount)
-      return refuse(RotationReason.NO_CONFIGURED_CALLER_IDS);
+      return noNumber(RotationReason.NO_CONFIGURED_CALLER_IDS);
     const allowedIds = new Set(allowed.map((n) => n.id));
 
     // A compare-and-set claim prevents simultaneous workspace callers from
@@ -228,7 +257,7 @@ export class CallerIdRotationService {
           allowedIds.has(m.numberId) && (!restrict || restrict.has(m.numberId)),
       );
       if (!candidates.length)
-        return refuse(RotationReason.NO_ELIGIBLE_CALLER_IDS);
+        return noNumber(RotationReason.NO_ELIGIBLE_CALLER_IDS);
       const eligible = candidates.filter((m) => {
         const region = resolveRegion(m.number.phoneNumber);
         if (region.callingCode !== callingCode) return false;
@@ -241,7 +270,7 @@ export class CallerIdRotationService {
         );
       });
       if (!eligible.length) {
-        return refuse(RotationReason.NO_CALLER_ID_FOR_COUNTRY);
+        return noNumber(RotationReason.NO_CALLER_ID_FOR_COUNTRY);
       }
       const usage = await this.rotationRepo.usageForNumbers(
         eligible.map((m) => m.numberId),
