@@ -79,6 +79,7 @@ import { ExtensionController } from "./extension.controller";
 import { BackofficeController } from "./backoffice.controller";
 import { BackofficeAccessController } from "./backoffice-access.controller";
 import { BackofficeCampaignsController } from "./backoffice-campaigns.controller";
+import { BackofficeDispatchController } from "./backoffice-dispatch.controller";
 import { BackofficeOffersController } from "./backoffice-offers.controller";
 import { OfferController } from "./offer.controller";
 import { CallerIdRotationController } from "./caller-id-rotation.controller";
@@ -90,7 +91,11 @@ import { InfrastructureController } from "./infrastructure.controller";
 import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 import { PublicAiVoiceAgentController } from "./public-api.controller";
+import { PublicContactsController } from "./public-contacts.controller";
+import { PublicCallsController } from "./public-calls.controller";
+import { PublicCapabilitiesController } from "./public-capabilities.controller";
 import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-key.guard";
+import { PublicApiRateLimitGuard } from "../guards/public-api-rate-limit.guard";
 import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
 
 @Module({
@@ -159,6 +164,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     BackofficeController,
     BackofficeAccessController,
     BackofficeCampaignsController,
+    BackofficeDispatchController,
     BackofficeOffersController,
     OfferController,
     CallerIdRotationController,
@@ -172,6 +178,9 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     FreeTrialController,
     DemoRequestController,
     PublicAiVoiceAgentController,
+    PublicContactsController,
+    PublicCallsController,
+    PublicCapabilitiesController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.
@@ -182,6 +191,7 @@ import { PersonalApiKeyGuard } from "../guards/personal-api-key.guard";
     StripeAbuseProtectionService,
     UserAccessEnforcementService,
     CustomIntegrationApiKeyGuard,
+    PublicApiRateLimitGuard,
     PersonalApiKeyGuard,
   ],
   imports: [

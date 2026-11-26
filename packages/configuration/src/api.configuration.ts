@@ -8,6 +8,42 @@ const nonNegativeInteger = (name: string, fallback: number): number => {
   return Number.isInteger(value) && value >= 0 ? value : fallback;
 };
 
+/**
+ * A finite number inside `[min, max]`. Anything else — a typo, `NaN`, a value
+ * out of range — falls back to the default with a warning instead of refusing
+ * to boot, for settings whose safe value is known (outbound pacing limits).
+ */
+const boundedNumber = (
+  name: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number => {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const value = Number(raw);
+  if (Number.isFinite(value) && value >= min && value <= max) return value;
+  console.warn(
+    `${name}=${JSON.stringify(raw)} is not a number between ${min} and ${max}; using ${fallback}.`,
+  );
+  return fallback;
+};
+
+/**
+ * How the shared outbound pacing behaves. An unknown value is `enforce`: a typo must not switch off cost protection.
+ */
+const parseCpsMode = (
+  raw: string | undefined,
+): "off" | "observe" | "enforce" => {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (value === "off" || value === "observe" || value === "enforce")
+    return value;
+  if (value) {
+    console.warn(`TELNYX_CPS_MODE is invalid; using enforce.`);
+  }
+  return "enforce";
+};
+
 const PILOT_USER_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -364,6 +400,70 @@ const apiConfiguration = {
   RINGEE_ENVIRONMENT:
     process.env.RINGEE_ENVIRONMENT || process.env.NODE_ENV || "development",
   RINGEE_RELEASE: process.env.RINGEE_RELEASE || "unversioned",
+  // ── Telnyx outbound CPS cost protection (docs/telnyx-cps-cost-protection.md) ──
+  // Telnyx bills a monthly surcharge on the 95th percentile of the account's
+  // hourly peak outbound calls-per-second above 5 CPS. These settings are the
+  // durable defaults; the backoffice can override them at runtime (a Redis
+  // flush or restart never raises a limit: the override lives in PostgreSQL).
+  //
+  // "off": no limiter, no counters. "observe": count every outbound
+  // attempt and record what enforcement WOULD have deferred, never delay a call.
+  // "enforce" (default): strict pacing across every replica and worker.
+  TELNYX_CPS_MODE: parseCpsMode(process.env.TELNYX_CPS_MODE),
+  // Every deployment sharing a provider BILLING account must use the same
+  // coordination database, including staging. Never silently use REDIS_URL:
+  // application caches commonly belong to different environments.
+  PROVIDER_DISPATCH_REDIS_URL: process.env.PROVIDER_DISPATCH_REDIS_URL || "",
+  // The CPS Telnyx bills nothing for. Raising it is a spending decision:
+  // CPS 6-25 costs $12 per CPS-month, 26-200 $16, 201-250 $24, 251+ $30.
+  TELNYX_CPS_CEILING: boundedNumber("TELNYX_CPS_CEILING", 5, 1, 1000),
+  // Share of the ceiling kept unused to absorb network jitter between the
+  // moment a call is paced and the moment Telnyx receives it. 0.2 paces at
+  // 4 CPS under a 5 CPS ceiling and tolerates 250 ms of jitter.
+  TELNYX_CPS_SAFETY_MARGIN: boundedNumber(
+    "TELNYX_CPS_SAFETY_MARGIN",
+    0.2,
+    0,
+    0.9,
+  ),
+  // Which Telnyx BILLING account the credentials belong to. The pacing budget
+  // is shared by everything with the same reference, so rotating an API key
+  // never resets it and a second key of the same account never doubles it.
+  // Never a secret: it is written into Redis keys and logs.
+  TELNYX_ACCOUNT_REF: process.env.TELNYX_ACCOUNT_REF || "ringee-managed",
+  // Automated traffic (reminders, automations, API/n8n, MCP) one workspace may
+  // start per second, on top of the account-wide ceiling.
+  DISPATCH_ORG_AUTOMATION_CPS: boundedNumber(
+    "DISPATCH_ORG_AUTOMATION_CPS",
+    2,
+    0.1,
+    100,
+  ),
+  // Integration-started agent calls (public API, n8n, MCP, CLI) wait in a
+  // durable queue when provider capacity is short. Off (default): they are
+  // placed inline exactly as before. Needs the 20261124150000_provider_dispatch
+  // migration and its status-values script applied first.
+  DISPATCH_QUEUE_ENABLED: process.env.DISPATCH_QUEUE_ENABLED === "true",
+  // Live agent calls one workspace may hold before queued calls wait for a slot.
+  DISPATCH_ORG_CONCURRENCY: positiveInteger("DISPATCH_ORG_CONCURRENCY", 25),
+  DISPATCH_QUEUE_MAX_PER_WORKSPACE: positiveInteger(
+    "DISPATCH_QUEUE_MAX_PER_WORKSPACE",
+    1000,
+  ),
+  DISPATCH_QUEUE_MAX_TOTAL: positiveInteger("DISPATCH_QUEUE_MAX_TOTAL", 5000),
+  // How long a queued call may wait before it expires instead of dialing.
+  DISPATCH_QUEUE_MAX_WAIT_MINUTES: positiveInteger(
+    "DISPATCH_QUEUE_MAX_WAIT_MINUTES",
+    120,
+  ),
+  // The monthly estimated surcharge, in USD, above which an alert fires.
+  // 0 alerts on any estimated surcharge.
+  TELNYX_CPS_SURCHARGE_BUDGET_USD: boundedNumber(
+    "TELNYX_CPS_SURCHARGE_BUDGET_USD",
+    0,
+    0,
+    10_000_000,
+  ),
   // ── Backoffice (super admin) ──
   // Comma-separated email allowlist for the internal super-admin area. When
   // unset, the backend falls back to DEFAULT_SUPER_ADMIN_EMAILS (see the

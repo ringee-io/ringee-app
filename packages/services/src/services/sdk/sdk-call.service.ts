@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { CallRepository, CallStatus } from "@ringee/database";
 import { RedisService, signCallCorrelation } from "@ringee/platform";
+import { DialPacingService } from "../dispatch/dial-pacing.service";
 import { ComplianceService } from "../outbound/compliance.service";
 import { ConcurrentCallGuardService } from "../security";
 import { CreditService } from "../credit.service";
@@ -52,6 +53,7 @@ export class SdkCallService {
     private readonly calls: CallRepository,
     private readonly redis: RedisService,
     private readonly concurrentCalls: ConcurrentCallGuardService,
+    @Optional() private readonly pacing?: DialPacingService,
   ) {}
 
   async authorize(
@@ -126,6 +128,10 @@ export class SdkCallService {
           allowOverCap: input.allowOverCap,
         },
       );
+
+      // Last gate: every rule that can refuse has passed, so the slot this
+      // takes is for a dial that will happen (CPS-002).
+      await this.pacing?.paceInteractive("sdk_dial", ctx);
 
       // Contact (never auto-created).
       const contactId = await this.contacts.resolve(ctx, agent.integration.id, {

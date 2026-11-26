@@ -119,6 +119,7 @@ identity from the client. Disabled integrations fail with `401`.
 Execution-only companion routes are:
 
 - `GET /api/v1/ai-voice-agents/phone-numbers`
+- `GET /api/v1/ai-voice-agents/:agentId` (the agent and the `variables` its calls accept)
 - `GET /api/v1/ai-voice-agents/:agentId/calls`
 - `GET /api/v1/ai-voice-agents/calls/:callId`
 
@@ -146,6 +147,44 @@ The canonical AI call outcomes emitted to consumers use the same spellings as
 outcome is accepted only after its live tool succeeds. A carrier no-answer,
 busy result or voicemail is reported as `no_answer`; `no_conversation` is
 reserved for a call that was answered but contained no meaningful exchange.
+
+#### Idempotent starts (HOOK-008)
+
+Send `Idempotency-Key` (1–255 characters of `A-Za-z0-9._:@/+=~-`) when the caller
+can retry. The first request places the call and returns `201 { id, status,
+idempotent_replayed: false }`; a repeat returns `200` with the original call,
+`idempotent_replayed: true` and `Idempotent-Replayed: true`, without dialing and
+without re-running the balance or DNC gates. A key reused for another agent or
+number is `422`. A key whose first attempt failed before any call was placed is
+refused with `409 { code: "idempotency_key_failed" }` rather than answered as a
+success; a client that wants to try again sends a new key. Without the header the
+response is the unchanged `{ id, status }`.
+
+A client that retries should first read `GET /api/v1/capabilities` (HOOK-011): a
+deployment that predates idempotent starts answers `404` there and ignores the
+header, so a retry would dial again.
+
+### Public REST: contacts and calls
+
+The same Custom Integration key authenticates two more resource groups, paced at
+600 requests per minute per integration (HOOK-006) and scoped to the key's
+workspace (HOOK-007). They exist for server-to-server tools such as the n8n node.
+
+| Route                                   | Purpose                                                                                                  |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/contacts?query&page&limit` | Search or list (`*` lists all). `{ data, total, page, limit, totalPages }`                               |
+| `GET /api/v1/contacts/:id`              | One contact                                                                                              |
+| `POST /api/v1/contacts`                 | Create; `400` if the number exists                                                                       |
+| `PUT /api/v1/contacts`                  | Create or update by phone number (HOOK-009); `201` created, `200` found                                  |
+| `PATCH /api/v1/contacts/:id`            | Update the supplied fields                                                                               |
+| `DELETE /api/v1/contacts/:id`           | Soft delete; needs `confirm_phone_number` equal to the contact's number                                  |
+| `GET /api/v1/calls`                     | Calls newest first; `contact_id`, `outcome`, `status`, `date_from`, `date_to`                            |
+| `GET /api/v1/calls/:id`                 | The call as events carry it (`data.call`); `:id` is the call id or the id Start Call returned (HOOK-010) |
+| `GET /api/v1/calls/:id/recording`       | The recording as decrypted `audio/mpeg`                                                                  |
+| `GET /api/v1/capabilities`              | `{ apiVersion, capabilities }`: what this deployment guarantees (HOOK-011)                               |
+
+Contact writes go through `ContactService`; calls through `CallService` and
+`CustomIntegrationOutboundService`. None of them reimplements ownership checks.
 
 ### Callbacks from a live voice-agent call
 
@@ -182,6 +221,22 @@ and a person must finish the request.
 The tool returns success only after at least one delivery channel is available.
 The speaking agent may promise follow-up only after that success, and never
 promises a response time.
+
+### n8n community node (`ringee-io/n8n-nodes-ringee`, separate repository)
+
+The official n8n integration lives **outside this repository** and talks to
+Ringee only through the public REST API and Custom Integration webhooks; it
+imports nothing from here. It is a consumer of every route and event below, and
+it is published to npm (`n8n-nodes-ringee`), so installed workflows outlive any
+API change.
+
+**Breaking change surface:** every `/api/v1` route and field in the table below,
+the `Idempotency-Key` behavior, the webhook envelope and signature
+(`Ringee-Signature`), and the event names in `event-spec.ts`. Additive only; the
+node's own `docs/api-capability-matrix.md` records what it relies on. A change
+to these needs the matrix and the node's mock (`tests/helpers/mock-ringee.ts`)
+updated in the same cycle, and the Ringee side deployed before a node release
+that needs it.
 
 ### ChatGPT app (`apps/chatgpt-app`)
 
@@ -390,11 +445,12 @@ and one whose URLs predate the current address.
 
 ## Contract change checklist
 
-| Changing                    | Also check                                                  |
-| --------------------------- | ----------------------------------------------------------- |
-| A Prisma enum               | frontend labels, MCP schemas, SDK types, `event-spec.ts`    |
-| An `/api` response shape    | web, extension, CLI, Attio, ChatGPT app, SDK                |
-| An MCP tool schema          | `packages/agent` catalog + tests, CLI commands, skill files |
-| An SDK export               | `dist` typings, playground, `package.json` version          |
-| A webhook payload           | `event-spec.ts`, the docs tab, live customer endpoints      |
-| Auth or ownership behaviour | every non-Clerk identity in [WORKSPACES.md](WORKSPACES.md)  |
+| Changing                    | Also check                                                           |
+| --------------------------- | -------------------------------------------------------------------- |
+| A Prisma enum               | frontend labels, MCP schemas, SDK types, `event-spec.ts`             |
+| An `/api` response shape    | web, extension, CLI, Attio, ChatGPT app, SDK                         |
+| An MCP tool schema          | `packages/agent` catalog + tests, CLI commands, skill files          |
+| An SDK export               | `dist` typings, playground, `package.json` version                   |
+| A webhook payload           | `event-spec.ts`, the docs tab, live customer endpoints               |
+| A `/api/v1` route or field  | the n8n node (`ringee-io/n8n-nodes-ringee`), Custom Integration docs |
+| Auth or ownership behaviour | every non-Clerk identity in [WORKSPACES.md](WORKSPACES.md)           |

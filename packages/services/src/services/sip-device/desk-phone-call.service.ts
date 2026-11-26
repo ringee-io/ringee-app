@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
   CallRepository,
   CallStatus,
@@ -11,7 +11,10 @@ import {
 } from "@ringee/database";
 import {
   OwnershipContext,
+  ProviderDispatchDeferredError,
+  ProviderDispatchService,
   TelnyxService,
+  inDispatchScope,
   carrierInboundHeaderCorrelation,
   verifyCallCorrelation,
 } from "@ringee/platform";
@@ -36,7 +39,9 @@ type BlockReason =
   | "CALLER_ID_NOT_ALLOWED"
   | "DNC"
   | "CONCURRENT_CALL"
-  | "INSUFFICIENT_CREDITS";
+  | "INSUFFICIENT_CREDITS"
+  /** Outbound capacity was short and the bridge was never sent. */
+  | "DISPATCH_DEFERRED";
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 
@@ -69,6 +74,7 @@ export class DeskPhoneCallService {
     private readonly telnyx: TelnyxService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly inboxTimeline: InboxTimelineService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   async handleEvent(event: {
@@ -371,13 +377,34 @@ export class DeskPhoneCallService {
     //    (Telnyx auto-ends the call); the real cost is still settled on
     //    call.cost. A device-level dailySpendLimit can override the default.
     const maxMinutes = apiConfiguration.DESK_PHONE_MAX_CALL_MINUTES;
-    await this.telnyx.connectParkedCall(callControlId, {
-      to: destination,
-      from: callerId,
-      clientState: { sipDeviceId: device.id, source: "sip_device" },
-      timeLimitSecs:
-        maxMinutes && maxMinutes > 0 ? Math.floor(maxMinutes * 60) : undefined,
-    });
+    try {
+      await inDispatchScope(
+        this.dispatch,
+        {
+          source: "desk_phone_bridge",
+          idempotencyRef: `desk-bridge-${callControlId}`,
+        },
+        () =>
+          this.telnyx.connectParkedCall(callControlId, {
+            to: destination,
+            from: callerId,
+            clientState: { sipDeviceId: device.id, source: "sip_device" },
+            timeLimitSecs:
+              maxMinutes && maxMinutes > 0
+                ? Math.floor(maxMinutes * 60)
+                : undefined,
+          }),
+      );
+    } catch (error) {
+      // Capacity was short (or coordination down) and the pacing layer proves
+      // the bridge was never sent: the parked leg is ended like any refused
+      // dial, its slot handed back and the reason logged. Anything else — a
+      // failure after the request may have left — is not a refusal and goes
+      // up as it did.
+      if (error instanceof ProviderDispatchDeferredError)
+        return block("DISPATCH_DEFERRED", error.reason);
+      throw error;
+    }
 
     // 7) Record the call in history (source = Desk Phone).
     const contact = await this.contactService

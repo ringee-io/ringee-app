@@ -98,6 +98,42 @@ export class CustomIntegrationOutboundService {
   }
 
   /**
+   * The telephony call a public API id refers to, inside the caller's workspace.
+   *
+   * A call has two ids a workflow meets: the one an event carries as
+   * `data.callId` (the call itself), and the one Start Call returned (the AI
+   * voice agent's run of it, `data.agentCallId`). Both are accepted, so a
+   * workflow can pass along whichever it holds. Each is looked up through its
+   * workspace-scoped read, so an id from elsewhere resolves to nothing.
+   */
+  async resolveCallId(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<string | null> {
+    const call = await this.calls.findByIdForOwner(ctx, id);
+    if (call) return call.id;
+    const agentCall = await this.agentCalls.findByIdForOwner(ctx, id);
+    return agentCall?.callId ?? null;
+  }
+
+  /**
+   * The call exactly as an outbound event carries it in `data.call` (HOOK-010):
+   * one shape for the webhook and for the public REST read, so a workflow that
+   * reacts to `call.completed` and one that fetches the call later parse the
+   * same object. A call from another workspace — or one that does not exist —
+   * is `null`, the same answer.
+   */
+  async getCallDetail(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Record<string, unknown> | null> {
+    const callId = await this.resolveCallId(ctx, id);
+    if (!callId) return null;
+    const call = await this.calls.findEventDetailForOwner(ctx, callId);
+    return call ? buildCallDetailData(call) : null;
+  }
+
+  /**
    * Fan out an event to every active custom integration in the workspace that
    * is subscribed to it AND has an outbound URL configured. Fire-and-forget:
    * errors are logged, never thrown.

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
-import { after, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import { apiConfiguration } from "@ringee/configuration";
 import { HttpException } from "@nestjs/common";
 import { VoiceAgentService } from "./voice-agent.service";
@@ -8,9 +8,19 @@ import type { VoiceClone, OwnershipContext } from "@ringee/platform";
 
 const initialBaseCost = apiConfiguration.AI_VOICE_AGENT_CLONE_BASE_COST_USD;
 const initialMargin = apiConfiguration.AI_VOICE_AGENT_CLONE_PROFIT_MARGIN;
+const initialPersonalPilot =
+  apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+// These specs assert that a personal workspace outside the pilot is refused. A
+// developer's `.env` may enrol every personal workspace (`*`), so the flag is
+// pinned here instead of inherited from whoever runs the suite.
+before(() => {
+  apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = [];
+});
 after(() => {
   apiConfiguration.AI_VOICE_AGENT_CLONE_BASE_COST_USD = initialBaseCost;
   apiConfiguration.AI_VOICE_AGENT_CLONE_PROFIT_MARGIN = initialMargin;
+  apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS =
+    initialPersonalPilot;
 });
 const CTX = { userId: "user-1", organizationId: "org-1" };
 const OTHER = { userId: "user-2", organizationId: "org-2" };

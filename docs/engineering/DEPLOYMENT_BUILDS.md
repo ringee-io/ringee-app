@@ -94,11 +94,11 @@ available for that separate operation:
 node packages/database/node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma
 ```
 
-GitHub Actions only verifies that required migrations, columns and indexes
-already exist before rolling out ECS services. Its database check reuses the
-existing `migrate` task family with an explicit read-only command override; it
-does not run Prisma's migration CLI. Do not add automatic migration steps to
-workflows or application startup.
+GitHub Actions builds images, pushes them to ECR, rolls out ECS services and
+checks service stability and `/api/health`. The deployment workflow has no
+migration task or migration-history check. Database prerequisites are verified
+manually as part of the separate database operation. Do not add automatic
+migration steps to workflows or application startup.
 
 These settings use the existing Railway services; no new infrastructure
 configuration is required. See [Dockerfile builds](https://docs.railway.com/builds/dockerfiles)

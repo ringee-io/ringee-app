@@ -22,6 +22,11 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   requests racing to create the workspace's `Credit` row — is rethrown, so a
   real write is never silently dropped.
 - Concurrent counters use atomic `{ increment }`, never read-modify-write.
+- A compare-and-set written as `updateMany({ where: <the expected state> })`
+  reads its `count` as "still matched". Always give it something to write
+  (`updatedAt: new Date()` when nothing else): with empty or all-`undefined`
+  `data`, Prisma sends no UPDATE and answers `count: 0` for a row that does
+  match (`ContactRepository.updateIfPhoneUnchanged`).
 - Unannotated Prisma `DateTime` columns store UTC using the PostgreSQL
   `timestamp without time zone` type. In raw SQL, normalize bound JavaScript dates with
   `::timestamptz AT TIME ZONE 'UTC'` before comparing them to those columns;

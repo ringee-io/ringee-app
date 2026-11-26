@@ -174,14 +174,31 @@ export class CallSessionRepository {
    * locked for the check, so two admissions cannot both slip under
    * `maxCalls`, and the item must still be `pending` when it moves to
    * `calling`.
+   *
+   * The session's state is read under that lock too, never taken from the
+   * caller's earlier read: a pause or revoke that committed since is honored
+   * (`paused` / `closed`), and a `ready` session is opened in the same step,
+   * so the admission cannot reopen a session its owner just paused.
    */
   async admitItem(
     sessionId: string,
     itemId: string,
     maxCalls: number | null,
-  ): Promise<"admitted" | "cap_reached" | "not_pending"> {
+  ): Promise<"admitted" | "cap_reached" | "not_pending" | "paused" | "closed"> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "CallSession" WHERE id = ${sessionId}::uuid FOR UPDATE`;
+      const session = await tx.callSession.findUnique({
+        where: { id: sessionId },
+        select: { status: true, startedAt: true, deletedAt: true },
+      });
+      if (!session || session.deletedAt) return "closed";
+      if (session.status === CallSessionStatus.paused) return "paused";
+      if (
+        session.status !== CallSessionStatus.ready &&
+        session.status !== CallSessionStatus.active
+      ) {
+        return "closed";
+      }
       if (maxCalls != null) {
         const started = await tx.callSessionItem.count({
           where: { callSessionId: sessionId, startedAt: { not: null } },
@@ -196,7 +213,17 @@ export class CallSessionRepository {
         },
         data: { status: CallSessionItemStatus.calling, startedAt: new Date() },
       });
-      return count === 1 ? "admitted" : "not_pending";
+      if (count !== 1) return "not_pending";
+      if (session.status === CallSessionStatus.ready) {
+        await tx.callSession.update({
+          where: { id: sessionId },
+          data: {
+            status: CallSessionStatus.active,
+            startedAt: session.startedAt ?? new Date(),
+          },
+        });
+      }
+      return "admitted";
     });
   }
 

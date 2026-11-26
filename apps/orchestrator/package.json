@@ -5,7 +5,8 @@
   "scripts": {
     "build": "nest build",
     "start": "node dist/apps/orchestrator/src/main.js",
-    "dev": "nest start --watch --env-file ../../.env"
+    "dev": "nest start --watch --env-file ../../.env",
+    "test": "TS_NODE_PROJECT=tsconfig.json TS_NODE_TRANSPILE_ONLY=true node --env-file-if-exists=../../.env --require ts-node/register --require tsconfig-paths/register --test \"src/**/*.spec.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

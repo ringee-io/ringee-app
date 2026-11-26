@@ -105,6 +105,9 @@ import { OfferEventRepository } from "./repositories/offer-event.repository";
 import { OfferStatsRepository } from "./repositories/offer-stats.repository";
 import { AiVoiceAgentRepository } from "./repositories/ai-voice-agent.repository";
 import { AiVoiceAgentCallRepository } from "./repositories/ai-voice-agent-call.repository";
+import { AiVoiceAgentCallDispatchRepository } from "./repositories/ai-voice-agent-call-dispatch.repository";
+import { ProviderDispatchHourRepository } from "./repositories/provider-dispatch-hour.repository";
+import { ProviderDispatchSettingRepository } from "./repositories/provider-dispatch-setting.repository";
 import { AiVoiceAgentAutomationRepository } from "./repositories/ai-voice-agent-automation.repository";
 import { AiVoiceAgentHandoffRepository } from "./repositories/ai-voice-agent-handoff.repository";
 import { MeetingReminderPolicyRepository } from "./repositories/meeting-reminder-policy.repository";
@@ -215,6 +218,9 @@ const databaseProviders = [
   InfrastructureRepository,
   AiVoiceAgentRepository,
   AiVoiceAgentCallRepository,
+  AiVoiceAgentCallDispatchRepository,
+  ProviderDispatchHourRepository,
+  ProviderDispatchSettingRepository,
   AiVoiceAgentAutomationRepository,
   AiVoiceAgentHandoffRepository,
   MeetingReminderPolicyRepository,

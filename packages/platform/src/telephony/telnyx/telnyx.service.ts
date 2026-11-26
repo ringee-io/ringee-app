@@ -25,6 +25,10 @@ import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
 import {
+  CallOriginationUncertainError,
+  ProviderDispatchDeferredError,
+} from "../dispatch/dispatch.types";
+import {
   describeTelnyxError,
   isTelnyxCallEndedError,
   sanitizeMediaStreamError,
@@ -132,6 +136,7 @@ export class TelnyxService implements TelephonyService {
     try {
       return await request();
     } catch (error) {
+      if (error instanceof ProviderDispatchDeferredError) throw error;
       // `TelnyxClient` has already logged what the provider said, redacted.
       const status = error instanceof HttpException ? error.getStatus() : 502;
       throw new CarrierConnectionError(
@@ -1476,15 +1481,18 @@ export class TelnyxService implements TelephonyService {
     try {
       const destination = `sip:${creds.sipUsername}@sip.telnyx.com`;
 
-      await this.telnyxClient.post(`/calls/${callControlId}/actions/transfer`, {
-        to: destination,
-        client_state: Buffer.from(
-          JSON.stringify({
-            userId,
-            sip: creds.sipUsername,
-          }),
-        ).toString("base64"),
-      });
+      await this.telnyxClient.post(
+        `/calls/${encodeURIComponent(callControlId)}/actions/transfer`,
+        {
+          to: destination,
+          client_state: Buffer.from(
+            JSON.stringify({
+              userId,
+              sip: creds.sipUsername,
+            }),
+          ).toString("base64"),
+        },
+      );
 
       this.logger.log(
         `Call ${callControlId} transferred to ${destination} for userId=${userId}`,
@@ -1564,10 +1572,13 @@ export class TelnyxService implements TelephonyService {
   }
 
   async hangupCall(callControlId: string, commandId?: string): Promise<void> {
-    await this.telnyxClient.post(`/calls/${callControlId}/actions/hangup`, {
-      client_state: Buffer.from("hangup").toString("base64"),
-      command_id: commandId || crypto.randomUUID(),
-    });
+    await this.telnyxClient.post(
+      `/calls/${encodeURIComponent(callControlId)}/actions/hangup`,
+      {
+        client_state: Buffer.from("hangup").toString("base64"),
+        command_id: commandId || crypto.randomUUID(),
+      },
+    );
   }
 
   /**
@@ -1582,7 +1593,7 @@ export class TelnyxService implements TelephonyService {
     try {
       const { data } = await this.telnyxClient.get<{
         data?: { is_alive?: boolean };
-      }>(`/calls/${callControlId}`);
+      }>(`/calls/${encodeURIComponent(callControlId)}`);
       return data?.is_alive ?? false;
     } catch (error: unknown) {
       const status =
@@ -1625,7 +1636,7 @@ export class TelnyxService implements TelephonyService {
   ): Promise<void> {
     try {
       await this.telnyxClient.post(
-        `/calls/${callControlId}/actions/streaming_start`,
+        `/calls/${encodeURIComponent(callControlId)}/actions/streaming_start`,
         {
           stream_url: streamUrl,
           stream_track: track,
@@ -1656,7 +1667,7 @@ export class TelnyxService implements TelephonyService {
   async stopStreaming(callControlId: string): Promise<void> {
     try {
       await this.telnyxClient.post(
-        `/calls/${callControlId}/actions/streaming_stop`,
+        `/calls/${encodeURIComponent(callControlId)}/actions/streaming_stop`,
         { command_id: crypto.randomUUID() },
       );
     } catch (error) {
@@ -1673,7 +1684,7 @@ export class TelnyxService implements TelephonyService {
     clientState?: Record<string, unknown>,
   ): Promise<void> {
     await this.telnyxClient.post(
-      `/calls/${callControlId}/actions/playback_start`,
+      `/calls/${encodeURIComponent(callControlId)}/actions/playback_start`,
       {
         audio_url: audioUrl,
         client_state: Buffer.from(
@@ -1743,6 +1754,17 @@ export class TelnyxService implements TelephonyService {
         callLegId: data?.call_leg_id ?? null,
       };
     } catch (error: any) {
+      // Capacity was short and nothing was sent: not a provider failure, and
+      // not one to disguise as a 500 (CPS-002).
+      if (error instanceof ProviderDispatchDeferredError) throw error;
+      // No answer says whether the leg exists. It may be ringing: the caller
+      // reconciles it, it is never reported as a dial that failed.
+      if (error instanceof CallOriginationUncertainError) {
+        this.logger.warn(
+          `Telnyx did not confirm an outbound dial (status ${error.getStatus()}): it may still connect`,
+        );
+        throw error;
+      }
       const telnyxError = error?.response?.data?.errors?.[0];
       // 10015 is almost always a misconfiguration rather than a runtime fault,
       // so name the variable to fix instead of surfacing a bare provider code.
@@ -1984,16 +2006,21 @@ export class TelnyxService implements TelephonyService {
       timeLimitSecs?: number;
     },
   ): Promise<void> {
-    await this.telnyxClient.post(`/calls/${callControlId}/actions/transfer`, {
-      to: params.to,
-      from: params.from,
-      command_id: params.commandId || crypto.randomUUID(),
-      ...(params.timeLimitSecs
-        ? { time_limit_secs: params.timeLimitSecs }
-        : {}),
-      client_state: Buffer.from(
-        JSON.stringify(params.clientState ?? { action: "desk_phone_outbound" }),
-      ).toString("base64"),
-    });
+    await this.telnyxClient.post(
+      `/calls/${encodeURIComponent(callControlId)}/actions/transfer`,
+      {
+        to: params.to,
+        from: params.from,
+        command_id: params.commandId || crypto.randomUUID(),
+        ...(params.timeLimitSecs
+          ? { time_limit_secs: params.timeLimitSecs }
+          : {}),
+        client_state: Buffer.from(
+          JSON.stringify(
+            params.clientState ?? { action: "desk_phone_outbound" },
+          ),
+        ).toString("base64"),
+      },
+    );
   }
 }

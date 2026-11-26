@@ -556,6 +556,8 @@ export class CallbackService {
               to: sourceAgentCall.toNumber,
               variables: this.stringRecord(sourceAgentCall.variables),
               metadata: this.objectRecord(sourceAgentCall.metadata),
+              // Time-sensitive: someone is expecting this call (CPS-003).
+              dispatch: { source: "agent_callback" },
             },
           );
           await this.callbackRepo.updateClaimed(callback.id, {
@@ -841,6 +843,7 @@ export class CallbackService {
           metadata: {},
           idempotencyKey: agentDialKey(dialing, dialing.dialTries),
           responsibleUserId: decision.responsibleUserId ?? undefined,
+          dispatch: { source: "agent_callback" },
         },
         async (placement) => {
           // The commit point: re-checked after all provider preparation,

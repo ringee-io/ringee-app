@@ -286,6 +286,8 @@ export class AiVoiceAgentController {
       fromNumberId: dto.from_number_id,
       variables: dto.variables,
       metadata: dto.metadata,
+      // A person pressed the button: paced as interactive, never queued.
+      dispatch: { source: "agent_dashboard" },
     });
   }
 

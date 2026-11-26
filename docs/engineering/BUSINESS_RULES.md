@@ -1313,6 +1313,96 @@ integration's current `apiKeyPrefix`, so rotating the secret key revokes every
 publishable key issued before it. Security comes from the signature plus
 server-side origin, OTP and membership checks — never from the key being hidden.
 
+### HOOK-006 — The public API is paced per integration
+
+`/api/v1/contacts` and `/api/v1/calls` run `CustomIntegrationApiKeyGuard`, then
+`PublicApiRateLimitGuard`: 600 requests per minute per **authenticated
+integration**, answered `429` with `Retry-After`. The bucket is the integration
+the key resolved to — never an IP or a client value — so one noisy workflow
+cannot starve another workspace. It is pacing, not authorization: a Redis outage
+lets the request through, and a guard that runs without a resolved integration
+fails closed (`401`). The AI voice agent routes are not paced at this layer.
+
+- **Source of truth:** `apps/backend/src/api/guards/public-api-rate-limit.guard.ts`
+
+### HOOK-007 — A public route never takes its workspace from the request
+
+Identity comes from the key: `CustomIntegrationAuthService.resolveApiKey` returns
+the owner and organization stored on the integration, and every public handler
+passes that context to the owning service. A contact or call id from another
+workspace is `404`, the same answer as an id that does not exist. Responses are
+projections (`toPublicContact`, `toPublicCallSummary`, the agent shape): no
+ownership columns, provider ids, cost or encrypted-archive URLs.
+
+- **Risk if violated:** one customer's key reading another's contacts, calls or
+  recordings
+
+### HOOK-008 — A client's idempotency key replays the original call
+
+`POST /api/v1/ai-voice-agents/:agentId/calls` accepts `Idempotency-Key`
+(`VoiceAgentCallService.startCallForClient`). The key is namespaced by the
+authenticated integration and hashed (`client:<integrationId>:<sha256>`) before
+it is stored in `AiVoiceAgentCall.idempotencyKey`, a column Ringee's own durable
+callers share (`meeting:…`, AGENT-019): clients can never collide with them or
+with each other, and the stored value reveals nothing the client sent.
+
+- The key is looked up **before** the calling gates, so a replay still answers
+  after the balance dropped or the number joined the DNC list — it is the same
+  call, not a new dial. The first request under a key runs every gate.
+- A repeat answers `200` with `Idempotent-Replayed: true` and
+  `idempotent_replayed: true`; a key reused for another agent or number is `422`.
+- Two requests racing under one key are settled by the unique key: the loser
+  answers with the winner's call.
+- A first attempt that failed **before any call was placed** keeps its key, and a
+  retry under it is refused with `409 { code: "idempotency_key_failed" }` — never
+  answered `200` with a `failed` call, which a client that retries on error
+  (n8n's Retry On Fail repeats the same key) would read as a successful start
+  while nothing was ever dialed. Trying again means a new key. A call that WAS
+  dialed and then ended badly (busy, no answer, voicemail, failed) still replays
+  as `200`: it is the truth about that call.
+- A start that crashed after the key was reserved but before the provider
+  answered is left as `created`; its replay answers `200 created` and never
+  dials, because the leg may already exist. That ambiguity cannot be removed
+  without risking a second paid call, so it is reported, not retried.
+- The key names the operation, not its payload: the same key with other
+  `variables` replays the first call (another agent or number is `422`). Keys do
+  not expire; a client that wants a second call to the same person sends a new key.
+- Without the header nothing changes.
+- **Source of truth:** `voice-agent-call.service.ts` (`startCallForClient`,
+  `clientIdempotencyKey`) and its spec
+
+### HOOK-009 — Public contact writes cannot erase data or delete by id alone
+
+`PUT /api/v1/contacts` is an upsert keyed by phone number
+(`ContactService.upsertContact`): only supplied, non-blank fields are written, a
+`note` is saved when the contact is created and never again, and two requests
+racing to create the same number settle on one contact — `ContactRepository.createUnlessPhoneTaken` serialises them with a transaction-scoped advisory lock per workspace and number, because `Contact` has no unique index over a live number (`@@unique([userId, phoneNumber, deletedAt])` contains a nullable column, so NULLs are distinct). Other creators (`createContact`, `findOrCreateByPhone`) are not covered by that lock. `DELETE` is the REST twin
+of the MCP's double confirmation: the caller must send the contact's own number
+as `confirm_phone_number` (`ContactService.deleteConfirmed`), so a client that has
+not just read the contact cannot delete it by guessing an id.
+
+### HOOK-011 — A client can ask what the public API guarantees
+
+`GET /api/v1/capabilities` (same key guard and pacing as the other public routes)
+answers `{ apiVersion, capabilities }`. `idempotentCalls: true` means Start Call
+honors `Idempotency-Key` as HOOK-008 describes. A deployment older than this
+change has no such route (`404`) and silently **ignores** the header, so a client
+that retries must ask first and refuse to dial when the answer is not `true`; the
+n8n node does. Bump `apiVersion` only when a capability changes in a way an
+installed client must know about.
+
+- **Source of truth:** `apps/backend/src/api/routes/public-capabilities.controller.ts`
+
+### HOOK-010 — Public call reads return the event-shaped call
+
+`GET /api/v1/calls/:id` returns exactly what a webhook event carries as
+`data.call` (`CustomIntegrationOutboundService.getCallDetail`), so a workflow that
+reacts to `call.completed` and one that fetches the call later parse one object.
+`:id` is the call id **or** the id Start Call returned, each looked up through
+its own workspace-scoped read (`resolveCallId`). The recording route streams the
+decrypted mp3 (REC-001) with `Cache-Control: private, no-store`; a call that is
+not the workspace's and a call with no finished recording answer the same `404`.
+
 ---
 
 ## Recordings & transcription (`REC`)

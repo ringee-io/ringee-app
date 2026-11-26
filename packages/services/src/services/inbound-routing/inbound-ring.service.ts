@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   Call,
@@ -16,8 +17,10 @@ import {
 } from "@ringee/database";
 import {
   NotificationService,
+  ProviderDispatchService,
   RedisService,
   TelephonyService,
+  inDispatchScope,
   VoiceAgentProviderService,
   signCallCorrelation,
   verifyCallCorrelation,
@@ -118,6 +121,7 @@ export class InboundRingService {
     private readonly routes: InboundRouteRepository,
     private readonly voiceAgents: VoiceAgentProviderService,
     private readonly contacts: ContactRepository,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   private browserKey(ctx: OwnershipContext) {
@@ -349,15 +353,27 @@ export class InboundRingService {
                   callLegId: attempt.providerCallLegId,
                   callSessionId: attempt.providerCallSessionId,
                 }
-              : await this.telephony.dialInboundEndpoint({
-                  sipUsername: target.sipUsername,
-                  from: /^\+[1-9]\d{6,14}$/.test(call.fromNumber)
-                    ? call.fromNumber
-                    : call.toNumber,
-                  correlation: signCallCorrelation(attempt.id),
-                  commandId: `inbound-endpoint-${attempt.id}`,
-                  timeoutSecs: ringSeconds,
-                });
+              : // A ring group dials every member at once: each leg is its own
+                // outbound attempt, paced one after another so a group of ten
+                // is not ten attempts in one second (CPS-002). A retry of the
+                // same command spends no second grant: Telnyx dedupes it too.
+                await inDispatchScope(
+                  this.dispatch,
+                  {
+                    source: "inbound_ring",
+                    idempotencyRef: `inbound-endpoint-${attempt.id}`,
+                  },
+                  () =>
+                    this.telephony.dialInboundEndpoint({
+                      sipUsername: target.sipUsername,
+                      from: /^\+[1-9]\d{6,14}$/.test(call.fromNumber)
+                        ? call.fromNumber
+                        : call.toNumber,
+                      correlation: signCallCorrelation(attempt.id),
+                      commandId: `inbound-endpoint-${attempt.id}`,
+                      timeoutSecs: ringSeconds,
+                    }),
+                );
             await this.attempts.bindProvider(
               attempt.id,
               handle.callControlId,

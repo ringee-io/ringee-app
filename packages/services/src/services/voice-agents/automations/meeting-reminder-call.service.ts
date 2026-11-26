@@ -469,6 +469,8 @@ export class MeetingReminderCallService {
           variables,
           metadata: {},
           idempotencyKey: dialKey(dialing, dialing.dialTries),
+          // A reminder has a time to be useful by (CPS-003).
+          dispatch: { source: "agent_reminder" },
         },
         async ({ agentCallId, callId }) => {
           const reject = async (

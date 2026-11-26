@@ -223,6 +223,15 @@ import {
   ConcurrentCallGuardService,
   StaleCallSweeperService,
 } from "./security";
+import {
+  DialPacingService,
+  DispatchAlertService,
+  DispatchKickService,
+  DispatchMaintenanceService,
+  DispatchQueueService,
+  DispatchSettingsService,
+  DispatchStatsService,
+} from "./dispatch";
 
 const servicesProviders = [
   UserService,
@@ -402,6 +411,14 @@ const servicesProviders = [
   ActiveCallTerminationService,
   ConcurrentCallGuardService,
   StaleCallSweeperService,
+  // Outbound call pacing and the dispatch queue (CPS-001..CPS-012)
+  DialPacingService,
+  DispatchKickService,
+  DispatchQueueService,
+  DispatchSettingsService,
+  DispatchStatsService,
+  DispatchAlertService,
+  DispatchMaintenanceService,
   // AI Voice Agents
   AppointmentBookingBlueprint,
   RemindersNotificationsBlueprint,

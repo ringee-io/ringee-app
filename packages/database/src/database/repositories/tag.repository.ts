@@ -1,7 +1,25 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { Tag } from "@prisma/client";
+import { Prisma, Tag } from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+
+/**
+ * Replaces a contact's tags with `tagIds` inside the caller's transaction, so
+ * a write that changes a contact and its tags lands whole or not at all.
+ */
+export async function replaceContactTags(
+  tx: Prisma.TransactionClient,
+  contactId: string,
+  tagIds: string[],
+): Promise<void> {
+  await tx.contactTag.deleteMany({ where: { contactId } });
+  if (tagIds.length > 0) {
+    await tx.contactTag.createMany({
+      data: tagIds.map((tagId) => ({ contactId, tagId })),
+      skipDuplicates: true,
+    });
+  }
+}
 
 @Injectable()
 export class TagRepository {
@@ -134,23 +152,9 @@ export class TagRepository {
   }
 
   async setContactTags(contactId: string, tagIds: string[]): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      // Remove all existing tags
-      await tx.contactTag.deleteMany({
-        where: { contactId },
-      });
-
-      // Add new tags
-      if (tagIds.length > 0) {
-        await tx.contactTag.createMany({
-          data: tagIds.map((tagId) => ({
-            contactId,
-            tagId,
-          })),
-          skipDuplicates: true,
-        });
-      }
-    });
+    await this.prisma.$transaction((tx) =>
+      replaceContactTags(tx, contactId, tagIds),
+    );
   }
 
   async assignTagsToContacts(

@@ -113,6 +113,8 @@ function createWorld(
     preCheckDelayMs?: number;
     /** Exercise the real selector instead of the dial-gate stub. */
     callerIds?: Array<{ id: string; phoneNumber: string }>;
+    /** The shared outbound clock (CPS-002); absent, dialing is not paced. */
+    dispatch?: unknown;
   } = {},
 ) {
   const campaign = {
@@ -1204,6 +1206,7 @@ function createWorld(
     userService as never,
     credit as never,
     carrier as never,
+    options.dispatch as never,
   );
   const internals = orchestrator as unknown as {
     runTick(): Promise<void>;
@@ -1850,6 +1853,136 @@ describe("DialerOrchestrationService", () => {
         world.of("call.initiate")[0].data.carrierRoute.callToken,
         "token-1",
       );
+    });
+  });
+
+  describe("the shared outbound clock (CPS-002)", () => {
+    /** A stand-in for the pacing service that records what it was asked. */
+    function clock() {
+      const asked = { peek: [] as any[], admit: [] as any[] };
+      const state = { free: true, grant: true, retryAfterMs: 400 };
+      return {
+        asked,
+        state,
+        peek: async (request: unknown) => {
+          asked.peek.push(request);
+          return state.free
+            ? { free: true, retryAfterMs: 0 }
+            : { free: false, retryAfterMs: state.retryAfterMs, reason: "busy" };
+        },
+        admit: async (request: unknown) => {
+          asked.admit.push(request);
+          return state.grant
+            ? { granted: true, waitedMs: 0, permit: {} }
+            : {
+                granted: false,
+                reason: "busy",
+                retryAfterMs: state.retryAfterMs,
+                waitedMs: 0,
+              };
+        },
+      };
+    }
+
+    it("touches no lead, creates no attempt and says nothing while the clock is busy", async () => {
+      const dispatch = clock();
+      dispatch.state.free = false;
+      const world = createWorld({ dispatch });
+
+      await world.runTick();
+
+      assert.equal(world.of("lead.assigned").length, 0);
+      assert.equal(world.of("call.blocked").length, 0);
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.session().status, "ready");
+      assert.equal(world.lead("lead-1").lockedBy, null);
+      // It only looked: nothing was spent.
+      assert.equal(dispatch.asked.admit.length, 0);
+      assert.equal(dispatch.asked.peek[0].source, "progressive_dial");
+    });
+
+    it("hands the agent back quietly when the last gate loses the race, and waits out the hint", async () => {
+      const dispatch = clock();
+      dispatch.state.grant = false;
+      const world = createWorld({ dispatch });
+
+      await world.runTick();
+
+      // No attempt: the clock is the last gate, before one is created.
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.of("call.initiate").length, 0);
+      // Quietly: not a refusal anyone is told about, and no "blocked" record.
+      assert.equal(world.of("call.blocked").length, 0);
+      assert.equal(world.session().status, "ready");
+      assert.equal(world.lead("lead-1").status, "queued");
+      assert.equal(world.lead("lead-1").nextCallAt, null);
+      assert.ok(
+        world.leaseReleases.length >= 1,
+        "the one-call lease is handed back",
+      );
+      assert.equal(dispatch.asked.admit.length, 1);
+      assert.deepEqual(
+        {
+          source: dispatch.asked.admit[0].source,
+          countAttempt: dispatch.asked.admit[0].countAttempt,
+          maxWaitMs: dispatch.asked.admit[0].maxWaitMs,
+        },
+        { source: "progressive_dial", countAttempt: false, maxWaitMs: 0 },
+      );
+
+      // The agent is left alone until the clock should be free, not spun.
+      await world.runTick();
+      assert.equal(dispatch.asked.admit.length, 1);
+
+      dispatch.state.grant = true;
+      world.endCooldowns();
+      await world.runTick();
+      assert.equal(world.of("call.initiate").length, 1);
+    });
+
+    it("dials as it always did when the clock grants, and the browser leg is not counted twice", async () => {
+      const dispatch = clock();
+      const world = createWorld({ dispatch });
+
+      await world.runTick();
+
+      assert.equal(world.of("call.initiate").length, 1);
+      assert.deepEqual(dispatch.asked.admit[0].workspace, {
+        userId: "user-1",
+        organizationId: "org-1",
+      });
+      // The leg is placed by the browser and counted when its webhook arrives.
+      assert.equal(dispatch.asked.admit[0].countAttempt, false);
+    });
+
+    it("paces a person's Dial click in preview as a person: it waits, and does not look first", async () => {
+      const dispatch = clock();
+      const world = createWorld({ dialerMode: "preview", dispatch });
+      await world.runTick();
+      // A preview lead is shown, not dialed: the clock is not involved yet.
+      assert.equal(dispatch.asked.peek.length, 0);
+      assert.equal(dispatch.asked.admit.length, 0);
+
+      await world.orchestrator.manualDial(
+        { userId: "user-1", organizationId: "org-1" },
+        "session-1",
+        "campaign-1",
+      );
+
+      assert.equal(dispatch.asked.admit.length, 1);
+      assert.equal(dispatch.asked.admit[0].source, "preview_dial");
+      assert.equal(
+        "maxWaitMs" in dispatch.asked.admit[0],
+        false,
+        "a person gets the interactive wait, not a zero one",
+      );
+      assert.equal(world.of("call.initiate").length, 1);
+    });
+
+    it("is not asked at all where pacing is not wired", async () => {
+      const world = createWorld();
+      await world.runTick();
+      assert.equal(world.of("call.initiate").length, 1);
     });
   });
 

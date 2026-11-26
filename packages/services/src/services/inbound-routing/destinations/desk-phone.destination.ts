@@ -1,11 +1,13 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
   InboundDestinationType,
   InboundRingAttemptRepository,
 } from "@ringee/database";
 import {
   CarrierConnectionError,
+  ProviderDispatchService,
   TelephonyService,
+  inDispatchScope,
   signCallCorrelation,
 } from "@ringee/platform";
 import type {
@@ -53,6 +55,7 @@ export class DeskPhoneDestinationHandler implements InboundDestinationHandler {
   constructor(
     private readonly telephony: TelephonyService,
     private readonly attempts: InboundRingAttemptRepository,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   async execute(request: RouteExecutionRequest): Promise<RouteExecutionResult> {
@@ -84,20 +87,31 @@ export class DeskPhoneDestinationHandler implements InboundDestinationHandler {
       return { status: "ringing", targets: 1 };
     }
 
+    // Narrowed above; a closure does not keep it, so hold the value here.
+    const callControlId = call.callControlId;
     try {
-      await this.telephony.connectInboundToDeskPhone(call.callControlId, {
-        sipUsername: destination.sipUsername,
-        // A caller with no E.164 number is shown by name against the number
-        // that was called.
-        from: origin.callerId ?? call.toNumber,
-        fromDisplayName: origin.callerId
-          ? null
-          : origin.fromNumber || "Unknown",
-        correlation: signCallCorrelation(call.id),
-        // Same id on a redelivery: the phone is never rung twice.
-        commandId: `carrier-inbound-${call.id}`,
-        timeoutSecs: DESK_PHONE_RING_SECONDS,
-      });
+      await inDispatchScope(
+        this.dispatch,
+        // Stable provider commands protect redeliveries; each sent request is still paced.
+        {
+          source: "inbound_ring",
+          idempotencyRef: `carrier-inbound-${call.id}`,
+        },
+        () =>
+          this.telephony.connectInboundToDeskPhone(callControlId, {
+            sipUsername: destination.sipUsername,
+            // A caller with no E.164 number is shown by name against the
+            // number that was called.
+            from: origin.callerId ?? call.toNumber,
+            fromDisplayName: origin.callerId
+              ? null
+              : origin.fromNumber || "Unknown",
+            correlation: signCallCorrelation(call.id),
+            // Same id on a redelivery: the phone is never rung twice.
+            commandId: `carrier-inbound-${call.id}`,
+            timeoutSecs: DESK_PHONE_RING_SECONDS,
+          }),
+      );
     } catch (error) {
       const detail =
         error instanceof CarrierConnectionError

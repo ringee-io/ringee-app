@@ -125,6 +125,19 @@ until the user acts (`BILL-008`).
 
 ## Where a call is refused for money
 
+### Dispatch-time AI admission holds
+
+`CreditService.reserveCredits` / `CreditRepository.reserveOnce` own the new
+`CreditReservation` admission holds. Queued operations hold no funds. A dispatch
+holds an estimate against the two existing settlement keys; `consumeOnce`
+settles a matching hold in the same credit-row-locked transaction as its debit.
+Known unplaced calls release holds; ambiguous calls keep bounded holds for
+reconciliation. This does not replace provider-metered settlement or establish
+a worst-case budget for every call path. See
+[financial protection](../financial-protection.md) and
+[CPS protection](../telnyx-cps-cost-protection.md) for exact coverage and release
+gates.
+
 | Point            | Check                              | On failure                        |
 | ---------------- | ---------------------------------- | --------------------------------- |
 | Dial pre-flight  | balance, `canCall`, caller ID, DNC | refuse the request                |

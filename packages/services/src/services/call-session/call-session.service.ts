@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   CallOutcome,
@@ -28,6 +29,7 @@ import {
   TelephonyService,
   normalizePhoneE164,
 } from "@ringee/platform";
+import { DialPacingService } from "../dispatch/dial-pacing.service";
 import { CreditService } from "../credit.service";
 import { CallbackService } from "../outbound/callback.service";
 import { MeetingService } from "../meeting.service";
@@ -44,6 +46,7 @@ import { ConcurrentCallGuardService } from "../security";
 import { VoicemailDropService } from "../outbound/voicemail-drop.service";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { ContactService } from "../contact.service";
+import { errorKind } from "../error-kind.util";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -123,6 +126,7 @@ export class CallSessionService {
     private readonly voicemailDropService: VoicemailDropService,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly contactService: ContactService,
+    @Optional() private readonly pacing?: DialPacingService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -717,14 +721,27 @@ export class CallSessionService {
         });
       }
 
+      // Last gate before anything is reserved: the slot is for a dial that
+      // will happen, and a deferral costs the owner none of their allowance
+      // (CPS-002).
+      await this.pacing?.paceInteractive("session_dial", ctx);
+
       // The owner's call allowance (`maxCalls`) is reserved here, atomically
       // with the item leaving `pending`, so concurrent dials cannot both slip
-      // under it.
+      // under it. The session's state is checked again under the same lock:
+      // the pacing wait above is long enough for the owner to pause or revoke
+      // the session, and the check at the top read it before that.
       const admission = await this.repo.admitItem(
         session.id,
         item.id,
         session.maxCalls,
       );
+      if (admission === "paused") {
+        throw new BadRequestException("Session is paused");
+      }
+      if (admission === "closed") {
+        throw new BadRequestException("Session is closed");
+      }
       if (admission === "cap_reached") {
         await this.repo.update(session.id, {
           status: CallSessionStatus.completed,
@@ -738,13 +755,6 @@ export class CallSessionService {
         throw new BadRequestException(
           `Item is ${item.status} and cannot be redialed`,
         );
-      }
-
-      if (session.status === CallSessionStatus.ready) {
-        await this.repo.update(session.id, {
-          status: CallSessionStatus.active,
-          startedAt: session.startedAt ?? new Date(),
-        });
       }
 
       const customHeaders: Array<{ name: string; value: string }> = [
@@ -1277,11 +1287,4 @@ function sourceToActor(source: CallSessionSource): CallSessionActorSource {
     default:
       return CallSessionActorSource.api;
   }
-}
-
-/** What failed, without the message: Prisma errors echo their arguments. */
-function errorKind(err: unknown): string {
-  const code = (err as { code?: unknown } | null)?.code;
-  if (typeof code === "string") return code;
-  return err instanceof Error ? err.name : "unknown error";
 }

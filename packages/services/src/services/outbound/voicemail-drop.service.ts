@@ -1,9 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   VoicemailDropAssetRepository,
@@ -13,8 +17,12 @@ import {
   VoicemailDropAsset,
 } from "@ringee/database";
 import {
+  CallOriginationUncertainError,
+  ProviderDispatchDeferredError,
+  ProviderDispatchService,
   TelephonyService,
   UploadFactory,
+  inDispatchScope,
   signCallCorrelation,
 } from "@ringee/platform";
 import { randomUUID } from "node:crypto";
@@ -41,6 +49,13 @@ const VOICEMAIL_RING_TIMEOUT_SECS = 45;
  * length drop gets cut off mid-sentence.
  */
 const VOICEMAIL_MAX_CALL_SECS = 300;
+/**
+ * How long a drop that is not over keeps a second one to the same number out.
+ * Longer than any drop can last (ring + time limit), so only a drop whose end
+ * never reached Ringee stops counting.
+ */
+const UNFINISHED_DROP_WINDOW_MS =
+  (VOICEMAIL_RING_TIMEOUT_SECS + VOICEMAIL_MAX_CALL_SECS + 60) * 1000;
 
 /**
  * Telnyx's `playback_start` decodes ONLY these two. Accepting anything else
@@ -93,6 +108,7 @@ export class VoicemailDropService {
     private readonly userService: UserService,
     private readonly contactService: ContactService,
     private readonly callerIdRotationService: CallerIdRotationService,
+    @Optional() private readonly dispatch?: ProviderDispatchService,
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -301,33 +317,95 @@ export class VoicemailDropService {
 
     // Persist admission before dialing. An early provider webhook can bind
     // this signed pending row without trusting arbitrary client_state.
-    const call = await this.callRepo.createCall(ctx, {
-      id: pendingCallId,
-      contact: contact ? { connect: { id: contact.id } } : undefined,
-      fromNumber: callerId,
-      toNumber: destination,
-      connectionId: apiConfiguration.TELNYX_CALL_CONTROL_APP_ID,
-      direction: "outbound",
-      status: CallStatus.pending,
-      startedAt: new Date(),
-      source: input.source ?? "voicemail_drop",
-      clientState: Buffer.from(JSON.stringify(clientState)).toString("base64"),
-      callerId: presentedNumberId
-        ? { connect: { id: presentedNumberId } }
-        : undefined,
-    });
+    //
+    // One leg per drop: while an earlier drop to this number is not over —
+    // including one whose dial went out without an answer saying whether it
+    // did — no second one is dialed. It is settled first, by its webhook
+    // binding its row, or by its row being closed when the dial was refused.
+    const admitted = await this.callRepo.createVoicemailDropUnlessUnfinished(
+      ctx,
+      {
+        id: pendingCallId,
+        contact: contact ? { connect: { id: contact.id } } : undefined,
+        fromNumber: callerId,
+        toNumber: destination,
+        connectionId: apiConfiguration.TELNYX_CALL_CONTROL_APP_ID,
+        direction: "outbound",
+        status: CallStatus.pending,
+        startedAt: new Date(),
+        source: input.source ?? "voicemail_drop",
+        clientState: Buffer.from(JSON.stringify(clientState)).toString(
+          "base64",
+        ),
+        callerId: presentedNumberId
+          ? { connect: { id: presentedNumberId } }
+          : undefined,
+      },
+      new Date(Date.now() - UNFINISHED_DROP_WINDOW_MS),
+    );
+    if (admitted.unfinished) {
+      throw new ConflictException({
+        statusCode: 409,
+        error: "Conflict",
+        code: "voicemail_drop_in_progress",
+        callId: admitted.unfinished.id,
+        message:
+          "A voicemail to this number is still being delivered, or its call has not been confirmed yet. Check that call before sending another.",
+      });
+    }
+    const call = admitted.created;
 
-    const leg = await this.telephonyService.dial({
-      to: destination,
-      from: callerId,
-      clientState,
-      // `greeting_end` is what makes this a voicemail drop rather than a cold
-      // call: Telnyx waits out the machine's greeting and tells us when to
-      // start playing.
-      answeringMachineDetection: "greeting_end",
-      timeoutSecs: VOICEMAIL_RING_TIMEOUT_SECS,
-      timeLimitSecs: VOICEMAIL_MAX_CALL_SECS,
-    });
+    // A person pressed "send voicemail": paced as interactive, never refused.
+    let leg: Awaited<ReturnType<TelephonyService["dial"]>>;
+    try {
+      leg = await inDispatchScope(
+        this.dispatch,
+        { source: "voicemail_drop" },
+        () =>
+          this.telephonyService.dial({
+            to: destination,
+            from: callerId,
+            clientState,
+            // `greeting_end` is what makes this a voicemail drop rather than a
+            // cold call: Telnyx waits out the machine's greeting and tells us
+            // when to start playing.
+            answeringMachineDetection: "greeting_end",
+            timeoutSecs: VOICEMAIL_RING_TIMEOUT_SECS,
+            timeLimitSecs: VOICEMAIL_MAX_CALL_SECS,
+          }),
+      );
+    } catch (error) {
+      if (error instanceof CallOriginationUncertainError) {
+        // The leg may be ringing. Its row stays pending, for its webhook to
+        // bind (and the drop to play); until that happens, or the row ages
+        // out, another send to this number is refused rather than dialed.
+        this.logger.warn(
+          `📼 Voicemail drop ${asset.id} to ${destination} was not confirmed by the provider (call ${call.id}); left for its webhook`,
+        );
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.BAD_GATEWAY,
+            error: "Bad Gateway",
+            code: "voicemail_drop_outcome_unknown",
+            callId: call.id,
+            message:
+              "The provider did not confirm whether the voicemail call started; it may still go through. Check the call before sending it again.",
+          },
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+      // Refused, or never sent: no leg exists, so the row is closed and the
+      // number is free for another try.
+      await this.callRepo
+        .failPendingCall(
+          call.id,
+          error instanceof ProviderDispatchDeferredError
+            ? "Deferred before provider dispatch"
+            : "The provider refused the voicemail call",
+        )
+        .catch(() => undefined);
+      throw error;
+    }
 
     if (!leg.callControlId) {
       throw new BadRequestException("Provider did not return a call");

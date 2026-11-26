@@ -1215,6 +1215,7 @@ export class VoiceAgentAutomationService {
       },
       metadata: {},
       responsibleUserId,
+      dispatch: { source: "agent_automation" },
     });
   }
 

@@ -119,6 +119,7 @@ pnpm prisma:format
 | `@ringee/services`                                 | node:test over `src/**/*.spec.ts` | ✔        |
 | `@ringee/database`                                 | node:test over `src/**/*.spec.ts` | ✔        |
 | `@ringee/platform`                                 | vitest                            | —         |
+| `backend`, `@ringee/orchestrator`                  | node:test over `src/**/*.spec.ts` | —         |
 | `@ringee/dialer-core`                              | vitest                            | ✔        |
 | `@ringee/dialer-sdk`                               | vitest                            | ✔        |
 | `@ringee-io/agent`                                 | node --test                       | ✔        |
@@ -132,6 +133,14 @@ a process per spec file, and with type-checking on, each process re-checked the
 whole import graph (~320 files: the platform and database barrels plus the
 Prisma client types). That was 17–30 s per file before any test ran, and it took
 CI's Test step past 20 minutes.
+
+`backend` and `@ringee/orchestrator` run theirs the same way (transpile-only) but
+have no `typecheck` script, so CI does not type-check their specs. Each app also
+has a spec that resolves its real root module (`app.module.spec.ts`,
+`orchestrator.module.spec.ts`) in Nest's preview mode: every provider's
+constructor dependencies are resolved, but no constructor, factory or lifecycle
+hook runs, so nothing connects and the dialer loop `AppModule` starts stays
+stopped. Use that mode, not a booted `AppModule`, to prove DI changes in the API.
 
 There are 29 test files / 244 tests, concentrated where a mistake costs money or
 duplicates a call: `call-cost.util`, `credit.repository`,

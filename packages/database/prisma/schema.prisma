@@ -1611,12 +1611,29 @@ model Credit {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reservations CreditReservation[]
 
   @@unique([organizationId])
   @@index([userId])
   @@index([organizationId])
+}
+
+/// Admission holds are separate from the ledger balance. Queued operations
+/// hold nothing; debits settle matching holds in the same transaction.
+model CreditReservation {
+  id             String   @id @default(uuid()) @db.Uuid
+  creditId       String   @db.Uuid
+  idempotencyKey String   @unique
+  amount         Float
+  state          String   @default("held")
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  credit         Credit   @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@index([creditId, state, expiresAt])
 }
 
 /// Idempotency ledger for credit debits caused by retriable work (provider
@@ -4712,6 +4729,14 @@ enum AiVoiceAgentCallStatus {
   busy
   voicemail
   failed
+  /// Waiting for provider capacity. No leg exists and nothing has been dialed:
+  /// the call is in `AiVoiceAgentCallDispatch` until it is placed, cancelled or
+  /// expires (CPS-006). Added by 20261124150100_provider_dispatch_status_values.
+  queued
+  /// Withdrawn by its caller before it was dialed.
+  cancelled
+  /// Waited past its limit and was never dialed.
+  expired
 }
 
 /// What the conversation achieved. A closed set — new members are additive.
@@ -4994,6 +5019,8 @@ model AiVoiceAgentCall {
   handoffs          AiVoiceAgentHandoff[]
   /// The callback that placed this call, when one did.
   placedByCallback  CallbackTask?                 @relation("callbackPlacedAgentCall")
+  /// Present only for a call that was queued for provider capacity (CPS-006).
+  dispatch          AiVoiceAgentCallDispatch?
 
   @@index([agentId])
   @@index([userId])
@@ -5001,6 +5028,100 @@ model AiVoiceAgentCall {
   @@index([agentId, createdAt])
   @@index([status])
   @@index([responsibleUserId])
+}
+
+enum AiVoiceAgentCallDispatchState {
+  queued
+  dispatched
+  cancelled
+  expired
+  failed
+}
+
+/// Why an agent call waited for provider capacity, and where it stands
+/// (CPS-006). A side table, not columns on `AiVoiceAgentCall`: that table is
+/// read on every call path, and code that ships before this migration runs is
+/// unaffected by a table it never touches.
+///
+/// `queued` with a live `claimToken` is a dispatcher working on it; the claim is
+/// a lease, so a crashed dispatcher's claim simply expires. `dispatched` is the
+/// commit point: from there the call is the ordinary `AiVoiceAgentCall` flow and
+/// is never dialed again by the queue, whatever the provider answers.
+model AiVoiceAgentCallDispatch {
+  agentCallId        String                        @id @db.Uuid
+  /// `org:<id>` or `user:<id>`: never the bare user id (WRK-001).
+  workspaceKey       String
+  userId             String                        @db.Uuid
+  organizationId     String?                       @db.Uuid
+  /// Which provider billing account's capacity it waits for.
+  providerAccountKey String
+  /// 0 interactive, 1 scheduled, 2 automation, 3 background.
+  trafficLevel       Int                           @default(3)
+  /// What started it (`agent_api`, `agent_mcp`, ...).
+  source             String
+  /// Authenticated public integration, re-checked before queued placement.
+  integrationId      String?                       @db.Uuid
+  state              AiVoiceAgentCallDispatchState @default(queued)
+  queuedAt           DateTime                      @default(now())
+  /// Earliest time the next attempt may run (a deferral's retry hint).
+  notBefore          DateTime                      @default(now())
+  /// After this it is never dialed.
+  expiresAt          DateTime
+  /// Times a dispatcher took it up.
+  attempts           Int                           @default(0)
+  claimToken         String?                       @db.Uuid
+  claimedAt          DateTime?
+  dispatchedAt       DateTime?
+  finishedAt         DateTime?
+  /// The last deferral, cancellation, expiry or refusal.
+  reason             String?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+
+  agentCall AiVoiceAgentCall @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
+
+  @@index([state, trafficLevel, queuedAt])
+  @@index([workspaceKey, state])
+  @@index([state, expiresAt])
+}
+
+/// What Ringee's own dispatch counted in one UTC hour for one provider billing
+/// account (CPS-009). Telnyx bills on the 95th percentile of these hourly peaks,
+/// counted from ITS records; this is Ringee's measurement of the same quantity,
+/// kept so a month can be estimated and reconciled against the invoice.
+model ProviderDispatchHour {
+  id                 String   @id @default(uuid()) @db.Uuid
+  providerAccountKey String
+  /// Start of the UTC hour.
+  hourStart          DateTime
+  /// The most attempts counted in any single second of the hour.
+  peakCps            Int      @default(0)
+  attempts           Int      @default(0)
+  /// Everything else the limiter counted (accepted, rejected, per class,
+  /// overage, would-defer, waits, bypass, observed ...), by name.
+  counters           Json     @default("{}")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([providerAccountKey, hourStart])
+  @@index([hourStart])
+}
+
+/// An administrator's override of one dispatch setting (CPS-010). In
+/// PostgreSQL, not only Redis, so a cache flush or failover can only ever
+/// bring back the environment defaults, which are the conservative ones.
+model ProviderDispatchSetting {
+  id                 String   @id @default(uuid()) @db.Uuid
+  providerAccountKey String
+  key                String
+  value              Json
+  /// The staff member who set it. No relation: a record of who, not an owner.
+  updatedByUserId    String?  @db.Uuid
+  reason             String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([providerAccountKey, key])
 }
 
 /// Workspace-wide company context: the fallback an AI voice agent uses when it
@@ -5147,24 +5268,24 @@ model FollowUpActivation {
 /// through one reminders agent. One policy per calendar, so two agents never
 /// call the same lead about the same meeting.
 model MeetingReminderPolicy {
-  id                String   @id @default(uuid()) @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
   /// The admin who last configured it; in a personal workspace, its owner.
-  userId            String   @db.Uuid
+  userId             String    @db.Uuid
   /// Null in a personal workspace, whose owner is `userId` (WRK-001).
-  organizationId    String?  @db.Uuid
-  agentId           String   @db.Uuid
-  calendarId        String   @unique @db.Uuid
+  organizationId     String?   @db.Uuid
+  agentId            String    @db.Uuid
+  calendarId         String    @unique @db.Uuid
   /// Minutes before the meeting a call is placed, one execution per offset.
-  offsetsMinutes    Int[]
+  offsetsMinutes     Int[]
   /// Calling window, as wall-clock minutes and weekdays (0 = Sunday) in the
   /// calendar's time zone. A call is never placed outside it.
-  windowStartMinute Int      @default(540)
-  windowEndMinute   Int      @default(1200)
-  windowDays        Int[]    @default([0, 1, 2, 3, 4, 5, 6])
-  enabled           Boolean  @default(true)
+  windowStartMinute  Int       @default(540)
+  windowEndMinute    Int       @default(1200)
+  windowDays         Int[]     @default([0, 1, 2, 3, 4, 5, 6])
+  enabled            Boolean   @default(true)
   /// When the policy was last switched on. Offsets that were already in the
   /// past at that moment are never called late.
-  activatedAt       DateTime @default(now())
+  activatedAt        DateTime  @default(now())
   /// Set when automatic follow-up was adopted to cover new bookings only
   /// (Stage 4C): a meeting created before it gets a call only when it is in
   /// `includedMeetingIds`. Null keeps the policy's original meaning — every
@@ -5172,12 +5293,12 @@ model MeetingReminderPolicy {
   coversMeetingsFrom DateTime?
   /// Meetings created before `coversMeetingsFrom` that the adopting owner or
   /// administrator explicitly included ("Include this meeting"). Bounded.
-  includedMeetingIds String[] @default([]) @db.Uuid
+  includedMeetingIds String[]  @default([]) @db.Uuid
   /// Bumped on every change to which calls are due; a pending execution
   /// planned for an older version is cancelled and replanned.
-  version           Int      @default(1)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  version            Int       @default(1)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)

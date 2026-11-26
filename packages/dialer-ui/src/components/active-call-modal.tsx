@@ -226,6 +226,10 @@ export function ActiveCallModal({
       className={cn(
         "flex items-center gap-1",
         compact && "flex-wrap justify-center",
+        // On a phone the controls wrap inside the header. Their total width
+        // varies (the transcribe button carries its own label), so a single
+        // row would push the hang-up button out of the dialog.
+        !compact && "max-md:w-full max-md:flex-wrap max-md:justify-center",
       )}
       aria-label={copy.controls}
     >
@@ -544,15 +548,19 @@ export function ActiveCallModal({
                       ? "flex w-full flex-col items-center gap-4"
                       : "flex items-center gap-3",
                     !compact &&
-                      "max-md:order-3 max-md:w-full max-md:justify-between",
+                      "max-md:order-3 max-md:w-full max-md:flex-col max-md:items-stretch max-md:gap-2",
                   )}
                 >
                   {controls}
+                  {/* The only control that ends a live call: on a phone it gets its own full-width row so it can never be clipped. */}
                   <Button
                     type="button"
                     onClick={onHangup}
                     variant="outline"
-                    className="h-11 shrink-0 cursor-pointer border-red-500/25 bg-red-500/10 px-4 text-red-600 hover:bg-red-500/20 hover:text-red-600 dark:text-red-300 dark:hover:text-red-300"
+                    className={cn(
+                      "h-11 shrink-0 cursor-pointer border-red-500/25 bg-red-500/10 px-4 text-red-600 hover:bg-red-500/20 hover:text-red-600 dark:text-red-300 dark:hover:text-red-300",
+                      !compact && "max-md:h-12 max-md:w-full",
+                    )}
                   >
                     <PhoneOff className="size-4" />
                     <span>{copy.endCall}</span>

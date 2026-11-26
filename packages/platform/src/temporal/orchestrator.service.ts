@@ -82,6 +82,20 @@ export class OrchestratorService {
     );
   }
 
+  /**
+   * Wake the dispatch queue's pump right away — the workflow the 15s Schedule
+   * runs, started on demand so a call that had to wait for capacity is picked up
+   * the moment it is enqueued. Concurrent pumps are safe: every claim is a
+   * lease and every grant comes from the one shared clock.
+   */
+  async triggerDispatchQueue(hint: string): Promise<string> {
+    return this.startWorkflow(
+      WORKFLOW_NAMES.dispatchQueue,
+      `dispatch-queue:${hint}:${Date.now()}`,
+      [],
+    );
+  }
+
   private async startWorkflow(
     workflowType: WorkflowName,
     workflowId: string,
