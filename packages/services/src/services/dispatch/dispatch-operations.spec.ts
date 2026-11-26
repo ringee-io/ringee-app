@@ -813,7 +813,7 @@ describe("DispatchAlertService", () => {
       await alerts.deliver(alert);
       assert.equal(sent.length, 1);
       // The escaping still holds: the detail is data, not markup.
-      assert.doesNotMatch((sent[0] as { html: string }).html, /<script>/);
+      assert.doesNotMatch((sent[0] as { html: string }).html, /<script>/i);
     });
 
     it("retries a send the provider failed under its claim, then keeps the hour", async () => {

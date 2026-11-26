@@ -24,8 +24,17 @@ describe("which provider requests start a call", () => {
     ["POST", "/texml/Accounts/AC123/Calls"],
     ["POST", "/texml/Accounts/AC123/Calls/"],
     ["POST", "/faxes"],
+    ["POST", "/faxes///"],
   ])("%s %s spends capacity", (method, path) => {
     expect(isCallOriginatingRequest(method, path)).toBe(true);
+  });
+
+  it("reads a path with a long run of slashes in linear time", () => {
+    const path = `/calls${"/".repeat(100_000)}x`;
+    const started = performance.now();
+
+    expect(isCallOriginatingRequest("POST", path)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(1_000);
   });
 
   it.each([

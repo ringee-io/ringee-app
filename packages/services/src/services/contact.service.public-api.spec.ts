@@ -379,6 +379,45 @@ describe("ContactService.updateContact", () => {
     assert.equal(rows.get("contact-ada")!.phoneNumber, "+14155550199");
     assert.deepEqual(tagSets, [{ id: "contact-ada", tagIds: ["tag-1"] }]);
   });
+
+  it("refuses the number it read sent back once another contact holds it", async () => {
+    const { service, rows, updated, tagSets, afterNextLookup } = setup([ADA]);
+    // Between the read and the write, Ada moves to a new number and another
+    // contact is given the one she had.
+    afterNextLookup(() => {
+      rows.set("contact-ada", { ...ADA, phoneNumber: "+14155550199" });
+      rows.set("contact-grace", {
+        id: "contact-grace",
+        phoneNumber: ADA.phoneNumber,
+      });
+    });
+
+    await assert.rejects(
+      service.updateContact(CTX, "contact-ada", {
+        phoneNumber: ADA.phoneNumber,
+        jobTitle: "Founder",
+        tagIds: ["tag-1"],
+      }),
+      BadRequestException,
+    );
+    assert.equal(rows.get("contact-ada")!.phoneNumber, "+14155550199");
+    assert.deepEqual(updated, [], "nothing of the refused change was written");
+    assert.deepEqual(tagSets, []);
+  });
+
+  it("saves an edit that sends the contact's own number back", async () => {
+    const { service, rows, tagSets } = setup([ADA]);
+
+    const saved = await service.updateContact(CTX, "contact-ada", {
+      phoneNumber: ADA.phoneNumber,
+      jobTitle: "Founder",
+      tagIds: ["tag-1"],
+    });
+
+    assert.equal(saved.jobTitle, "Founder");
+    assert.equal(rows.get("contact-ada")!.phoneNumber, ADA.phoneNumber);
+    assert.deepEqual(tagSets, [{ id: "contact-ada", tagIds: ["tag-1"] }]);
+  });
 });
 
 describe("ContactService.deleteConfirmed (HOOK-009)", () => {

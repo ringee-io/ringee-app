@@ -210,5 +210,22 @@ describe(
       assert.notEqual(moved.phoneNumber, number);
       assert.deepEqual(await tagsOf(contact.id), []);
     });
+
+    it("saves an edit that sends the contact's own number back", async () => {
+      const number = phone();
+      const contact = await service.createContact(org, { phoneNumber: number });
+
+      // The locked write looks for another holder of the number, never the
+      // contact itself.
+      const saved = await service.updateContact(org, contact.id, {
+        phoneNumber: number,
+        jobTitle: "Admiral",
+      });
+
+      assert.equal(saved.id, contact.id);
+      assert.equal(saved.phoneNumber, number);
+      assert.equal(saved.jobTitle, "Admiral");
+      assert.equal(await live(org, number), 1);
+    });
   },
 );

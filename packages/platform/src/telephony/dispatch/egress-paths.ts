@@ -37,7 +37,9 @@ export function isCallOriginatingRequest(
   body?: unknown,
 ): boolean {
   if (method.toUpperCase() !== "POST") return false;
-  const pathname = path.split(/[?#]/, 1)[0].replace(/\/+$/, "").toLowerCase();
+  const pathname = withoutTrailingSlashes(
+    path.split(/[?#]/, 1)[0],
+  ).toLowerCase();
   // Voice verification originates a provider-controlled leg. Pace it
   // conservatively until its surcharge treatment has been reconciled to CDRs.
   if (pathname === "/verified_numbers")
@@ -47,4 +49,15 @@ export function isCallOriginatingRequest(
       (body as { verification_method?: unknown }).verification_method === "call"
     );
   return CALL_ORIGINATING.some((pattern) => pattern.test(pathname));
+}
+
+/**
+ * `path` without its trailing `/`s. A loop rather than `/\/+$/`: that regex
+ * restarts at every `/` of a run that does not end the path, which is
+ * quadratic on a path built from ids a webhook supplied.
+ */
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path[end - 1] === "/") end--;
+  return path.slice(0, end);
 }

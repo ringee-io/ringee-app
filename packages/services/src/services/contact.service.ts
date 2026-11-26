@@ -216,32 +216,38 @@ export class ContactService {
     id: string,
     dto: Partial<UpdateContactDto>,
   ): Promise<Contact> {
-    const contact = await this.ensureOwned(ctx, id);
+    await this.ensureOwned(ctx, id);
     const tagIds = dto.tagIds
       ? await this.validateOwnedTagIds(ctx, dto.tagIds)
       : undefined;
 
-    if (dto.phoneNumber && dto.phoneNumber !== contact.phoneNumber) {
-      // A new number is checked and written in one step, under the lock a
+    if (dto.phoneNumber) {
+      // Every number sent is checked and written in one step, under the lock a
       // create or an upsert takes on the number, so a move racing either — or
-      // another move — cannot leave two live contacts with it.
-      const moved = await this.repo.updateUnlessPhoneTaken(
+      // another move — cannot leave two live contacts with it. That includes
+      // the number the contact had when it was read: it may have been moved
+      // since and the number given to another contact.
+      const saved = await this.repo.updateUnlessPhoneTaken(
         ctx,
         id,
         dto.phoneNumber,
         this.contactUpdateData(dto),
         tagIds,
       );
-      if (moved === "taken") {
+      if (saved === "taken") {
         throw new BadRequestException("Contact already exists");
       }
-      if (!moved) throw new NotFoundException("Contact not found");
-      return moved;
+      if (!saved) throw new NotFoundException("Contact not found");
+      return saved;
     }
 
     if (tagIds) await this.tagRepo.setContactTags(id, tagIds);
 
-    return this.repo.update(id, this.contactUpdateData(dto));
+    // No number sent: a number is only ever written under its lock, above.
+    return this.repo.update(id, {
+      ...this.contactUpdateData(dto),
+      phoneNumber: undefined,
+    });
   }
 
   /** The contact columns a change writes; a key left out is left alone. */

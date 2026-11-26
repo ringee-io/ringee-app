@@ -1481,15 +1481,18 @@ export class TelnyxService implements TelephonyService {
     try {
       const destination = `sip:${creds.sipUsername}@sip.telnyx.com`;
 
-      await this.telnyxClient.post(`/calls/${callControlId}/actions/transfer`, {
-        to: destination,
-        client_state: Buffer.from(
-          JSON.stringify({
-            userId,
-            sip: creds.sipUsername,
-          }),
-        ).toString("base64"),
-      });
+      await this.telnyxClient.post(
+        `/calls/${encodeURIComponent(callControlId)}/actions/transfer`,
+        {
+          to: destination,
+          client_state: Buffer.from(
+            JSON.stringify({
+              userId,
+              sip: creds.sipUsername,
+            }),
+          ).toString("base64"),
+        },
+      );
 
       this.logger.log(
         `Call ${callControlId} transferred to ${destination} for userId=${userId}`,
@@ -1569,10 +1572,13 @@ export class TelnyxService implements TelephonyService {
   }
 
   async hangupCall(callControlId: string, commandId?: string): Promise<void> {
-    await this.telnyxClient.post(`/calls/${callControlId}/actions/hangup`, {
-      client_state: Buffer.from("hangup").toString("base64"),
-      command_id: commandId || crypto.randomUUID(),
-    });
+    await this.telnyxClient.post(
+      `/calls/${encodeURIComponent(callControlId)}/actions/hangup`,
+      {
+        client_state: Buffer.from("hangup").toString("base64"),
+        command_id: commandId || crypto.randomUUID(),
+      },
+    );
   }
 
   /**
@@ -1587,7 +1593,7 @@ export class TelnyxService implements TelephonyService {
     try {
       const { data } = await this.telnyxClient.get<{
         data?: { is_alive?: boolean };
-      }>(`/calls/${callControlId}`);
+      }>(`/calls/${encodeURIComponent(callControlId)}`);
       return data?.is_alive ?? false;
     } catch (error: unknown) {
       const status =
@@ -1630,7 +1636,7 @@ export class TelnyxService implements TelephonyService {
   ): Promise<void> {
     try {
       await this.telnyxClient.post(
-        `/calls/${callControlId}/actions/streaming_start`,
+        `/calls/${encodeURIComponent(callControlId)}/actions/streaming_start`,
         {
           stream_url: streamUrl,
           stream_track: track,
@@ -1661,7 +1667,7 @@ export class TelnyxService implements TelephonyService {
   async stopStreaming(callControlId: string): Promise<void> {
     try {
       await this.telnyxClient.post(
-        `/calls/${callControlId}/actions/streaming_stop`,
+        `/calls/${encodeURIComponent(callControlId)}/actions/streaming_stop`,
         { command_id: crypto.randomUUID() },
       );
     } catch (error) {
@@ -1678,7 +1684,7 @@ export class TelnyxService implements TelephonyService {
     clientState?: Record<string, unknown>,
   ): Promise<void> {
     await this.telnyxClient.post(
-      `/calls/${callControlId}/actions/playback_start`,
+      `/calls/${encodeURIComponent(callControlId)}/actions/playback_start`,
       {
         audio_url: audioUrl,
         client_state: Buffer.from(
@@ -2000,16 +2006,21 @@ export class TelnyxService implements TelephonyService {
       timeLimitSecs?: number;
     },
   ): Promise<void> {
-    await this.telnyxClient.post(`/calls/${callControlId}/actions/transfer`, {
-      to: params.to,
-      from: params.from,
-      command_id: params.commandId || crypto.randomUUID(),
-      ...(params.timeLimitSecs
-        ? { time_limit_secs: params.timeLimitSecs }
-        : {}),
-      client_state: Buffer.from(
-        JSON.stringify(params.clientState ?? { action: "desk_phone_outbound" }),
-      ).toString("base64"),
-    });
+    await this.telnyxClient.post(
+      `/calls/${encodeURIComponent(callControlId)}/actions/transfer`,
+      {
+        to: params.to,
+        from: params.from,
+        command_id: params.commandId || crypto.randomUUID(),
+        ...(params.timeLimitSecs
+          ? { time_limit_secs: params.timeLimitSecs }
+          : {}),
+        client_state: Buffer.from(
+          JSON.stringify(
+            params.clientState ?? { action: "desk_phone_outbound" },
+          ),
+        ).toString("base64"),
+      },
+    );
   }
 }
