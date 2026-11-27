@@ -351,6 +351,7 @@
     "outboundDisabled": "Uitgaand bellen is uitgeschakeld voor dit account.",
     "enterNumber": "Voer een nummer in",
     "callerIdUnavailable": "Geen beller-ID beschikbaar voor deze bestemming. Voeg een nummer voor dit land toe of schakel er een in bij de instellingen voor nummerrotatie.",
+    "publicLineFallback": "Je belt vanaf het gedeelde Ringee-nummer: je hebt geen eigen nummer voor deze bestemming.",
     "freeTrialEnded": "⏱ Het gratis proefgesprek is beëindigd — de limiet van 1 minuut is bereikt",
     "externalCarrier": {
       "invalidDestination": "Voer een geldig internationaal nummer in dat begint met +.",

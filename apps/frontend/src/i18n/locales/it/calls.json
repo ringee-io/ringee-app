@@ -344,6 +344,7 @@
     "outboundDisabled": "Le chiamate in uscita sono disattivate per questo account.",
     "enterNumber": "Inserisci un numero",
     "callerIdUnavailable": "Nessun ID chiamante disponibile per questa destinazione. Aggiungi o attiva un numero di quel paese nelle impostazioni di rotazione dei numeri.",
+    "publicLineFallback": "Chiamata dal numero Ringee condiviso: non hai un numero tuo per questa destinazione.",
     "freeTrialEnded": "⏱ La chiamata di prova gratuita è terminata — raggiunto il limite di 1 minuto",
     "externalCarrier": {
       "invalidDestination": "Inserisci un numero internazionale valido che inizi con +.",

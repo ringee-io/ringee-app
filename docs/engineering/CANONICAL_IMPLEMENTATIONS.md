@@ -39,6 +39,14 @@ Adding a second implementation of one of these is a defect, not a refactor.
 
 ## Telephony
 
+Outbound HTTP pacing is owned by `ProviderDispatchService` in
+`platform/src/telephony/dispatch`; durable AI queue transitions are owned by
+`AiVoiceAgentCallDispatchRepository`, with orchestration in `DispatchQueueService`
+and `VoiceAgentCallService`. Credit holds extend `CreditService` /
+`CreditRepository`. Do not add a controller-specific limiter, integration queue
+or second balance mutation path. Coverage limits are documented in
+`docs/telnyx-cps-cost-protection.md`.
+
 | Responsibility                        | Owner                                                                                |
 | ------------------------------------- | ------------------------------------------------------------------------------------ |
 | Any provider command                  | `TelephonyService` — `platform/src/telephony/telephony.service.ts`                   |
@@ -273,20 +281,23 @@ pick the one matching your runtime.
 
 ## Security primitives
 
-| Responsibility                | Owner                                                                         |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| Integration API keys          | `platform/src/custom-integrations/api-key.util.ts`                            |
-| Public API key guard          | `apps/backend/src/api/guards/custom-integration-api-key.guard.ts`             |
-| Outbound webhook signing      | `platform/src/custom-integrations/webhook-signing.util.ts`                    |
-| Event catalogue (in & out)    | `platform/src/custom-integrations/event-spec.ts`                              |
-| Publishable keys              | `platform/src/sdk/publishable-key.ts`                                         |
-| SDK session / OTP / origin    | `platform/src/sdk/*`, `services/sdk/*`                                        |
-| Magic-link tokens             | `services/call-session/call-session-access-token.service.ts`                  |
-| Encryption at rest            | `CryptoService` — `platform/src/crypto/`                                      |
-| Personal API keys (MCP + CLI) | `PersonalApiKeyService` — `services/mcp-access/`; guard `PersonalApiKeyGuard` |
-| `ringee login` device flow    | `CliAuthService` — `services/mcp-access/cli-auth.service.ts`                  |
-| MCP / CLI usage metrics       | `McpUsageService` — `services/mcp-access/mcp-usage.service.ts`                |
-| Key / device-code generation  | `platform/src/api-keys/personal-api-key.util.ts`                              |
+| Responsibility                | Owner                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| Integration API keys          | `platform/src/custom-integrations/api-key.util.ts`                             |
+| Public API key guard          | `apps/backend/src/api/guards/custom-integration-api-key.guard.ts`              |
+| Public API pacing             | `apps/backend/src/api/guards/public-api-rate-limit.guard.ts` (HOOK-006)        |
+| Client idempotency key        | `clientIdempotencyKey` / `VoiceAgentCallService.startCallForClient` (HOOK-008) |
+| Call as an event carries it   | `CustomIntegrationOutboundService.getCallDetail` / `resolveCallId` (HOOK-010)  |
+| Outbound webhook signing      | `platform/src/custom-integrations/webhook-signing.util.ts`                     |
+| Event catalogue (in & out)    | `platform/src/custom-integrations/event-spec.ts`                               |
+| Publishable keys              | `platform/src/sdk/publishable-key.ts`                                          |
+| SDK session / OTP / origin    | `platform/src/sdk/*`, `services/sdk/*`                                         |
+| Magic-link tokens             | `services/call-session/call-session-access-token.service.ts`                   |
+| Encryption at rest            | `CryptoService` — `platform/src/crypto/`                                       |
+| Personal API keys (MCP + CLI) | `PersonalApiKeyService` — `services/mcp-access/`; guard `PersonalApiKeyGuard`  |
+| `ringee login` device flow    | `CliAuthService` — `services/mcp-access/cli-auth.service.ts`                   |
+| MCP / CLI usage metrics       | `McpUsageService` — `services/mcp-access/mcp-usage.service.ts`                 |
+| Key / device-code generation  | `platform/src/api-keys/personal-api-key.util.ts`                               |
 
 ## Provider registries
 

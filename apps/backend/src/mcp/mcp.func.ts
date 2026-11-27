@@ -2436,6 +2436,9 @@ export class McpFunc {
         fromNumberId: input.fromNumberId,
         variables: input.variables,
         metadata: input.metadata,
+        // An LLM tool can loop: it is background work, and may wait for
+        // capacity in the queue (CPS-003, CPS-006).
+        dispatch: { source: "agent_mcp", queue: true },
       },
     );
 
@@ -2443,7 +2446,10 @@ export class McpFunc {
       ok: true,
       callId: started.id,
       status: started.status,
-      note: "The conversation runs asynchronously. Poll get_ai_voice_agent_call for the outcome.",
+      note:
+        started.status === "queued"
+          ? "The call is waiting for call capacity and has not been dialed. Poll get_ai_voice_agent_call: it becomes initiating when it is placed."
+          : "The conversation runs asynchronously. Poll get_ai_voice_agent_call for the outcome.",
     });
   }
 

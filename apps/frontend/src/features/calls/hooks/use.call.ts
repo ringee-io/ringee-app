@@ -14,6 +14,7 @@ import { useCallStore } from '../store/call.store';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { useAuth } from '@clerk/nextjs';
 import { useNumbersStore } from '../store/number.selector.store';
+import { isPublicNumberWarningDismissed } from '../store/public-number-prompt.store';
 import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
@@ -187,6 +188,9 @@ export function useCall(call?: Call | null) {
     // as the fallback so behavior is unchanged when number rotation is off;
     // when it's on, the backend rotates to the best country-matched number.
     let callerId = selectedNumber?.phoneNumber ?? null;
+    // The server sent the call out from the shared public line because none
+    // of the workspace's numbers serves this person and destination (NUM-006).
+    let viaPublicLine = false;
     let carrierCallId: string | null = null;
     // The server's signed authorization for this one leg; the call is billed
     // to whoever it names, not to the headers this browser adds.
@@ -210,6 +214,7 @@ export function useCall(call?: Call | null) {
       });
       callerId = res?.phoneNumber ?? null;
       dialToken = res?.dialToken;
+      viaPublicLine = res?.reason === 'public_line';
       if (external) {
         if (!res?.destinationUri || !res.callToken) {
           toast.error(t('externalCarrier.unavailable'));
@@ -281,6 +286,12 @@ export function useCall(call?: Call | null) {
       console.error('❌ Could not place the call:', err);
       void abandonDial();
       throw err;
+    }
+
+    // Not a question: the call is already going out. Whoever silenced the
+    // public-number warning has said they know.
+    if (viaPublicLine && !isPublicNumberWarningDismissed()) {
+      toast.info(t('publicLineFallback'));
     }
 
     analytics.trackNewCall(`${callerId}-${number}`);

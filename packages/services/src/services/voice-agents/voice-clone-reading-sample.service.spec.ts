@@ -1,7 +1,20 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
+import { apiConfiguration } from "@ringee/configuration";
 import { VoiceCloneReadingSampleService } from "./voice-clone-reading-sample.service";
+
+const initialPersonalPilot =
+  apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS;
+// The personal-workspace case below needs a workspace outside the pilot; a
+// developer's `.env` may enrol every one (`*`), so the flag is pinned here.
+before(() => {
+  apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS = [];
+});
+after(() => {
+  apiConfiguration.AI_VOICE_AGENT_PERSONAL_PILOT_USER_IDS =
+    initialPersonalPilot;
+});
 
 const CTX = { userId: "user-1", organizationId: "org-1" };
 const GENERATED =

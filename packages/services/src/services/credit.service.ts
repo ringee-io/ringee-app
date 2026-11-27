@@ -62,6 +62,40 @@ export class CreditService {
     return this.creditRepository.getBalance(ctx);
   }
 
+  /** Admission estimates, never customer charges. The normal debit ledger
+   * settles each part by the same idempotency key when actual costs arrive. */
+  async reserveCredits(
+    ctx: OwnershipContext,
+    parts: Array<{ idempotencyKey: string; amount: number }>,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    if (
+      !parts.length ||
+      new Set(parts.map((p) => p.idempotencyKey)).size !== parts.length ||
+      parts.some(
+        (p) =>
+          !p.idempotencyKey.trim() ||
+          !Number.isFinite(p.amount) ||
+          p.amount <= 0,
+      ) ||
+      !Number.isFinite(expiresAt.getTime())
+    ) {
+      throw new BadRequestException("Invalid credit reservation");
+    }
+    return this.creditRepository.reserveOnce(
+      ctx,
+      parts.map((p) => ({
+        idempotencyKey: p.idempotencyKey,
+        amount: Math.ceil(p.amount * 1e6) / 1e6,
+      })),
+      expiresAt,
+    );
+  }
+
+  releaseReservations(ctx: OwnershipContext, keys: string[]): Promise<void> {
+    return this.creditRepository.releaseReservations(ctx, keys);
+  }
+
   /**
    * Balance plus the last top-up (amount + date), so the recharge UI can
    * suggest the previous amount as the default and show a "Last top-up: $X"

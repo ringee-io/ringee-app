@@ -3,24 +3,45 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from "@nestjs/common";
-import { AiVoiceAgentType } from "@ringee/database";
+import { AiVoiceAgentCallStatus, AiVoiceAgentType } from "@ringee/database";
 import { Public, StartVoiceAgentCallDto } from "@ringee/platform";
 import {
   VoiceAgentCallService,
   VoiceAgentResultService,
   VoiceAgentService,
 } from "@ringee/services";
+import type { Response } from "express";
 import {
   CustomIntegrationApiKeyGuard,
   type CustomIntegrationApiRequest,
 } from "../guards/custom-integration-api-key.guard";
+import { parsePagination } from "./public-api.query";
+
+/** A client's idempotency key: printable, no spaces, short enough to log. */
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:@/+=~-]{1,255}$/;
+
+/** Shape of one agent as the public API returns it. */
+interface PublicAgentSource {
+  id: string;
+  name: string;
+  type: AiVoiceAgentType;
+  status: string;
+  voiceLabel: string | null;
+  callCount: number;
+  callerNumberId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * Resource-oriented public API for the execution side of AI Voice Agents.
@@ -46,8 +67,7 @@ export class PublicAiVoiceAgentController {
     const ctx = request.customIntegrationAuth.ctx;
     const [result, callerNumbers] = await Promise.all([
       this.agents.list(ctx, {
-        page: parsePositiveInteger(page, "page"),
-        limit: parsePositiveInteger(limit, "limit", 100),
+        ...parsePagination(page, limit, { maxLimit: 100 }),
         type: parseAgentType(type),
       }),
       this.agents.listCallerNumbers(ctx),
@@ -60,20 +80,9 @@ export class PublicAiVoiceAgentController {
       ...result,
       // Public responses deliberately omit provider ids, credential references
       // and callback hashes from the underlying database row.
-      data: result.data.map((agent) => ({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
-        status: agent.status,
-        voice: agent.voiceLabel,
-        callCount: agent.callCount,
-        callerNumberId: agent.callerNumberId,
-        callsFrom: agent.callerNumberId
-          ? (callerNumbersById.get(agent.callerNumberId)?.phoneNumber ?? null)
-          : null,
-        createdAt: agent.createdAt,
-        updatedAt: agent.updatedAt,
-      })),
+      data: result.data.map((agent) =>
+        toPublicAgent(agent as PublicAgentSource, callerNumbersById),
+      ),
       callerNumbers,
       variablesByType: Object.fromEntries(
         this.agents
@@ -100,18 +109,96 @@ export class PublicAiVoiceAgentController {
     return this.results.toResult(call);
   }
 
+  @Get(":agentId")
+  async getAgent(
+    @Req() request: CustomIntegrationApiRequest,
+    @Param("agentId", ParseUUIDPipe) agentId: string,
+  ) {
+    const ctx = request.customIntegrationAuth.ctx;
+    const [agent, callerNumbers] = await Promise.all([
+      this.agents.getWithCallCount(ctx, agentId),
+      this.agents.listCallerNumbers(ctx),
+    ]);
+    return {
+      ...toPublicAgent(
+        agent as PublicAgentSource,
+        new Map(callerNumbers.map((number) => [number.id, number])),
+      ),
+      variables:
+        this.agents.listTypes().find((type) => type.type === agent.type)
+          ?.variables ?? [],
+    };
+  }
+
+  /**
+   * Starts a call. Send `Idempotency-Key` from any client that can retry: the
+   * first request places the call and a repeat under the same key returns that
+   * call (`200`, `Idempotent-Replayed: true`) without dialing again (HOOK-008).
+   * Without the header the request behaves exactly as it always has.
+   */
   @Post(":agentId/calls")
-  startCall(
+  async startCall(
     @Req() request: CustomIntegrationApiRequest,
     @Param("agentId", ParseUUIDPipe) agentId: string,
     @Body() dto: StartVoiceAgentCallDto,
+    @Headers("idempotency-key")
+    rawIdempotencyKey: string | string[] | undefined,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.calls.startCall(request.customIntegrationAuth.ctx, agentId, {
-      to: dto.to,
-      fromNumberId: dto.from_number_id,
-      variables: dto.variables,
-      metadata: dto.metadata,
-    });
+    const idempotencyKey = parseIdempotencyKey(rawIdempotencyKey);
+    const { ctx, integration } = request.customIntegrationAuth;
+    const started = await this.calls.startCallForClient(
+      ctx,
+      agentId,
+      {
+        to: dto.to,
+        fromNumberId: dto.from_number_id,
+        variables: dto.variables,
+        metadata: dto.metadata,
+      },
+      // The scope is the authenticated integration, never a client value.
+      { scope: integration.id, integrationId: integration.id, idempotencyKey },
+    );
+
+    // A call that had to wait for provider capacity (CPS-006) is ACCEPTED, not
+    // started: nothing has been dialed, and the body says so with `queued`.
+    // Queue-disabled servers retain 201 `initiating`; enabled queues always return promptly.
+    const queue = started.queue
+      ? {
+          queued_at: started.queue.queuedAt.toISOString(),
+          expires_at: started.queue.expiresAt.toISOString(),
+        }
+      : {};
+    const waiting = started.status === AiVoiceAgentCallStatus.queued;
+    if (!idempotencyKey) {
+      if (waiting) response.status(HttpStatus.ACCEPTED);
+      return { id: started.id, status: started.status, ...queue };
+    }
+    if (started.replayed) {
+      response.status(HttpStatus.OK);
+      response.setHeader("Idempotent-Replayed", "true");
+    } else if (waiting) {
+      response.status(HttpStatus.ACCEPTED);
+    }
+    return {
+      id: started.id,
+      status: started.status,
+      idempotent_replayed: started.replayed,
+      ...queue,
+    };
+  }
+
+  /**
+   * Withdraws a call that is still waiting for capacity. A call already dialing
+   * cannot be cancelled this way (`409 call_not_cancellable`), and a call of
+   * another workspace is not found.
+   */
+  @Post("calls/:callId/cancel")
+  async cancelCall(
+    @Req() request: CustomIntegrationApiRequest,
+    @Param("callId", ParseUUIDPipe) callId: string,
+  ) {
+    return this.calls.cancelQueued(request.customIntegrationAuth.ctx, callId);
   }
 
   @Get(":agentId/calls")
@@ -124,10 +211,7 @@ export class PublicAiVoiceAgentController {
     const result = await this.calls.listCalls(
       request.customIntegrationAuth.ctx,
       agentId,
-      {
-        page: parsePositiveInteger(page, "page"),
-        limit: parsePositiveInteger(limit, "limit", 100),
-      },
+      parsePagination(page, limit, { maxLimit: 100 }),
     );
     return {
       ...result,
@@ -136,25 +220,43 @@ export class PublicAiVoiceAgentController {
   }
 }
 
-function parsePositiveInteger(
-  raw: string | undefined,
-  field: string,
-  max?: number,
-): number | undefined {
+function toPublicAgent(
+  agent: PublicAgentSource,
+  callerNumbersById: Map<string, { phoneNumber: string }>,
+) {
+  return {
+    id: agent.id,
+    name: agent.name,
+    type: agent.type,
+    status: agent.status,
+    voice: agent.voiceLabel,
+    callCount: agent.callCount,
+    callerNumberId: agent.callerNumberId,
+    callsFrom: agent.callerNumberId
+      ? (callerNumbersById.get(agent.callerNumberId)?.phoneNumber ?? null)
+      : null,
+    createdAt: agent.createdAt,
+    updatedAt: agent.updatedAt,
+  };
+}
+
+function parseIdempotencyKey(
+  raw: string | string[] | undefined,
+): string | undefined {
   if (raw === undefined) return undefined;
-  const value = Number(raw);
-  if (
-    !Number.isInteger(value) ||
-    value < 1 ||
-    (max !== undefined && value > max)
-  ) {
+  if (Array.isArray(raw)) {
     throw new BadRequestException(
-      max
-        ? `${field} must be a whole number between 1 and ${max}`
-        : `${field} must be a positive whole number`,
+      "Send one Idempotency-Key header, not several",
     );
   }
-  return value;
+  const key = raw.trim();
+  if (!key) return undefined;
+  if (!IDEMPOTENCY_KEY_PATTERN.test(key)) {
+    throw new BadRequestException(
+      "Idempotency-Key must be 1 to 255 characters: letters, digits and . _ : @ / + = ~ -",
+    );
+  }
+  return key;
 }
 
 function parseAgentType(raw: string | undefined): AiVoiceAgentType | undefined {

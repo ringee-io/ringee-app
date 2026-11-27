@@ -2,13 +2,19 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BadRequestException, HttpException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import { VoiceAgentCallRefusedError } from "@ringee/platform";
 import {
   VoiceAgentCallService,
   VoiceAgentCallStartError,
   VoiceAgentCallStartOutcome,
+  clientIdempotencyKey,
 } from "./voice-agent-call.service";
 
 /**
@@ -59,6 +65,10 @@ function build(options: {
   type?: string;
   /** An agent call an earlier start already persisted under its key. */
   existingByKey?: Record<string, unknown> | null;
+  /** What each successive key lookup answers, for a start racing another. */
+  keyLookups?: Array<Record<string, unknown> | null>;
+  /** Whether the destination is on the DNC list now. */
+  onDnc?: boolean;
 }) {
   const placed: Array<{ from: string }> = [];
   const providerVariables: Array<Record<string, string>> = [];
@@ -79,6 +89,7 @@ function build(options: {
   const agentCallUpdates: Array<Record<string, unknown>> = [];
   const forciblyEnded: string[] = [];
   const createdAgentCalls: Array<Record<string, unknown>> = [];
+  const keyLookupsSeen: string[] = [];
   const service = new VoiceAgentCallService(
     {
       require: async () => agent,
@@ -102,7 +113,11 @@ function build(options: {
         createdAgentCalls.push(data);
         return { id: "agent-call-1" };
       },
-      findByIdempotencyKey: async () => options.existingByKey ?? null,
+      findByIdempotencyKey: async (key: string) => {
+        keyLookupsSeen.push(key);
+        if (options.keyLookups) return options.keyLookups.shift() ?? null;
+        return options.existingByKey ?? null;
+      },
       update: async (id: string, data: Record<string, unknown>) => {
         agentCallUpdates.push(data);
         return { id, status: data.status };
@@ -141,7 +156,10 @@ function build(options: {
         return { id: "contact-1" };
       },
     } as never,
-    { findOnDNC: async () => null } as never,
+    {
+      findOnDNC: async () =>
+        options.onDnc ? { reason: "asked not to be called" } : null,
+    } as never,
     { getBalance: async () => 100 } as never,
     { listOutboundCallerIds: async () => options.usable } as never,
     {
@@ -160,6 +178,7 @@ function build(options: {
     providerVariables,
     agentCallUpdates,
     forciblyEnded,
+    keyLookupsSeen,
   };
 }
 
@@ -543,6 +562,302 @@ describe("VoiceAgentCallService durable callers (AGENT-019)", () => {
     );
     assert.deepEqual(placed, []);
     assert.deepEqual(contacts, []);
+  });
+});
+
+describe("VoiceAgentCallService.startCallForClient (HOOK-008)", () => {
+  const SCOPE = "integration-1";
+  /** The agent call an earlier request under the key left behind. */
+  const earlier = (overrides: Record<string, unknown> = {}) => ({
+    id: "agent-call-earlier",
+    agentId: "agent-1",
+    toNumber: TO,
+    status: "initiating",
+    userId: CTX.userId,
+    organizationId: CTX.organizationId,
+    ...overrides,
+  });
+
+  it("is an ordinary start when the client sends no key", async () => {
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+    });
+
+    const result = await service.startCallForClient(
+      CTX as never,
+      "agent-1",
+      { to: TO },
+      { scope: SCOPE },
+    );
+
+    assert.equal(result.replayed, false);
+    assert.equal(placed.length, 1);
+    assert.equal(createdAgentCalls[0]!.idempotencyKey, null);
+  });
+
+  it("stores the key namespaced and hashed, and places the call once", async () => {
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+    });
+
+    const result = await service.startCallForClient(
+      CTX as never,
+      "agent-1",
+      { to: TO },
+      { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+    );
+
+    assert.equal(result.replayed, false);
+    assert.equal(placed.length, 1);
+    const stored = createdAgentCalls[0]!.idempotencyKey as string;
+    assert.equal(stored, clientIdempotencyKey(SCOPE, "crm-lead-42"));
+    assert.match(stored, /^client:integration-1:[0-9a-f]{64}$/);
+    assert.equal(stored.includes("crm-lead-42"), false);
+  });
+
+  it("keeps two integrations' identical keys apart, and apart from Ringee's own", () => {
+    const a = clientIdempotencyKey("integration-1", "k");
+    const b = clientIdempotencyKey("integration-2", "k");
+    assert.notEqual(a, b);
+    assert.equal(a.startsWith("meeting:"), false);
+    assert.equal(clientIdempotencyKey("integration-1", "k"), a);
+  });
+
+  it("answers a retry with the original call and places nothing", async () => {
+    const { service, placed, contacts, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier(),
+    });
+
+    const result = await service.startCallForClient(
+      CTX as never,
+      "agent-1",
+      { to: TO },
+      { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+    );
+
+    assert.deepEqual(result, {
+      id: "agent-call-earlier",
+      status: "initiating",
+      replayed: true,
+    });
+    assert.deepEqual(placed, []);
+    assert.deepEqual(contacts, []);
+    assert.deepEqual(createdAgentCalls, []);
+  });
+
+  it("still answers a retry after the number joined the DNC list", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier(),
+      onDnc: true,
+    });
+
+    const result = await service.startCallForClient(
+      CTX as never,
+      "agent-1",
+      { to: TO },
+      { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+    );
+
+    assert.equal(result.replayed, true);
+    assert.deepEqual(placed, []);
+  });
+
+  it("applies every gate to the first request under a key", async () => {
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+      onDnc: true,
+    });
+
+    await assert.rejects(
+      service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-43" },
+      ),
+      (error: unknown) =>
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome === VoiceAgentCallStartOutcome.terminal_rejection,
+    );
+    assert.deepEqual(placed, []);
+    assert.deepEqual(createdAgentCalls, []);
+  });
+
+  it("refuses a key that already placed a call to another number", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier({ toNumber: "+13055550000" }),
+    });
+
+    await assert.rejects(
+      service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+      ),
+      UnprocessableEntityException,
+    );
+    assert.deepEqual(placed, []);
+  });
+
+  it("refuses a key that already placed a call for another agent", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier({ agentId: "agent-2" }),
+    });
+
+    await assert.rejects(
+      service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+      ),
+      UnprocessableEntityException,
+    );
+    assert.deepEqual(placed, []);
+  });
+
+  it("compares the destination as the call stores it, not as it was typed", async () => {
+    const { service } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier(),
+    });
+
+    const result = await service.startCallForClient(
+      CTX as never,
+      "agent-1",
+      { to: "+1 (305) 555-9999" },
+      { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+    );
+
+    assert.equal(result.replayed, true);
+  });
+
+  it("never reveals another workspace's call under the same key", async () => {
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier({ organizationId: "org-2" }),
+    });
+
+    await assert.rejects(
+      service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+      ),
+      (error: unknown) =>
+        error instanceof ConflictException &&
+        !JSON.stringify(error.getResponse()).includes("agent-call-earlier"),
+    );
+    assert.deepEqual(placed, []);
+  });
+
+  it("answers the loser of a race with the winner's call", async () => {
+    const winner = earlier({ providerCallControlId: "cc-9" });
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+      // The pre-check misses; `startCall` then finds the winner's row; the
+      // fallback read finds it again.
+      keyLookups: [null, winner, winner],
+    });
+
+    const result = await service.startCallForClient(
+      CTX as never,
+      "agent-1",
+      { to: TO },
+      { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+    );
+
+    assert.equal(result.replayed, true);
+    assert.equal(result.id, "agent-call-earlier");
+    assert.deepEqual(placed, []);
+    assert.deepEqual(createdAgentCalls, []);
+  });
+
+  it("refuses to answer a retry with an attempt that failed before any call was placed", async () => {
+    // F-01: a retry (n8n's Retry On Fail, a re-sent request) carries the SAME
+    // key, so answering it with a 200 "failed" call looked like success to the
+    // workflow while nothing had ever been dialed.
+    const { service, placed, createdAgentCalls } = build({
+      usable: [NUMBERS.miami],
+      existingByKey: earlier({
+        status: "failed",
+        providerCallControlId: null,
+        lastError: "The provider could not be reached",
+      }),
+    });
+
+    await assert.rejects(
+      service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof ConflictException);
+        const body = error.getResponse() as Record<string, unknown>;
+        assert.equal(body.code, "idempotency_key_failed");
+        assert.match(String(body.message), /nothing was dialed/i);
+        assert.match(String(body.message), /new idempotency-key/i);
+        // The stored reason is internal (a database or provider message can
+        // be in it) and stays out of the answer: the message is fixed.
+        assert.doesNotMatch(String(body.message), /could not be reached/);
+        return true;
+      },
+    );
+    // Never dials, never writes: refusing is the safe answer.
+    assert.deepEqual(placed, []);
+    assert.deepEqual(createdAgentCalls, []);
+  });
+
+  it("still answers a retry with a call that was dialed and then failed", async () => {
+    // The call exists and ended badly (busy, rejected, dropped): that is the
+    // truth about it, and dialing again would be a second paid call.
+    for (const status of ["failed", "busy", "no_answer", "voicemail"]) {
+      const { service, placed } = build({
+        usable: [NUMBERS.miami],
+        existingByKey: earlier({ status, providerCallControlId: "cc-9" }),
+      });
+
+      const result = await service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+      );
+
+      assert.deepEqual(result, {
+        id: "agent-call-earlier",
+        status,
+        replayed: true,
+      });
+      assert.deepEqual(placed, []);
+    }
+  });
+
+  it("refuses the loser of a race whose winner then failed before placement", async () => {
+    const winner = earlier({ status: "failed", providerCallControlId: null });
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      keyLookups: [null, winner, winner],
+    });
+
+    await assert.rejects(
+      service.startCallForClient(
+        CTX as never,
+        "agent-1",
+        { to: TO },
+        { scope: SCOPE, idempotencyKey: "crm-lead-42" },
+      ),
+      ConflictException,
+    );
+    assert.deepEqual(placed, []);
   });
 });
 

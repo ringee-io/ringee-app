@@ -8,6 +8,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  Optional,
   Param,
   ParseUUIDPipe,
   Post,
@@ -32,6 +33,7 @@ import {
   ConcurrentCallGuardService,
   ContactService,
   CreditService,
+  DialPacingService,
   MeetingService,
   MyDayService,
   NumberPurchasedService,
@@ -111,6 +113,7 @@ export class ExtensionController {
     private readonly transcriptionService: TranscriptionService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly myDay: MyDayService,
+    @Optional() private readonly dialPacing?: DialPacingService,
   ) {}
 
   /**
@@ -584,7 +587,11 @@ export class ExtensionController {
         );
       }
 
-      // 6) Mint ephemeral WebRTC credentials (the extension never holds static ones).
+      // 6) Last gate: pace the dial (CPS-002). Every rule that can refuse has
+      //    passed, and a deferral here hands the slot back below.
+      await this.dialPacing?.paceInteractive("extension_dial", ctx);
+
+      // 7) Mint ephemeral WebRTC credentials (the extension never holds static ones).
       const credential = await this.telephonyService.createTelephonyCredential(
         user.id,
       );

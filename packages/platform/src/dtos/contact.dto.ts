@@ -77,6 +77,77 @@ export class CreateContactDto {
 
 export class UpdateContactDto extends CreateContactDto {}
 
+/**
+ * The public API's contact patch: every field is optional, the phone number
+ * included, and a field that is left out is left alone. `UpdateContactDto`
+ * cannot serve here — it inherits a required phone number from the create form.
+ */
+export class PublicUpdateContactDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  phoneNumber?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  jobTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  revenue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  companySize?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  source?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  organization?: string;
+
+  @IsOptional()
+  @IsString({ each: true })
+  tagIds?: string[];
+}
+
 export class AddNoteDto {
   @IsString()
   @IsNotEmpty()

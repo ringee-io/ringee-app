@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
+import { apiConfiguration } from "@ringee/configuration";
 import type { NumberPurchased, PoolMemberWithNumber } from "@ringee/database";
 import {
   CallerIdRotationService,
@@ -465,5 +466,112 @@ describe("caller-ID rotation", () => {
         { participating: false },
       ),
     );
+  });
+});
+
+describe("the manual dialer's public line (NUM-006)", () => {
+  const config = apiConfiguration as unknown as Record<string, unknown>;
+  const PUBLIC = "+18005550100";
+  let previous: unknown;
+  beforeEach(() => {
+    previous = config.RINGEE_PUBLIC_CALLER_ID;
+    config.RINGEE_PUBLIC_CALLER_ID = PUBLIC;
+  });
+  afterEach(() => {
+    config.RINGEE_PUBLIC_CALLER_ID = previous;
+  });
+  const publicLine = { publicLine: true };
+  const isPublicLine = (result: {
+    phoneNumber: string | null;
+    numberId: string | null;
+    reason: string;
+  }) => {
+    assert.equal(result.phoneNumber, PUBLIC);
+    assert.equal(result.numberId, null);
+    assert.equal(result.reason, RotationReason.PUBLIC_LINE);
+  };
+
+  it("calls from the public line when the workspace has no number at all", async () => {
+    const b = build([], { owned: [] });
+    isPublicLine(await b.select(undefined, publicLine));
+    const off = build([], { owned: [], enabled: false });
+    isPublicLine(await off.select(undefined, publicLine));
+  });
+  it("calls from the public line when no number is chosen or the chosen one is not authorized, with rotation off", async () => {
+    const n = member("ny", "+12125550101");
+    const b = build([n], { enabled: false });
+    isPublicLine(
+      await b.service.selectForDial(
+        ctx,
+        "+34912345678",
+        { phoneNumber: null },
+        publicLine,
+      ),
+    );
+    isPublicLine(
+      await b.service.selectForDial(
+        ctx,
+        "+34912345678",
+        { phoneNumber: "+12125550999" },
+        publicLine,
+      ),
+    );
+    const own = await b.service.selectForDial(
+      ctx,
+      "+34912345678",
+      { phoneNumber: n.number.phoneNumber, numberId: n.numberId },
+      publicLine,
+    );
+    assert.equal(own.numberId, "ny");
+    assert.equal(own.reason, RotationReason.DISABLED);
+  });
+  it("calls from the public line when no number serves the destination's country", async () => {
+    const b = build([member("ny", "+12125550101")]);
+    isPublicLine(await b.select("+525512345678", publicLine));
+    // A number for the country still wins over the public line.
+    assert.equal((await b.select("+12125550123", publicLine)).numberId, "ny");
+  });
+  it("calls from the public line instead of an excluded, cooling, flagged or disabled number", async () => {
+    for (const patch of [
+      { participating: false },
+      { rotationStatus: "cooling" },
+      { rotationStatus: "flagged" },
+      { rotationStatus: "disabled" },
+    ] as Partial<PoolMemberWithNumber>[]) {
+      const b = build([member("ny", "+12125550101", patch)]);
+      isPublicLine(await b.select(undefined, publicLine));
+    }
+  });
+  it("logs what rotation would have refused with", async () => {
+    const b = build([member("ny", "+12125550101")]);
+    await b.select("+525512345678", publicLine);
+    assert.equal(b.logs.at(-1)?.reason, RotationReason.PUBLIC_LINE);
+    assert.equal(
+      b.logs.at(-1)?.refusedAs,
+      RotationReason.NO_CALLER_ID_FOR_COUNTRY,
+    );
+  });
+  it("still refuses past the daily cap and for an unparseable destination", async () => {
+    const b = build([member("ny", "+12125550101")], { cap: 1 });
+    b.usage.set("ny", { count: 1, answered: 0, shortCalls: 0 });
+    assert.equal(
+      (await b.select(undefined, publicLine)).reason,
+      RotationReason.ALL_OVER_CAP,
+    );
+    const bad = await b.select("not a phone", publicLine);
+    assert.equal(bad.phoneNumber, null);
+    assert.equal(bad.reason, RotationReason.UNPARSEABLE);
+  });
+  it("is never used by surfaces that do not ask for it, nor when unconfigured", async () => {
+    const b = build([member("ny", "+12125550101")]);
+    const campaign = await b.select("+525512345678");
+    assert.equal(campaign.phoneNumber, null);
+    assert.equal(campaign.reason, RotationReason.NO_CALLER_ID_FOR_COUNTRY);
+    config.RINGEE_PUBLIC_CALLER_ID = undefined;
+    const unconfigured = await b.select("+525512345678", publicLine);
+    assert.equal(unconfigured.phoneNumber, null);
+    assert.equal(unconfigured.reason, RotationReason.NO_CALLER_ID_FOR_COUNTRY);
+    const off = build([], { owned: [], enabled: false });
+    assert.equal((await off.select(undefined, publicLine)).phoneNumber, null);
   });
 });

@@ -363,6 +363,7 @@
     "outboundDisabled": "Las llamadas salientes están desactivadas para esta cuenta.",
     "enterNumber": "Introduce un número",
     "callerIdUnavailable": "No hay un ID de llamante disponible para este destino. Añade o activa un número de ese país en los ajustes de rotación de ID de llamante.",
+    "publicLineFallback": "Llamando desde el número compartido de Ringee: no tienes un número propio para este destino.",
     "freeTrialEnded": "⏱ La llamada de prueba gratuita terminó: se alcanzó el límite de 1 minuto"
   },
   "numberSelector": {

@@ -1,6 +1,7 @@
 import { HttpException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import { TelnyxVoiceAgentService } from "./telnyx.voice-agent.service";
+import { ProviderDispatchDeferredError } from "../../telephony/dispatch/dispatch.types";
 import type { TelnyxClient } from "../../telephony/telnyx/telnyx.client";
 import type { TelnyxKnowledgeStore } from "./telnyx.knowledge.store";
 import {
@@ -28,6 +29,13 @@ function serviceRejecting(error: unknown) {
  * proves it did not; a durable caller retries nothing else (AGENT-019).
  */
 describe("Telnyx outbound agent call start", () => {
+  it("preserves a proven-unsent dispatch denial for durable requeue", async () => {
+    const error = new ProviderDispatchDeferredError("busy", 250);
+    await expect(serviceRejecting(error).startCall(REQUEST)).rejects.toBe(
+      error,
+    );
+  });
+
   it("reports a 4xx as a refusal, keeping Telnyx's answer", async () => {
     const error = new HttpException({ errors: [{ code: "10016" }] }, 422);
 

@@ -351,6 +351,7 @@
     "outboundDisabled": "Ausgehende Anrufe sind für dieses Konto deaktiviert.",
     "enterNumber": "Nummer eingeben",
     "callerIdUnavailable": "Keine Anrufer-ID für dieses Ziel verfügbar. Fügen Sie in den Einstellungen zur Rufnummernrotation eine Nummer für dieses Land hinzu oder aktivieren Sie eine.",
+    "publicLineFallback": "Anruf über die gemeinsam genutzte Ringee-Nummer: Sie haben keine eigene Nummer für dieses Ziel.",
     "freeTrialEnded": "⏱ Der kostenlose Testanruf ist beendet — die Grenze von 1 Minute ist erreicht",
     "externalCarrier": {
       "invalidDestination": "Geben Sie eine gültige internationale Nummer ein, die mit + beginnt.",

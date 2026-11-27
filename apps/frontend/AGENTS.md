@@ -116,9 +116,12 @@ dialer's number selector used to load — so a call from any other surface went
 out from the shared public number. `useDial` loads the numbers
 (`ensureNumbersLoaded`) before it dials, `handleCall` reads the selection at
 dial time, and a call that will go out from the public number is announced
-first (`confirmPublicNumberCall`, which the user can silence per browser). The
-campaign dialer never uses the public number: its caller ID is resolved
-server-side.
+first (`confirmPublicNumberCall`, which the user can silence per browser).
+When the user has no number of the workspace for the destination, the
+pre-flight itself sends the call out from the public number (reason
+`public_line`, `NUM-006`) and `handleCall` says so with a toast, under the
+same silence. The campaign dialer never uses the public number: its caller ID
+is resolved server-side.
 
 The full active-call modal keeps contact, script and booking panels mounted
 through wrap-up. Call notes use the shared store's `outcomeNote` during both

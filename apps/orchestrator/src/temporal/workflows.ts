@@ -8,7 +8,7 @@
  * Exported function names MUST match WORKFLOW_NAMES in
  * packages/platform/src/temporal/contracts.ts — main.ts asserts this on boot.
  */
-import { proxyActivities } from "@temporalio/workflow";
+import { proxyActivities, sleep } from "@temporalio/workflow";
 import type { Activities } from "./activities";
 import type {
   ProcessCallRecordingInput,
@@ -44,6 +44,16 @@ const transcriptionJobs = proxyActivities<Activities>({
  */
 const periodicJobs = proxyActivities<Activities>({
   startToCloseTimeout: "8 minutes",
+  retry: { maximumAttempts: 1 },
+});
+
+/**
+ * One pass of the dispatch pump paces itself against the shared outbound clock
+ * and may run for most of a minute, so it gets its own bound. A single attempt:
+ * the pump is safe to run again, and the workflow loop is the retry.
+ */
+const dispatchJobs = proxyActivities<Activities>({
+  startToCloseTimeout: "3 minutes",
   retry: { maximumAttempts: 1 },
 });
 
@@ -183,4 +193,29 @@ export async function mcpUsagePruneWorkflow(): Promise<void> {
 
 export async function productAnalyticsDrainWorkflow(): Promise<void> {
   await periodicJobs.drainProductAnalytics();
+}
+
+/**
+ * Dispatches the agent calls waiting for provider capacity (CPS-006). Started
+ * by its Schedule and, the moment a call has to wait, by the backend. It keeps
+ * going while calls are waiting: when none is due yet it sleeps until the
+ * soonest one is (never long: a deferral's hint is seconds), and it stops when
+ * the queue is empty or after a bounded number of passes, which the Schedule
+ * restarts. Several can run at once; every claim is a lease and every grant
+ * comes from the one shared clock.
+ */
+export async function dispatchQueueWorkflow(): Promise<void> {
+  for (let pass = 0; pass < 20; pass++) {
+    const result = await dispatchJobs.runDispatchPass();
+    if (result.remaining === 0) return;
+    if (!result.progressed) {
+      if (result.nextDueInMs === null) return;
+      await sleep(Math.min(Math.max(result.nextDueInMs, 250), 5_000));
+    }
+  }
+}
+
+/** The hourly statistics, expiry of what waited too long, and the alerts. */
+export async function dispatchMaintenanceWorkflow(): Promise<void> {
+  await periodicJobs.runDispatchMaintenance();
 }

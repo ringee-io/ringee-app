@@ -56,6 +56,25 @@ describe("TelnyxService.stopStreaming", () => {
   });
 });
 
+describe("TelnyxService call commands", () => {
+  /**
+   * A call control id is a webhook's value: encoded, a `?` or `/` in it stays
+   * inside its own path segment instead of turning the command into a request
+   * to another Telnyx endpoint.
+   */
+  it("puts the call control id in the path as one encoded segment", async () => {
+    const post = vi.fn(() => Promise.resolve({}));
+    const service = new TelnyxService({ post } as unknown as TelnyxClient);
+
+    await service.hangupCall("v3:cc-1/actions/transfer?");
+
+    expect(post).toHaveBeenCalledWith(
+      "/calls/v3%3Acc-1%2Factions%2Ftransfer%3F/actions/hangup",
+      expect.any(Object),
+    );
+  });
+});
+
 describe("TelnyxService.getNumberListPrices", () => {
   /** The shape Telnyx answers `/pricing` with: CSV, whatever you ask for. */
   const PRICE_LIST = [

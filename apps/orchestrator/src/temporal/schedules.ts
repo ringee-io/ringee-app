@@ -138,6 +138,26 @@ const SCHEDULES: ScheduleDef[] = [
     catchupWindow: "5m",
   },
   {
+    // Outbound pacing (CPS-006): the pump that places agent calls waiting for
+    // provider capacity. The backend also starts it the moment a call has to
+    // wait, so this is the safety net — a pump that stopped, a deploy — and its
+    // cadence only has to be short enough that a missed wake-up costs seconds.
+    // SKIP overlap: while a pump runs the tick is simply not started.
+    id: "ringee.dispatch-queue",
+    workflow: WORKFLOW_NAMES.dispatchQueue,
+    every: "15s",
+    catchupWindow: "2m",
+  },
+  {
+    // Outbound pacing (CPS-009/011): flushes the hour's counters to PostgreSQL,
+    // expires what waited too long and evaluates the alerts. Nothing here is
+    // latency sensitive, so it keeps the minute the other drains use.
+    id: "ringee.dispatch-maintenance",
+    workflow: WORKFLOW_NAMES.dispatchMaintenance,
+    every: "60s",
+    catchupWindow: "5m",
+  },
+  {
     // Retention for the MCP / CLI usage log. Events only age out by the day,
     // so one run a day is enough; a missed day is simply caught up next run.
     id: "ringee.mcp-usage-prune",

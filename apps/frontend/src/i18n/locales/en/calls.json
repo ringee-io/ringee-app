@@ -381,6 +381,7 @@
     "outboundDisabled": "Outbound calling is disabled for this account.",
     "enterNumber": "Enter number",
     "callerIdUnavailable": "No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings.",
+    "publicLineFallback": "Calling from the shared Ringee number: you don't have a number of your own for this destination.",
     "externalCarrier": {
       "invalidDestination": "Enter a valid international number starting with +.",
       "noCredit": "You don't have enough credit to place this call.",

@@ -8,7 +8,8 @@
     "build": "nest build",
     "start:prod": "node dist/apps/backend/src/main",
     "generate:number-pricing": "TS_NODE_PROJECT=tsconfig.json dotenv -e ../../.env -- ts-node -r tsconfig-paths/register scripts/generate-number-pricing.ts",
-    "dev": "nest start --watch --env-file ../../.env"
+    "dev": "nest start --watch --env-file ../../.env",
+    "test": "TS_NODE_PROJECT=tsconfig.json TS_NODE_TRANSPILE_ONLY=true node --env-file-if-exists=../../.env --require ts-node/register --require tsconfig-paths/register --test \"src/**/*.spec.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

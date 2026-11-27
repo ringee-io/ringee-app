@@ -60,6 +60,8 @@ const PROVIDER_STATUS_MAP: Record<string, AiVoiceAgentCallStatus> = {
 export interface VoiceAgentCallResult {
   call_id: string;
   status: AiVoiceAgentCallStatus;
+  queued_at?: string;
+  expires_at?: string;
   outcome: AiVoiceAgentOutcome | null;
   summary: string | null;
   sentiment: string | null;
@@ -676,10 +678,21 @@ export class VoiceAgentResultService {
   }
 
   /** The §16 shape, assembled from the row. */
-  toResult(agentCall: AiVoiceAgentCall): VoiceAgentCallResult {
+  toResult(
+    agentCall: AiVoiceAgentCall & {
+      dispatch?: { queuedAt: Date; expiresAt: Date } | null;
+    },
+  ): VoiceAgentCallResult {
     return {
       call_id: agentCall.id,
       status: agentCall.status,
+      ...(agentCall.status === AiVoiceAgentCallStatus.queued &&
+      agentCall.dispatch
+        ? {
+            queued_at: agentCall.dispatch.queuedAt.toISOString(),
+            expires_at: agentCall.dispatch.expiresAt.toISOString(),
+          }
+        : {}),
       outcome: normalizeVoiceAgentOutcome(agentCall.outcome),
       summary: agentCall.summary,
       sentiment: agentCall.sentiment,

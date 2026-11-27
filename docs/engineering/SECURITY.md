@@ -30,8 +30,11 @@ legitimately, in six groups:
    Custom Integration inbound. Authorization = signature.
 2. **SDK endpoints** (`/api/v1/sdk/*`) — authorization = `SdkSessionGuard` +
    origin, applied on top of `@Public()`.
-3. **Public API endpoints** (`/api/v1/ai-voice-agents/*`) — authorization =
-   `CustomIntegrationApiKeyGuard` over a hashed, active integration key.
+3. **Public API endpoints** (`/api/v1/ai-voice-agents/*`, `/api/v1/contacts`,
+   `/api/v1/calls`) — authorization = `CustomIntegrationApiKeyGuard` over a
+   hashed, active integration key; the contact and call routes add
+   `PublicApiRateLimitGuard` (HOOK-006). The workspace comes only from the key
+   (HOOK-007).
 4. **Magic-link session endpoints** — authorization = hashed token.
 5. **MCP transports** — `/api/mcp` and `/api/mcp/sse` = `PersonalApiKeyGuard`
    over a hashed, unrevoked personal key; `/api/mcp/chatgpt/*` = a verified Clerk

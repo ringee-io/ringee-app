@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Optional,
   Patch,
   Post,
   Put,
@@ -34,6 +35,7 @@ import {
   CallerIdRotationService,
   ConcurrentCallGuardService,
   CallService,
+  DialPacingService,
 } from "@ringee/services";
 import {
   DialDevice,
@@ -117,6 +119,7 @@ export class CallerIdRotationController {
     private readonly rotationService: CallerIdRotationService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly callService: CallService,
+    @Optional() private readonly dialPacing?: DialPacingService,
   ) {}
 
   /**
@@ -171,8 +174,13 @@ export class CallerIdRotationController {
             prepared.callToken,
           );
         }
+        // The browser's leg and the carrier leg both spend the account's
+        // budget; the first is paced here, the second at its own egress.
+        await this.dialPacing?.paceInteractive("web_dial", ctx);
         return prepared;
       }
+      // A manual dial with no number of the workspace for this destination
+      // goes out from the shared public line rather than failing (NUM-006).
       const selection = await this.rotationService.selectForDial(
         ctx,
         (body?.destination ?? "").trim(),
@@ -180,13 +188,16 @@ export class CallerIdRotationController {
           phoneNumber: body?.fallbackPhoneNumber ?? null,
           numberId: body?.fallbackNumberId ?? null,
         },
-        { allowOverCap: body?.allowOverCap === true },
+        { allowOverCap: body?.allowOverCap === true, publicLine: true },
       );
 
       if (!selection?.phoneNumber) {
         await this.releaseOwnLease(user.id, decision.leaseId);
         return selection;
       }
+
+      // Last gate: a dial a rule refused spent no slot (CPS-002).
+      await this.dialPacing?.paceInteractive("web_dial", ctx);
 
       return {
         ...selection,

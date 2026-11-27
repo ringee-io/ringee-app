@@ -29,6 +29,7 @@ export * from "./billing-notification.service";
 export * from "./campaign.service";
 export * from "./campaign-lead-write.service";
 export * from "./outbound";
+export * from "./dispatch";
 export * from "./tag.service";
 export * from "./call-script.service";
 export * from "./onboarding.service";

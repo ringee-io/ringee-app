@@ -5,7 +5,11 @@ import {
   AiVoiceAgentOutcome,
   Prisma,
 } from "@prisma/client";
-import { buildOwnershipFilter, OwnershipContext } from "@ringee/platform";
+import {
+  buildOwnershipFilter,
+  workspaceKeyOf,
+  OwnershipContext,
+} from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
 
 /**
@@ -23,6 +27,29 @@ export class AiVoiceAgentCallRepository {
     return this.prisma.aiVoiceAgentCall.create({ data });
   }
 
+  /** Inline AI starts and queued commits share the same workspace lock. Human
+   * calling remains subject to its existing, separate concurrency policy. */
+  createIfBelowLimit(
+    ctx: OwnershipContext,
+    data: Prisma.AiVoiceAgentCallUncheckedCreateInput,
+    cap: { max: number; liveSince: Date },
+  ): Promise<AiVoiceAgentCall | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`dispatch-commit:${workspaceKeyOf(ctx)}`}, 0))`;
+      const live = await tx.aiVoiceAgentCall.count({
+        where: {
+          ...buildOwnershipFilter(ctx),
+          status: { in: ["created", "initiating", "ringing", "in_progress"] },
+          OR: [
+            { dispatch: { dispatchedAt: { gte: cap.liveSince } } },
+            { dispatch: null, createdAt: { gte: cap.liveSince } },
+          ],
+        },
+      });
+      return live < cap.max ? tx.aiVoiceAgentCall.create({ data }) : null;
+    });
+  }
+
   findById(id: string): Promise<AiVoiceAgentCall | null> {
     return this.prisma.aiVoiceAgentCall.findUnique({ where: { id } });
   }
@@ -34,6 +61,7 @@ export class AiVoiceAgentCallRepository {
   ): Promise<AiVoiceAgentCall | null> {
     return this.prisma.aiVoiceAgentCall.findFirst({
       where: { id, ...buildOwnershipFilter(ctx) },
+      include: { dispatch: { select: { queuedAt: true, expiresAt: true } } },
     });
   }
 
@@ -74,6 +102,32 @@ export class AiVoiceAgentCallRepository {
     });
   }
 
+  /** Retire only an inline start proven unsent by the dispatch gate. The
+   * failed operation stays in history; the same client key may retry later.
+   * A queue operation or any provider handle makes retirement impossible. */
+  async releaseUnsentIdempotencyKey(
+    ctx: OwnershipContext,
+    id: string,
+    idempotencyKey: string,
+  ): Promise<boolean> {
+    const result = await this.prisma.aiVoiceAgentCall.updateMany({
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        idempotencyKey,
+        status: AiVoiceAgentCallStatus.failed,
+        providerCallControlId: null,
+        dispatch: null,
+        OR: [
+          { callId: null },
+          { call: { is: { callControlId: null, providerCallId: null } } },
+        ],
+      },
+      data: { idempotencyKey: null },
+    });
+    return result.count === 1;
+  }
+
   /**
    * The workspace's recent calls to one number, newest first — the history a
    * new conversation with that person is given as context.
@@ -108,6 +162,10 @@ export class AiVoiceAgentCallRepository {
         createdAt: { gte: since },
         status: {
           in: [
+            // A call waiting for capacity will ring this person as soon as it
+            // is placed, so it counts: an automation must not queue a second
+            // one behind it.
+            AiVoiceAgentCallStatus.queued,
             AiVoiceAgentCallStatus.created,
             AiVoiceAgentCallStatus.initiating,
             AiVoiceAgentCallStatus.ringing,
